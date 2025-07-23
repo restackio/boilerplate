@@ -1,0 +1,16 @@
+{
+  "name": "@boilerplate/database",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Database schema and seed data for the boilerplate",
+  "main": "index.js",
+  "scripts": {
+    "build": "echo 'Database package does not need build step'",
+    "lint": "echo 'Database package does not need linting'",
+    "type-check": "echo 'Database package does not need type checking'"
+  },
+  "files": [
+    "schema.sql",
+    "seed.sql"
+  ]
+} 

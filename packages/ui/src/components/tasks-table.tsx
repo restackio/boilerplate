@@ -36,11 +36,12 @@ import { EmptyState } from "./ui/empty-state";
 export interface Task {
   id: string;
   title: string;
-  team: string;
-  agents: string[];
-  status: "pending" | "in-progress" | "resolved" | "completed";
-  humanReview: string;
-  priority: "Low" | "Medium" | "High" | "Critical";
+  description?: string;
+  status: "open" | "active" | "waiting" | "closed" | "completed";
+  agent_id: string;
+  agent_name: string;
+  assigned_to_id: string;
+  assigned_to_name: string;
   created: string;
   updated: string;
 }
@@ -59,13 +60,6 @@ export const taskColumnsConfig = [
     .build(),
   dtf
     .option()
-    .id("team")
-    .accessor((row: Task) => row.team)
-    .displayName("Team")
-    .icon(Shield)
-    .build(),
-  dtf
-    .option()
     .id("status")
     .accessor((row: Task) => row.status)
     .displayName("Status")
@@ -73,10 +67,10 @@ export const taskColumnsConfig = [
     .build(),
   dtf
     .option()
-    .id("priority")
-    .accessor((row: Task) => row.priority)
-    .displayName("Priority")
-    .icon(Flag)
+    .id("agent")
+    .accessor((row: Task) => row.agent_name)
+    .displayName("Agent")
+    .icon(Shield)
     .build(),
 ] as const;
 
@@ -91,18 +85,20 @@ export const taskTeamOptions = [
 
 // Status options
 export const taskStatusOptions = [
-  { label: "Pending", value: "pending", icon: Clock },
-  { label: "In Progress", value: "in-progress", icon: Activity },
-  { label: "Resolved", value: "resolved", icon: CheckSquare },
+  { label: "Open", value: "open", icon: Clock },
+  { label: "Active", value: "active", icon: Activity },
+  { label: "Waiting", value: "waiting", icon: AlertTriangle },
+  { label: "Closed", value: "closed", icon: CheckSquare },
   { label: "Completed", value: "completed", icon: CheckSquare },
 ];
 
-// Priority options
-export const taskPriorityOptions = [
-  { label: "Low", value: "Low", icon: Flag },
-  { label: "Medium", value: "Medium", icon: Flag },
-  { label: "High", value: "High", icon: Flag },
-  { label: "Critical", value: "Critical", icon: Flag },
+// Agent options (placeholder - would be populated from backend)
+export const taskAgentOptions = [
+  { label: "GitHub Support Agent", value: "github-support", icon: Bot },
+  { label: "Slack Support Agent", value: "slack-support", icon: Bot },
+  { label: "Email Support Agent", value: "email-support", icon: Bot },
+  { label: "Alerts Monitor Agent", value: "alerts-monitor", icon: Bot },
+  { label: "Intercom Support Agent", value: "intercom-support", icon: Bot },
 ];
 
 // Problem size options
@@ -112,30 +108,19 @@ export const taskProblemSizeOptions = [
   { label: "Large", value: "Large", icon: AlertTriangle },
 ];
 
-// Helper functions
+// Helper function for status colors
 const getStatusColor = (status: string) => {
   switch (status) {
-    case "resolved":
+    case "completed":
       return "bg-green-100 text-green-800";
-    case "in-progress":
+    case "active":
       return "bg-blue-100 text-blue-800";
-    case "pending":
+    case "waiting":
       return "bg-yellow-100 text-yellow-800";
-    default:
+    case "closed":
       return "bg-gray-100 text-gray-800";
-  }
-};
-
-const getPriorityColor = (priority: string) => {
-  switch (priority) {
-    case "Critical":
-      return "bg-red-100 text-red-800";
-    case "High":
+    case "open":
       return "bg-orange-100 text-orange-800";
-    case "Medium":
-      return "bg-yellow-100 text-yellow-800";
-    case "Low":
-      return "bg-gray-100 text-gray-800";
     default:
       return "bg-gray-100 text-gray-800";
   }
@@ -159,9 +144,8 @@ export function TasksTable({
       data,
       columnsConfig: taskColumnsConfig,
       options: {
-        team: taskTeamOptions,
         status: taskStatusOptions,
-        priority: taskPriorityOptions,
+        agent: taskAgentOptions,
       },
     });
 
@@ -192,45 +176,21 @@ export function TasksTable({
           <TableHeader>
             <TableRow>
               <TableHead>Task</TableHead>
-              <TableHead>Team</TableHead>
-              <TableHead>Agents</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Human Review</TableHead>
-              <TableHead>Priority</TableHead>
+              <TableHead>Agent</TableHead>
+              <TableHead>Assigned To</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredData.map((task) => (
-              <TableRow key={task.id}>
+              <TableRow key={task.id} className="cursor-pointer hover:bg-muted/50" onClick={() => onViewTask?.(task.id)}>
                 <TableCell>
                   <div className="space-y-1">
                     <div className="font-medium">{task.title}</div>
                     <div className="text-sm text-muted-foreground">
                       {task.id}
                     </div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Badge variant="secondary" className={`border-0 w-fit`}>
-                    {task.team}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap gap-1">
-                    {task.agents.slice(0, 2).map((agent, idx) => (
-                      <span
-                        key={idx}
-                        className="text-xs bg-primary-foreground rounded px-2 py-1 border"
-                      >
-                        {agent}
-                      </span>
-                    ))}
-                    {task.agents.length > 2 && (
-                      <span className="text-xs text-muted-foreground">
-                        +{task.agents.length - 2}
-                      </span>
-                    )}
                   </div>
                 </TableCell>
                 <TableCell>
@@ -242,22 +202,24 @@ export function TasksTable({
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center space-x-2">
-                    <Users className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">{task.humanReview}</span>
+                    <Bot className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm">{task.agent_name}</span>
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Badge
-                    className={`${getPriorityColor(task.priority)} border-0 w-fit`}
-                  >
-                    {task.priority}
-                  </Badge>
+                  <div className="flex items-center space-x-2">
+                    <User className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm">{task.assigned_to_name}</span>
+                  </div>
                 </TableCell>
                 <TableCell>
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => onViewTask?.(task.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onViewTask?.(task.id);
+                    }}
                   >
                     <Eye className="h-4 w-4 mr-2" />
                     View
