@@ -21,6 +21,8 @@ import {
   DollarSign,
   Brain,
   HelpCircle,
+  ChevronRight,
+  Hash,
 } from "lucide-react";
 import {
   Tooltip,
@@ -42,174 +44,53 @@ import {
 } from "./ui/table";
 import { EmptyState } from "./ui/empty-state";
 
-// Agent experiment data type
-export interface AgentExperiment {
+export interface Agent {
   id: string;
   name: string;
-  version?: string;
-  model: "openai-gpt40mini" | "google-gemini2.5pro" | "anthropic-claude4sonnet";
-  description: string;
-  instructions?: string;
-  channel: "github" | "slack" | "email" | "alerts";
-  status: "active" | "testing" | "paused";
-  startDate: string;
-  duration: string;
-  traffic: number;
-  baseline: {
-    approvalRate: number;
-    averageSteps: number;
-    responseTime: string;
-    costPerResolution: number;
-  };
-  current: {
-    approvalRate: number;
-    averageSteps: number;
-    responseTime: string;
-    costPerResolution: number;
-  };
-  improvement: {
-    approvalRate: number;
-    averageSteps: number;
-    responseTime: number;
-    costPerResolution: number;
-  };
-  userTypes: string[];
-  integrations: string[];
+  version: string;
+  description?: string;
+  instructions: string;
+  status: "active" | "inactive";
+  parent_agent_id?: string;
+  created_at?: string;
+  updated_at?: string;
+  version_count?: number;
+  latest_version?: string;
 }
 
 // Column configuration helper
-const dtf = createColumnConfigHelper<AgentExperiment>();
+const dtf = createColumnConfigHelper<Agent>();
 
 // Column configurations
 export const agentColumnsConfig = [
   dtf
     .text()
     .id("name")
-    .accessor((row: AgentExperiment) => row.name)
+    .accessor((row: Agent) => row.name)
     .displayName("Agent Name")
     .icon(Bot)
     .build(),
   dtf
     .option()
-    .id("model")
-    .accessor((row: AgentExperiment) => row.model)
-    .displayName("Model")
-    .icon(Brain)
-    .build(),
-  dtf
-    .option()
-    .id("channel")
-    .accessor((row: AgentExperiment) => row.channel)
-    .displayName("Channel")
-    .icon(Server)
-    .build(),
-  dtf
-    .option()
     .id("status")
-    .accessor((row: AgentExperiment) => row.status)
+    .accessor((row: Agent) => row.status)
     .displayName("Status")
     .icon(CheckCircle)
     .build(),
-  dtf
-    .number()
-    .id("approvalRate")
-    .accessor((row: AgentExperiment) => row.current.approvalRate)
-    .displayName("Approval Rate")
-    .icon(ThumbsUp)
-    .build(),
-  dtf
-    .number()
-    .id("averageSteps")
-    .accessor((row: AgentExperiment) => row.current.averageSteps)
-    .displayName("Average Steps")
-    .icon(GitBranch)
-    .build(),
-  dtf
-    .text()
-    .id("responseTime")
-    .accessor((row: AgentExperiment) => row.current.responseTime)
-    .displayName("Response Time")
-    .icon(Clock)
-    .build(),
-  dtf
-    .number()
-    .id("costPerResolution")
-    .accessor((row: AgentExperiment) => row.current.costPerResolution)
-    .displayName("Cost per Resolution")
-    .icon(DollarSign)
-    .build(),
 ] as const;
-
-// Model options
-export const modelOptions: Array<{ label: string; value: string; icon: any }> =
-  [
-    { label: "OpenAI GPT-4o Mini", value: "openai-gpt40mini", icon: Brain },
-    {
-      label: "Google Gemini 2.5 Pro",
-      value: "google-gemini2.5pro",
-      icon: Brain,
-    },
-    {
-      label: "Anthropic Claude 4 Sonnet",
-      value: "anthropic-claude4sonnet",
-      icon: Brain,
-    },
-  ];
-
-// Channel options
-export const channelOptions: Array<{
-  label: string;
-  value: string;
-  icon: any;
-}> = [
-  { label: "GitHub", value: "github", icon: Github },
-  { label: "Slack", value: "slack", icon: Slack },
-  { label: "Email", value: "email", icon: Mail },
-  { label: "Alerts", value: "alerts", icon: Server },
-];
 
 // Status options
 export const statusOptions: Array<{ label: string; value: string; icon: any }> =
   [
     { label: "Active", value: "active", icon: Play },
-    { label: "Testing", value: "testing", icon: CheckCircle },
-    { label: "Paused", value: "paused", icon: Pause },
+    { label: "Inactive", value: "inactive", icon: Pause },
   ];
-
-// Helper functions
-const getChannelIcon = (channel: string) => {
-  switch (channel) {
-    case "github":
-      return <Github className="h-4 w-4 text-gray-700" />;
-    case "slack":
-      return <Slack className="h-4 w-4 text-purple-600" />;
-    case "email":
-      return <Mail className="h-4 w-4 text-blue-600" />;
-    case "alerts":
-      return <Server className="h-4 w-4 text-orange-600" />;
-    default:
-      return <Bot className="h-4 w-4" />;
-  }
-};
-
-const getUserTypeIcon = (userType: string) => {
-  switch (userType) {
-    case "Enterprise":
-      return <Crown className="h-3 w-3 text-yellow-600" />;
-    case "Paid":
-      return <Shield className="h-3 w-3 text-blue-600" />;
-    default:
-      return <Users className="h-3 w-3 text-gray-600" />;
-  }
-};
 
 const getStatusColor = (status: string) => {
   switch (status) {
     case "active":
       return "bg-green-100 text-green-800";
-    case "testing":
-      return "bg-blue-100 text-blue-800";
-    case "paused":
+    case "inactive":
       return "bg-gray-100 text-gray-800";
     default:
       return "bg-gray-100 text-gray-800";
@@ -220,79 +101,15 @@ const getStatusIcon = (status: string) => {
   switch (status) {
     case "active":
       return <Play className="h-3 w-3" />;
-    case "testing":
-      return <CheckCircle className="h-3 w-3" />;
-    case "paused":
+    case "inactive":
       return <Pause className="h-3 w-3" />;
     default:
       return <AlertTriangle className="h-3 w-3" />;
   }
 };
 
-const formatImprovement = (value: number, type: string) => {
-  const isPositive =
-    type === "averageSteps" ||
-    type === "responseTime" ||
-    type === "costPerResolution"
-      ? value < 0
-      : value > 0;
-  let displayValue;
-  switch (type) {
-    case "responseTime":
-      displayValue = `${Math.abs(value)}m`;
-      break;
-    case "costPerResolution":
-      displayValue = `$${Math.abs(value).toFixed(2)}`;
-      break;
-    default:
-      displayValue = `${Math.abs(value)}%`;
-  }
-  const icon = isPositive ? (
-    <TrendingUp className="h-3 w-3" />
-  ) : (
-    <TrendingDown className="h-3 w-3" />
-  );
-  const colorClass = isPositive ? "text-green-600" : "text-red-600";
-
-  return (
-    <div className={`flex items-center space-x-1 ${colorClass}`}>
-      {icon}
-      <span className="text-xs font-medium">{displayValue}</span>
-    </div>
-  );
-};
-
-const getModelDisplayName = (model: string) => {
-  switch (model) {
-    case "openai-gpt40mini":
-      return "GPT-4o Mini";
-    case "google-gemini2.5pro":
-      return "Gemini 2.5 Pro";
-    case "anthropic-claude4sonnet":
-      return "Claude 4 Sonnet";
-    default:
-      return model;
-  }
-};
-
-// Tooltip content for metrics
-const getTooltipContent = (metric: string) => {
-  switch (metric) {
-    case "approvalRate":
-      return "Percentage of agent responses that were approved by human reviewers without requiring modifications";
-    case "averageSteps":
-      return "Average number of steps or interactions required to resolve a task from start to completion";
-    case "responseTime":
-      return "Average time from when a request is received to when the agent provides its first response";
-    case "costPerResolution":
-      return "Total cost (API calls, compute, etc.) divided by the number of successfully resolved tasks";
-    default:
-      return "";
-  }
-};
-
 interface AgentsTableProps {
-  data: AgentExperiment[];
+  data: Agent[];
   onRowClick?: (agentId: string) => void;
 }
 
@@ -304,8 +121,6 @@ export function AgentsTable({ data, onRowClick }: AgentsTableProps) {
       data,
       columnsConfig: agentColumnsConfig,
       options: {
-        model: modelOptions,
-        channel: channelOptions,
         status: statusOptions,
       },
     });
@@ -337,133 +152,87 @@ export function AgentsTable({ data, onRowClick }: AgentsTableProps) {
               <TableRow>
                 <TableHead>Agent</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>
-                  <Tooltip>
-                    <TooltipTrigger className="flex items-center gap-1">
-                      Approval Rate
-                      <HelpCircle className="h-3 w-3" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>{getTooltipContent("approvalRate")}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TableHead>
-                <TableHead>
-                  <Tooltip>
-                    <TooltipTrigger className="flex items-center gap-1">
-                      Avg Steps
-                      <HelpCircle className="h-3 w-3" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>{getTooltipContent("averageSteps")}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TableHead>
-                <TableHead>
-                  <Tooltip>
-                    <TooltipTrigger className="flex items-center gap-1">
-                      Response Time
-                      <HelpCircle className="h-3 w-3" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>{getTooltipContent("responseTime")}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TableHead>
-                <TableHead>
-                  <Tooltip>
-                    <TooltipTrigger className="flex items-center gap-1">
-                      Cost/Resolution
-                      <HelpCircle className="h-3 w-3" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>{getTooltipContent("costPerResolution")}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TableHead>
-                <TableHead>Model</TableHead>
-                <TableHead>MCPs</TableHead>
+                <TableHead>Latest Version</TableHead>
+                <TableHead>Versions</TableHead>
+                <TableHead>Created At</TableHead>
+                <TableHead>Updated At</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredData.map((experiment) => (
+              {filteredData.map((agent) => (
                 <TableRow
-                  key={experiment.id}
+                  key={agent.id}
                   className={
-                    onRowClick ? "cursor-pointer hover:bg-muted/50" : ""
+                    onRowClick ? "cursor-pointer hover:bg-muted/50 transition-colors group" : ""
                   }
-                  onClick={() => onRowClick?.(experiment.id)}
+                  onClick={() => onRowClick?.(agent.id)}
                 >
                   <TableCell>
                     <div className="space-y-1">
-                      <div className="font-medium">{experiment.name}</div>
+                      <div className="font-medium flex items-center gap-2">
+                        {agent.name}
+                      </div>
                       <div className="text-sm text-muted-foreground line-clamp-1">
-                        {experiment.description}
+                        {agent.description}
                       </div>
                     </div>
                   </TableCell>
                   <TableCell>
                     <Badge
-                      className={`${getStatusColor(experiment.status)} border-0 flex items-center space-x-1 w-fit`}
+                      className={`${getStatusColor(agent.status)} border-0 flex items-center space-x-1 w-fit`}
                     >
-                      {getStatusIcon(experiment.status)}
-                      <span>{experiment.status}</span>
+                      {getStatusIcon(agent.status)}
+                      <span>{agent.status}</span>
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <div className="space-y-1">
-                      <div className="font-medium">
-                        {experiment.current.approvalRate}%
-                      </div>
-                    </div>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex items-center gap-2">
+                          <GitBranch className="h-3 w-3 text-muted-foreground" />
+                          <Badge variant="outline" className="font-mono text-xs">
+                            {agent.latest_version || agent.version}
+                          </Badge>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Latest version: {agent.latest_version || agent.version}</p>
+                        {agent.version_count && agent.version_count > 1 && (
+                          <p className="text-xs text-muted-foreground">
+                            Current version: {agent.version}
+                          </p>
+                        )}
+                      </TooltipContent>
+                    </Tooltip>
                   </TableCell>
                   <TableCell>
-                    <div className="space-y-1">
-                      <div className="font-medium">
-                        {experiment.current.averageSteps}
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="space-y-1">
-                      <div className="font-medium">
-                        {experiment.current.responseTime}
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="space-y-1">
-                      <div className="font-medium">
-                        ${experiment.current.costPerResolution.toFixed(2)}
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center space-x-2">
-                      <Brain className="h-4 w-4 text-purple-600" />
-                      <span className="text-sm">
-                        {getModelDisplayName(experiment.model)}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {experiment.integrations
-                        .slice(0, 3)
-                        .map((integration, idx) => (
-                          <span
-                            key={idx}
-                            className="text-xs bg-neutral-100 rounded px-2 py-1 border"
-                          >
-                            {integration}
-                          </span>
-                        ))}
-                      {experiment.integrations.length > 3 && (
-                        <span className="text-xs text-muted-foreground">
-                          +{experiment.integrations.length - 3}
-                        </span>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex items-center gap-2">
+                          <Hash className="h-3 w-3 text-muted-foreground" />
+                          <Badge variant="secondary" className="text-xs">
+                            {agent.version_count || 1}
+                          </Badge>
+                          {agent.version_count && agent.version_count > 1 && (
+                            <span className="text-xs text-muted-foreground">
+                              versions
+                            </span>
+                          )}
+                        </div>
+                      </TooltipTrigger>
+                      {agent.version_count && agent.version_count > 1 && (
+                        <TooltipContent>
+                          <p>This agent has {agent.version_count} versions</p>
+                          <p className="text-xs text-muted-foreground">Click to view version history</p>
+                        </TooltipContent>
                       )}
-                    </div>
+                    </Tooltip>
+                  </TableCell>
+                  <TableCell>
+                    {new Date(agent.created_at || "").toLocaleDateString()}
+                  </TableCell>
+                  <TableCell>
+                    {new Date(agent.updated_at || "").toLocaleDateString()}
                   </TableCell>
                 </TableRow>
               ))}

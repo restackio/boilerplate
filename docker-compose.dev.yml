@@ -1,0 +1,50 @@
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: boilerplate_db
+    environment:
+      POSTGRES_DB: boilerplate_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+      - ./packages/database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./packages/database/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d boilerplate_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - boilerplate-network
+
+  # Restack Engine
+  restack:
+    image: ghcr.io/restackio/restack:main
+    container_name: restack
+    ports:
+      - "5233:5233"
+      - "6233:6233"
+      - "7233:7233"
+      - "9233:9233"
+      - "10233:10233"
+      - "11233:11233"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5233/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - boilerplate-network
+
+volumes:
+  postgres_dev_data:
+    driver: local
+
+networks:
+  boilerplate-network:
+    driver: bridge 
