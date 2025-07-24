@@ -36,28 +36,25 @@ export async function startAgent({
 
 export async function sendAgentEvent({
   agentId,
-  runId,
   eventName,
   eventInput,
 }: {
   agentId: string;
-  runId: string;
   eventName: string;
-  eventInput: any;
+  eventInput?: any;
 }): Promise<{ success: boolean; error?: string }> {
   try {
-    if (!agentId || !runId || !eventName) {
-      throw new Error("Agent ID, run ID, and event name are required");
+    if (!agentId || !eventName) {
+      throw new Error("Agent ID and event name are required");
     }
 
     await client.sendAgentEvent({
       event: {
         name: eventName,
-        input: eventInput,
+        ...(eventInput && { input: eventInput }),
       },
       agent: {
         agentId: agentId,
-        runId: runId,
       }
     });
 
@@ -75,16 +72,13 @@ export async function sendAgentEvent({
 
 export async function sendAgentMessage({
   agentId,
-  runId,
   message,
 }: {
   agentId: string;
-  runId: string;
   message: string;
 }): Promise<{ success: boolean; error?: string }> {
   return sendAgentEvent({
     agentId,
-    runId,
     eventName: "messages",
     eventInput: {
       messages: [{ role: "user", content: message }]
@@ -94,34 +88,27 @@ export async function sendAgentMessage({
 
 export async function stopAgent({
   agentId,
-  runId,
 }: {
   agentId: string;
-  runId: string;
 }): Promise<{ success: boolean; error?: string }> {
   return sendAgentEvent({
     agentId,
-    runId,
-    eventName: "end",
-    eventInput: {},
+    eventName: "end"
   });
 }
 
 export async function getAgentResult({
   agentId,
-  runId,
 }: {
   agentId: string;
-  runId: string;
 }): Promise<{ success: boolean; data?: any; error?: string }> {
   try {
-    if (!agentId || !runId) {
-      throw new Error("Agent ID and run ID are required");
+    if (!agentId) {
+      throw new Error("Agent ID is required");
     }
 
     const result = await client.getAgentResult({
       agentId,
-      runId,
     });
 
     return {

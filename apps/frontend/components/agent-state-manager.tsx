@@ -28,6 +28,21 @@ export function AgentStateManager({ taskId, agentTaskId, runId, taskDescription 
     },
   });
 
+  // Debug logging for raw state data
+  console.log("=== AGENT STATE DEBUG ===");
+  console.log("Raw agent state:", state);
+  console.log("Agent state data:", state?.data || state);
+  console.log("State type:", typeof state);
+  console.log("State keys:", state ? Object.keys(state) : "no state");
+  if (state && typeof state === 'object') {
+    console.log("State.data type:", typeof state.data);
+    console.log("State.data keys:", state.data ? Object.keys(state.data) : "no data");
+  }
+  console.log("agentTaskId:", agentTaskId);
+  console.log("runId:", runId);
+  console.log("taskId:", taskId);
+  console.log("=== END DEBUG ===");
+
   const handleStartAgent = async () => {
     try {
       const result = await startAgent(taskDescription);
@@ -76,10 +91,73 @@ export function AgentStateManager({ taskId, agentTaskId, runId, taskDescription 
 
   // Extract state data from the subscription
   const agentStateData = state?.data || state;
-  const status = agentStateData?.status || "waiting";
-  const messages = agentStateData?.messages || [];
-  const progress = agentStateData?.progress;
-  const agentError = agentStateData?.error;
+  
+  // Handle the streamed data format: "data: data: [{"content":"...","role":"system",...}]"
+  let parsedMessages = [];
+  let status = "waiting";
+  let progress;
+  let agentError;
+  
+  if (agentStateData) {
+    // If the data is a string, try to parse it
+    if (typeof agentStateData === 'string') {
+      try {
+        // Remove the "data: data: " prefix if present
+        let dataString = agentStateData;
+        if (dataString.startsWith('data: data: ')) {
+          dataString = dataString.substring(12); // Remove "data: data: "
+        } else if (dataString.startsWith('data: ')) {
+          dataString = dataString.substring(6); // Remove "data: "
+        }
+        
+        const parsed = JSON.parse(dataString);
+        if (Array.isArray(parsed)) {
+          // Handle nested arrays - flatten them
+          if (parsed.length > 0 && Array.isArray(parsed[0])) {
+            parsedMessages = parsed.flat();
+          } else {
+            parsedMessages = parsed;
+          }
+        } else if (parsed.messages) {
+          parsedMessages = parsed.messages;
+          status = parsed.status || "running";
+          progress = parsed.progress;
+          agentError = parsed.error;
+        }
+      } catch (parseError) {
+        console.error("Failed to parse streamed data:", parseError);
+        // If parsing fails, treat the entire string as a single message
+        parsedMessages = [{
+          role: "assistant",
+          content: agentStateData,
+          timestamp: new Date().toISOString()
+        }];
+      }
+    } else if (agentStateData.messages) {
+      // Handle structured data
+      parsedMessages = agentStateData.messages;
+      status = agentStateData.status || "running";
+      progress = agentStateData.progress;
+      agentError = agentStateData.error;
+    } else if (Array.isArray(agentStateData)) {
+      // Handle array of messages directly - check for nested arrays
+      if (agentStateData.length > 0 && Array.isArray(agentStateData[0])) {
+        parsedMessages = agentStateData.flat();
+      } else {
+        parsedMessages = agentStateData;
+      }
+      status = "running";
+    }
+  }
+  
+  // Deduplicate messages based on content and role to avoid showing duplicates
+  const messages = parsedMessages.filter((message: any, index: number, self: any[]) => {
+    const firstIndex = self.findIndex(m => 
+      m.content === message.content && 
+      m.role === message.role
+    );
+    return firstIndex === index;
+  });
 
   return (
     <div className="space-y-4">
@@ -106,8 +184,32 @@ export function AgentStateManager({ taskId, agentTaskId, runId, taskDescription 
             </div>
           )}
 
-          {agentStateData && (
-            <div className="space-y-4">
+          {/* Always show debug section for now */}
+          <div className="space-y-4">
+            {/* Debug section - Raw Data */}
+            <details className="text-xs" open>
+              <summary className="cursor-pointer text-muted-foreground font-medium">🔍 Raw Data Debug</summary>
+              <div className="mt-2 space-y-2">
+                <div>
+                  <strong>State object:</strong>
+                  <pre className="mt-1 p-2 bg-gray-100 rounded text-xs overflow-auto max-h-32">
+                    {JSON.stringify(state, null, 2)}
+                  </pre>
+                </div>
+                <div>
+                  <strong>Agent State Data:</strong>
+                  <pre className="mt-1 p-2 bg-gray-100 rounded text-xs overflow-auto max-h-32">
+                    {JSON.stringify(agentStateData, null, 2)}
+                  </pre>
+                </div>
+                <div>
+                  <strong>Props:</strong>
+                  <pre className="mt-1 p-2 bg-gray-100 rounded text-xs overflow-auto max-h-32">
+                    {JSON.stringify({ taskId, agentTaskId, runId, taskDescription }, null, 2)}
+                  </pre>
+                </div>
+              </div>
+            </details>
               {progress !== undefined && (
                 <div>
                   <div className="flex justify-between text-sm text-muted-foreground mb-1">
@@ -125,7 +227,7 @@ export function AgentStateManager({ taskId, agentTaskId, runId, taskDescription 
 
               {messages.length > 0 && (
                 <div>
-                  <h4 className="font-medium mb-2">Messages</h4>
+                  <h4 className="font-medium mb-2">Messages ({messages.length})</h4>
                   <div className="space-y-2 max-h-64 overflow-y-auto">
                     {messages.map((msg: any, index: number) => (
                       <div
@@ -133,6 +235,8 @@ export function AgentStateManager({ taskId, agentTaskId, runId, taskDescription 
                         className={`p-3 rounded-lg ${
                           msg.role === "user"
                             ? "bg-blue-50 border border-blue-200"
+                            : msg.role === "system"
+                            ? "bg-purple-50 border border-purple-200"
                             : "bg-gray-50 border border-gray-200"
                         }`}
                       >
@@ -144,7 +248,12 @@ export function AgentStateManager({ taskId, agentTaskId, runId, taskDescription 
                             {new Date(msg.timestamp || Date.now()).toLocaleTimeString()}
                           </span>
                         </div>
-                        <p className="text-sm">{msg.content}</p>
+                        <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                        {msg.tool_calls && (
+                          <div className="mt-2 text-xs text-muted-foreground">
+                            <strong>Tool calls:</strong> {JSON.stringify(msg.tool_calls)}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -157,7 +266,6 @@ export function AgentStateManager({ taskId, agentTaskId, runId, taskDescription 
                 </div>
               )}
             </div>
-          )}
 
           <div className="flex gap-2 mt-4">
             {!agentTaskId ? (
@@ -175,7 +283,7 @@ export function AgentStateManager({ taskId, agentTaskId, runId, taskDescription 
             )}
           </div>
 
-          {agentTaskId && runId && status === "running" && (
+          {agentTaskId && status === "running" && (
             <div className="mt-4 space-y-2">
               <Textarea
                 placeholder="Send a message to the agent..."

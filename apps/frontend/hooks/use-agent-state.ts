@@ -45,6 +45,10 @@ export function useAgentState({ taskId, agentTaskId, runId, onStateChange }: Use
     stateName: "state_messages",
     options: {
       onMessage: (data: any) => {
+        console.log("subscribeAgentState onMessage received:", data);
+        console.log("Raw message data type:", typeof data);
+        console.log("Raw message data:", data);
+        
         const newState: AgentState = {
           taskId,
           agentTaskId: agentTaskId || "",
@@ -53,24 +57,29 @@ export function useAgentState({ taskId, agentTaskId, runId, onStateChange }: Use
           progress: data.progress,
           error: data.error,
         };
+        console.log("Created new state:", newState);
         onStateChange?.(newState);
       },
       onError: (error: any) => {
+        console.error("subscribeAgentState error:", error);
         setError(error.message || "Failed to subscribe to agent state");
       },
     },
   });
 
+  console.log("subscribeAgentState hook result:", agentState);
+  console.log("agentTaskId:", agentTaskId, "runId:", runId);
+
   // Send message to agent using server action
   const sendMessageToAgent = useCallback(async (message: string) => {
-    if (!agentTaskId || !runId) {
-      throw new Error("No agent task ID or run ID available");
+    if (!agentTaskId) {
+      throw new Error("No agent task ID available");
     }
 
     try {
       const result = await sendAgentMessage({
         agentId: agentTaskId,
-        runId: runId,
+        runId: runId || "", // Use agentTaskId as fallback
         message: message,
       });
 
@@ -106,14 +115,14 @@ export function useAgentState({ taskId, agentTaskId, runId, onStateChange }: Use
 
   // Stop agent execution using server action
   const stopAgentExecution = useCallback(async () => {
-    if (!agentTaskId || !runId) {
-      throw new Error("No agent task ID or run ID available");
+    if (!agentTaskId) {
+      throw new Error("No agent task ID available");
     }
 
     try {
       const result = await stopAgent({
         agentId: agentTaskId,
-        runId: runId,
+        runId: runId || agentTaskId, // Use agentTaskId as fallback
       });
 
       if (!result.success) {
