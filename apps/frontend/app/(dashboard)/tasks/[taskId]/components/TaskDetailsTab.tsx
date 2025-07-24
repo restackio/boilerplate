@@ -27,7 +27,7 @@ import {
   X,
 } from "lucide-react";
 import { useState } from "react";
-import { Task } from "@/hooks/use-workflow-actions";
+import { Task } from "@/hooks/use-workspace-scoped-actions";
 
 interface TaskDetailsTabProps {
   task: Task;

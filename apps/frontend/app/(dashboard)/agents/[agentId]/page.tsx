@@ -3,7 +3,7 @@
 import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { useWorkspace } from "@/lib/workspace-context";
-import { useAgentActions } from "@/hooks/use-workflow-actions";
+import { useWorkspaceScopedActions, Agent } from "@/hooks/use-workspace-scoped-actions";
 import { Button } from "@workspace/ui/components/ui/button";
 import {
   Tabs,
@@ -33,14 +33,14 @@ import {
   AgentVersionsTab, 
   DeleteAgentModal 
 } from "./components";
-import { Agent } from "./types";
+import { Agent as LocalAgent } from "./types";
 
 export default function AgentEditPage() {
   const params = useParams();
   const router = useRouter();
   const agentId = params.agentId as string;
   const { currentWorkspace } = useWorkspace();
-  const { getAgentById, updateAgent, createAgent, getAgentVersions, removeAgent, loading } = useAgentActions();
+  const { agents, fetchAgents, updateAgent, createAgent, deleteAgent, agentsLoading, getAgentVersions } = useWorkspaceScopedActions();
 
   // State for the individual agent
   const [agent, setAgent] = useState<Agent | null>(null);
@@ -64,27 +64,90 @@ export default function AgentEditPage() {
       
       setIsLoading(true);
       try {
-        const result = await getAgentById(agentId);
+        // Fetch all agents and find the specific one
+        const result = await fetchAgents();
         if (result.success && result.data) {
-          setAgent(result.data);
+          const foundAgent = result.data.find((a: Agent) => a.id === agentId);
+          if (foundAgent) {
+            setAgent(foundAgent);
+          } else {
+            console.error("Agent not found:", agentId);
+            // Fallback to demo data if API fails
+            const fallbackAgent = currentWorkspace.agents.find((a) => a.id === agentId);
+            if (fallbackAgent) {
+              // Convert demo agent to backend agent format
+              const convertedAgent: Agent = {
+                id: fallbackAgent.id,
+                name: fallbackAgent.name,
+                version: fallbackAgent.version,
+                description: fallbackAgent.description,
+                instructions: fallbackAgent.instructions,
+                status: fallbackAgent.status === "active" ? "active" : "inactive", // Convert status
+                parent_agent_id: undefined, // Demo data doesn't have this
+                created_at: undefined, // Demo data doesn't have this
+                updated_at: undefined, // Demo data doesn't have this
+                version_count: 1, // Default value
+                latest_version: fallbackAgent.version, // Use current version
+              };
+              setAgent(convertedAgent);
+            } else {
+              setAgent(null);
+            }
+          }
         } else {
-          console.error("Failed to fetch agent:", result.error);
+          console.error("Failed to fetch agents:", result.error);
           // Fallback to demo data if API fails
           const fallbackAgent = currentWorkspace.agents.find((a) => a.id === agentId);
-          setAgent(fallbackAgent || null);
+          if (fallbackAgent) {
+            // Convert demo agent to backend agent format
+            const convertedAgent: Agent = {
+              id: fallbackAgent.id,
+              name: fallbackAgent.name,
+              version: fallbackAgent.version,
+              description: fallbackAgent.description,
+              instructions: fallbackAgent.instructions,
+              status: fallbackAgent.status === "active" ? "active" : "inactive", // Convert status
+              parent_agent_id: undefined, // Demo data doesn't have this
+              created_at: undefined, // Demo data doesn't have this
+              updated_at: undefined, // Demo data doesn't have this
+              version_count: 1, // Default value
+              latest_version: fallbackAgent.version, // Use current version
+            };
+            setAgent(convertedAgent);
+          } else {
+            setAgent(null);
+          }
         }
       } catch (error) {
-        console.error("Error fetching agent:", error);
+        console.error("Error fetching agents:", error);
         // Fallback to demo data if API fails
         const fallbackAgent = currentWorkspace.agents.find((a) => a.id === agentId);
-        setAgent(fallbackAgent || null);
+        if (fallbackAgent) {
+          // Convert demo agent to backend agent format
+          const convertedAgent: Agent = {
+            id: fallbackAgent.id,
+            name: fallbackAgent.name,
+            version: fallbackAgent.version,
+            description: fallbackAgent.description,
+            instructions: fallbackAgent.instructions,
+            status: fallbackAgent.status === "active" ? "active" : "inactive", // Convert status
+            parent_agent_id: undefined, // Demo data doesn't have this
+            created_at: undefined, // Demo data doesn't have this
+            updated_at: undefined, // Demo data doesn't have this
+            version_count: 1, // Default value
+            latest_version: fallbackAgent.version, // Use current version
+          };
+          setAgent(convertedAgent);
+        } else {
+          setAgent(null);
+        }
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchAgent();
-  }, [agentId, getAgentById, currentWorkspace.agents]);
+  }, [agentId, fetchAgents, currentWorkspace.agents]);
 
   const handleSave = async (agentData: any) => {
     if (!agent) return;
@@ -157,7 +220,7 @@ export default function AgentEditPage() {
 
     setIsDeleting(true);
     try {
-      const result = await removeAgent(agentId);
+      const result = await deleteAgent(agentId);
       if (result.success) {
         console.log("Agent deleted successfully");
         // Redirect to agents list

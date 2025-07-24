@@ -1,20 +1,18 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { TasksTable, type Task as UITask } from "@workspace/ui/components/tasks-table";
 import { useRouter } from "next/navigation";
-import { useWorkspace } from "@/lib/workspace-context";
-import { useTaskActions, type Task as BackendTask } from "@/hooks/use-workflow-actions";
-import { Loader2 } from "lucide-react";
+import { TasksTable, type Task as UITask } from "@workspace/ui/components/tasks-table";
+import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
 import { CreateTaskForm } from "@/components/create-task-form";
+import { Loader2 } from "lucide-react";
 
-// Convert backend Task to UI Task format
-const convertBackendTaskToUITask = (backendTask: BackendTask): UITask => {
+function convertBackendTaskToUITask(backendTask: any): UITask {
   return {
     id: backendTask.id,
     title: backendTask.title,
     description: backendTask.description,
-    status: backendTask.status as UITask["status"],
+    status: backendTask.status as "open" | "active" | "waiting" | "closed" | "completed",
     agent_id: backendTask.agent_id,
     agent_name: backendTask.agent_name,
     assigned_to_id: backendTask.assigned_to_id,
@@ -22,27 +20,17 @@ const convertBackendTaskToUITask = (backendTask: BackendTask): UITask => {
     created: backendTask.created_at || new Date().toISOString(),
     updated: backendTask.updated_at || new Date().toISOString(),
   };
-};
+}
 
 export default function DashboardPage() {
-  const [, setChatHistory] = useState([
-    {
-      role: "system",
-      message:
-        "Hello! I'm here to help you create tasks for our support automation system. Describe what you need help with.",
-    },
-  ]);
 
-  // Get real task data from backend
-  const { tasks, loading, fetchTasks, createTask } = useTaskActions();
+  const { tasks, tasksLoading, fetchTasks, createTask } = useWorkspaceScopedActions();
   const router = useRouter();
 
-  // Fetch tasks on component mount
   useEffect(() => {
     fetchTasks();
   }, [fetchTasks]);
 
-  // Convert backend tasks to UI format and show only first 3 for dashboard
   const tasksData: UITask[] = tasks.slice(0, 3).map(convertBackendTaskToUITask);
 
   const handleCreateTask = async (taskData: {
@@ -54,13 +42,12 @@ export default function DashboardPage() {
   }) => {
     const result = await createTask(taskData);
     if (result.success) {
-      fetchTasks(); // Refresh the list
+      fetchTasks();
     }
     return result;
   };
 
   const handleTaskCreated = (taskData: any) => {
-    // Redirect to the task details page
     router.push(`/tasks/${taskData.id}`);
   };
 
@@ -82,20 +69,31 @@ export default function DashboardPage() {
       />
 
       {/* My Tasks */}
-      {loading.isLoading ? (
+      {tasksLoading.isLoading ? (
         <div className="flex items-center justify-center h-32">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
-      ) : loading.error ? (
+      ) : tasksLoading.error ? (
         <div className="text-center py-8">
-          <p className="text-muted-foreground">Failed to load tasks: {loading.error}</p>
+          <p className="text-muted-foreground">Failed to load tasks: {tasksLoading.error}</p>
         </div>
       ) : (
-        <TasksTable
-          data={tasksData}
-          withFilters={false}
-          onViewTask={handleViewTask}
-        />
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold">My Tasks</h2>
+            <button
+              onClick={() => router.push("/tasks")}
+              className="text-sm text-primary hover:underline"
+            >
+              View all tasks →
+            </button>
+          </div>
+          <TasksTable 
+            data={tasksData} 
+            onViewTask={handleViewTask}
+            withFilters={false}
+          />
+        </div>
       )}
     </div>
   );

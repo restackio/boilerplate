@@ -5,8 +5,8 @@ import { Button } from "@workspace/ui/components/ui/button";
 import { Textarea } from "@workspace/ui/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@workspace/ui/components/ui/select";
 import { ArrowUp } from "lucide-react";
-import { useAgentActions } from "@/hooks/use-workflow-actions";
-import { useWorkspace } from "@/lib/workspace-context";
+import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
+import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 
 interface CreateTaskFormProps {
   onSubmit: (taskData: {
@@ -29,8 +29,8 @@ export function CreateTaskForm({
 }: CreateTaskFormProps) {
   const [taskDescription, setTaskDescription] = useState("");
   const [selectedAgentId, setSelectedAgentId] = useState("");
-  const { agents, fetchAgents } = useAgentActions();
-  const { currentWorkspace } = useWorkspace();
+  const { agents, fetchAgents } = useWorkspaceScopedActions();
+  const { currentUser } = useDatabaseWorkspace();
 
   // Fetch agents on component mount
   useEffect(() => {
@@ -50,7 +50,7 @@ export function CreateTaskForm({
         description: taskDescription,
         status: "open" as const,
         agent_id: selectedAgentId,
-        assigned_to_id: currentWorkspace.user.email, // Use current user's email as ID
+        assigned_to_id: currentUser?.id || "", // Use current user's ID
       });
       
       if (result.success && result.data) {

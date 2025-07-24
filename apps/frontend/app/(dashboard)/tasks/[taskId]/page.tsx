@@ -24,8 +24,9 @@ import {
   CheckCircle2,
   Archive,
 } from "lucide-react";
-import { useTaskActions, Task } from "@/hooks/use-workflow-actions";
+import { useWorkspaceScopedActions, Task } from "@/hooks/use-workspace-scoped-actions";
 import { TaskDetailsTab, TaskLogsTab, DeleteTaskModal } from "./components";
+import { AgentStateManager } from "@/components/agent-state-manager";
 
 // Types for conversation
 interface ConversationItem {
@@ -90,7 +91,7 @@ export default function TaskDetailPage() {
   const [chatMessage, setChatMessage] = useState("");
   const [activeTab, setActiveTab] = useState("details");
 
-  const { getTaskById, updateTask, removeTask } = useTaskActions();
+  const { getTaskById, updateTask, deleteTask } = useWorkspaceScopedActions();
 
   // Fetch task data on component mount
   useEffect(() => {
@@ -153,7 +154,7 @@ export default function TaskDetailPage() {
     
     setIsDeleting(true);
     try {
-      await removeTask(task.id);
+      await deleteTask(task.id);
       router.push("/tasks");
     } catch (error) {
       console.error("Failed to delete task:", error);
@@ -363,6 +364,7 @@ export default function TaskDetailPage() {
             >
               <TabsList>
                 <TabsTrigger value="details">Details</TabsTrigger>
+                <TabsTrigger value="agent">Agent</TabsTrigger>
                 <TabsTrigger value="logs">Logs</TabsTrigger>
                 <TabsTrigger value="canvas">Canvas</TabsTrigger>
               </TabsList>
@@ -372,6 +374,14 @@ export default function TaskDetailPage() {
                   task={task}
                   onUpdateTask={handleUpdateTask}
                   isLoading={isUpdating}
+                />
+              </TabsContent>
+              
+              <TabsContent value="agent" className="space-y-4">
+                <AgentStateManager
+                  taskId={task.id}
+                  agentTaskId={task.agent_task_id}
+                  taskDescription={task.description || task.title}
                 />
               </TabsContent>
               

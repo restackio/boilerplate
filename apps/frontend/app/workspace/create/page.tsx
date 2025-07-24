@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -23,11 +23,18 @@ import {
   ArrowRight,
   ArrowLeft,
   Building,
-  Calendar,
+  CheckCircle,
+  Loader2,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { runWorkflow, getWorkflowResult } from "@/app/actions/workflow";
 
 export default function CreateWorkspacePage() {
   const [currentStep, setCurrentStep] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const router = useRouter();
   const [formData, setFormData] = useState({
     companyName: "",
     companySize: "",
@@ -38,6 +45,26 @@ export default function CreateWorkspacePage() {
     contactEmail: "",
     contactRole: "",
   });
+
+  // Check authentication on mount
+  useEffect(() => {
+    const storedUser = localStorage.getItem("currentUser");
+    if (storedUser) {
+      try {
+        const userData = JSON.parse(storedUser);
+        if (userData && userData.id) {
+          setIsAuthenticated(true);
+          return;
+        }
+      } catch (error) {
+        console.error("Failed to parse stored user:", error);
+      }
+    }
+    
+    // If not authenticated, redirect to login
+    setIsAuthenticated(false);
+    router.push("/login");
+  }, [router]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -64,6 +91,77 @@ export default function CreateWorkspacePage() {
     }
   };
 
+  const handleCreateWorkspace = async () => {
+    setIsLoading(true);
+    setError("");
+
+    try {
+      // Create the workspace
+      const workspaceResult = await runWorkflow({
+        workflowName: "WorkspacesCreateWorkflow",
+        input: {
+          name: formData.companyName,
+        },
+      });
+
+      const workspaceData = await getWorkflowResult({
+        workflowId: workspaceResult.workflowId,
+        runId: workspaceResult.runId,
+      });
+
+      if (!workspaceData?.success || !workspaceData.data) {
+        setError("Failed to create workspace");
+        setIsLoading(false);
+        return;
+      }
+
+      // Get current user from localStorage
+      const storedUser = localStorage.getItem("currentUser");
+      if (!storedUser) {
+        setError("User session not found");
+        setIsLoading(false);
+        return;
+      }
+
+      const userData = JSON.parse(storedUser);
+
+      // Add user to the new workspace
+      const userWorkspaceResult = await runWorkflow({
+        workflowName: "UserWorkspacesCreateWorkflow",
+        input: {
+          user_id: userData.id,
+          workspace_id: workspaceData.data.id,
+          role: "owner",
+        },
+      });
+
+      const userWorkspaceData = await getWorkflowResult({
+        workflowId: userWorkspaceResult.workflowId,
+        runId: userWorkspaceResult.runId,
+      });
+
+      if (!userWorkspaceData?.success) {
+        setError("Failed to add user to workspace");
+        setIsLoading(false);
+        return;
+      }
+
+      // Update user data with new workspace
+      const updatedUser = {
+        ...userData,
+        workspace_ids: [...(userData.workspace_ids || []), workspaceData.data.id],
+      };
+      localStorage.setItem("currentUser", JSON.stringify(updatedUser));
+
+      // Force a page reload to refresh workspace data
+      window.location.href = "/dashboard";
+    } catch (error) {
+      setError("Failed to create workspace. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const companySizes = [
     "1-10 employees",
     "11-50 employees",
@@ -82,6 +180,23 @@ export default function CreateWorkspacePage() {
     "Government",
     "Other",
   ];
+
+  // Show loading state while checking authentication
+  if (isAuthenticated === null) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-neutral-50 to-neutral-100 dark:from-neutral-900 dark:to-neutral-800 flex items-center justify-center">
+        <div className="flex items-center gap-2">
+          <Loader2 className="h-6 w-6 animate-spin" />
+          <span>Loading...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render anything if not authenticated (will redirect)
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-neutral-50 to-neutral-100 dark:from-neutral-900 dark:to-neutral-800">
@@ -234,54 +349,43 @@ export default function CreateWorkspacePage() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Calendar className="size-5" />
-                  Schedule Your Setup Call
+                  <CheckCircle className="size-5" />
+                  Review and Create Workspace
                 </CardTitle>
                 <CardDescription>
-                  Book a 30-minute call with our team to finalize your workspace
-                  configuration and get started
+                  Review your workspace details and create your workspace
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="mb-6 p-4 bg-neutral-50 dark:bg-neutral-800 rounded-lg">
-                  <h3 className="font-semibold mb-2">What we'll cover:</h3>
-                  <ul className="space-y-1 text-sm text-neutral-600 dark:text-neutral-400">
-                    <li>• Review your requirements and use case</li>
-                    <li>• Configure your workspace settings</li>
-                    <li>• Set up initial agents and workflows</li>
-                    <li>• Plan your team onboarding</li>
-                    <li>• Answer any questions you have</li>
-                  </ul>
+                  <h3 className="font-semibold mb-2">Workspace Details:</h3>
+                  <div className="space-y-1 text-sm text-neutral-600 dark:text-neutral-400">
+                    <p><strong>Company Name:</strong> {formData.companyName}</p>
+                    <p><strong>Company Size:</strong> {formData.companySize}</p>
+                    <p><strong>Industry:</strong> {formData.industry}</p>
+                    {formData.contactRole && <p><strong>Your Role:</strong> {formData.contactRole}</p>}
+                    {formData.useCase && <p><strong>Use Case:</strong> {formData.useCase}</p>}
+                  </div>
                 </div>
 
-                {/* Cal.com Embed */}
-                <div
-                  className="border rounded-lg overflow-hidden"
-                  style={{ minHeight: "600px" }}
-                >
-                  <iframe
-                    src="https://cal.com/your-team/workspace-setup?embed=true"
-                    width="100%"
-                    height="600"
-                    frameBorder="0"
-                    title="Schedule workspace setup call"
-                  />
-                </div>
+                {error && (
+                  <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded-md">
+                    <p className="text-red-800 text-sm">{error}</p>
+                  </div>
+                )}
 
                 <div className="flex justify-between mt-6">
                   <Button variant="outline" onClick={handlePrevStep}>
                     <ArrowLeft className="mr-2 size-4" />
                     Back
                   </Button>
-                  <div className="text-sm text-neutral-600 dark:text-neutral-400">
-                    Can't find a suitable time?{" "}
-                    <a
-                      href="mailto:support@openconductor.com"
-                      className="text-primary hover:underline"
-                    >
-                      Contact us directly
-                    </a>
-                  </div>
+                  <Button 
+                    onClick={handleCreateWorkspace} 
+                    disabled={isLoading}
+                    size="lg"
+                  >
+                    {isLoading ? "Creating Workspace..." : "Create Workspace"}
+                  </Button>
                 </div>
               </CardContent>
             </Card>

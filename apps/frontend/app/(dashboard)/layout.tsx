@@ -7,7 +7,9 @@ import {
 } from "@workspace/ui/components/ui/sidebar";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
-import { WorkspaceProvider } from "@/lib/workspace-context";
+import { DatabaseWorkspaceProvider } from "@/lib/database-workspace-context";
+import { AuthGuard } from "@/components/auth-guard";
+import { WorkspaceGuard } from "@/components/workspace-guard";
 
 export default function DashboardLayout({
   children,
@@ -48,13 +50,17 @@ export default function DashboardLayout({
   }, [isTaskDetailPage]);
 
   return (
-    <WorkspaceProvider>
-      <SidebarProvider open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <AppSidebar />
-        <SidebarInset>
-          <div className="flex flex-1 flex-col gap-4">{children}</div>
-        </SidebarInset>
-      </SidebarProvider>
-    </WorkspaceProvider>
+    <AuthGuard>
+      <DatabaseWorkspaceProvider>
+        <WorkspaceGuard>
+          <SidebarProvider open={sidebarOpen} onOpenChange={setSidebarOpen}>
+            <AppSidebar />
+            <SidebarInset>
+              <div className="flex flex-1 flex-col gap-4">{children}</div>
+            </SidebarInset>
+          </SidebarProvider>
+        </WorkspaceGuard>
+      </DatabaseWorkspaceProvider>
+    </AuthGuard>
   );
 }

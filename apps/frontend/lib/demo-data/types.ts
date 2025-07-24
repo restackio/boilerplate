@@ -5,6 +5,7 @@ export interface WorkspaceData {
     plan: string;
   };
   user: {
+    id: string;
     name: string;
     email: string;
     avatar: string;

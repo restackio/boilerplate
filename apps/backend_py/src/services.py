@@ -17,7 +17,26 @@ from src.functions.agents_crud import (
 )
 from src.functions.tasks_crud import (
     tasks_read, tasks_create, tasks_update, tasks_delete,
-    tasks_get_by_id
+    tasks_get_by_id, tasks_update_agent_task_id
+)
+from src.functions.workspaces_crud import (
+    workspaces_read, workspaces_create, workspaces_update, workspaces_delete,
+    workspaces_get_by_id
+)
+from src.functions.users_crud import (
+    users_read, users_create, users_update, users_delete,
+    users_get_by_id, users_get_by_email, users_get_by_workspace
+)
+from src.functions.teams_crud import (
+    teams_read, teams_create, teams_update, teams_delete,
+    teams_get_by_id
+)
+from src.functions.user_workspaces_crud import (
+    user_workspaces_get_by_user, user_workspaces_get_by_workspace,
+    user_workspaces_create, user_workspaces_update, user_workspaces_delete
+)
+from src.functions.auth_crud import (
+    user_signup, user_login
 )
 from src.workflows.todo_execute import TodoExecute
 from src.workflows.agents_crud import (
@@ -27,7 +46,27 @@ from src.workflows.agents_crud import (
 )
 from src.workflows.tasks_crud import (
     TasksReadWorkflow, TasksCreateWorkflow, TasksUpdateWorkflow,
-    TasksDeleteWorkflow, TasksGetByIdWorkflow
+    TasksDeleteWorkflow, TasksGetByIdWorkflow, TasksUpdateAgentTaskIdWorkflow
+)
+from src.workflows.workspaces_crud import (
+    WorkspacesReadWorkflow, WorkspacesCreateWorkflow, WorkspacesUpdateWorkflow,
+    WorkspacesDeleteWorkflow, WorkspacesGetByIdWorkflow
+)
+from src.workflows.users_crud import (
+    UsersReadWorkflow, UsersCreateWorkflow, UsersUpdateWorkflow,
+    UsersDeleteWorkflow, UsersGetByIdWorkflow, UsersGetByEmailWorkflow,
+    UsersGetByWorkspaceWorkflow
+)
+from src.workflows.teams_crud import (
+    TeamsReadWorkflow, TeamsCreateWorkflow, TeamsUpdateWorkflow,
+    TeamsDeleteWorkflow, TeamsGetByIdWorkflow
+)
+from src.workflows.user_workspaces_crud import (
+    UserWorkspacesGetByUserWorkflow, UserWorkspacesGetByWorkspaceWorkflow,
+    UserWorkspacesCreateWorkflow, UserWorkspacesUpdateWorkflow, UserWorkspacesDeleteWorkflow
+)
+from src.workflows.auth_crud import (
+    UserSignupWorkflow, UserLoginWorkflow
 )
 from src.database.connection import init_db
 
@@ -45,14 +84,32 @@ async def main() -> None:
             AgentsDeleteWorkflow, AgentsGetByIdWorkflow, AgentsGetByStatusWorkflow,
             AgentsGetVersionsWorkflow,
             TasksReadWorkflow, TasksCreateWorkflow, TasksUpdateWorkflow,
-            TasksDeleteWorkflow, TasksGetByIdWorkflow,
+            TasksDeleteWorkflow, TasksGetByIdWorkflow, TasksUpdateAgentTaskIdWorkflow,
+            WorkspacesReadWorkflow, WorkspacesCreateWorkflow, WorkspacesUpdateWorkflow,
+            WorkspacesDeleteWorkflow, WorkspacesGetByIdWorkflow,
+            UsersReadWorkflow, UsersCreateWorkflow, UsersUpdateWorkflow,
+            UsersDeleteWorkflow, UsersGetByIdWorkflow, UsersGetByEmailWorkflow,
+            UsersGetByWorkspaceWorkflow,
+            TeamsReadWorkflow, TeamsCreateWorkflow, TeamsUpdateWorkflow,
+            TeamsDeleteWorkflow, TeamsGetByIdWorkflow,
+            UserWorkspacesGetByUserWorkflow, UserWorkspacesGetByWorkspaceWorkflow,
+            UserWorkspacesCreateWorkflow, UserWorkspacesUpdateWorkflow, UserWorkspacesDeleteWorkflow,
+            UserSignupWorkflow, UserLoginWorkflow,
         ],
         functions=[
             todo_create, get_random, get_result, llm_chat,
             agents_read, agents_create, agents_update, agents_delete,
             agents_get_by_id, agents_get_by_status, agents_get_versions,
             tasks_read, tasks_create, tasks_update, tasks_delete,
-            tasks_get_by_id,
+            tasks_get_by_id, tasks_update_agent_task_id,
+            workspaces_read, workspaces_create, workspaces_update, workspaces_delete,
+            workspaces_get_by_id,
+            users_read, users_create, users_update, users_delete,
+            users_get_by_id, users_get_by_email, users_get_by_workspace,
+            teams_read, teams_create, teams_update, teams_delete, teams_get_by_id,
+            user_workspaces_get_by_user, user_workspaces_get_by_workspace,
+            user_workspaces_create, user_workspaces_update, user_workspaces_delete,
+            user_signup, user_login,
         ],
     )
 

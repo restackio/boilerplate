@@ -3,7 +3,7 @@
 import { MCPsTable } from "@workspace/ui/components/mcps-table";
 import { PageHeader } from "@workspace/ui/components/page-header";
 import { useRouter } from "next/navigation";
-import { useWorkspace } from "@/lib/workspace-context";
+import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 import { Button } from "@workspace/ui/components/ui/button";
 import { availableMCPs } from "@/lib/demo-data/mcps";
 import AgentsTabs from "../AgentsTabs";
@@ -11,7 +11,7 @@ import { Plus } from "lucide-react";
 
 export default function MCPsPage() {
   const router = useRouter();
-  const { currentWorkspace } = useWorkspace();
+  const { currentWorkspaceId } = useDatabaseWorkspace();
 
   const handleViewMCP = (mcpId: string) => {
     router.push(`/mcps/${mcpId}`);

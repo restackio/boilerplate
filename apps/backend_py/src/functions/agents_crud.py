@@ -5,11 +5,12 @@ from sqlalchemy.orm import Session
 from restack_ai.function import function, NonRetryableError
 from pydantic import BaseModel, Field
 
-from ..database.connection import SessionLocal
+from ..database.connection import get_db
 from ..database.models import Agent
 
 # Pydantic models for input validation
 class AgentCreateInput(BaseModel):
+    workspace_id: str = Field(..., min_length=1)
     name: str = Field(..., min_length=1, max_length=255)
     version: str = Field(default="v1.0", max_length=50)
     description: Optional[str] = None
@@ -30,14 +31,19 @@ class AgentIdInput(BaseModel):
     agent_id: str = Field(..., min_length=1)
 
 class AgentGetByStatusInput(BaseModel):
+    workspace_id: str = Field(..., min_length=1)
     status: str = Field(..., pattern="^(active|inactive)$")
 
 class AgentGetVersionsInput(BaseModel):
     parent_agent_id: str = Field(..., min_length=1)
 
+class AgentGetByWorkspaceInput(BaseModel):
+    workspace_id: str = Field(..., min_length=1)
+
 # Pydantic models for output serialization
 class AgentOutput(BaseModel):
     id: str
+    workspace_id: str
     name: str
     version: str
     description: Optional[str]
@@ -86,6 +92,7 @@ def get_latest_agent_versions(agents: List[Agent]) -> List[AgentOutput]:
             
             result.append(AgentOutput(
                 id=str(latest_agent.id),
+                workspace_id=str(latest_agent.workspace_id),
                 name=latest_agent.name,
                 version=latest_agent.version,
                 description=latest_agent.description,
@@ -101,30 +108,34 @@ def get_latest_agent_versions(agents: List[Agent]) -> List[AgentOutput]:
     return result
 
 @function.defn()
-async def agents_read() -> AgentListOutput:
-    """Read all agents from database, returning only the latest version of each agent"""
+async def agents_read(input: AgentGetByWorkspaceInput) -> AgentListOutput:
+    """Read all agents from database for a specific workspace, returning only the latest version of each agent"""
+    db = next(get_db())
     try:
-        db = SessionLocal()
         
-        # Use a subquery to get the latest version of each agent group
+        # Use a subquery to get the latest version of each agent group for the specific workspace
         # This is much more efficient than loading all agents into memory
         from sqlalchemy import func, and_
         
-        # Subquery to get the latest created_at for each agent group
+        # Subquery to get the latest created_at for each agent group in the workspace
         latest_versions_subquery = db.query(
             func.coalesce(Agent.parent_agent_id, Agent.id).label('group_key'),
             func.max(Agent.created_at).label('latest_created_at')
+        ).filter(
+            Agent.workspace_id == uuid.UUID(input.workspace_id)
         ).group_by(
             func.coalesce(Agent.parent_agent_id, Agent.id)
         ).subquery()
         
-        # Main query to get the latest version of each agent
+        # Main query to get the latest version of each agent in the workspace
         latest_agents = db.query(Agent).join(
             latest_versions_subquery,
             and_(
                 func.coalesce(Agent.parent_agent_id, Agent.id) == latest_versions_subquery.c.group_key,
                 Agent.created_at == latest_versions_subquery.c.latest_created_at
             )
+        ).filter(
+            Agent.workspace_id == uuid.UUID(input.workspace_id)
         ).all()
         
         # Convert to output format
@@ -138,6 +149,7 @@ async def agents_read() -> AgentListOutput:
             
             result.append(AgentOutput(
                 id=str(agent.id),
+                workspace_id=str(agent.workspace_id),
                 name=agent.name,
                 version=agent.version,
                 description=agent.description,
@@ -159,8 +171,8 @@ async def agents_read() -> AgentListOutput:
 @function.defn()
 async def agents_create(agent_data: AgentCreateInput) -> AgentSingleOutput:
     """Create a new agent"""
+    db = next(get_db())
     try:
-        db = SessionLocal()
         
         # Convert parent_agent_id string to UUID if provided
         parent_agent_id = None
@@ -172,6 +184,7 @@ async def agents_create(agent_data: AgentCreateInput) -> AgentSingleOutput:
         
         agent = Agent(
             id=uuid.uuid4(),
+            workspace_id=uuid.UUID(agent_data.workspace_id),
             name=agent_data.name,
             version=agent_data.version,
             description=agent_data.description,
@@ -184,6 +197,7 @@ async def agents_create(agent_data: AgentCreateInput) -> AgentSingleOutput:
         db.refresh(agent)
         result = AgentOutput(
             id=str(agent.id),
+            workspace_id=str(agent.workspace_id),
             name=agent.name,
             version=agent.version,
             description=agent.description,
@@ -203,8 +217,8 @@ async def agents_create(agent_data: AgentCreateInput) -> AgentSingleOutput:
 @function.defn()
 async def agents_update(input: AgentUpdateInput) -> AgentSingleOutput:
     """Update an existing agent"""
+    db = next(get_db())
     try:
-        db = SessionLocal()
         agent = db.query(Agent).filter(Agent.id == uuid.UUID(input.agent_id)).first()
         if not agent:
             raise NonRetryableError(message=f"Agent with id {input.agent_id} not found")
@@ -227,6 +241,7 @@ async def agents_update(input: AgentUpdateInput) -> AgentSingleOutput:
         db.refresh(agent)
         result = AgentOutput(
             id=str(agent.id),
+            workspace_id=str(agent.workspace_id),
             name=agent.name,
             version=agent.version,
             description=agent.description,
@@ -246,8 +261,8 @@ async def agents_update(input: AgentUpdateInput) -> AgentSingleOutput:
 @function.defn()
 async def agents_delete(input: AgentIdInput) -> AgentDeleteOutput:
     """Delete an agent and all its versions"""
+    db = next(get_db())
     try:
-        db = SessionLocal()
         
         # First, find the agent to determine if it's a parent or child
         agent = db.query(Agent).filter(Agent.id == uuid.UUID(input.agent_id)).first()
@@ -284,8 +299,8 @@ async def agents_delete(input: AgentIdInput) -> AgentDeleteOutput:
 @function.defn()
 async def agents_get_by_id(input: AgentIdInput) -> AgentSingleOutput:
     """Get agent by ID with version information"""
+    db = next(get_db())
     try:
-        db = SessionLocal()
         
         # Get the agent
         agent = db.query(Agent).filter(Agent.id == uuid.UUID(input.agent_id)).first()
@@ -308,6 +323,7 @@ async def agents_get_by_id(input: AgentIdInput) -> AgentSingleOutput:
         
         result = AgentOutput(
             id=str(agent.id),
+            workspace_id=str(agent.workspace_id),
             name=agent.name,
             version=agent.version,
             description=agent.description,
@@ -328,8 +344,8 @@ async def agents_get_by_id(input: AgentIdInput) -> AgentSingleOutput:
 @function.defn()
 async def agents_get_by_status(input: AgentGetByStatusInput) -> AgentListOutput:
     """Get agents by status, returning only the latest version of each agent"""
+    db = next(get_db())
     try:
-        db = SessionLocal()
         
         # Use a subquery to get the latest version of each agent group with the specified status
         from sqlalchemy import func, and_
@@ -366,6 +382,7 @@ async def agents_get_by_status(input: AgentGetByStatusInput) -> AgentListOutput:
             
             result.append(AgentOutput(
                 id=str(agent.id),
+                workspace_id=str(agent.workspace_id),
                 name=agent.name,
                 version=agent.version,
                 description=agent.description,
@@ -387,8 +404,8 @@ async def agents_get_by_status(input: AgentGetByStatusInput) -> AgentListOutput:
 @function.defn()
 async def agents_get_versions(input: AgentGetVersionsInput) -> AgentListOutput:
     """Get all versions of an agent by parent_agent_id"""
+    db = next(get_db())
     try:
-        db = SessionLocal()
         # Convert parent_agent_id string to UUID
         try:
             parent_agent_id = uuid.UUID(input.parent_agent_id)
@@ -400,6 +417,7 @@ async def agents_get_versions(input: AgentGetVersionsInput) -> AgentListOutput:
         for agent in agents:
             result.append(AgentOutput(
                 id=str(agent.id),
+                workspace_id=str(agent.workspace_id),
                 name=agent.name,
                 version=agent.version,
                 description=agent.description,

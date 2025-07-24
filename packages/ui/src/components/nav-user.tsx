@@ -1,12 +1,8 @@
 "use client";
 
 import {
-  BadgeCheck,
-  Bell,
   ChevronsUpDown,
-  CreditCard,
   LogOut,
-  Sparkles,
   Sun,
   Moon,
   Monitor,
@@ -41,6 +37,7 @@ export function NavUser({
   user,
   theme,
   setTheme,
+  onLogout,
 }: {
   user: {
     name: string;
@@ -49,6 +46,7 @@ export function NavUser({
   };
   theme?: string;
   setTheme?: (theme: string) => void;
+  onLogout?: () => void;
 }) {
   const { isMobile } = useSidebar();
   const [mounted, setMounted] = useState(false);
@@ -159,7 +157,7 @@ export function NavUser({
               </DropdownMenuSub>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={onLogout}>
               <LogOut />
               Log out
             </DropdownMenuItem>
