@@ -28,6 +28,7 @@ class AgentsReadWorkflow:
         try:
             result = await workflow.step(
                 function=agents_read,
+                function_input=workflow_input,
                 start_to_close_timeout=timedelta(seconds=30),
             )
             

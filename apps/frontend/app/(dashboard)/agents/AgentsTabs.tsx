@@ -23,7 +23,7 @@ export default function AgentsTabs() {
   return (
     <div className="flex-1 flex flex-col">
       {/* Sub-navigation */}
-      <div className="border-b border-neutral-200 bg-white">
+      <div className="border-b border-border bg-background">
         <div className="px-4">
           <nav className="-mb-px flex space-x-8">
             {tabs.map((tab) => (
@@ -31,10 +31,10 @@ export default function AgentsTabs() {
                 key={tab.name}
                 href={tab.href}
                 className={cn(
-                  "py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap",
+                  "py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap transition-colors",
                   tab.current
-                    ? "border-neutral-500 text-neutral-600"
-                    : "border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300"
+                    ? "border-primary text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground"
                 )}
               >
                 {tab.name}

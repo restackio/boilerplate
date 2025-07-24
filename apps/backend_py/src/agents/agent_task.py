@@ -6,6 +6,7 @@ from restack_ai.agent import (
     agent,
     import_functions,
     log,
+    agent_info
 )
 
 from src.workflows.todo_execute import (
@@ -25,6 +26,14 @@ with import_functions():
         TodoCreateParams,
         todo_create,
     )
+    from src.functions.agents_crud import (
+        agents_get_by_id,
+        AgentIdInput,
+    )
+    from src.functions.tasks_crud import (
+        tasks_update_agent_task_id,
+        TaskUpdateAgentTaskIdInput,
+    )
 
 
 class MessagesEvent(BaseModel):
@@ -34,16 +43,24 @@ class MessagesEvent(BaseModel):
 class EndEvent(BaseModel):
     end: bool
 
+class AgentTaskInput(BaseModel):
+    title: str
+    description: str
+    status: str
+    agent_id: str
+    assigned_to_id: str
 
 @agent.defn()
 class AgentTask:
+  
     def __init__(self) -> None:
         self.end = False
-        self.messages = [Message(
-            role="system",
-            content="You are an AI assistant that creates and execute todos. Eveything the user asks needs to be a todo, that needs to be created and then executed if the user wants to.",
-        )]
+        self.agent_id = "None"
+        self.messages = []
 
+    @agent.state
+    def state_messages(self):
+        return self.messages
 
     @agent.event
     async def messages(self, messages_event: MessagesEvent) -> list[Message]:
@@ -197,6 +214,27 @@ class AgentTask:
         return {"end": True}
 
     @agent.run
-    async def run(self, agent_input: dict) -> None:
-        log.info("AgentTodo function_input", function_input=function_input)
+    async def run(self, agent_input: AgentTaskInput) -> None:
+        self.agent_id = agent_input.agent_id
+  
+        result = await agent.step(
+            function=agents_get_by_id,
+            function_input=AgentIdInput(agent_id=self.agent_id),
+        )
+
+        log.info("AgentTask agents_get_by_id result", result=result)
+        self.messages.append(
+            Message(
+                role="system",
+                content=result.agent.instructions
+            )
+        )
+        self.messages.append(
+            Message(
+                role="user",
+                content=agent_input.description
+            )
+        )
+
+        log.info("AgentTask agent_id", agent_id=self.agent_id)
         await agent.condition(lambda: self.end)

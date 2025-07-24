@@ -7,13 +7,18 @@ from restack_ai.workflow import (
     import_functions,
     log,
     workflow,
+    ParentClosePolicy
 )
+
+from src.agents.agent_task import AgentTask, AgentTaskInput
 
 with import_functions():
     from src.functions.tasks_crud import (
         tasks_read, tasks_create, tasks_update, tasks_delete,
-        tasks_get_by_id, tasks_get_by_status, TaskCreateInput, TaskUpdateInput, TaskGetByIdInput,
-        TaskGetByStatusInput, TaskOutput, TaskListOutput, TaskSingleOutput, TaskDeleteOutput
+        tasks_get_by_id, tasks_get_by_status, tasks_update_agent_task_id,
+        TaskCreateInput, TaskUpdateInput, TaskGetByIdInput,
+        TaskGetByStatusInput, TaskUpdateAgentTaskIdInput,
+        TaskListOutput, TaskSingleOutput, TaskDeleteOutput
     )
 
 
@@ -28,6 +33,7 @@ class TasksReadWorkflow:
         try:
             result = await workflow.step(
                 function=tasks_read,
+                function_input=workflow_input,
                 start_to_close_timeout=timedelta(seconds=30),
             )
             
@@ -50,6 +56,29 @@ class TasksCreateWorkflow:
                 function=tasks_create,
                 function_input=workflow_input,
                 start_to_close_timeout=timedelta(seconds=30),
+            )
+
+            agent_task = await workflow.child_start(
+                agent_id=f"task_agent_{result.task.id}",
+                agent=AgentTask,
+                agent_input=AgentTaskInput(
+                    title=result.task.title,
+                    description=result.task.description or "",
+                    status=result.task.status,
+                    agent_id=result.task.agent_id,
+                    assigned_to_id=result.task.assigned_to_id
+                ),
+                parent_close_policy=ParentClosePolicy.ABANDON,
+            )
+
+            log.info("TasksCreateWorkflow agent", agent_task=agent_task)
+
+            await workflow.step(
+                function=tasks_update_agent_task_id,
+                function_input=TaskUpdateAgentTaskIdInput(
+                    task_id=result.task.id,
+                    agent_task_id=agent_task.id
+                ),
             )
             
             return result
@@ -139,5 +168,26 @@ class TasksGetByStatusWorkflow:
             return result
         except Exception as e:
             error_message = f"Error during tasks_get_by_status: {e}"
+            log.error(error_message)
+            raise NonRetryableError(message=error_message)
+
+
+@workflow.defn()
+class TasksUpdateAgentTaskIdWorkflow:
+    """Workflow to update agent_task_id when agent starts execution"""
+    
+    @workflow.run
+    async def run(self, workflow_input: TaskUpdateAgentTaskIdInput) -> TaskSingleOutput:
+        log.info("TasksUpdateAgentTaskIdWorkflow started")
+        try:
+            result = await workflow.step(
+                function=tasks_update_agent_task_id,
+                function_input=workflow_input,
+                start_to_close_timeout=timedelta(seconds=30),
+            )
+            
+            return result
+        except Exception as e:
+            error_message = f"Error during tasks_update_agent_task_id: {e}"
             log.error(error_message)
             raise NonRetryableError(message=error_message)

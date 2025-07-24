@@ -2,22 +2,30 @@
 
 import { useState } from "react";
 import { Button } from "@workspace/ui/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@workspace/ui/components/ui/dialog";
 import { Input } from "@workspace/ui/components/ui/input";
 import { Label } from "@workspace/ui/components/ui/label";
 import { Textarea } from "@workspace/ui/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@workspace/ui/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@workspace/ui/components/ui/dialog";
+import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
 import { Plus } from "lucide-react";
-import { useAgentActions } from "@/hooks/use-workflow-actions";
 
 interface CreateAgentModalProps {
   onAgentCreated?: () => void;
 }
 
 export function CreateAgentModal({ onAgentCreated }: CreateAgentModalProps) {
-  const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const { createAgent } = useAgentActions();
+  const [isOpen, setIsOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const { createAgent } = useWorkspaceScopedActions();
 
   const [formData, setFormData] = useState({
     name: "",
@@ -30,12 +38,12 @@ export function CreateAgentModal({ onAgentCreated }: CreateAgentModalProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    setIsLoading(true);
 
     try {
       const result = await createAgent(formData);
       if (result.success) {
-        setOpen(false);
+        setIsOpen(false);
         setFormData({
           name: "",
           description: "",
@@ -51,7 +59,7 @@ export function CreateAgentModal({ onAgentCreated }: CreateAgentModalProps) {
     } catch {
       alert("Failed to create agent");
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -60,7 +68,7 @@ export function CreateAgentModal({ onAgentCreated }: CreateAgentModalProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
         <Button size="sm">
           <Plus className="h-4 w-4 mr-1" />
@@ -118,11 +126,11 @@ export function CreateAgentModal({ onAgentCreated }: CreateAgentModalProps) {
           </div>
 
           <div className="flex justify-end space-x-2 pt-4">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? "Creating..." : "Create Agent"}
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? "Creating..." : "Create Agent"}
             </Button>
           </div>
         </form>

@@ -1,15 +1,5 @@
 "use server";
-import Restack from "@restackio/ai";
-
-const connectionOptions = {
-  engineId: process.env.RESTACK_ENGINE_ID!,
-  address: process.env.RESTACK_ENGINE_ADDRESS!,
-  apiKey: process.env.RESTACK_ENGINE_API_KEY!,
-};
-
-const client = new Restack(
-  process.env.RESTACK_ENGINE_API_KEY ? connectionOptions : undefined
-);
+import { client } from "./client";
 
 export async function runWorkflow({
   workflowName = "workflowFlow",
@@ -24,17 +14,26 @@ export async function runWorkflow({
 
   const workflowId = `${Date.now()}-${workflowName.toString()}`;
 
-  const runId = await client.scheduleWorkflow({
-    workflowName,
-    workflowId,
-    input,
-    taskQueue: "restack",
-  });
-
-  return {
-    workflowId,
-    runId
+  try {
+    const runId = await client.scheduleWorkflow({
+      workflowName,
+      workflowId,
+      input,
+      taskQueue: "restack",
+    });
+    
+    return {
+      workflowId,
+      runId
+    };
+  } catch (error) {
+    console.error(`Error scheduling workflow:`, error);
+    throw error;
   }
+}
+
+export async function testServerAction() {
+  return { success: true, message: "Server action working" };
 }
 
 export async function getWorkflowResult({
@@ -44,9 +43,15 @@ export async function getWorkflowResult({
   workflowId: string,
   runId: string
 }) : Promise<any> {
-  const result = await client.getWorkflowResult({
-    workflowId,
-    runId
-  });
-  return result
+  try {
+    const result = await client.getWorkflowResult({
+      workflowId,
+      runId
+    });
+    
+    return result;
+  } catch (error) {
+    console.error(`Error getting workflow result:`, error);
+    throw error;
+  }
 }

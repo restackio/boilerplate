@@ -13,33 +13,74 @@ class Workspace(Base):
     
     id = Column(UUID(as_uuid=True), primary_key=True)
     name = Column(String(255), nullable=False)
-    plan = Column(String(50), nullable=False, default="free")
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
-    users = relationship("User", back_populates="workspace")
+    user_workspaces = relationship("UserWorkspace", back_populates="workspace")
+    teams = relationship("Team", back_populates="workspace")
+
+
+class UserWorkspace(Base):
+    __tablename__ = "user_workspaces"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    workspace_id = Column(UUID(as_uuid=True), ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False)
+    role = Column(String(50), nullable=False, default="member")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Constraints
+    __table_args__ = (
+        CheckConstraint(
+            role.in_(['owner', 'admin', 'member']),
+            name='valid_role'
+        ),
+    )
+    
+    # Relationships
+    user = relationship("User", back_populates="workspaces")
+    workspace = relationship("Workspace", back_populates="user_workspaces")
+
+
+class Team(Base):
+    __tablename__ = "teams"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True)
+    workspace_id = Column(UUID(as_uuid=True), ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(255), nullable=False)
+    description = Column(Text)
+    icon = Column(String(50), default="Building")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    workspace = relationship("Workspace", back_populates="teams")
+    agents = relationship("Agent", back_populates="team")
+    tasks = relationship("Task", back_populates="team")
 
 
 class User(Base):
     __tablename__ = "users"
     
     id = Column(UUID(as_uuid=True), primary_key=True)
-    workspace_id = Column(UUID(as_uuid=True), ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False)
     name = Column(String(255), nullable=False)
     email = Column(String(255), nullable=False, unique=True)
+    password_hash = Column(String(255), nullable=False)
     avatar_url = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
-    workspace = relationship("Workspace", back_populates="users")
+    workspaces = relationship("UserWorkspace", back_populates="user")
 
 
 class Agent(Base):
     __tablename__ = "agents"
     
     id = Column(UUID(as_uuid=True), primary_key=True)
+    workspace_id = Column(UUID(as_uuid=True), ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False)
+    team_id = Column(UUID(as_uuid=True), ForeignKey("teams.id", ondelete="SET NULL"), nullable=True)
     name = Column(String(255), nullable=False)
     version = Column(String(50), nullable=False, default="v1.0")
     description = Column(Text)
@@ -58,6 +99,8 @@ class Agent(Base):
     )
     
     # Relationships
+    workspace = relationship("Workspace")
+    team = relationship("Team", back_populates="agents")
     tasks = relationship("Task", back_populates="agent")
     parent_agent = relationship("Agent", remote_side=[id], backref="child_agents")
 
@@ -66,11 +109,14 @@ class Task(Base):
     __tablename__ = "tasks"
     
     id = Column(UUID(as_uuid=True), primary_key=True)
+    workspace_id = Column(UUID(as_uuid=True), ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False)
+    team_id = Column(UUID(as_uuid=True), ForeignKey("teams.id", ondelete="SET NULL"), nullable=True)
     title = Column(String(255), nullable=False)
     description = Column(Text)
     status = Column(String(50), nullable=False, default="open")
     agent_id = Column(UUID(as_uuid=True), ForeignKey("agents.id", ondelete="CASCADE"), nullable=False)
-    assigned_to = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    assigned_to_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    agent_task_id = Column(String(255), nullable=True)  # Restack agent task ID for state management
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -83,5 +129,7 @@ class Task(Base):
     )
     
     # Relationships
+    workspace = relationship("Workspace")
+    team = relationship("Team", back_populates="tasks")
     agent = relationship("Agent", back_populates="tasks")
-    assigned_to_user = relationship("User", foreign_keys=[assigned_to]) 
+    assigned_to_user = relationship("User", foreign_keys=[assigned_to_id]) 

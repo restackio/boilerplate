@@ -2,10 +2,7 @@
 
 import {
   ChevronRight,
-  Folder,
-  Forward,
-  MoreHorizontal,
-  Trash2,
+  Settings,
   type LucideIcon,
 } from "lucide-react";
 
@@ -15,23 +12,14 @@ import {
   CollapsibleTrigger,
 } from "@workspace/ui/components/ui/collapsible";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@workspace/ui/components/ui/dropdown-menu";
-import {
   SidebarGroup,
   SidebarGroupLabel,
   SidebarMenu,
-  SidebarMenuAction,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
-  useSidebar,
 } from "@workspace/ui/components/ui/sidebar";
 
 export function NavTeams({
@@ -47,8 +35,6 @@ export function NavTeams({
     }[];
   }[];
 }) {
-  const { isMobile } = useSidebar();
-
   return (
     <SidebarGroup>
       <SidebarGroupLabel>Teams</SidebarGroupLabel>
@@ -90,39 +76,13 @@ export function NavTeams({
                 </a>
               </SidebarMenuButton>
             )}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <SidebarMenuAction showOnHover>
-                  <MoreHorizontal />
-                  <span className="sr-only">More</span>
-                </SidebarMenuAction>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                className="w-48 rounded-lg"
-                side={isMobile ? "bottom" : "right"}
-                align={isMobile ? "end" : "start"}
-              >
-                <DropdownMenuItem>
-                  <Folder className="text-muted-foreground" />
-                  <span>View Team</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Forward className="text-muted-foreground" />
-                  <span>Share Team</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <Trash2 className="text-muted-foreground" />
-                  <span>Delete Team</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
           </SidebarMenuItem>
         ))}
         <SidebarMenuItem>
-          <SidebarMenuButton className="text-sidebar-foreground/70">
-            <MoreHorizontal className="text-sidebar-foreground/70" />
-            <span>More</span>
+          <SidebarMenuButton asChild className="text-xs text-sidebar-foreground/70">
+            <a href="/teams/settings">
+              <span>Team settings</span>
+            </a>
           </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu>
