@@ -10,6 +10,7 @@ from src.client import client
 from src.functions.get_random import get_random
 from src.functions.get_result import get_result
 from src.functions.llm_chat import llm_chat
+from src.functions.llm_response import llm_response
 from src.functions.todo_create import todo_create
 from src.functions.agents_crud import (
     agents_read, agents_create, agents_update, agents_delete, 
@@ -97,7 +98,7 @@ async def main() -> None:
             UserSignupWorkflow, UserLoginWorkflow,
         ],
         functions=[
-            todo_create, get_random, get_result, llm_chat,
+            todo_create, get_random, get_result, llm_chat, llm_response,
             agents_read, agents_create, agents_update, agents_delete,
             agents_get_by_id, agents_get_by_status, agents_get_versions,
             tasks_read, tasks_create, tasks_update, tasks_delete,

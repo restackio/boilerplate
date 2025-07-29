@@ -17,10 +17,10 @@ from src.workflows.todo_execute import (
 with import_functions():
     from openai import pydantic_function_tool
 
-    from src.functions.llm_chat import (
-        LlmChatInput,
+    from src.functions.llm_response import (
+        LlmResponseInput,
         Message,
-        llm_chat,
+        llm_response,
     )
     from src.functions.todo_create import (
         TodoCreateParams,
@@ -81,12 +81,12 @@ class AgentTask:
             ]
             try:
                 completion = await agent.step(
-                    function=llm_chat,
-                    function_input=LlmChatInput(messages=self.messages, tools=tools),
+                    function=llm_response,
+                    function_input=LlmResponseInput(messages=self.messages, tools=tools),
                     start_to_close_timeout=timedelta(seconds=120),
                 )
             except Exception as e:
-                error_message = f"Error during llm_chat: {e}"
+                error_message = f"Error during llm_response: {e}"
                 raise NonRetryableError(error_message) from e
             else:
                 log.info(f"completion: {completion}")
@@ -131,14 +131,14 @@ class AgentTask:
                                     )
                                     try:
                                         completion_with_tool_call = await agent.step(
-                                            function=llm_chat,
-                                            function_input=LlmChatInput(
+                                            function=llm_response,
+                                            function_input=LlmResponseInput(
                                                 messages=self.messages, tools=tools
                                             ),
                                             start_to_close_timeout=timedelta(seconds=120),
                                         )
                                     except Exception as e:
-                                        error_message = f"Error during llm_chat: {e}"
+                                        error_message = f"Error during llm_response: {e}"
                                         raise NonRetryableError(error_message) from e
                                     else:
                                         self.messages.append(
@@ -175,14 +175,14 @@ class AgentTask:
 
                                     try:
                                         completion_with_tool_call = await agent.step(
-                                            function=llm_chat,
-                                            function_input=LlmChatInput(
+                                            function=llm_response,
+                                            function_input=LlmResponseInput(
                                             messages=self.messages, tools=tools
                                         ),
                                         start_to_close_timeout=timedelta(seconds=120),
                                         )
                                     except Exception as e:
-                                        error_message = f"Error during llm_chat: {e}"
+                                        error_message = f"Error during llm_response: {e}"
                                         raise NonRetryableError(error_message) from e
                                     else:
                                         self.messages.append(
@@ -225,7 +225,7 @@ class AgentTask:
         log.info("AgentTask agents_get_by_id result", result=result)
         self.messages.append(
             Message(
-                role="system",
+                role="developer",
                 content=result.agent.instructions
             )
         )
