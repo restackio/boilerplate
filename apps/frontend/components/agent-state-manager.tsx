@@ -228,7 +228,7 @@ export function AgentStateManager({ taskId, agentTaskId, runId, taskDescription 
               {messages.length > 0 && (
                 <div>
                   <h4 className="font-medium mb-2">Messages ({messages.length})</h4>
-                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                  <div className="space-y-2 overflow-y-auto">
                     {messages.map((msg: any, index: number) => (
                       <div
                         key={index}

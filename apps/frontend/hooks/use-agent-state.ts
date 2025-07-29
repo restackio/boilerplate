@@ -79,7 +79,6 @@ export function useAgentState({ taskId, agentTaskId, runId, onStateChange }: Use
     try {
       const result = await sendAgentMessage({
         agentId: agentTaskId,
-        runId: runId || "", // Use agentTaskId as fallback
         message: message,
       });
 
@@ -122,7 +121,6 @@ export function useAgentState({ taskId, agentTaskId, runId, onStateChange }: Use
     try {
       const result = await stopAgent({
         agentId: agentTaskId,
-        runId: runId || agentTaskId, // Use agentTaskId as fallback
       });
 
       if (!result.success) {

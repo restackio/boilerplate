@@ -2,7 +2,7 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { useWorkspace } from "@/lib/workspace-context";
+import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 import { useWorkspaceScopedActions, Agent } from "@/hooks/use-workspace-scoped-actions";
 import { Button } from "@workspace/ui/components/ui/button";
 import {
@@ -12,10 +12,7 @@ import {
   TabsContent,
 } from "@workspace/ui/components/ui/tabs";
 import {
-  Tooltip,
-  TooltipContent,
   TooltipProvider,
-  TooltipTrigger,
 } from "@workspace/ui/components/ui/tooltip";
 import { PageHeader } from "@workspace/ui/components/page-header";
 import AgentFlow from "@workspace/ui/components/agent-flow";
@@ -33,14 +30,13 @@ import {
   AgentVersionsTab, 
   DeleteAgentModal 
 } from "./components";
-import { Agent as LocalAgent } from "./types";
 
 export default function AgentEditPage() {
   const params = useParams();
   const router = useRouter();
   const agentId = params.agentId as string;
-  const { currentWorkspace } = useWorkspace();
-  const { agents, fetchAgents, updateAgent, createAgent, deleteAgent, agentsLoading, getAgentVersions } = useWorkspaceScopedActions();
+  const { isReady } = useDatabaseWorkspace();
+  const { fetchAgents, updateAgent, createAgent, deleteAgent, agentsLoading, getAgentVersions } = useWorkspaceScopedActions();
 
   // State for the individual agent
   const [agent, setAgent] = useState<Agent | null>(null);
@@ -60,7 +56,7 @@ export default function AgentEditPage() {
   // Fetch the agent by ID on component mount
   useEffect(() => {
     const fetchAgent = async () => {
-      if (!agentId) return;
+      if (!agentId || !isReady) return;
       
       setIsLoading(true);
       try {
@@ -70,84 +66,24 @@ export default function AgentEditPage() {
           const foundAgent = result.data.find((a: Agent) => a.id === agentId);
           if (foundAgent) {
             setAgent(foundAgent);
-          } else {
-            console.error("Agent not found:", agentId);
-            // Fallback to demo data if API fails
-            const fallbackAgent = currentWorkspace.agents.find((a) => a.id === agentId);
-            if (fallbackAgent) {
-              // Convert demo agent to backend agent format
-              const convertedAgent: Agent = {
-                id: fallbackAgent.id,
-                name: fallbackAgent.name,
-                version: fallbackAgent.version,
-                description: fallbackAgent.description,
-                instructions: fallbackAgent.instructions,
-                status: fallbackAgent.status === "active" ? "active" : "inactive", // Convert status
-                parent_agent_id: undefined, // Demo data doesn't have this
-                created_at: undefined, // Demo data doesn't have this
-                updated_at: undefined, // Demo data doesn't have this
-                version_count: 1, // Default value
-                latest_version: fallbackAgent.version, // Use current version
-              };
-              setAgent(convertedAgent);
-            } else {
-              setAgent(null);
-            }
-          }
+                  } else {
+          console.error("Agent not found:", agentId);
+          setAgent(null);
+        }
         } else {
           console.error("Failed to fetch agents:", result.error);
-          // Fallback to demo data if API fails
-          const fallbackAgent = currentWorkspace.agents.find((a) => a.id === agentId);
-          if (fallbackAgent) {
-            // Convert demo agent to backend agent format
-            const convertedAgent: Agent = {
-              id: fallbackAgent.id,
-              name: fallbackAgent.name,
-              version: fallbackAgent.version,
-              description: fallbackAgent.description,
-              instructions: fallbackAgent.instructions,
-              status: fallbackAgent.status === "active" ? "active" : "inactive", // Convert status
-              parent_agent_id: undefined, // Demo data doesn't have this
-              created_at: undefined, // Demo data doesn't have this
-              updated_at: undefined, // Demo data doesn't have this
-              version_count: 1, // Default value
-              latest_version: fallbackAgent.version, // Use current version
-            };
-            setAgent(convertedAgent);
-          } else {
-            setAgent(null);
-          }
+          setAgent(null);
         }
       } catch (error) {
         console.error("Error fetching agents:", error);
-        // Fallback to demo data if API fails
-        const fallbackAgent = currentWorkspace.agents.find((a) => a.id === agentId);
-        if (fallbackAgent) {
-          // Convert demo agent to backend agent format
-          const convertedAgent: Agent = {
-            id: fallbackAgent.id,
-            name: fallbackAgent.name,
-            version: fallbackAgent.version,
-            description: fallbackAgent.description,
-            instructions: fallbackAgent.instructions,
-            status: fallbackAgent.status === "active" ? "active" : "inactive", // Convert status
-            parent_agent_id: undefined, // Demo data doesn't have this
-            created_at: undefined, // Demo data doesn't have this
-            updated_at: undefined, // Demo data doesn't have this
-            version_count: 1, // Default value
-            latest_version: fallbackAgent.version, // Use current version
-          };
-          setAgent(convertedAgent);
-        } else {
-          setAgent(null);
-        }
+        setAgent(null);
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchAgent();
-  }, [agentId, fetchAgents, currentWorkspace.agents]);
+  }, [agentId, fetchAgents, isReady]);
 
   const handleSave = async (agentData: any) => {
     if (!agent) return;
@@ -261,7 +197,7 @@ export default function AgentEditPage() {
   ];
 
   // Show loading state
-  if (isLoading) {
+  if (!isReady || isLoading) {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
