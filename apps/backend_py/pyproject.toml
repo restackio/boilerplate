@@ -10,7 +10,7 @@ dependencies = [
     "watchfiles>=1.0.4",
     "python-dotenv==1.0.1",
     "openai>=1.97.1",
-    "restack-ai>=0.0.94",
+    "restack-ai>=0.0.107",
     "psycopg2-binary>=2.9.9",
     "asyncpg>=0.29.0",
     "sqlalchemy>=2.0.0",

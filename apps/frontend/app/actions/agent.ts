@@ -12,14 +12,23 @@ export async function startAgent({
     if (!agentId || !taskDescription) {
       throw new Error("Agent ID and task description are required");
     }
+    
+    const event = {
+      name: "messages",
+      input: {
+        messages: [{ role: "user", content: taskDescription }],
+      },
+    };
+
+    console.log("event", event);
 
     const runId = await client.scheduleAgent({
       agentName: "AgentTask", // Assuming this is the agent name
       agentId: agentId,
-      input: {
-        task_description: taskDescription,
-      }
+      event,
     });
+
+    console.log("runId", runId);
 
     return {
       success: true,

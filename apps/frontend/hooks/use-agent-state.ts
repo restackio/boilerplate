@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { subscribeAgentState } from "@restackio/react";
+import { subscribeAgentState, subscribeAgentResponses } from "@restackio/react";
 import { startAgent, sendAgentMessage, stopAgent } from "@/app/actions/agent";
 
 interface AgentState {
@@ -67,7 +67,26 @@ export function useAgentState({ taskId, agentTaskId, runId, onStateChange }: Use
     },
   });
 
+  // Subscribe to agent responses using the official Restack React hook
+  const agentResponses = subscribeAgentResponses({
+    apiAddress: process.env.NEXT_PUBLIC_RESTACK_ENGINE_API_ADDRESS || "http://localhost:9233",
+    apiToken: process.env.NEXT_PUBLIC_RESTACK_ENGINE_API_KEY,
+    agentId: agentTaskId || "",
+    options: {
+      onMessage: (data: any) => {
+        console.log("subscribeAgentResponses onMessage received:", data);
+        console.log("Raw response data type:", typeof data);
+        console.log("Raw response data:", data);
+      },
+      onError: (error: any) => {
+        console.error("subscribeAgentResponses error:", error);
+        setError(error.message || "Failed to subscribe to agent responses");
+      },
+    },
+  });
+
   console.log("subscribeAgentState hook result:", agentState);
+  console.log("subscribeAgentResponses hook result:", agentResponses);
   console.log("agentTaskId:", agentTaskId, "runId:", runId);
 
   // Send message to agent using server action

@@ -20,6 +20,7 @@ with import_functions():
         TaskGetByStatusInput, TaskUpdateAgentTaskIdInput,
         TaskListOutput, TaskSingleOutput, TaskDeleteOutput
     )
+    from src.functions.send_agent_event import send_agent_event, SendAgentEventInput
 
 
 # Workflow definitions
@@ -71,6 +72,7 @@ class TasksCreateWorkflow:
                 parent_close_policy=ParentClosePolicy.ABANDON,
             )
 
+
             log.info("TasksCreateWorkflow agent", agent_task=agent_task)
 
             await workflow.step(
@@ -80,6 +82,23 @@ class TasksCreateWorkflow:
                     agent_task_id=agent_task.id
                 ),
             )
+
+            await workflow.step(
+                function=send_agent_event,
+                function_input=SendAgentEventInput(
+                    event_name="messages",
+                    agent_id=agent_task.id,
+                    event_input={
+                        "messages": [
+                            {
+                                "role": "user",
+                                "content": result.task.description
+                            }
+                        ]
+                    }
+                ),
+            )
+
             
             return result
         except Exception as e:
