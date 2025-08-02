@@ -98,6 +98,9 @@ export default function TaskDetailPage() {
     const fetchTask = async () => {
       if (!taskId) return;
       
+      console.log("🔄 [TaskDetailPage] Starting to fetch task:", taskId);
+      const startTime = Date.now();
+      
       setIsLoading(true);
       setError(null);
       
@@ -105,11 +108,17 @@ export default function TaskDetailPage() {
         const result = await getTaskById(taskId);
         if (result.success && result.data) {
           setTask(result.data);
+          const endTime = Date.now();
+          console.log(`✅ [TaskDetailPage] Task loaded successfully in ${endTime - startTime}ms`);
         } else {
           setError(result.error || "Failed to load task");
+          const endTime = Date.now();
+          console.log(`❌ [TaskDetailPage] Failed to load task after ${endTime - startTime}ms`);
         }
       } catch (err) {
         setError("Failed to load task");
+        const endTime = Date.now();
+        console.log(`❌ [TaskDetailPage] Error loading task after ${endTime - startTime}ms:`, err);
       } finally {
         setIsLoading(false);
       }

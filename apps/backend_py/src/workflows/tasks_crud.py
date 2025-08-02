@@ -56,7 +56,7 @@ class TasksCreateWorkflow:
             result = await workflow.step(
                 function=tasks_create,
                 function_input=workflow_input,
-                start_to_close_timeout=timedelta(seconds=30),
+                start_to_close_timeout=timedelta(seconds=2),
             )
 
             agent_task = await workflow.child_start(
@@ -99,7 +99,6 @@ class TasksCreateWorkflow:
                 ),
             )
 
-            
             return result
         except Exception as e:
             error_message = f"Error during tasks_create: {e}"

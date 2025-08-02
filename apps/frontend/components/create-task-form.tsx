@@ -44,22 +44,43 @@ export function CreateTaskForm({
       return;
     }
 
+    console.log("🔄 [CreateTaskForm] Starting task creation...");
+    const startTime = Date.now();
+
     try {
-      const result = await onSubmit({
+      const taskData = {
         title: taskDescription.substring(0, 50) + (taskDescription.length > 50 ? "..." : ""),
         description: taskDescription,
         status: "open" as const,
         agent_id: selectedAgentId,
         assigned_to_id: currentUser?.id || "", // Use current user's ID
-      });
+      };
+      
+      console.log("🔄 [CreateTaskForm] Calling onSubmit with task data:", taskData);
+      const onSubmitStartTime = Date.now();
+      
+      const result = await onSubmit(taskData);
+      
+      const onSubmitEndTime = Date.now();
+      console.log(`✅ [CreateTaskForm] onSubmit completed in ${onSubmitEndTime - onSubmitStartTime}ms`);
+      console.log("✅ [CreateTaskForm] onSubmit result:", result);
       
       if (result.success && result.data) {
+        console.log("🔄 [CreateTaskForm] Task created successfully, calling onTaskCreated...");
+        const onTaskCreatedStartTime = Date.now();
+        
         setTaskDescription("");
         setSelectedAgentId("");
         onTaskCreated?.(result.data);
+        
+        const onTaskCreatedEndTime = Date.now();
+        console.log(`✅ [CreateTaskForm] onTaskCreated completed in ${onTaskCreatedEndTime - onTaskCreatedStartTime}ms`);
       }
+      
+      const totalTime = Date.now() - startTime;
+      console.log(`✅ [CreateTaskForm] Total task creation flow completed in ${totalTime}ms`);
     } catch (error) {
-      console.error("Failed to create task:", error);
+      console.error("❌ [CreateTaskForm] Failed to create task:", error);
     }
   };
 

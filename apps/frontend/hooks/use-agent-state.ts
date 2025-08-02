@@ -26,6 +26,7 @@ interface UseAgentStateProps {
 
 interface UseAgentStateReturn {
   state: any; // The subscription hook returns a complex type
+  agentResponses: any; // Add agentResponses to the return type
   loading: boolean;
   error: string | null;
   sendMessageToAgent: (message: string) => Promise<void>;
@@ -152,6 +153,7 @@ export function useAgentState({ taskId, agentTaskId, runId, onStateChange }: Use
 
   return {
     state: agentState,
+    agentResponses: agentResponses, // Return agentResponses separately
     loading: false, // The subscription handles loading state internally
     error,
     sendMessageToAgent,

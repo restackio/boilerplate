@@ -19,7 +19,7 @@ interface AgentStateManagerProps {
 export function AgentStateManager({ taskId, agentTaskId, runId, taskDescription }: AgentStateManagerProps) {
   const [message, setMessage] = useState("");
   const { updateTask } = useWorkspaceScopedActions();
-  const { state, loading, error, sendMessageToAgent, startAgent, stopAgent } = useAgentState({
+  const { state, agentResponses, loading, error, sendMessageToAgent, startAgent, stopAgent } = useAgentState({
     taskId,
     agentTaskId,
     runId,
@@ -31,7 +31,7 @@ export function AgentStateManager({ taskId, agentTaskId, runId, taskDescription 
   // Debug logging for raw state data
   console.log("=== AGENT STATE DEBUG ===");
   console.log("Raw agent state:", state);
-  console.log("Agent state data:", state?.data || state);
+  console.log("Agent responses:", agentResponses);
   console.log("State type:", typeof state);
   console.log("State keys:", state ? Object.keys(state) : "no state");
   if (state && typeof state === 'object') {
@@ -77,6 +77,7 @@ export function AgentStateManager({ taskId, agentTaskId, runId, taskDescription 
   const getStatusColor = (status: string) => {
     switch (status) {
       case "running":
+      case "processing":
         return "bg-green-500";
       case "completed":
         return "bg-blue-500";
@@ -98,6 +99,85 @@ export function AgentStateManager({ taskId, agentTaskId, runId, taskDescription 
   let progress;
   let agentError;
   
+  // First, try to extract messages from agent responses
+  if (agentResponses && Array.isArray(agentResponses)) {
+    // Process agent responses to extract messages
+    const messageMap = new Map(); // Track messages by item_id
+    
+    agentResponses.forEach((response: any) => {
+      if (response.type === "response.completed" && response.response?.output) {
+        response.response.output.forEach((output: any) => {
+          if (output.type === "message" && output.content) {
+            // Extract text content from the message
+            const textContent = output.content.find((content: any) => content.type === "output_text");
+            if (textContent && textContent.text) {
+              parsedMessages.push({
+                role: output.role || "assistant",
+                content: textContent.text,
+                timestamp: new Date(output.created_at || Date.now()).toISOString(),
+                type: "response"
+              });
+            }
+          }
+        });
+      } else if (response.type === "response.output_text.delta" && response.delta) {
+        // Handle streaming text deltas
+        const itemId = response.item_id;
+        if (!messageMap.has(itemId)) {
+          messageMap.set(itemId, {
+            role: "assistant",
+            content: "",
+            timestamp: new Date().toISOString(),
+            type: "streaming"
+          });
+        }
+        messageMap.get(itemId).content += response.delta;
+      } else if (response.type === "response.output_text.done" && response.text) {
+        // Finalize streaming message
+        const itemId = response.item_id;
+        if (messageMap.has(itemId)) {
+          const message = messageMap.get(itemId);
+          message.content = response.text; // Use the complete text
+          message.timestamp = new Date().toISOString();
+          parsedMessages.push(message);
+          messageMap.delete(itemId);
+        }
+      } else if (response.type === "response.mcp_call.completed" && response.item) {
+        // Handle MCP tool calls
+        const mcpCall = response.item;
+        if (mcpCall.output) {
+          parsedMessages.push({
+            role: "assistant",
+            content: `Tool call: ${mcpCall.name}(${mcpCall.arguments})\n\nOutput: ${mcpCall.output}`,
+            timestamp: new Date().toISOString(),
+            type: "tool_call",
+            toolName: mcpCall.name,
+            toolOutput: mcpCall.output
+          });
+        }
+      } else if (response.type === "response.mcp_list_tools.completed" && response.item) {
+        // Handle MCP tool listing
+        const toolList = response.item;
+        if (toolList.tools && toolList.tools.length > 0) {
+          const toolNames = toolList.tools.map((tool: any) => tool.name).join(", ");
+          parsedMessages.push({
+            role: "system",
+            content: `Available tools: ${toolNames}`,
+            timestamp: new Date().toISOString(),
+            type: "tool_list"
+          });
+        }
+      }
+    });
+    
+    // Add any remaining incomplete messages
+    messageMap.forEach((message) => {
+      if (message.content.trim()) {
+        parsedMessages.push(message);
+      }
+    });
+  }
+  
   if (agentStateData) {
     // If the data is a string, try to parse it
     if (typeof agentStateData === 'string') {
@@ -114,12 +194,12 @@ export function AgentStateManager({ taskId, agentTaskId, runId, taskDescription 
         if (Array.isArray(parsed)) {
           // Handle nested arrays - flatten them
           if (parsed.length > 0 && Array.isArray(parsed[0])) {
-            parsedMessages = parsed.flat();
+            parsedMessages = [...parsedMessages, ...parsed.flat()];
           } else {
-            parsedMessages = parsed;
+            parsedMessages = [...parsedMessages, ...parsed];
           }
         } else if (parsed.messages) {
-          parsedMessages = parsed.messages;
+          parsedMessages = [...parsedMessages, ...parsed.messages];
           status = parsed.status || "running";
           progress = parsed.progress;
           agentError = parsed.error;
@@ -127,24 +207,24 @@ export function AgentStateManager({ taskId, agentTaskId, runId, taskDescription 
       } catch (parseError) {
         console.error("Failed to parse streamed data:", parseError);
         // If parsing fails, treat the entire string as a single message
-        parsedMessages = [{
+        parsedMessages.push({
           role: "assistant",
           content: agentStateData,
           timestamp: new Date().toISOString()
-        }];
+        });
       }
     } else if (agentStateData.messages) {
       // Handle structured data
-      parsedMessages = agentStateData.messages;
+      parsedMessages = [...parsedMessages, ...agentStateData.messages];
       status = agentStateData.status || "running";
       progress = agentStateData.progress;
       agentError = agentStateData.error;
     } else if (Array.isArray(agentStateData)) {
       // Handle array of messages directly - check for nested arrays
       if (agentStateData.length > 0 && Array.isArray(agentStateData[0])) {
-        parsedMessages = agentStateData.flat();
+        parsedMessages = [...parsedMessages, ...agentStateData.flat()];
       } else {
-        parsedMessages = agentStateData;
+        parsedMessages = [...parsedMessages, ...agentStateData];
       }
       status = "running";
     }
@@ -159,14 +239,18 @@ export function AgentStateManager({ taskId, agentTaskId, runId, taskDescription 
     return firstIndex === index;
   });
 
+  // Check if agent is actively processing (has streaming messages)
+  const hasStreamingMessages = messages.some((msg: any) => msg.type === "streaming");
+  const isProcessing = hasStreamingMessages || status === "running";
+
   return (
     <div className="space-y-4">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             Agent State
-            <Badge className={getStatusColor(status)}>
-              {status}
+            <Badge className={getStatusColor(isProcessing ? "processing" : status)}>
+              {isProcessing ? "Processing" : status}
             </Badge>
           </CardTitle>
         </CardHeader>
@@ -200,6 +284,18 @@ export function AgentStateManager({ taskId, agentTaskId, runId, taskDescription 
                   <strong>Agent State Data:</strong>
                   <pre className="mt-1 p-2 bg-gray-100 rounded text-xs overflow-auto max-h-32">
                     {JSON.stringify(agentStateData, null, 2)}
+                  </pre>
+                </div>
+                <div>
+                  <strong>Subscribe Response Data:</strong>
+                  <pre className="mt-1 p-2 bg-gray-100 rounded text-xs overflow-auto max-h-32">
+                    {JSON.stringify(agentResponses, null, 2)}
+                  </pre>
+                </div>
+                <div>
+                  <strong>Parsed Messages:</strong>
+                  <pre className="mt-1 p-2 bg-gray-100 rounded text-xs overflow-auto max-h-32">
+                    {JSON.stringify(messages, null, 2)}
                   </pre>
                 </div>
                 <div>
@@ -237,12 +333,18 @@ export function AgentStateManager({ taskId, agentTaskId, runId, taskDescription 
                             ? "bg-blue-50 border border-blue-200"
                             : msg.role === "system"
                             ? "bg-purple-50 border border-purple-200"
+                            : msg.type === "tool_call"
+                            ? "bg-orange-50 border border-orange-200"
+                            : msg.type === "tool_list"
+                            ? "bg-indigo-50 border border-indigo-200"
                             : "bg-gray-50 border border-gray-200"
                         }`}
                       >
                         <div className="flex justify-between items-start mb-1">
                           <span className="text-sm font-medium capitalize">
-                            {msg.role}
+                            {msg.type === "tool_call" ? "Tool Call" : 
+                             msg.type === "tool_list" ? "Tool List" : 
+                             msg.role}
                           </span>
                           <span className="text-xs text-muted-foreground">
                             {new Date(msg.timestamp || Date.now()).toLocaleTimeString()}
@@ -252,6 +354,11 @@ export function AgentStateManager({ taskId, agentTaskId, runId, taskDescription 
                         {msg.tool_calls && (
                           <div className="mt-2 text-xs text-muted-foreground">
                             <strong>Tool calls:</strong> {JSON.stringify(msg.tool_calls)}
+                          </div>
+                        )}
+                        {msg.toolName && (
+                          <div className="mt-2 text-xs text-muted-foreground">
+                            <strong>Tool:</strong> {msg.toolName}
                           </div>
                         )}
                       </div>
@@ -283,7 +390,7 @@ export function AgentStateManager({ taskId, agentTaskId, runId, taskDescription 
             )}
           </div>
 
-          {agentTaskId && status === "running" && (
+          {agentTaskId && (status === "running" || isProcessing) && (
             <div className="mt-4 space-y-2">
               <Textarea
                 placeholder="Send a message to the agent..."
