@@ -8,11 +8,15 @@ export async function runWorkflow({
   workflowName: string,
   input: any,
 }) : Promise<any> {
+  console.log(`🔄 [runWorkflow] Starting to schedule workflow ${workflowName}`);
+  const startTime = Date.now();
+  
   if (!workflowName || !input) {
     throw new Error("Workflow name and input are required");
   }
 
   const workflowId = `${Date.now()}-${workflowName.toString()}`;
+  console.log(`🔄 [runWorkflow] Generated workflow ID: ${workflowId}`);
 
   try {
     const runId = await client.scheduleWorkflow({
@@ -22,12 +26,17 @@ export async function runWorkflow({
       taskQueue: "restack",
     });
     
+    const endTime = Date.now();
+    console.log(`✅ [runWorkflow] Scheduled workflow in ${endTime - startTime}ms`);
+    console.log(`✅ [runWorkflow] Run ID: ${runId}`);
+    
     return {
       workflowId,
       runId
     };
   } catch (error) {
-    console.error(`Error scheduling workflow:`, error);
+    const endTime = Date.now();
+    console.error(`❌ [runWorkflow] Error after ${endTime - startTime}ms:`, error);
     throw error;
   }
 }
@@ -43,15 +52,23 @@ export async function getWorkflowResult({
   workflowId: string,
   runId: string
 }) : Promise<any> {
+  console.log(`🔄 [getWorkflowResult] Starting to get result for workflow ${workflowId}, run ${runId}`);
+  const startTime = Date.now();
+  
   try {
     const result = await client.getWorkflowResult({
       workflowId,
       runId
     });
     
+    const endTime = Date.now();
+    console.log(`✅ [getWorkflowResult] Completed in ${endTime - startTime}ms`);
+    console.log(`✅ [getWorkflowResult] Result:`, result);
+    
     return result;
   } catch (error) {
-    console.error(`Error getting workflow result:`, error);
+    const endTime = Date.now();
+    console.error(`❌ [getWorkflowResult] Error after ${endTime - startTime}ms:`, error);
     throw error;
   }
 }

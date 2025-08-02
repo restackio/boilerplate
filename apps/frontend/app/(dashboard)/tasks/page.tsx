@@ -40,16 +40,36 @@ export default function TasksPage() {
     agent_id: string;
     assigned_to_id: string;
   }) => {
+    console.log("🔄 [TasksPage] handleCreateTask called with:", taskData);
+    const startTime = Date.now();
+    
     const result = await createTask(taskData);
+    
+    const endTime = Date.now();
+    console.log(`✅ [TasksPage] createTask completed in ${endTime - startTime}ms`);
+    console.log("✅ [TasksPage] createTask result:", result);
+    
     if (result.success) {
-      fetchTasks();
+      console.log("✅ [TasksPage] Task created successfully");
     }
+    
+    const totalTime = Date.now() - startTime;
+    console.log(`✅ [TasksPage] handleCreateTask total time: ${totalTime}ms`);
     return result;
   };
 
-  const handleTaskCreated = (taskData: any) => {
+  const handleTaskCreated = async (taskData: any) => {
+    console.log("🔄 [TasksPage] handleTaskCreated called with:", taskData);
+    const startTime = Date.now();
+    
     setShowCreateForm(false);
+    
+    // Navigate immediately to the task page
+    console.log("🔄 [TasksPage] About to navigate to:", `/tasks/${taskData.id}`);
     router.push(`/tasks/${taskData.id}`);
+    
+    const endTime = Date.now();
+    console.log(`✅ [TasksPage] handleTaskCreated completed in ${endTime - startTime}ms`);
   };
 
   const tasksData = tasks.map((task) => ({

@@ -59,17 +59,34 @@ async function executeWorkflow<T>(
   workflowName: string,
   input: any = {}
 ): Promise<ApiResponse<T>> {
+  console.log(`🔄 [executeWorkflow] Starting ${workflowName} with input:`, input);
+  const startTime = Date.now();
+  
   try {
+    console.log(`🔄 [executeWorkflow] Running workflow ${workflowName}...`);
+    const runWorkflowStartTime = Date.now();
+    
     const { workflowId, runId } = await runWorkflow({
       workflowName,
       input,
     });
+    
+    const runWorkflowEndTime = Date.now();
+    console.log(`✅ [executeWorkflow] runWorkflow completed in ${runWorkflowEndTime - runWorkflowStartTime}ms`);
+    console.log(`✅ [executeWorkflow] Workflow ID: ${workflowId}, Run ID: ${runId}`);
 
     // Get the result
+    console.log(`🔄 [executeWorkflow] Getting workflow result...`);
+    const getResultStartTime = Date.now();
+    
     const result = await getWorkflowResult({
       workflowId,
       runId,
     });
+    
+    const getResultEndTime = Date.now();
+    console.log(`✅ [executeWorkflow] getWorkflowResult completed in ${getResultEndTime - getResultStartTime}ms`);
+    console.log(`✅ [executeWorkflow] Raw result:`, result);
     
     if (result === null || result === undefined) {
       throw new Error('Workflow returned null or undefined result');
@@ -152,12 +169,17 @@ async function executeWorkflow<T>(
       };
     }
 
+    const totalTime = Date.now() - startTime;
+    console.log(`✅ [executeWorkflow] ${workflowName} total execution time: ${totalTime}ms`);
+    
     return {
       success: true,
       data: result as T,
     };
   } catch (error) {
     console.error(`❌ Workflow execution failed for ${workflowName}:`, error);
+    const totalTime = Date.now() - startTime;
+    console.log(`❌ [executeWorkflow] ${workflowName} failed after ${totalTime}ms`);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error occurred",
@@ -337,6 +359,9 @@ export function useWorkspaceScopedActions() {
   }, [currentWorkspaceId, isReady]);
 
   const createTask = useCallback(async (taskData: any) => {
+    console.log("🔄 [useWorkspaceScopedActions] createTask called with:", taskData);
+    const startTime = Date.now();
+    
     if (!isReady || !currentWorkspaceId) {
       console.error("❌ Cannot create task: no valid workspace context");
       return { success: false, error: "No valid workspace context" };
@@ -345,20 +370,33 @@ export function useWorkspaceScopedActions() {
     setTasksLoading({ isLoading: true, error: null });
     let result;
     try {
+      console.log("🔄 [useWorkspaceScopedActions] Executing TasksCreateWorkflow...");
+      const workflowStartTime = Date.now();
+      
       result = await executeWorkflow<Task>("TasksCreateWorkflow", {
         ...taskData,
         workspace_id: currentWorkspaceId
       });
       
+      const workflowEndTime = Date.now();
+      console.log(`✅ [useWorkspaceScopedActions] TasksCreateWorkflow completed in ${workflowEndTime - workflowStartTime}ms`);
+      console.log("✅ [useWorkspaceScopedActions] Workflow result:", result);
+      
       if (result.success) {
-        await fetchTasks();
+        console.log("✅ [useWorkspaceScopedActions] Task created successfully");
+        // Don't update local state since we're navigating to the task detail page
+        // The task detail page will fetch the specific task by ID
       } else {
         setTasksLoading({ isLoading: false, error: result.error || "Failed to create task" });
       }
     } catch (error) {
+      console.error("❌ [useWorkspaceScopedActions] Error in createTask:", error);
       setTasksLoading({ isLoading: false, error: "Failed to create task" });
     }
     setTasksLoading({ isLoading: false, error: null });
+    
+    const totalTime = Date.now() - startTime;
+    console.log(`✅ [useWorkspaceScopedActions] createTask total time: ${totalTime}ms`);
     return result;
   }, [currentWorkspaceId, isReady, fetchTasks]);
 
@@ -390,19 +428,35 @@ export function useWorkspaceScopedActions() {
   }, [currentWorkspaceId, isReady, fetchTasks]);
 
   const getTaskById = useCallback(async (taskId: string) => {
+    console.log("🔄 [useWorkspaceScopedActions] getTaskById called with:", taskId);
+    const startTime = Date.now();
+    
     if (!isReady || !currentWorkspaceId) {
       console.error("❌ Cannot get task: no valid workspace context");
       return { success: false, error: "No valid workspace context" };
     }
 
     try {
+      console.log("🔄 [useWorkspaceScopedActions] Executing TasksGetByIdWorkflow...");
+      const workflowStartTime = Date.now();
+      
       const result = await executeWorkflow<Task>("TasksGetByIdWorkflow", {
         task_id: taskId,
         workspace_id: currentWorkspaceId
       });
+      
+      const workflowEndTime = Date.now();
+      console.log(`✅ [useWorkspaceScopedActions] TasksGetByIdWorkflow completed in ${workflowEndTime - workflowStartTime}ms`);
+      console.log("✅ [useWorkspaceScopedActions] getTaskById result:", result);
+      
+      const totalTime = Date.now() - startTime;
+      console.log(`✅ [useWorkspaceScopedActions] getTaskById total time: ${totalTime}ms`);
+      
       return result;
     } catch (error) {
-      console.error("❌ Failed to get task:", error);
+      console.error("❌ [useWorkspaceScopedActions] Error in getTaskById:", error);
+      const totalTime = Date.now() - startTime;
+      console.log(`❌ [useWorkspaceScopedActions] getTaskById failed after ${totalTime}ms`);
       return { success: false, error: "Failed to get task" };
     }
   }, [currentWorkspaceId, isReady]);
