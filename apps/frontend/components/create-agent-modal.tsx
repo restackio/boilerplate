@@ -9,8 +9,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -30,8 +28,6 @@ export function CreateAgentModal({ onAgentCreated }: CreateAgentModalProps) {
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    instructions: "",
-    channel: "",
     version: "v1.0",
     status: "inactive" as "active" | "inactive",
   });
@@ -47,8 +43,6 @@ export function CreateAgentModal({ onAgentCreated }: CreateAgentModalProps) {
         setFormData({
           name: "",
           description: "",
-          instructions: "",
-          channel: "",
           version: "v1.0",
           status: "inactive" as "active" | "inactive",
         });
@@ -101,7 +95,6 @@ export function CreateAgentModal({ onAgentCreated }: CreateAgentModalProps) {
               rows={3}
             />
           </div>
-
           <div className="space-y-2">
             <Label htmlFor="version">Version</Label>
             <Input

@@ -38,21 +38,27 @@ export function useAgentState({ taskId, agentTaskId, runId, onStateChange }: Use
   const [error, setError] = useState<string | null>(null);
 
   // Subscribe to agent state using the official Restack React hook
+  // Use a valid agent ID that should exist in the system
   const agentState = subscribeAgentState({
     apiAddress: process.env.NEXT_PUBLIC_RESTACK_ENGINE_API_ADDRESS || "http://localhost:9233",
     apiToken: process.env.NEXT_PUBLIC_RESTACK_ENGINE_API_KEY,
-    agentId: agentTaskId || "",
+    agentId: agentTaskId || `task_agent_${taskId}`, // Use task-based agent ID format from backend
     runId: runId || "",
     stateName: "state_messages",
     options: {
       onMessage: (data: any) => {
+        // Only process messages if we have a valid agentTaskId
+        if (!agentTaskId) return;
+        
         console.log("subscribeAgentState onMessage received:", data);
         console.log("Raw message data type:", typeof data);
         console.log("Raw message data:", data);
+        console.log("Data keys:", Object.keys(data));
+        console.log("Data.messages:", data.messages);
         
         const newState: AgentState = {
           taskId,
-          agentTaskId: agentTaskId || "",
+          agentTaskId: agentTaskId,
           status: data.status || "waiting",
           messages: data.messages || [],
           progress: data.progress,
@@ -62,6 +68,9 @@ export function useAgentState({ taskId, agentTaskId, runId, onStateChange }: Use
         onStateChange?.(newState);
       },
       onError: (error: any) => {
+        // Only process errors if we have a valid agentTaskId
+        if (!agentTaskId) return;
+        
         console.error("subscribeAgentState error:", error);
         setError(error.message || "Failed to subscribe to agent state");
       },
@@ -69,17 +78,26 @@ export function useAgentState({ taskId, agentTaskId, runId, onStateChange }: Use
   });
 
   // Subscribe to agent responses using the official Restack React hook
+  // Use a valid agent ID that should exist in the system
   const agentResponses = subscribeAgentResponses({
     apiAddress: process.env.NEXT_PUBLIC_RESTACK_ENGINE_API_ADDRESS || "http://localhost:9233",
     apiToken: process.env.NEXT_PUBLIC_RESTACK_ENGINE_API_KEY,
-    agentId: agentTaskId || "",
+    agentId: agentTaskId || `task_agent_${taskId}`, // Use task-based agent ID format from backend
     options: {
       onMessage: (data: any) => {
+        // Only process messages if we have a valid agentTaskId
+        if (!agentTaskId) return;
+        
         console.log("subscribeAgentResponses onMessage received:", data);
         console.log("Raw response data type:", typeof data);
         console.log("Raw response data:", data);
+        console.log("Response data keys:", Object.keys(data));
+        console.log("Response data structure:", JSON.stringify(data, null, 2));
       },
       onError: (error: any) => {
+        // Only process errors if we have a valid agentTaskId
+        if (!agentTaskId) return;
+        
         console.error("subscribeAgentResponses error:", error);
         setError(error.message || "Failed to subscribe to agent responses");
       },
@@ -152,8 +170,8 @@ export function useAgentState({ taskId, agentTaskId, runId, onStateChange }: Use
   }, [agentTaskId, runId]);
 
   return {
-    state: agentState,
-    agentResponses: agentResponses, // Return agentResponses separately
+    state: agentTaskId ? agentState : null,
+    agentResponses: agentTaskId ? agentResponses : null, // Return agentResponses separately
     loading: false, // The subscription handles loading state internally
     error,
     sendMessageToAgent,

@@ -23,6 +23,14 @@ with import_functions():
         agents_get_by_id,
         AgentIdInput,
     )
+    from src.functions.agent_mcp_servers_crud import (
+        agent_mcp_servers_read_by_agent,
+        AgentMcpServerGetByAgentInput,
+    )
+    from src.functions.mcp_servers_crud import (
+        mcp_servers_get_by_id,
+        McpServerIdInput,
+    )
     from src.functions.send_agent_event import (
         SendAgentEventInput,
         send_agent_event,
@@ -60,20 +68,42 @@ class AgentTask:
         try:
             self.messages.extend(messages_event.messages)
 
-            mcp_servers = [
-                Mcp(
+            # Get agent's MCP server configurations from database
+            agent_mcp_servers_result = await agent.step(
+                function=agent_mcp_servers_read_by_agent,
+                function_input=AgentMcpServerGetByAgentInput(agent_id=self.agent_id),
+                start_to_close_timeout=timedelta(seconds=30),
+            )
+
+            mcp_servers = []
+            
+            # Build MCP server configurations for each agent-MCP relationship
+            for agent_mcp_server in agent_mcp_servers_result.agent_mcp_servers:
+                # Get the full MCP server details
+                mcp_server_result = await agent.step(
+                    function=mcp_servers_get_by_id,
+                    function_input=McpServerIdInput(mcp_server_id=agent_mcp_server.mcp_server_id),
+                    start_to_close_timeout=timedelta(seconds=30),
+                )
+                
+                mcp_server = mcp_server_result.mcp_server
+                
+                # Create MCP configuration with allowed tools filter
+                mcp_config = Mcp(
                     type="mcp",
-                    server_label="deepwiki",
-                    server_url="https://mcp.deepwiki.com/mcp",
-                    require_approval="never",
-                ),
-                # Mcp(
-                #     type="mcp",
-                #     server_label="restack",
-                #     server_url="https://6761eab1c231.ngrok-free.app/mcp",
-                #     require_approval="never",
-                # ),
-            ]
+                    server_label=mcp_server.server_label,
+                    server_url=mcp_server.server_url,
+                    server_description=mcp_server.server_description,
+                    headers=mcp_server.headers,
+                    require_approval=mcp_server.require_approval,
+                )
+                
+                # Add allowed_tools filter if specified
+                if agent_mcp_server.allowed_tools:
+                    mcp_config["allowed_tools"] = agent_mcp_server.allowed_tools
+                
+                mcp_servers.append(mcp_config)
+
             try:
                 completion = await agent.step(
                     function=llm_response,

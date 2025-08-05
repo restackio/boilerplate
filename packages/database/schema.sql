@@ -43,6 +43,19 @@ CREATE TABLE IF NOT EXISTS teams (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Create mcp_servers table
+CREATE TABLE IF NOT EXISTS mcp_servers (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    server_label VARCHAR(255) NOT NULL,
+    server_url VARCHAR(500) NOT NULL,
+    server_description TEXT,
+    headers JSONB,
+    require_approval VARCHAR(50) DEFAULT 'never' CHECK (require_approval IN ('always', 'never')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Create agents table
 CREATE TABLE IF NOT EXISTS agents (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -51,11 +64,21 @@ CREATE TABLE IF NOT EXISTS agents (
     name VARCHAR(255) NOT NULL,
     version VARCHAR(50) NOT NULL DEFAULT 'v1.0',
     description TEXT,
-    instructions TEXT NOT NULL,
+    instructions TEXT,
     status VARCHAR(50) NOT NULL DEFAULT 'inactive' CHECK (status IN ('active', 'inactive')),
     parent_agent_id UUID REFERENCES agents(id) ON DELETE SET NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create agent_mcp_servers junction table for many-to-many relationship with allowed_tools
+CREATE TABLE IF NOT EXISTS agent_mcp_servers (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    agent_id UUID NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+    mcp_server_id UUID NOT NULL REFERENCES mcp_servers(id) ON DELETE CASCADE,
+    allowed_tools JSONB, -- Array of allowed tool names
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(agent_id, mcp_server_id)
 );
 
 -- Create tasks table
@@ -77,6 +100,7 @@ CREATE TABLE IF NOT EXISTS tasks (
 CREATE INDEX IF NOT EXISTS idx_user_workspaces_user_id ON user_workspaces(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_workspaces_workspace_id ON user_workspaces(workspace_id);
 CREATE INDEX IF NOT EXISTS idx_teams_workspace_id ON teams(workspace_id);
+CREATE INDEX IF NOT EXISTS idx_mcp_servers_workspace_id ON mcp_servers(workspace_id);
 CREATE INDEX IF NOT EXISTS idx_agents_workspace_id ON agents(workspace_id);
 CREATE INDEX IF NOT EXISTS idx_agents_team_id ON agents(team_id);
 CREATE INDEX IF NOT EXISTS idx_agents_status ON agents(status);
@@ -84,6 +108,8 @@ CREATE INDEX IF NOT EXISTS idx_agents_parent_id ON agents(parent_agent_id);
 CREATE INDEX IF NOT EXISTS idx_agents_created_at ON agents(created_at);
 CREATE INDEX IF NOT EXISTS idx_agents_parent_created ON agents(parent_agent_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_agents_status_created ON agents(status, created_at);
+CREATE INDEX IF NOT EXISTS idx_agent_mcp_servers_agent_id ON agent_mcp_servers(agent_id);
+CREATE INDEX IF NOT EXISTS idx_agent_mcp_servers_mcp_server_id ON agent_mcp_servers(mcp_server_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_workspace_id ON tasks(workspace_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_team_id ON tasks(team_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
@@ -106,3 +132,4 @@ CREATE TRIGGER update_tasks_updated_at BEFORE UPDATE ON tasks FOR EACH ROW EXECU
 CREATE TRIGGER update_workspaces_updated_at BEFORE UPDATE ON workspaces FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_teams_updated_at BEFORE UPDATE ON teams FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_mcp_servers_updated_at BEFORE UPDATE ON mcp_servers FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

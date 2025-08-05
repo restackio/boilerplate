@@ -2,7 +2,7 @@ import os
 from typing import Literal, Any, Dict, List, Optional
 
 from dotenv import load_dotenv
-from openai import OpenAI
+from openai import AsyncOpenAI
 from openai.types.responses.tool_param import Mcp
 
 from pydantic import BaseModel
@@ -48,7 +48,7 @@ async def llm_response(function_input: LlmResponseInput) -> LlmResponseOutput:
         if os.environ.get("OPENAI_API_KEY") is None:
             raise_exception("OPENAI_API_KEY is not set")
 
-        client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+        client = AsyncOpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
         log.info("mcp_servers", mcp_servers=function_input.mcp_servers)
 
@@ -57,11 +57,12 @@ async def llm_response(function_input: LlmResponseInput) -> LlmResponseOutput:
                 Message(role="developer", content=function_input.system_content or "")
             )
 
-        response = client.responses.create(
-            model=function_input.model or "gpt-4.1-mini",
+        response = await client.responses.create(
+            model=function_input.model or "gpt-4.1",
             input=function_input.messages,
             tools=function_input.mcp_servers,
             stream=True,
+            tool_choice="auto",
         )
 
         response_data = await stream_to_websocket(api_address=api_address, data=response)

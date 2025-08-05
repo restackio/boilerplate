@@ -25,6 +25,7 @@ services:
   # Restack Engine
   restack:
     image: ghcr.io/restackio/restack:main
+    pull_policy: always
     container_name: restack
     ports:
       - "5233:5233"

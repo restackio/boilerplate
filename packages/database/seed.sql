@@ -24,59 +24,65 @@ INSERT INTO teams (id, workspace_id, name, description, icon) VALUES
 (uuid_generate_v4(), 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'HR', 'Manages human resources and employee relations', 'Briefcase')
 ON CONFLICT (id) DO NOTHING;
 
--- Insert demo agents
-INSERT INTO agents (id, workspace_id, team_id, name, version, description, instructions, status) VALUES
+-- Insert MCP servers
+INSERT INTO mcp_servers (id, workspace_id, server_label, server_url, server_description, headers, require_approval) VALUES
 (
-    uuid_generate_v4(),
+    'c1d2e3f4-5678-9012-cdef-345678901234',
     'c926e979-1f16-46bf-a7cc-8aab70162d65',
-    (SELECT id FROM teams WHERE name = 'Engineering' LIMIT 1),
-    'GitHub Support Agent',
-    'v1.2.0',
-    'Handles GitHub issues, PRs, and repository management',
-    'You are a helpful GitHub support agent. Your role is to assist users with GitHub-related issues, pull requests, and repository management. Always be polite, professional, and thorough in your responses. Use @github_mcp_read_repos, @github_mcp_create_issues, @github_mcp_manage_prs when needed.',
-    'active'
+    'deepwiki',
+    'https://mcp.deepwiki.com/mcp',
+    'DeepWiki MCP server for accessing and querying knowledge base',
+    NULL,
+    'never'
 ),
 (
-    uuid_generate_v4(),
+    'd2e3f456-7890-0123-def0-456789012345',
     'c926e979-1f16-46bf-a7cc-8aab70162d65',
-    (SELECT id FROM teams WHERE name = 'Customer Support' LIMIT 1),
-    'Slack Support Agent',
-    'v1.1.5',
-    'Manages Slack channels, messages, and team communication',
-    'You are a helpful Slack support agent. Your role is to assist users with Slack-related issues, channel management, and team communication. Always be polite, professional, and thorough in your responses. Use @slack_mcp_send_messages, @slack_mcp_create_channels, @slack_mcp_manage_users when needed.',
-    'active'
-),
-(
-    uuid_generate_v4(),
-    'c926e979-1f16-46bf-a7cc-8aab70162d65',
-    (SELECT id FROM teams WHERE name = 'Customer Support' LIMIT 1),
-    'Email Support Agent',
-    'v1.0.8',
-    'Handles customer email inquiries and support tickets',
-    'You are a helpful email support agent. Your role is to assist users with their inquiries and support tickets via email. Always be polite, professional, and thorough in your responses. Follow up on customer issues and ensure resolution.',
-    'inactive'
-),
-(
-    uuid_generate_v4(),
-    'c926e979-1f16-46bf-a7cc-8aab70162d65',
-    (SELECT id FROM teams WHERE name = 'Engineering' LIMIT 1),
-    'Alerts Monitor Agent',
-    'v1.3.2',
-    'Monitors system alerts and performs automated responses',
-    'You are an alerts monitoring agent. Your role is to monitor system alerts, analyze their severity, and perform automated responses when possible. Use @datadog_mcp_query_metrics, @datadog_mcp_set_alerts when needed. Escalate critical issues to human operators.',
-    'active'
-),
-(
-    uuid_generate_v4(),
-    'c926e979-1f16-46bf-a7cc-8aab70162d65',
-    (SELECT id FROM teams WHERE name = 'Customer Support' LIMIT 1),
-    'Intercom Support Agent',
-    'v1.1.0',
-    'Manages customer conversations and support tickets',
-    'You are a helpful Intercom support agent. Your role is to assist customers with their inquiries and support tickets via Intercom. Always be polite, professional, and thorough in your responses. Use @intercom_mcp_send_messages, @intercom_mcp_create_tickets when needed.',
-    'inactive'
+    'posthog',
+    'https://mcp.posthog.com/mcp',
+    'PostHog MCP server for analytics and dashboard management',
+    '{"Authorization": "Bearer phx_3oQ1s81spruSq6WTw1Fs3ZDDOvgkpWvHw5NYWyApF2Vm2PN"}',
+    'always'
 )
 ON CONFLICT (id) DO NOTHING;
+
+-- Insert demo agents (simplified to just 2 agents as requested)
+INSERT INTO agents (id, workspace_id, team_id, name, version, description, instructions, status) VALUES
+(
+    'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+    'c926e979-1f16-46bf-a7cc-8aab70162d65',
+    (SELECT id FROM teams WHERE name = 'Engineering' LIMIT 1),
+    'DeepWiki Knowledge Agent',
+    'v1.0.0',
+    'Agent for querying and retrieving information from DeepWiki knowledge base',
+    'You are a helpful knowledge assistant. Your role is to help users find information by querying the DeepWiki knowledge base. Always be thorough and accurate in your responses. Use the ask_question tool to search for relevant information.',
+    'active'
+),
+(
+    'b2c3d456-7890-8901-bcde-f23456789012',
+    'c926e979-1f16-46bf-a7cc-8aab70162d65',
+    (SELECT id FROM teams WHERE name = 'Marketing' LIMIT 1),
+    'PostHog Analytics Agent',
+    'v1.0.0',
+    'Agent for managing PostHog analytics dashboards and data',
+    'You are a helpful analytics assistant. Your role is to help users manage PostHog dashboards and retrieve analytics data. Always be precise and provide clear insights. Use the dashboards-get-all and dashboard-get tools to access dashboard information.',
+    'active'
+)
+ON CONFLICT (id) DO NOTHING;
+
+-- Link agents to MCP servers with allowed tools
+INSERT INTO agent_mcp_servers (agent_id, mcp_server_id, allowed_tools) VALUES
+(
+    'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+    'c1d2e3f4-5678-9012-cdef-345678901234',
+    '["ask_question"]'
+),
+(
+    'b2c3d456-7890-8901-bcde-f23456789012',
+    'd2e3f456-7890-0123-def0-456789012345',
+    '["dashboards-get-all", "dashboard-get"]'
+)
+ON CONFLICT (agent_id, mcp_server_id) DO NOTHING;
 
 -- Insert demo tasks
 INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_id, assigned_to_id) VALUES
@@ -84,50 +90,20 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
     uuid_generate_v4(),
     'c926e979-1f16-46bf-a7cc-8aab70162d65',
     (SELECT id FROM teams WHERE name = 'Engineering' LIMIT 1),
-    'Database Performance Optimization',
-    'Analyze and optimize database query performance for the user service',
+    'Research API Documentation',
+    'Find information about API authentication methods in the knowledge base',
     'active',
-    (SELECT id FROM agents WHERE name = 'GitHub Support Agent' LIMIT 1),
+    'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
     '29fcdd0a-708e-478a-8030-34b02ad9ef84'
 ),
 (
     uuid_generate_v4(),
     'c926e979-1f16-46bf-a7cc-8aab70162d65',
-    (SELECT id FROM teams WHERE name = 'Engineering' LIMIT 1),
-    'API Rate Limiting Implementation',
-    'Implement rate limiting for the public API endpoints',
+    (SELECT id FROM teams WHERE name = 'Marketing' LIMIT 1),
+    'Analytics Dashboard Review',
+    'Review and analyze current marketing campaign performance dashboards',
     'open',
-    (SELECT id FROM agents WHERE name = 'GitHub Support Agent' LIMIT 1),
-    '29fcdd0a-708e-478a-8030-34b02ad9ef84'
-),
-(
-    uuid_generate_v4(),
-    'c926e979-1f16-46bf-a7cc-8aab70162d65',
-    (SELECT id FROM teams WHERE name = 'Engineering' LIMIT 1),
-    'Security Vulnerability Assessment',
-    'Conduct security assessment of the authentication system',
-    'completed',
-    (SELECT id FROM agents WHERE name = 'Alerts Monitor Agent' LIMIT 1),
-    '29fcdd0a-708e-478a-8030-34b02ad9ef84'
-),
-(
-    uuid_generate_v4(),
-    'c926e979-1f16-46bf-a7cc-8aab70162d65',
-    (SELECT id FROM teams WHERE name = 'Customer Support' LIMIT 1),
-    'User Onboarding Flow Improvement',
-    'Improve the user onboarding experience based on feedback',
-    'completed',
-    (SELECT id FROM agents WHERE name = 'Email Support Agent' LIMIT 1),
-    '29fcdd0a-708e-478a-8030-34b02ad9ef84'
-),
-(
-    uuid_generate_v4(),
-    'c926e979-1f16-46bf-a7cc-8aab70162d65',
-    (SELECT id FROM teams WHERE name = 'Customer Support' LIMIT 1),
-    'Mobile App Bug Investigation',
-    'Investigate and fix critical bugs in the mobile application',
-    'waiting',
-    (SELECT id FROM agents WHERE name = 'Slack Support Agent' LIMIT 1),
+    'b2c3d456-7890-8901-bcde-f23456789012',
     '29fcdd0a-708e-478a-8030-34b02ad9ef84'
 )
 ON CONFLICT (id) DO NOTHING;

@@ -1,3 +1,14 @@
 export { TaskDetailsTab } from "./TaskDetailsTab";
 export { TaskLogsTab } from "./TaskLogsTab";
-export { DeleteTaskModal } from "./DeleteTaskModal"; 
+export { DeleteTaskModal } from "./DeleteTaskModal";
+export { ConversationMessage } from "./conversation-message";
+export { ToolCard } from "./tool-card";
+export { ConversationFeed } from "./conversation-feed";
+export { ChatInput } from "./chat-input";
+export { SplitView } from "./split-view";
+export { TaskHeader } from "./TaskHeader";
+export { TaskLoadingState } from "./TaskLoadingState";
+export { TaskErrorState } from "./TaskErrorState";
+export { TaskNotFoundState } from "./TaskNotFoundState";
+export { TaskChatInterface } from "./TaskChatInterface";
+export { TaskSplitView } from "./TaskSplitView"; 

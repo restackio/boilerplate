@@ -19,16 +19,27 @@ export async function runWorkflow({
   console.log(`🔄 [runWorkflow] Generated workflow ID: ${workflowId}`);
 
   try {
-    const runId = await client.scheduleWorkflow({
+    console.log(`🔄 [runWorkflow] About to call client.scheduleWorkflow with:`, {
       workflowName,
       workflowId,
       input,
       taskQueue: "restack",
     });
     
+    const scheduleStartTime = Date.now();
+    const runId = await client.scheduleWorkflow({
+      workflowName,
+      workflowId,
+      input,
+      taskQueue: "restack",
+    });
+    const scheduleEndTime = Date.now();
+    
+    console.log(`✅ [runWorkflow] client.scheduleWorkflow completed in ${scheduleEndTime - scheduleStartTime}ms`);
+    console.log(`✅ [runWorkflow] Run ID: ${runId}`);
+    
     const endTime = Date.now();
     console.log(`✅ [runWorkflow] Scheduled workflow in ${endTime - startTime}ms`);
-    console.log(`✅ [runWorkflow] Run ID: ${runId}`);
     
     return {
       workflowId,
@@ -37,6 +48,11 @@ export async function runWorkflow({
   } catch (error) {
     const endTime = Date.now();
     console.error(`❌ [runWorkflow] Error after ${endTime - startTime}ms:`, error);
+    console.error(`❌ [runWorkflow] Error details:`, {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+    });
     throw error;
   }
 }
@@ -55,11 +71,19 @@ export async function getWorkflowResult({
   console.log(`🔄 [getWorkflowResult] Starting to get result for workflow ${workflowId}, run ${runId}`);
   const startTime = Date.now();
   
+  // Add a timeout promise
+  const timeoutPromise = new Promise((_, reject) => {
+    setTimeout(() => reject(new Error('Workflow result timeout after 30 seconds')), 30000);
+  });
+  
   try {
-    const result = await client.getWorkflowResult({
+    const resultPromise = client.getWorkflowResult({
       workflowId,
       runId
     });
+    
+    // Race between the actual result and the timeout
+    const result = await Promise.race([resultPromise, timeoutPromise]);
     
     const endTime = Date.now();
     console.log(`✅ [getWorkflowResult] Completed in ${endTime - startTime}ms`);
@@ -71,4 +95,147 @@ export async function getWorkflowResult({
     console.error(`❌ [getWorkflowResult] Error after ${endTime - startTime}ms:`, error);
     throw error;
   }
+}
+
+// MCP Server Workflows
+export async function getMcpServers(workspaceId: string) {
+  const { workflowId, runId } = await runWorkflow({
+    workflowName: "McpServersReadWorkflow",
+    input: { workspace_id: workspaceId }
+  });
+  
+  return await getWorkflowResult({
+    workflowId,
+    runId
+  });
+}
+
+export async function createMcpServer(mcpServerData: {
+  workspace_id: string;
+  server_label: string;
+  server_url: string;
+  server_description?: string;
+  headers?: Record<string, string>;
+  require_approval?: string;
+}) {
+  const { workflowId, runId } = await runWorkflow({
+    workflowName: "McpServersCreateWorkflow",
+    input: mcpServerData
+  });
+  
+  return await getWorkflowResult({
+    workflowId,
+    runId
+  });
+}
+
+export async function updateMcpServer(mcpServerData: {
+  mcp_server_id: string;
+  server_label?: string;
+  server_url?: string;
+  server_description?: string;
+  headers?: Record<string, string>;
+  require_approval?: string;
+}) {
+  const { workflowId, runId } = await runWorkflow({
+    workflowName: "McpServersUpdateWorkflow",
+    input: mcpServerData
+  });
+  
+  return await getWorkflowResult({
+    workflowId,
+    runId
+  });
+}
+
+export async function deleteMcpServer(mcpServerId: string) {
+  const { workflowId, runId } = await runWorkflow({
+    workflowName: "McpServersDeleteWorkflow",
+    input: { mcp_server_id: mcpServerId }
+  });
+  
+  return await getWorkflowResult({
+    workflowId,
+    runId
+  });
+}
+
+export async function getMcpServerById(mcpServerId: string) {
+  const { workflowId, runId } = await runWorkflow({
+    workflowName: "McpServersGetByIdWorkflow",
+    input: { mcp_server_id: mcpServerId }
+  });
+  
+  return await getWorkflowResult({
+    workflowId,
+    runId
+  });
+}
+
+// Agent-MCP Server Workflows
+export async function getAgentMcpServers(agentId: string) {
+  const { workflowId, runId } = await runWorkflow({
+    workflowName: "AgentMcpServersReadByAgentWorkflow",
+    input: { agent_id: agentId }
+  });
+  
+  return await getWorkflowResult({
+    workflowId,
+    runId
+  });
+}
+
+export async function createAgentMcpServer(agentMcpServerData: {
+  agent_id: string;
+  mcp_server_id: string;
+  allowed_tools?: string[];
+}) {
+  const { workflowId, runId } = await runWorkflow({
+    workflowName: "AgentMcpServersCreateWorkflow",
+    input: agentMcpServerData
+  });
+  
+  return await getWorkflowResult({
+    workflowId,
+    runId
+  });
+}
+
+export async function updateAgentMcpServer(agentMcpServerData: {
+  agent_mcp_server_id: string;
+  allowed_tools?: string[];
+}) {
+  const { workflowId, runId } = await runWorkflow({
+    workflowName: "AgentMcpServersUpdateWorkflow",
+    input: agentMcpServerData
+  });
+  
+  return await getWorkflowResult({
+    workflowId,
+    runId
+  });
+}
+
+export async function deleteAgentMcpServer(agentMcpServerId: string) {
+  const { workflowId, runId } = await runWorkflow({
+    workflowName: "AgentMcpServersDeleteWorkflow",
+    input: { agent_mcp_server_id: agentMcpServerId }
+  });
+  
+  return await getWorkflowResult({
+    workflowId,
+    runId
+  });
+}
+
+export async function getAgentMcpServerById(agentMcpServerId: string) {
+  const { workflowId, runId } = await runWorkflow({
+    workflowName: "AgentMcpServersGetByIdWorkflow",
+    input: { agent_mcp_server_id: agentMcpServerId }
+  });
+  
+  return await getWorkflowResult({
+    workflowId,
+    runId
+  });
 }
