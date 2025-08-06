@@ -106,6 +106,25 @@ export async function stopAgent({
   });
 }
 
+export async function sendMcpApproval({
+  agentId,
+  approvalId,
+  approved,
+}: {
+  agentId: string;
+  approvalId: string;
+  approved: boolean;
+}): Promise<{ success: boolean; error?: string }> {
+  return sendAgentEvent({
+    agentId,
+    eventName: "mcp_approval",
+    eventInput: {
+      approvalId,
+      approved,
+    },
+  });
+}
+
 export async function getAgentResult({
   agentId,
 }: {

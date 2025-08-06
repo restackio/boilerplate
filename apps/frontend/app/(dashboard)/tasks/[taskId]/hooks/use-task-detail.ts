@@ -3,7 +3,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useWorkspaceScopedActions, Task } from "@/hooks/use-workspace-scoped-actions";
 import { useAgentState } from "@/hooks/use-agent-state";
 import { ConversationItem } from "../types";
-import { useConversation } from "./use-conversation";
+import { useTaskState } from "./use-task-state";
 
 export function useTaskDetail() {
   const params = useParams();
@@ -24,8 +24,7 @@ export function useTaskDetail() {
 
   const { getTaskById, updateTask, deleteTask } = useWorkspaceScopedActions();
 
-  // Agent state management
-  const { state: agentState, agentResponses, loading: agentLoading, sendMessageToAgent } = useAgentState({
+  const { responseState, agentResponses, loading: agentLoading, sendMessageToAgent } = useAgentState({
     taskId,
     agentTaskId: task?.agent_task_id || undefined,
     onStateChange: (newState) => {
@@ -33,14 +32,20 @@ export function useTaskDetail() {
     },
   });
 
-  // Conversation management
-  const { conversation, addUserMessage, addThinkingMessage } = useConversation({
-    agentResponses: agentResponses || [],
-    agentState: agentState,
+  const { conversation, persistentItemIds, addUserMessage, addThinkingMessage } = useTaskState({
+    responseState: responseState,
     taskAgentTaskId: task?.agent_task_id,
   });
 
-  // Fetch task data on component mount
+  // Debug logging
+  console.log("🔍 TASK DETAIL: Current state:", {
+    taskId,
+    agentTaskId: task?.agent_task_id,
+    responseState,
+    conversationLength: conversation?.length || 0,
+    conversation: conversation?.slice(0, 3) // Show first 3 items
+  });
+
   useEffect(() => {
     const fetchTask = async () => {
       if (!taskId) {
@@ -136,16 +141,12 @@ export function useTaskDetail() {
     try {
       setIsThinking(true);
       
-      // Add user message to conversation immediately
       addUserMessage(chatMessage);
       
-      // Add thinking indicator
       addThinkingMessage();
-      
-      // Clear input
+
       setChatMessage("");
-      
-      // Send message to agent
+
       await sendMessageToAgent(chatMessage);
       
     } catch (error) {
@@ -176,7 +177,6 @@ export function useTaskDetail() {
   };
 
   return {
-    // State
     task,
     isLoading,
     error,
@@ -189,10 +189,9 @@ export function useTaskDetail() {
     selectedCard,
     isThinking,
     conversation,
+    persistentItemIds,
     agentLoading,
     agentResponses,
-    
-    // Actions
     setShowDeleteModal,
     setChatMessage,
     setActiveTab,

@@ -46,7 +46,7 @@ export function TaskSplitView({
   if (!showSplitView) return null;
 
   return (
-    <div className="w-1/2 bg-neutral-100 dark:bg-neutral-800 min-h-screen">
+    <div className="w-4/5 bg-neutral-100 dark:bg-neutral-800 min-h-screen">
       <div className="p-4 space-y-4">
         {/* Header with close button */}
         <div className="flex items-center justify-between">
@@ -112,7 +112,7 @@ export function TaskSplitView({
                 {selectedCard.toolOutput && (
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Tool Output</label>
-                    <pre className="text-xs bg-green-50 dark:bg-green-950/20 p-2 rounded mt-1 overflow-auto max-h-32">
+                    <pre className="text-xs bg-green-50 dark:bg-green-950/20 p-2 rounded mt-1 overflow-auto max-h-32 whitespace-pre-wrap break-words max-w-full">
                       {selectedCard.toolOutput}
                     </pre>
                   </div>
@@ -138,7 +138,7 @@ export function TaskSplitView({
                       <summary className="cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground">
                         Raw Response Data
                       </summary>
-                      <pre className="text-xs overflow-auto max-h-64 bg-gray-100 dark:bg-gray-800 p-2 rounded mt-2">
+                      <pre className="text-xs overflow-auto max-h-64 bg-gray-100 dark:bg-gray-800 p-2 rounded mt-2 whitespace-pre-wrap break-words max-w-full">
                         {JSON.stringify(selectedCard.rawData, null, 2)}
                       </pre>
                     </details>

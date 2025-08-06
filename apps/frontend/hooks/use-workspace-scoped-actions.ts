@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, useEffect } from "react";
+import { useCallback, useState } from "react";
 import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 import { runWorkflow, getWorkflowResult } from "@/app/actions/workflow";
 
@@ -55,6 +55,15 @@ export interface Team {
   updated_at?: string;
 }
 
+export interface McpApprovalToolFilter {
+  tool_names: string[];
+}
+
+export interface McpRequireApproval {
+  never: McpApprovalToolFilter;
+  always: McpApprovalToolFilter;
+}
+
 export interface McpServer {
   id: string;
   workspace_id: string;
@@ -62,7 +71,7 @@ export interface McpServer {
   server_url: string;
   server_description?: string;
   headers?: Record<string, string>;
-  require_approval: string;
+  require_approval: McpRequireApproval;
   created_at?: string;
   updated_at?: string;
 }
@@ -449,7 +458,7 @@ export function useWorkspaceScopedActions() {
     const totalTime = Date.now() - startTime;
     console.log(`✅ [useWorkspaceScopedActions] createTask total time: ${totalTime}ms`);
     return result;
-  }, [currentWorkspaceId, isReady, fetchTasks]);
+  }, [currentWorkspaceId, isReady]);
 
   const updateTask = useCallback(async (taskId: string, updates: any) => {
     if (!isReady || !currentWorkspaceId) {
@@ -700,7 +709,7 @@ export function useWorkspaceScopedActions() {
     server_url: string;
     server_description?: string;
     headers?: Record<string, string>;
-    require_approval?: string;
+    require_approval?: McpRequireApproval;
   }) => {
     if (!isReady || !currentWorkspaceId) {
       console.error("❌ Cannot create MCP server: no valid workspace context");
@@ -732,7 +741,7 @@ export function useWorkspaceScopedActions() {
     server_url?: string;
     server_description?: string;
     headers?: Record<string, string>;
-    require_approval?: string;
+    require_approval?: McpRequireApproval;
   }) => {
     if (!isReady || !currentWorkspaceId) {
       console.error("❌ Cannot update MCP server: no valid workspace context");

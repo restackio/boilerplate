@@ -2,6 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { useTaskDetail } from "./hooks/use-task-detail";
+import { sendMcpApproval } from "@/app/actions/agent";
 import {
   TaskHeader,
   TaskLoadingState,
@@ -14,7 +15,6 @@ import {
 
 export default function TaskDetailPage() {
   const {
-    // State
     task,
     isLoading,
     error,
@@ -27,10 +27,9 @@ export default function TaskDetailPage() {
     selectedCard,
     isThinking,
     conversation,
+    persistentItemIds,
     agentLoading,
     agentResponses,
-    
-    // Actions
     setShowDeleteModal,
     setChatMessage,
     setActiveTab,
@@ -42,9 +41,59 @@ export default function TaskDetailPage() {
     handleCloseSplitView,
   } = useTaskDetail();
 
+  console.log("conversation", conversation);
 
+  const handleApproveRequest = async (itemId: string) => {
+    if (!task?.agent_task_id) {
+      console.error("No agent task ID available for approval");
+      return;
+    }
 
-  // Get taskId from params for error states
+    try {
+      console.log("mcp approval sent");
+      console.log({
+        approvalId: itemId,
+        approved: true
+      });
+
+      const result = await sendMcpApproval({
+        agentId: task.agent_task_id,
+        approvalId: itemId,
+        approved: true,
+      });
+
+      console.log("returns", result);
+
+      if (!result.success) {
+        console.error("Failed to approve MCP request:", result.error);
+      }
+    } catch (error) {
+      console.error("Error approving MCP request:", error);
+    }
+  };
+
+  const handleDenyRequest = async (itemId: string) => {
+    if (!task?.agent_task_id) {
+      console.error("No agent task ID available for denial");
+      return;
+    }
+
+    try {
+      console.log("Denying MCP request:", itemId);
+      const result = await sendMcpApproval({
+        agentId: task.agent_task_id,
+        approvalId: itemId,
+        approved: false,
+      });
+
+      if (!result.success) {
+        console.error("Failed to deny MCP request:", result.error);
+      }
+    } catch (error) {
+      console.error("Error denying MCP request:", error);
+    }
+  };
+
   const taskId = useParams()?.taskId as string;
 
   if (isLoading) {
@@ -70,13 +119,18 @@ export default function TaskDetailPage() {
       <div className={`flex ${showSplitView ? 'h-[calc(100vh-80px)]' : ''}`}>
         <TaskChatInterface
           conversation={conversation}
+          persistentItemIds={persistentItemIds}
+          agentResponses={agentResponses || []}
           chatMessage={chatMessage}
           onChatMessageChange={setChatMessage}
           onSendMessage={handleSendMessage}
           onCardClick={handleCardClick}
+          onApproveRequest={handleApproveRequest}
+          onDenyRequest={handleDenyRequest}
           agentLoading={agentLoading}
           isThinking={isThinking}
           showSplitView={showSplitView}
+          taskAgentTaskId={task?.agent_task_id}
         />
 
         <TaskSplitView

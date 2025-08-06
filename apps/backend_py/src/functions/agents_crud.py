@@ -7,9 +7,13 @@ from restack_ai.function import function, NonRetryableError
 from pydantic import BaseModel, Field
 
 from ..database.connection import get_async_db
-from ..database.models import Agent
+from ..database.models import Agent, AgentMcpServer
 
 # Pydantic models for input validation
+class AgentMcpRelationshipInput(BaseModel):
+    mcp_server_id: str = Field(..., min_length=1)
+    allowed_tools: Optional[List[str]] = None
+
 class AgentCreateInput(BaseModel):
     workspace_id: str = Field(..., min_length=1)
     name: str = Field(..., min_length=1, max_length=255)
@@ -18,6 +22,7 @@ class AgentCreateInput(BaseModel):
     instructions: Optional[str] = None
     status: str = Field(default="inactive", pattern="^(active|inactive)$")
     parent_agent_id: Optional[str] = None
+    mcp_relationships: Optional[List[AgentMcpRelationshipInput]] = Field(default=None, description="MCP server relationships to create for this agent")
 
 class AgentUpdateInput(BaseModel):
     agent_id: str = Field(..., min_length=1)
@@ -196,6 +201,20 @@ async def agents_create(agent_data: AgentCreateInput) -> AgentSingleOutput:
             db.add(agent)
             await db.commit()
             await db.refresh(agent)
+            
+            # Create MCP server relationships if provided
+            if agent_data.mcp_relationships:
+                for mcp_rel in agent_data.mcp_relationships:
+                    agent_mcp_server = AgentMcpServer(
+                        id=uuid.uuid4(),
+                        agent_id=agent.id,
+                        mcp_server_id=uuid.UUID(mcp_rel.mcp_server_id),
+                        allowed_tools=mcp_rel.allowed_tools,
+                    )
+                    db.add(agent_mcp_server)
+                
+                # Commit the MCP server relationships
+                await db.commit()
             result = AgentOutput(
                 id=str(agent.id),
                 workspace_id=str(agent.workspace_id),
@@ -301,33 +320,16 @@ async def agents_delete(input: AgentIdInput) -> AgentDeleteOutput:
 
 @function.defn()
 async def agents_get_by_id(input: AgentIdInput) -> AgentSingleOutput:
-    """Get agent by ID with version information"""
+    """Get agent by ID"""
     async for db in get_async_db():
         try:
-            # Get the agent
+            # Get the specific agent by ID
             agent_query = select(Agent).where(Agent.id == uuid.UUID(input.agent_id))
             result = await db.execute(agent_query)
             agent = result.scalar_one_or_none()
             
             if not agent:
                 raise NonRetryableError(message=f"Agent with id {input.agent_id} not found")
-            
-            # Determine the group key for version counting
-            group_key = str(agent.parent_agent_id) if agent.parent_agent_id else str(agent.id)
-            
-            # Count total versions for this agent group
-            version_count_query = select(func.count(Agent.id)).where(
-                func.coalesce(Agent.parent_agent_id, Agent.id) == group_key
-            )
-            version_count_result = await db.execute(version_count_query)
-            version_count = version_count_result.scalar()
-            
-            # Get the latest version for this agent group
-            latest_agent_query = select(Agent).where(
-                func.coalesce(Agent.parent_agent_id, Agent.id) == group_key
-            ).order_by(Agent.created_at.desc())
-            latest_agent_result = await db.execute(latest_agent_query)
-            latest_agent = latest_agent_result.scalar_one_or_none()
             
             result = AgentOutput(
                 id=str(agent.id),
@@ -340,8 +342,6 @@ async def agents_get_by_id(input: AgentIdInput) -> AgentSingleOutput:
                 parent_agent_id=str(agent.parent_agent_id) if agent.parent_agent_id else None,
                 created_at=agent.created_at.isoformat() if agent.created_at else None,
                 updated_at=agent.updated_at.isoformat() if agent.updated_at else None,
-                version_count=version_count or 1,
-                latest_version=latest_agent.version if latest_agent else agent.version,
             )
             return AgentSingleOutput(agent=result)
         except Exception as e:

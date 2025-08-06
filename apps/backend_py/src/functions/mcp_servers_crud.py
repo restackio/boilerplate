@@ -9,6 +9,14 @@ from pydantic import BaseModel, Field
 from ..database.connection import get_async_db
 from ..database.models import McpServer
 
+# Pydantic models for approval structure
+class McpApprovalToolFilter(BaseModel):
+    tool_names: List[str] = Field(default_factory=list)
+
+class McpRequireApproval(BaseModel):
+    never: McpApprovalToolFilter = Field(default_factory=McpApprovalToolFilter)
+    always: McpApprovalToolFilter = Field(default_factory=McpApprovalToolFilter)
+
 # Pydantic models for input validation
 class McpServerCreateInput(BaseModel):
     workspace_id: str = Field(..., min_length=1)
@@ -16,7 +24,7 @@ class McpServerCreateInput(BaseModel):
     server_url: str = Field(..., min_length=1, max_length=500)
     server_description: Optional[str] = None
     headers: Optional[Dict[str, str]] = None
-    require_approval: str = Field(default="never", pattern="^(always|never)$")
+    require_approval: McpRequireApproval = Field(default_factory=McpRequireApproval)
 
 class McpServerUpdateInput(BaseModel):
     mcp_server_id: str = Field(..., min_length=1)
@@ -24,7 +32,7 @@ class McpServerUpdateInput(BaseModel):
     server_url: Optional[str] = Field(None, min_length=1, max_length=500)
     server_description: Optional[str] = None
     headers: Optional[Dict[str, str]] = None
-    require_approval: Optional[str] = Field(None, pattern="^(always|never)$")
+    require_approval: Optional[McpRequireApproval] = None
 
 class McpServerIdInput(BaseModel):
     mcp_server_id: str = Field(..., min_length=1)
@@ -40,7 +48,7 @@ class McpServerOutput(BaseModel):
     server_url: str
     server_description: Optional[str]
     headers: Optional[Dict[str, str]]
-    require_approval: str
+    require_approval: McpRequireApproval
     created_at: Optional[str]
     updated_at: Optional[str]
 
@@ -76,7 +84,7 @@ async def mcp_servers_read(input: McpServerGetByWorkspaceInput) -> McpServerList
                     server_url=mcp_server.server_url,
                     server_description=mcp_server.server_description,
                     headers=mcp_server.headers,
-                    require_approval=mcp_server.require_approval,
+                    require_approval=McpRequireApproval.model_validate(mcp_server.require_approval),
                     created_at=mcp_server.created_at.isoformat() if mcp_server.created_at else None,
                     updated_at=mcp_server.updated_at.isoformat() if mcp_server.updated_at else None,
                 ))
@@ -97,7 +105,7 @@ async def mcp_servers_create(mcp_server_data: McpServerCreateInput) -> McpServer
                 server_url=mcp_server_data.server_url,
                 server_description=mcp_server_data.server_description,
                 headers=mcp_server_data.headers,
-                require_approval=mcp_server_data.require_approval,
+                require_approval=mcp_server_data.require_approval.model_dump(),
             )
             db.add(mcp_server)
             await db.commit()
@@ -109,7 +117,7 @@ async def mcp_servers_create(mcp_server_data: McpServerCreateInput) -> McpServer
                 server_url=mcp_server.server_url,
                 server_description=mcp_server.server_description,
                 headers=mcp_server.headers,
-                require_approval=mcp_server.require_approval,
+                require_approval=McpRequireApproval.model_validate(mcp_server.require_approval),
                 created_at=mcp_server.created_at.isoformat() if mcp_server.created_at else None,
                 updated_at=mcp_server.updated_at.isoformat() if mcp_server.updated_at else None,
             )
@@ -134,7 +142,11 @@ async def mcp_servers_update(input: McpServerUpdateInput) -> McpServerSingleOutp
             
             for key, value in update_data.items():
                 if hasattr(mcp_server, key):
-                    setattr(mcp_server, key, value)
+                    # Special handling for require_approval to convert to dict
+                    if key == 'require_approval' and isinstance(value, McpRequireApproval):
+                        setattr(mcp_server, key, value.model_dump())
+                    else:
+                        setattr(mcp_server, key, value)
             
             mcp_server.updated_at = datetime.utcnow()
             await db.commit()
@@ -146,7 +158,7 @@ async def mcp_servers_update(input: McpServerUpdateInput) -> McpServerSingleOutp
                 server_url=mcp_server.server_url,
                 server_description=mcp_server.server_description,
                 headers=mcp_server.headers,
-                require_approval=mcp_server.require_approval,
+                require_approval=McpRequireApproval.model_validate(mcp_server.require_approval),
                 created_at=mcp_server.created_at.isoformat() if mcp_server.created_at else None,
                 updated_at=mcp_server.updated_at.isoformat() if mcp_server.updated_at else None,
             )
@@ -193,7 +205,7 @@ async def mcp_servers_get_by_id(input: McpServerIdInput) -> McpServerSingleOutpu
                 server_url=mcp_server.server_url,
                 server_description=mcp_server.server_description,
                 headers=mcp_server.headers,
-                require_approval=mcp_server.require_approval,
+                require_approval=McpRequireApproval.model_validate(mcp_server.require_approval),
                 created_at=mcp_server.created_at.isoformat() if mcp_server.created_at else None,
                 updated_at=mcp_server.updated_at.isoformat() if mcp_server.updated_at else None,
             )

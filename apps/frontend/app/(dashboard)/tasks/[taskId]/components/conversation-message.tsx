@@ -23,7 +23,13 @@ export function ConversationMessage({ item }: ConversationMessageProps) {
                   : "bg-muted"
           } ${item.isStreaming ? 'border-l-4 border-l-blue-500' : ''}`}
         >
-          <p className="text-sm">{item.content}</p>
+          <div className="text-sm whitespace-pre-wrap break-words">
+            {item.content}
+            {item.isStreaming && (
+              <span className="inline-block w-2 h-4 bg-blue-500 ml-1 animate-pulse opacity-90" 
+                    style={{ animation: 'pulse 0.8s cubic-bezier(0.4, 0, 0.6, 1) infinite' }} />
+            )}
+          </div>
           <div className="flex items-center justify-between mt-1">
             <p className="text-xs opacity-70">
               {new Date(item.timestamp).toLocaleTimeString()}

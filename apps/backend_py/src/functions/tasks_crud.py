@@ -126,6 +126,9 @@ async def tasks_create(task_data: TaskCreateInput) -> TaskSingleOutput:
             await db.commit()
             await db.refresh(task)
             
+            # Load the related data for output
+            await db.refresh(task, ['agent', 'assigned_to_user'])
+            
             result = TaskOutput(
                 id=str(task.id),
                 workspace_id=str(task.workspace_id),
@@ -175,6 +178,9 @@ async def tasks_update(input: TaskUpdateInput) -> TaskSingleOutput:
             task.updated_at = datetime.utcnow()
             await db.commit()
             await db.refresh(task)
+            
+            # Load the related data for output
+            await db.refresh(task, ['agent', 'assigned_to_user'])
             
             result = TaskOutput(
                 id=str(task.id),

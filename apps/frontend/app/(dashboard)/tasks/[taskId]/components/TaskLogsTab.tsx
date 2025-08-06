@@ -17,8 +17,6 @@ import {
   FileText,
   Clock,
   CheckCircle,
-  AlertTriangle,
-  XCircle,
 } from "lucide-react";
 
 interface LogEntry {

@@ -10,15 +10,28 @@ import { RefreshCw } from "lucide-react";
 import AgentsTabs from "../AgentsTabs";
 import { Plus } from "lucide-react";
 import { useWorkspaceScopedActions, McpServer } from "@/hooks/use-workspace-scoped-actions";
-import { useApiHealth } from "@/hooks/use-api-health";
 import { Server, Globe, Lock } from "lucide-react";
+
+// Helper function to determine overall approval behavior
+const getApprovalStatus = (requireApproval: McpServer['require_approval']): "private" | "public" => {
+  // If there are always-approve tools, it's more restrictive
+  if (requireApproval.always.tool_names.length > 0) {
+    return "private";
+  }
+  // If all tools are explicitly in never-approve, it's public
+  if (requireApproval.never.tool_names.length > 0) {
+    return "public";
+  }
+  // Default to public if no specific rules are set
+  return "public";
+};
 
 // Map McpServer to MCP format for the table component
 const mapMcpServerToMCP = (mcpServer: McpServer) => ({
   id: mcpServer.id,
   name: mcpServer.server_label,
   version: "v1.0", // Default version since we don't store this in the database
-  visibility: mcpServer.require_approval === "always" ? "private" as const : "public" as const,
+  visibility: getApprovalStatus(mcpServer.require_approval),
   description: mcpServer.server_description || "No description available",
   icon: Server, // Default icon
   category: "Integration", // Default category
@@ -34,12 +47,10 @@ const mapMcpServerToMCP = (mcpServer: McpServer) => ({
 export default function MCPsPage() {
   const router = useRouter();
   const { mcpServers, mcpServersLoading, fetchMcpServers } = useWorkspaceScopedActions();
-  const { isHealthy, checkHealth } = useApiHealth();
 
   useEffect(() => {
     fetchMcpServers();
-    checkHealth();
-  }, [fetchMcpServers, checkHealth]);
+  }, [fetchMcpServers]);
 
   const handleViewMCP = (mcpId: string) => {
     router.push(`/mcps/${mcpId}`);
@@ -83,7 +94,6 @@ export default function MCPsPage() {
           <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
             <p className="text-red-800 text-sm">
               Error: {mcpServersLoading.error}
-              {!isHealthy && " (API may be unavailable)"}
             </p>
           </div>
         )}

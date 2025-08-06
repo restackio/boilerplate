@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import List, Optional, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from restack_ai.function import function, NonRetryableError
 from pydantic import BaseModel, Field
 

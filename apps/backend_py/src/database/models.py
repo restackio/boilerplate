@@ -70,17 +70,9 @@ class McpServer(Base):
     server_url = Column(String(500), nullable=False)
     server_description = Column(Text)
     headers = Column(JSONB)
-    require_approval = Column(String(50), nullable=False, default="never")
+    require_approval = Column(JSONB, nullable=False, default={"never": {"tool_names": []}, "always": {"tool_names": []}})
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # Constraints
-    __table_args__ = (
-        CheckConstraint(
-            require_approval.in_(['always', 'never']),
-            name='valid_require_approval'
-        ),
-    )
     
     # Relationships
     workspace = relationship("Workspace", back_populates="mcp_servers")

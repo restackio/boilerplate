@@ -85,7 +85,7 @@ from src.database.connection import init_async_db
 
 async def main() -> None:
     # Initialize database
-    init_async_db()
+    await init_async_db()
     logging.info("Database initialized")
     
     await client.start_service(

@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Dict, List, Any, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from restack_ai.function import function, NonRetryableError
 from pydantic import BaseModel, Field
 
@@ -57,8 +58,8 @@ async def agent_mcp_servers_read_by_agent(input: AgentMcpServerGetByAgentInput) 
     """Read all MCP servers for a specific agent"""
     async for db in get_async_db():
         try:
-            agent_mcp_servers_query = select(AgentMcpServer).join(
-                McpServer, AgentMcpServer.mcp_server_id == McpServer.id
+            agent_mcp_servers_query = select(AgentMcpServer).options(
+                selectinload(AgentMcpServer.mcp_server)
             ).where(
                 AgentMcpServer.agent_id == uuid.UUID(input.agent_id)
             )
@@ -107,10 +108,8 @@ async def agent_mcp_servers_create(agent_mcp_server_data: AgentMcpServerCreateIn
             await db.commit()
             await db.refresh(agent_mcp_server)
             
-            # Get related data for output
-            mcp_server_query = select(McpServer).where(McpServer.id == agent_mcp_server.mcp_server_id)
-            mcp_server_result = await db.execute(mcp_server_query)
-            mcp_server = mcp_server_result.scalar_one_or_none()
+            # Load the related mcp_server data
+            await db.refresh(agent_mcp_server, ['mcp_server'])
             
             result = AgentMcpServerOutput(
                 id=str(agent_mcp_server.id),
@@ -118,8 +117,8 @@ async def agent_mcp_servers_create(agent_mcp_server_data: AgentMcpServerCreateIn
                 mcp_server_id=str(agent_mcp_server.mcp_server_id),
                 allowed_tools=agent_mcp_server.allowed_tools,
                 created_at=agent_mcp_server.created_at.isoformat() if agent_mcp_server.created_at else None,
-                mcp_server_label=mcp_server.server_label if mcp_server else None,
-                mcp_server_url=mcp_server.server_url if mcp_server else None,
+                mcp_server_label=agent_mcp_server.mcp_server.server_label if agent_mcp_server.mcp_server else None,
+                mcp_server_url=agent_mcp_server.mcp_server.server_url if agent_mcp_server.mcp_server else None,
             )
             return AgentMcpServerSingleOutput(agent_mcp_server=result)
         except Exception as e:
@@ -131,7 +130,9 @@ async def agent_mcp_servers_update(input: AgentMcpServerUpdateInput) -> AgentMcp
     """Update an existing agent-MCP server relationship"""
     async for db in get_async_db():
         try:
-            agent_mcp_server_query = select(AgentMcpServer).where(
+            agent_mcp_server_query = select(AgentMcpServer).options(
+                selectinload(AgentMcpServer.mcp_server)
+            ).where(
                 AgentMcpServer.id == uuid.UUID(input.agent_mcp_server_id)
             )
             result = await db.execute(agent_mcp_server_query)
@@ -149,10 +150,8 @@ async def agent_mcp_servers_update(input: AgentMcpServerUpdateInput) -> AgentMcp
             await db.commit()
             await db.refresh(agent_mcp_server)
             
-            # Get related data for output
-            mcp_server_query = select(McpServer).where(McpServer.id == agent_mcp_server.mcp_server_id)
-            mcp_server_result = await db.execute(mcp_server_query)
-            mcp_server = mcp_server_result.scalar_one_or_none()
+            # Load the related mcp_server data
+            await db.refresh(agent_mcp_server, ['mcp_server'])
             
             output_result = AgentMcpServerOutput(
                 id=str(agent_mcp_server.id),
@@ -160,8 +159,8 @@ async def agent_mcp_servers_update(input: AgentMcpServerUpdateInput) -> AgentMcp
                 mcp_server_id=str(agent_mcp_server.mcp_server_id),
                 allowed_tools=agent_mcp_server.allowed_tools,
                 created_at=agent_mcp_server.created_at.isoformat() if agent_mcp_server.created_at else None,
-                mcp_server_label=mcp_server.server_label if mcp_server else None,
-                mcp_server_url=mcp_server.server_url if mcp_server else None,
+                mcp_server_label=agent_mcp_server.mcp_server.server_label if agent_mcp_server.mcp_server else None,
+                mcp_server_url=agent_mcp_server.mcp_server.server_url if agent_mcp_server.mcp_server else None,
             )
             return AgentMcpServerSingleOutput(agent_mcp_server=output_result)
         except Exception as e:
@@ -194,7 +193,9 @@ async def agent_mcp_servers_get_by_id(input: AgentMcpServerIdInput) -> AgentMcpS
     """Get agent-MCP server relationship by ID"""
     async for db in get_async_db():
         try:
-            agent_mcp_server_query = select(AgentMcpServer).where(
+            agent_mcp_server_query = select(AgentMcpServer).options(
+                selectinload(AgentMcpServer.mcp_server)
+            ).where(
                 AgentMcpServer.id == uuid.UUID(input.agent_mcp_server_id)
             )
             result = await db.execute(agent_mcp_server_query)
@@ -203,19 +204,14 @@ async def agent_mcp_servers_get_by_id(input: AgentMcpServerIdInput) -> AgentMcpS
             if not agent_mcp_server:
                 raise NonRetryableError(message=f"Agent-MCP server relationship with id {input.agent_mcp_server_id} not found")
             
-            # Get related data for output
-            mcp_server_query = select(McpServer).where(McpServer.id == agent_mcp_server.mcp_server_id)
-            mcp_server_result = await db.execute(mcp_server_query)
-            mcp_server = mcp_server_result.scalar_one_or_none()
-            
             output_result = AgentMcpServerOutput(
                 id=str(agent_mcp_server.id),
                 agent_id=str(agent_mcp_server.agent_id),
                 mcp_server_id=str(agent_mcp_server.mcp_server_id),
                 allowed_tools=agent_mcp_server.allowed_tools,
                 created_at=agent_mcp_server.created_at.isoformat() if agent_mcp_server.created_at else None,
-                mcp_server_label=mcp_server.server_label if mcp_server else None,
-                mcp_server_url=mcp_server.server_url if mcp_server else None,
+                mcp_server_label=agent_mcp_server.mcp_server.server_label if agent_mcp_server.mcp_server else None,
+                mcp_server_url=agent_mcp_server.mcp_server.server_url if agent_mcp_server.mcp_server else None,
             )
             return AgentMcpServerSingleOutput(agent_mcp_server=output_result)
         except Exception as e:

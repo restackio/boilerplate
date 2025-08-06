@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS mcp_servers (
     server_url VARCHAR(500) NOT NULL,
     server_description TEXT,
     headers JSONB,
-    require_approval VARCHAR(50) DEFAULT 'never' CHECK (require_approval IN ('always', 'never')),
+    require_approval JSONB DEFAULT '{"never": {"tool_names": []}, "always": {"tool_names": []}}',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

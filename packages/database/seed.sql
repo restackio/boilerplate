@@ -24,7 +24,7 @@ INSERT INTO teams (id, workspace_id, name, description, icon) VALUES
 (uuid_generate_v4(), 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'HR', 'Manages human resources and employee relations', 'Briefcase')
 ON CONFLICT (id) DO NOTHING;
 
--- Insert MCP servers
+-- Insert MCP servers with granular approval settings
 INSERT INTO mcp_servers (id, workspace_id, server_label, server_url, server_description, headers, require_approval) VALUES
 (
     'c1d2e3f4-5678-9012-cdef-345678901234',
@@ -33,16 +33,25 @@ INSERT INTO mcp_servers (id, workspace_id, server_label, server_url, server_desc
     'https://mcp.deepwiki.com/mcp',
     'DeepWiki MCP server for accessing and querying knowledge base',
     NULL,
-    'never'
+    '{"never": {"tool_names": ["ask_question"]}, "always": {"tool_names": ["read_wiki_structure"]}}'
 ),
 (
     'd2e3f456-7890-0123-def0-456789012345',
     'c926e979-1f16-46bf-a7cc-8aab70162d65',
     'posthog',
     'https://mcp.posthog.com/mcp',
-    'PostHog MCP server for analytics and dashboard management',
+    'PostHog MCP server for insights management',
     '{"Authorization": "Bearer phx_3oQ1s81spruSq6WTw1Fs3ZDDOvgkpWvHw5NYWyApF2Vm2PN"}',
-    'always'
+    '{"never": {"tool_names": ["insights-get-all"]}, "always": {"tool_names": ["insight-get"]}}'
+),
+(
+  'e3f45678-9012-3456-7890-123456789012',
+  'c926e979-1f16-46bf-a7cc-8aab70162d65',
+  'intercom',
+  'https://mcp.intercom.com/mcp',
+  'Intercom MCP server for accessing and querying customer data',
+  '{"Authorization": "Bearer dG9rOmY2ODliMmVjX2Y4NGZfNGE2NF9iNTdlX2UzYWRjYTI2NDgyOToxOjA="}',
+  '{"never": {"tool_names": ["search_conversations", "get_conversation", "search_contacts" ]}, "always": {"tool_names": ["get_contact"]}}'
 )
 ON CONFLICT (id) DO NOTHING;
 
@@ -67,6 +76,16 @@ INSERT INTO agents (id, workspace_id, team_id, name, version, description, instr
     'Agent for managing PostHog analytics dashboards and data',
     'You are a helpful analytics assistant. Your role is to help users manage PostHog dashboards and retrieve analytics data. Always be precise and provide clear insights. Use the dashboards-get-all and dashboard-get tools to access dashboard information.',
     'active'
+),
+(
+  'f3f45678-9012-3456-7890-123456789012',
+  'c926e979-1f16-46bf-a7cc-8aab70162d65',
+  (SELECT id FROM teams WHERE name = 'Customer Support' LIMIT 1),
+  'Intercom Customer Support Agent',
+  'v1.0.0',
+  'Agent for managing Intercom customer support and retrieving customer data',
+  'You are a helpful customer support assistant. Your role is to help users manage Intercom customer support and retrieve customer data. Always be precise and provide clear insights. Use the search_conversations, get_conversation, and search_contacts tools to access customer data.',
+  'active'
 )
 ON CONFLICT (id) DO NOTHING;
 
@@ -80,7 +99,12 @@ INSERT INTO agent_mcp_servers (agent_id, mcp_server_id, allowed_tools) VALUES
 (
     'b2c3d456-7890-8901-bcde-f23456789012',
     'd2e3f456-7890-0123-def0-456789012345',
-    '["dashboards-get-all", "dashboard-get"]'
+    '["insights-get-all", "insight-get"]'
+),
+(
+  'f3f45678-9012-3456-7890-123456789012',
+  'e3f45678-9012-3456-7890-123456789012',
+  '["search_conversations", "get_conversation", "search_contacts", "get_contact"]'
 )
 ON CONFLICT (agent_id, mcp_server_id) DO NOTHING;
 

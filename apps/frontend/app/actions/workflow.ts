@@ -116,7 +116,10 @@ export async function createMcpServer(mcpServerData: {
   server_url: string;
   server_description?: string;
   headers?: Record<string, string>;
-  require_approval?: string;
+  require_approval?: {
+    never: { tool_names: string[] };
+    always: { tool_names: string[] };
+  };
 }) {
   const { workflowId, runId } = await runWorkflow({
     workflowName: "McpServersCreateWorkflow",
@@ -135,7 +138,10 @@ export async function updateMcpServer(mcpServerData: {
   server_url?: string;
   server_description?: string;
   headers?: Record<string, string>;
-  require_approval?: string;
+  require_approval?: {
+    never: { tool_names: string[] };
+    always: { tool_names: string[] };
+  };
 }) {
   const { workflowId, runId } = await runWorkflow({
     workflowName: "McpServersUpdateWorkflow",
