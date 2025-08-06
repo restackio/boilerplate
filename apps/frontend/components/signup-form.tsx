@@ -1,3 +1,5 @@
+"use client"
+
 import { cn } from "@workspace/ui/lib/utils";
 import { Button } from "@workspace/ui/components/ui/button";
 import { Input } from "@workspace/ui/components/ui/input";

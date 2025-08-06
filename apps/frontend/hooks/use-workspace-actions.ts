@@ -23,10 +23,6 @@ export interface WorkspaceCreateInput {
   name: string;
 }
 
-interface LoadingState {
-  isLoading: boolean;
-  error: string | null;
-}
 async function executeWorkflow<T>(
   workflowName: string,
   input: any = {}

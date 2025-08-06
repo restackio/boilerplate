@@ -1,40 +1,57 @@
 import os
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.pool import StaticPool
-from typing import Generator
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from typing import AsyncGenerator
 
 from .models import Base
 
-# Database URL from environment
+# Database URL from environment - convert to async format
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/boilerplate_db")
+# Convert to async URL if it's not already
+if DATABASE_URL.startswith("postgresql://"):
+    ASYNC_DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+elif DATABASE_URL.startswith("postgresql+psycopg2://"):
+    ASYNC_DATABASE_URL = DATABASE_URL.replace("postgresql+psycopg2://", "postgresql+asyncpg://", 1)
+else:
+    ASYNC_DATABASE_URL = DATABASE_URL
 
-# Create engine
-engine = create_engine(
-    DATABASE_URL,
-    poolclass=StaticPool,
-    pool_pre_ping=True,
-    echo=False  # Set to True for SQL debugging
+# Create async engine with simple configuration
+async_engine = create_async_engine(
+    ASYNC_DATABASE_URL,
+    echo=False,
+    pool_pre_ping=True
 )
 
-# Create session factory
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# Create async session factory
+AsyncSessionLocal = async_sessionmaker(
+    async_engine, 
+    class_=AsyncSession, 
+    expire_on_commit=False
+)
 
-
-def get_db() -> Generator[Session, None, None]:
-    """Get database session"""
-    db = SessionLocal()
+async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
+    """Get async database session"""
+    session = AsyncSessionLocal()
     try:
-        yield db
+        yield session
     finally:
-        db.close()
+        await session.close()
 
 
-def init_db():
-    """Initialize database tables"""
-    Base.metadata.create_all(bind=engine)
 
 
-def close_db():
-    """Close database connections"""
-    engine.dispose() 
+
+
+
+
+async def init_async_db():
+    """Initialize database tables (async version)"""
+    async with async_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+async def close_async_db():
+    """Close database connections (async version)"""
+    await async_engine.dispose()
+
+
+
+ 

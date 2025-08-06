@@ -7,10 +7,8 @@ from watchfiles import run_process
 
 from src.agents.agent_task import AgentTask
 from src.client import client
-from src.functions.get_random import get_random
-from src.functions.get_result import get_result
 from src.functions.llm_chat import llm_chat
-from src.functions.todo_create import todo_create
+from src.functions.llm_response import llm_response
 from src.functions.agents_crud import (
     agents_read, agents_create, agents_update, agents_delete, 
     agents_get_by_id, agents_get_by_status, agents_get_versions
@@ -38,7 +36,6 @@ from src.functions.user_workspaces_crud import (
 from src.functions.auth_crud import (
     user_signup, user_login
 )
-from src.workflows.todo_execute import TodoExecute
 from src.workflows.agents_crud import (
     AgentsReadWorkflow, AgentsCreateWorkflow, AgentsUpdateWorkflow,
     AgentsDeleteWorkflow, AgentsGetByIdWorkflow, AgentsGetByStatusWorkflow,
@@ -68,18 +65,32 @@ from src.workflows.user_workspaces_crud import (
 from src.workflows.auth_crud import (
     UserSignupWorkflow, UserLoginWorkflow
 )
-from src.database.connection import init_db
+from src.workflows.mcp_servers_crud import (
+    McpServersReadWorkflow, McpServersCreateWorkflow, McpServersUpdateWorkflow,
+    McpServersDeleteWorkflow, McpServersGetByIdWorkflow
+)
+from src.workflows.agent_mcp_servers_crud import (
+    AgentMcpServersReadByAgentWorkflow, AgentMcpServersCreateWorkflow, AgentMcpServersUpdateWorkflow,
+    AgentMcpServersDeleteWorkflow, AgentMcpServersGetByIdWorkflow
+)
+from src.functions.mcp_servers_crud import (
+    mcp_servers_read, mcp_servers_create, mcp_servers_update, mcp_servers_delete, mcp_servers_get_by_id
+)
+from src.functions.agent_mcp_servers_crud import (
+    agent_mcp_servers_read_by_agent, agent_mcp_servers_create, agent_mcp_servers_update, agent_mcp_servers_delete, agent_mcp_servers_get_by_id
+)
+from src.functions.send_agent_event import send_agent_event
+from src.database.connection import init_async_db
 
 
 async def main() -> None:
     # Initialize database
-    init_db()
+    await init_async_db()
     logging.info("Database initialized")
     
     await client.start_service(
         agents=[AgentTask],
         workflows=[
-            TodoExecute,
             AgentsReadWorkflow, AgentsCreateWorkflow, AgentsUpdateWorkflow,
             AgentsDeleteWorkflow, AgentsGetByIdWorkflow, AgentsGetByStatusWorkflow,
             AgentsGetVersionsWorkflow,
@@ -95,9 +106,13 @@ async def main() -> None:
             UserWorkspacesGetByUserWorkflow, UserWorkspacesGetByWorkspaceWorkflow,
             UserWorkspacesCreateWorkflow, UserWorkspacesUpdateWorkflow, UserWorkspacesDeleteWorkflow,
             UserSignupWorkflow, UserLoginWorkflow,
+            McpServersReadWorkflow, McpServersCreateWorkflow, McpServersUpdateWorkflow,
+            McpServersDeleteWorkflow, McpServersGetByIdWorkflow,
+            AgentMcpServersReadByAgentWorkflow, AgentMcpServersCreateWorkflow, AgentMcpServersUpdateWorkflow,
+            AgentMcpServersDeleteWorkflow, AgentMcpServersGetByIdWorkflow,
         ],
         functions=[
-            todo_create, get_random, get_result, llm_chat,
+            send_agent_event, llm_chat, llm_response,
             agents_read, agents_create, agents_update, agents_delete,
             agents_get_by_id, agents_get_by_status, agents_get_versions,
             tasks_read, tasks_create, tasks_update, tasks_delete,
@@ -110,6 +125,8 @@ async def main() -> None:
             user_workspaces_get_by_user, user_workspaces_get_by_workspace,
             user_workspaces_create, user_workspaces_update, user_workspaces_delete,
             user_signup, user_login,
+            mcp_servers_read, mcp_servers_create, mcp_servers_update, mcp_servers_delete, mcp_servers_get_by_id,
+            agent_mcp_servers_read_by_agent, agent_mcp_servers_create, agent_mcp_servers_update, agent_mcp_servers_delete, agent_mcp_servers_get_by_id,
         ],
     )
 

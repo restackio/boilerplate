@@ -8,6 +8,7 @@ import { Workspace } from "../hooks/use-workspace-actions";
 interface DatabaseWorkspaceContextType {
   workspaces: Workspace[];
   currentWorkspaceId: string | null;
+  workspaceId: string | null; // Alias for currentWorkspaceId for convenience
   currentUser: User | null;
   loading: { isLoading: boolean; error: string | null };
   isReady: boolean;
@@ -79,6 +80,7 @@ export function DatabaseWorkspaceProvider({ children }: { children: React.ReactN
   const value: DatabaseWorkspaceContextType = {
     workspaces,
     currentWorkspaceId,
+    workspaceId: currentWorkspaceId, // Alias for currentWorkspaceId
     currentUser,
     loading: { isLoading, error },
     isReady,

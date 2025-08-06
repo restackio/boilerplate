@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, useEffect } from "react";
+import { useCallback, useState } from "react";
 import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 import { runWorkflow, getWorkflowResult } from "@/app/actions/workflow";
 
@@ -55,21 +55,59 @@ export interface Team {
   updated_at?: string;
 }
 
+export interface McpApprovalToolFilter {
+  tool_names: string[];
+}
+
+export interface McpRequireApproval {
+  never: McpApprovalToolFilter;
+  always: McpApprovalToolFilter;
+}
+
+export interface McpServer {
+  id: string;
+  workspace_id: string;
+  server_label: string;
+  server_url: string;
+  server_description?: string;
+  headers?: Record<string, string>;
+  require_approval: McpRequireApproval;
+  created_at?: string;
+  updated_at?: string;
+}
+
 async function executeWorkflow<T>(
   workflowName: string,
   input: any = {}
 ): Promise<ApiResponse<T>> {
+  console.log(`🔄 [executeWorkflow] Starting ${workflowName} with input:`, input);
+  const startTime = Date.now();
+  
   try {
+    console.log(`🔄 [executeWorkflow] Running workflow ${workflowName}...`);
+    const runWorkflowStartTime = Date.now();
+    
     const { workflowId, runId } = await runWorkflow({
       workflowName,
       input,
     });
+    
+    const runWorkflowEndTime = Date.now();
+    console.log(`✅ [executeWorkflow] runWorkflow completed in ${runWorkflowEndTime - runWorkflowStartTime}ms`);
+    console.log(`✅ [executeWorkflow] Workflow ID: ${workflowId}, Run ID: ${runId}`);
 
     // Get the result
+    console.log(`🔄 [executeWorkflow] Getting workflow result...`);
+    const getResultStartTime = Date.now();
+    
     const result = await getWorkflowResult({
       workflowId,
       runId,
     });
+    
+    const getResultEndTime = Date.now();
+    console.log(`✅ [executeWorkflow] getWorkflowResult completed in ${getResultEndTime - getResultStartTime}ms`);
+    console.log(`✅ [executeWorkflow] Raw result:`, result);
     
     if (result === null || result === undefined) {
       throw new Error('Workflow returned null or undefined result');
@@ -101,6 +139,15 @@ async function executeWorkflow<T>(
           success: true,
           data: result.teams as T,
           count: result.teams.length,
+        };
+      }
+      
+      // For MCP servers list responses
+      if ('mcp_servers' in result && Array.isArray(result.mcp_servers)) {
+        return {
+          success: true,
+          data: result.mcp_servers as T,
+          count: result.mcp_servers.length,
         };
       }
       
@@ -137,6 +184,14 @@ async function executeWorkflow<T>(
         };
       }
       
+      // For MCP server single responses
+      if ('mcp_server' in result && result.mcp_server) {
+        return {
+          success: true,
+          data: result.mcp_server as T,
+        };
+      }
+      
       // For delete responses (e.g., AgentsDeleteWorkflow returns { success: boolean })
       if ('success' in result) {
         return {
@@ -152,12 +207,17 @@ async function executeWorkflow<T>(
       };
     }
 
+    const totalTime = Date.now() - startTime;
+    console.log(`✅ [executeWorkflow] ${workflowName} total execution time: ${totalTime}ms`);
+    
     return {
       success: true,
       data: result as T,
     };
   } catch (error) {
     console.error(`❌ Workflow execution failed for ${workflowName}:`, error);
+    const totalTime = Date.now() - startTime;
+    console.log(`❌ [executeWorkflow] ${workflowName} failed after ${totalTime}ms`);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error occurred",
@@ -187,6 +247,12 @@ export function useWorkspaceScopedActions() {
   });
   const [teamsCache, setTeamsCache] = useState<Record<string, Team[]>>({});
 
+  const [mcpServers, setMcpServers] = useState<McpServer[]>([]);
+  const [mcpServersLoading, setMcpServersLoading] = useState<LoadingState>({
+    isLoading: false,
+    error: null,
+  });
+
   // Agents actions
   const fetchAgents = useCallback(async () => {
     if (!isReady || !currentWorkspaceId) {
@@ -214,6 +280,9 @@ export function useWorkspaceScopedActions() {
   }, [currentWorkspaceId, isReady]);
 
   const createAgent = useCallback(async (agentData: any) => {
+    console.log("🔄 [createAgent] Starting agent creation with data:", agentData);
+    const startTime = Date.now();
+    
     if (!isReady || !currentWorkspaceId) {
       console.error("❌ Cannot create agent: no valid workspace context");
       return { success: false, error: "No valid workspace context" };
@@ -222,20 +291,33 @@ export function useWorkspaceScopedActions() {
     setAgentsLoading({ isLoading: true, error: null });
     let result;
     try {
+      console.log("🔄 [createAgent] Calling executeWorkflow...");
+      const workflowStartTime = Date.now();
+      
       result = await executeWorkflow<Agent>("AgentsCreateWorkflow", {
         ...agentData,
         workspace_id: currentWorkspaceId
       });
       
+      const workflowEndTime = Date.now();
+      console.log(`✅ [createAgent] executeWorkflow completed in ${workflowEndTime - workflowStartTime}ms`);
+      console.log("✅ [createAgent] Workflow result:", result);
+      
       if (result.success) {
+        console.log("✅ [createAgent] Agent created successfully, fetching agents...");
         await fetchAgents();
       } else {
+        console.error("❌ [createAgent] Workflow failed:", result.error);
         setAgentsLoading({ isLoading: false, error: result.error || "Failed to create agent" });
       }
     } catch (error) {
+      console.error("❌ [createAgent] Exception in createAgent:", error);
       setAgentsLoading({ isLoading: false, error: "Failed to create agent" });
     }
     setAgentsLoading({ isLoading: false, error: null });
+    
+    const totalTime = Date.now() - startTime;
+    console.log(`✅ [createAgent] Total time: ${totalTime}ms`);
     return result;
   }, [currentWorkspaceId, isReady, fetchAgents]);
 
@@ -337,6 +419,9 @@ export function useWorkspaceScopedActions() {
   }, [currentWorkspaceId, isReady]);
 
   const createTask = useCallback(async (taskData: any) => {
+    console.log("🔄 [useWorkspaceScopedActions] createTask called with:", taskData);
+    const startTime = Date.now();
+    
     if (!isReady || !currentWorkspaceId) {
       console.error("❌ Cannot create task: no valid workspace context");
       return { success: false, error: "No valid workspace context" };
@@ -345,22 +430,35 @@ export function useWorkspaceScopedActions() {
     setTasksLoading({ isLoading: true, error: null });
     let result;
     try {
+      console.log("🔄 [useWorkspaceScopedActions] Executing TasksCreateWorkflow...");
+      const workflowStartTime = Date.now();
+      
       result = await executeWorkflow<Task>("TasksCreateWorkflow", {
         ...taskData,
         workspace_id: currentWorkspaceId
       });
       
+      const workflowEndTime = Date.now();
+      console.log(`✅ [useWorkspaceScopedActions] TasksCreateWorkflow completed in ${workflowEndTime - workflowStartTime}ms`);
+      console.log("✅ [useWorkspaceScopedActions] Workflow result:", result);
+      
       if (result.success) {
-        await fetchTasks();
+        console.log("✅ [useWorkspaceScopedActions] Task created successfully");
+        // Don't update local state since we're navigating to the task detail page
+        // The task detail page will fetch the specific task by ID
       } else {
         setTasksLoading({ isLoading: false, error: result.error || "Failed to create task" });
       }
     } catch (error) {
+      console.error("❌ [useWorkspaceScopedActions] Error in createTask:", error);
       setTasksLoading({ isLoading: false, error: "Failed to create task" });
     }
     setTasksLoading({ isLoading: false, error: null });
+    
+    const totalTime = Date.now() - startTime;
+    console.log(`✅ [useWorkspaceScopedActions] createTask total time: ${totalTime}ms`);
     return result;
-  }, [currentWorkspaceId, isReady, fetchTasks]);
+  }, [currentWorkspaceId, isReady]);
 
   const updateTask = useCallback(async (taskId: string, updates: any) => {
     if (!isReady || !currentWorkspaceId) {
@@ -390,19 +488,35 @@ export function useWorkspaceScopedActions() {
   }, [currentWorkspaceId, isReady, fetchTasks]);
 
   const getTaskById = useCallback(async (taskId: string) => {
+    console.log("🔄 [useWorkspaceScopedActions] getTaskById called with:", taskId);
+    const startTime = Date.now();
+    
     if (!isReady || !currentWorkspaceId) {
       console.error("❌ Cannot get task: no valid workspace context");
       return { success: false, error: "No valid workspace context" };
     }
 
     try {
+      console.log("🔄 [useWorkspaceScopedActions] Executing TasksGetByIdWorkflow...");
+      const workflowStartTime = Date.now();
+      
       const result = await executeWorkflow<Task>("TasksGetByIdWorkflow", {
         task_id: taskId,
         workspace_id: currentWorkspaceId
       });
+      
+      const workflowEndTime = Date.now();
+      console.log(`✅ [useWorkspaceScopedActions] TasksGetByIdWorkflow completed in ${workflowEndTime - workflowStartTime}ms`);
+      console.log("✅ [useWorkspaceScopedActions] getTaskById result:", result);
+      
+      const totalTime = Date.now() - startTime;
+      console.log(`✅ [useWorkspaceScopedActions] getTaskById total time: ${totalTime}ms`);
+      
       return result;
     } catch (error) {
-      console.error("❌ Failed to get task:", error);
+      console.error("❌ [useWorkspaceScopedActions] Error in getTaskById:", error);
+      const totalTime = Date.now() - startTime;
+      console.log(`❌ [useWorkspaceScopedActions] getTaskById failed after ${totalTime}ms`);
       return { success: false, error: "Failed to get task" };
     }
   }, [currentWorkspaceId, isReady]);
@@ -564,6 +678,138 @@ export function useWorkspaceScopedActions() {
     }
   }, [currentWorkspaceId, isReady]);
 
+  // MCP Servers actions
+  const fetchMcpServers = useCallback(async () => {
+    if (!isReady || !currentWorkspaceId) {
+      console.error("❌ Cannot fetch MCP servers: no valid workspace context");
+      return { success: false, error: "No valid workspace context" };
+    }
+
+    setMcpServersLoading({ isLoading: true, error: null });
+    let result;
+    try {
+      result = await executeWorkflow<McpServer[]>("McpServersReadWorkflow", {
+        workspace_id: currentWorkspaceId
+      });
+      
+      if (result.success && result.data) {
+        setMcpServers(result.data);
+        setMcpServersLoading({ isLoading: false, error: null });
+      } else {
+        setMcpServersLoading({ isLoading: false, error: result.error || "Failed to fetch MCP servers" });
+      }
+    } catch (error) {
+      setMcpServersLoading({ isLoading: false, error: "Failed to fetch MCP servers" });
+    }
+    return result;
+  }, [currentWorkspaceId, isReady]);
+
+  const createMcpServer = useCallback(async (data: {
+    server_label: string;
+    server_url: string;
+    server_description?: string;
+    headers?: Record<string, string>;
+    require_approval?: McpRequireApproval;
+  }) => {
+    if (!isReady || !currentWorkspaceId) {
+      console.error("❌ Cannot create MCP server: no valid workspace context");
+      return { success: false, error: "No valid workspace context" };
+    }
+
+    setMcpServersLoading({ isLoading: true, error: null });
+    let result;
+    try {
+      result = await executeWorkflow<McpServer>("McpServersCreateWorkflow", {
+        ...data,
+        workspace_id: currentWorkspaceId
+      });
+      
+      if (result.success) {
+        await fetchMcpServers();
+      } else {
+        setMcpServersLoading({ isLoading: false, error: result.error || "Failed to create MCP server" });
+      }
+    } catch (error) {
+      setMcpServersLoading({ isLoading: false, error: "Failed to create MCP server" });
+    }
+    setMcpServersLoading({ isLoading: false, error: null });
+    return result;
+  }, [currentWorkspaceId, isReady, fetchMcpServers]);
+
+  const updateMcpServer = useCallback(async (id: string, data: {
+    server_label?: string;
+    server_url?: string;
+    server_description?: string;
+    headers?: Record<string, string>;
+    require_approval?: McpRequireApproval;
+  }) => {
+    if (!isReady || !currentWorkspaceId) {
+      console.error("❌ Cannot update MCP server: no valid workspace context");
+      return { success: false, error: "No valid workspace context" };
+    }
+
+    setMcpServersLoading({ isLoading: true, error: null });
+    let result;
+    try {
+      result = await executeWorkflow<McpServer>("McpServersUpdateWorkflow", {
+        mcp_server_id: id,
+        ...data,
+      });
+      
+      if (result.success) {
+        await fetchMcpServers();
+      } else {
+        setMcpServersLoading({ isLoading: false, error: result.error || "Failed to update MCP server" });
+      }
+    } catch (error) {
+      setMcpServersLoading({ isLoading: false, error: "Failed to update MCP server" });
+    }
+    setMcpServersLoading({ isLoading: false, error: null });
+    return result;
+  }, [currentWorkspaceId, isReady, fetchMcpServers]);
+
+  const deleteMcpServer = useCallback(async (id: string) => {
+    if (!isReady || !currentWorkspaceId) {
+      console.error("❌ Cannot delete MCP server: no valid workspace context");
+      return { success: false, error: "No valid workspace context" };
+    }
+
+    setMcpServersLoading({ isLoading: true, error: null });
+    let result;
+    try {
+      result = await executeWorkflow<boolean>("McpServersDeleteWorkflow", {
+        mcp_server_id: id,
+      });
+      
+      if (result.success) {
+        await fetchMcpServers();
+      } else {
+        setMcpServersLoading({ isLoading: false, error: result.error || "Failed to delete MCP server" });
+      }
+    } catch (error) {
+      setMcpServersLoading({ isLoading: false, error: "Failed to delete MCP server" });
+    }
+    setMcpServersLoading({ isLoading: false, error: null });
+    return result;
+  }, [currentWorkspaceId, isReady, fetchMcpServers]);
+
+  const getMcpServerById = useCallback(async (id: string) => {
+    if (!isReady || !currentWorkspaceId) {
+      console.error("❌ Cannot get MCP server: no valid workspace context");
+      return { success: false, error: "No valid workspace context" };
+    }
+
+    try {
+      const result = await executeWorkflow<McpServer>("McpServersGetByIdWorkflow", {
+        mcp_server_id: id,
+      });
+      return result;
+    } catch (error) {
+      console.error("❌ Failed to get MCP server:", error);
+      return { success: false, error: "Failed to get MCP server" };
+    }
+  }, [currentWorkspaceId, isReady]);
+
   return {
     currentWorkspaceId,
     isReady,
@@ -591,5 +837,13 @@ export function useWorkspaceScopedActions() {
     updateTeam,
     deleteTeam,
     getTeamById,
+    
+    mcpServers,
+    mcpServersLoading,
+    fetchMcpServers,
+    createMcpServer,
+    updateMcpServer,
+    deleteMcpServer,
+    getMcpServerById,
   };
 } 

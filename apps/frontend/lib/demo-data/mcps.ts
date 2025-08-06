@@ -13,6 +13,7 @@ import {
   FileText,
   BarChart3,
   Zap,
+  Globe,
 } from "lucide-react";
 
 export interface MCP {
@@ -33,6 +34,32 @@ export interface MCP {
 }
 
 export const availableMCPs: MCP[] = [
+  {
+    id: "deepwiki",
+    name: "DeepWiki MCP",
+    version: "v1.0.0",
+    visibility: "public",
+    description: "Fetch and crawl documentation from deepwiki.com",
+    icon: Globe,
+    category: "Documentation",
+    author: "regenrek",
+    downloads: "890",
+    lastUpdated: "2024-01-20",
+    capabilities: [
+      "deepwiki_fetch",
+      "crawl_pages",
+      "convert_markdown",
+      "search_documentation",
+    ],
+    mentions: [
+      "@deepwiki_mcp_fetch",
+      "@deepwiki_mcp_crawl_pages",
+      "@deepwiki_mcp_convert_markdown",
+      "@deepwiki_mcp_search_documentation",
+    ],
+    documentation: "https://github.com/regenrek/deepwiki-mcp",
+    status: "active",
+  },
   {
     id: "github",
     name: "GitHub MCP",
