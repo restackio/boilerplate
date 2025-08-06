@@ -2,7 +2,7 @@ import os
 from typing import Literal
 
 from dotenv import load_dotenv
-from openai import OpenAI
+from openai import AsyncOpenAI
 from openai.types.chat.chat_completion import ChatCompletion
 from openai.types.chat.chat_completion_message_tool_call import (
     ChatCompletionMessageToolCall,
@@ -43,7 +43,7 @@ async def llm_chat(function_input: LlmChatInput) -> ChatCompletion:
         if os.environ.get("OPENAI_API_KEY") is None:
             raise_exception("OPENAI_API_KEY is not set")
 
-        client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+        client = AsyncOpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
         log.info("pydantic_function_tool", tools=function_input.tools)
 
@@ -52,7 +52,7 @@ async def llm_chat(function_input: LlmChatInput) -> ChatCompletion:
                 Message(role="system", content=function_input.system_content or "")
             )
 
-        response = client.chat.completions.create(
+        response = await client.chat.completions.create(
             model=function_input.model or "gpt-4.1-mini",
             messages=function_input.messages,
             tools=function_input.tools,

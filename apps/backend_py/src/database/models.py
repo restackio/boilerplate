@@ -19,6 +19,7 @@ class Workspace(Base):
     # Relationships
     user_workspaces = relationship("UserWorkspace", back_populates="workspace")
     teams = relationship("Team", back_populates="workspace")
+    mcp_servers = relationship("McpServer", back_populates="workspace")
 
 
 class UserWorkspace(Base):
@@ -60,6 +61,24 @@ class Team(Base):
     tasks = relationship("Task", back_populates="team")
 
 
+class McpServer(Base):
+    __tablename__ = "mcp_servers"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True)
+    workspace_id = Column(UUID(as_uuid=True), ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False)
+    server_label = Column(String(255), nullable=False)
+    server_url = Column(String(500), nullable=False)
+    server_description = Column(Text)
+    headers = Column(JSONB)
+    require_approval = Column(JSONB, nullable=False, default={"never": {"tool_names": []}, "always": {"tool_names": []}})
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    workspace = relationship("Workspace", back_populates="mcp_servers")
+    agent_mcp_servers = relationship("AgentMcpServer", back_populates="mcp_server")
+
+
 class User(Base):
     __tablename__ = "users"
     
@@ -84,7 +103,7 @@ class Agent(Base):
     name = Column(String(255), nullable=False)
     version = Column(String(50), nullable=False, default="v1.0")
     description = Column(Text)
-    instructions = Column(Text, nullable=False)
+    instructions = Column(Text, nullable=True)
     status = Column(String(50), nullable=False, default="inactive")
     parent_agent_id = Column(UUID(as_uuid=True), ForeignKey("agents.id", ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -103,6 +122,21 @@ class Agent(Base):
     team = relationship("Team", back_populates="agents")
     tasks = relationship("Task", back_populates="agent")
     parent_agent = relationship("Agent", remote_side=[id], backref="child_agents")
+    agent_mcp_servers = relationship("AgentMcpServer", back_populates="agent")
+
+
+class AgentMcpServer(Base):
+    __tablename__ = "agent_mcp_servers"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True)
+    agent_id = Column(UUID(as_uuid=True), ForeignKey("agents.id", ondelete="CASCADE"), nullable=False)
+    mcp_server_id = Column(UUID(as_uuid=True), ForeignKey("mcp_servers.id", ondelete="CASCADE"), nullable=False)
+    allowed_tools = Column(JSONB)  # Array of allowed tool names
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    agent = relationship("Agent", back_populates="agent_mcp_servers")
+    mcp_server = relationship("McpServer", back_populates="agent_mcp_servers")
 
 
 class Task(Base):

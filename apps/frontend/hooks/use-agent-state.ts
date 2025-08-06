@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import { subscribeAgentState, subscribeAgentResponses } from "@restackio/react";
 import { startAgent, sendAgentMessage, stopAgent } from "@/app/actions/agent";
 
@@ -25,8 +25,8 @@ interface UseAgentStateProps {
 }
 
 interface UseAgentStateReturn {
-  state: any; // The subscription hook returns a complex type
-  agentResponses: any; // Add agentResponses to the return type
+  responseState: any; // Unified persistent state (contains both messages and response items)
+  agentResponses: any; // Live streaming responses
   loading: boolean;
   error: string | null;
   sendMessageToAgent: (message: string) => Promise<void>;
@@ -36,57 +36,71 @@ interface UseAgentStateReturn {
 
 export function useAgentState({ taskId, agentTaskId, runId, onStateChange }: UseAgentStateProps): UseAgentStateReturn {
   const [error, setError] = useState<string | null>(null);
+  const [currentResponseState, setCurrentResponseState] = useState<any>(null);
 
-  // Subscribe to agent state using the official Restack React hook
-  const agentState = subscribeAgentState({
+  // Subscribe to response state for persistent response items with state replacement
+  const responseState = subscribeAgentState({
     apiAddress: process.env.NEXT_PUBLIC_RESTACK_ENGINE_API_ADDRESS || "http://localhost:9233",
     apiToken: process.env.NEXT_PUBLIC_RESTACK_ENGINE_API_KEY,
-    agentId: agentTaskId || "",
+    agentId: agentTaskId || `task_agent_${taskId}`,
     runId: runId || "",
-    stateName: "state_messages",
+    stateName: "state_response",
     options: {
       onMessage: (data: any) => {
-        console.log("subscribeAgentState onMessage received:", data);
-        console.log("Raw message data type:", typeof data);
-        console.log("Raw message data:", data);
+        // Only process messages if we have a valid agentTaskId
+        if (!agentTaskId) return;
         
-        const newState: AgentState = {
-          taskId,
-          agentTaskId: agentTaskId || "",
-          status: data.status || "waiting",
-          messages: data.messages || [],
-          progress: data.progress,
-          error: data.error,
-        };
-        console.log("Created new state:", newState);
-        onStateChange?.(newState);
+        console.log("🔄 Raw subscription data received:", data);
+        console.log("🔄 Data type:", typeof data, "is array:", Array.isArray(data));
+        
+        // Always replace the state with the latest data, don't accumulate
+        if (Array.isArray(data)) {
+          // If it's an array, use the full conversation array
+          console.log("🔄 Using full conversation array:", data);
+          setCurrentResponseState(data);
+        } else {
+          console.log("🔄 Using data directly:", data);
+          setCurrentResponseState(data);
+        }
       },
       onError: (error: any) => {
-        console.error("subscribeAgentState error:", error);
-        setError(error.message || "Failed to subscribe to agent state");
+        // Only process errors if we have a valid agentTaskId
+        if (!agentTaskId) return;
+        
+        console.error("subscribeResponseState error:", error);
+        setError(error.message || "Failed to subscribe to response state");
       },
     },
   });
 
   // Subscribe to agent responses using the official Restack React hook
+  // Use a valid agent ID that should exist in the system
   const agentResponses = subscribeAgentResponses({
     apiAddress: process.env.NEXT_PUBLIC_RESTACK_ENGINE_API_ADDRESS || "http://localhost:9233",
     apiToken: process.env.NEXT_PUBLIC_RESTACK_ENGINE_API_KEY,
-    agentId: agentTaskId || "",
+    agentId: agentTaskId || `task_agent_${taskId}`, // Use task-based agent ID format from backend
     options: {
       onMessage: (data: any) => {
+        // Only process messages if we have a valid agentTaskId
+        if (!agentTaskId) return;
+        
         console.log("subscribeAgentResponses onMessage received:", data);
         console.log("Raw response data type:", typeof data);
         console.log("Raw response data:", data);
+        console.log("Response data keys:", Object.keys(data));
+        console.log("Response data structure:", JSON.stringify(data, null, 2));
       },
       onError: (error: any) => {
+        // Only process errors if we have a valid agentTaskId
+        if (!agentTaskId) return;
+        
         console.error("subscribeAgentResponses error:", error);
         setError(error.message || "Failed to subscribe to agent responses");
       },
     },
   });
 
-  console.log("subscribeAgentState hook result:", agentState);
+  console.log("subscribeResponseState hook result:", responseState);
   console.log("subscribeAgentResponses hook result:", agentResponses);
   console.log("agentTaskId:", agentTaskId, "runId:", runId);
 
@@ -151,9 +165,27 @@ export function useAgentState({ taskId, agentTaskId, runId, onStateChange }: Use
     }
   }, [agentTaskId, runId]);
 
+  // Use the manually managed state that replaces rather than accumulates
+  const cleanResponseState = useMemo(() => {
+    console.log("✅ Using replaced state:", { 
+      hasAgentTaskId: !!agentTaskId, 
+      currentStateType: typeof currentResponseState,
+      isArray: Array.isArray(currentResponseState),
+      length: Array.isArray(currentResponseState) ? currentResponseState.length : 'N/A'
+    });
+    
+    if (!agentTaskId || !currentResponseState) {
+      console.log("✅ Returning null - no agentTaskId or currentResponseState");
+      return null;
+    }
+    
+    console.log("✅ Returning clean state directly:", currentResponseState);
+    return currentResponseState;
+  }, [currentResponseState, agentTaskId]);
+
   return {
-    state: agentState,
-    agentResponses: agentResponses, // Return agentResponses separately
+    responseState: cleanResponseState, // Return cleaned unified response state
+    agentResponses: agentTaskId ? agentResponses : null, // Return agentResponses separately
     loading: false, // The subscription handles loading state internally
     error,
     sendMessageToAgent,

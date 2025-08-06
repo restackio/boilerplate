@@ -1,13 +1,13 @@
 import uuid
 from datetime import datetime
 from typing import List, Optional, Dict, Any
-from sqlalchemy.orm import Session
-from sqlalchemy import and_
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import and_, select
 from pydantic import BaseModel, Field
 
-from src.database.connection import get_db
-from src.database.models import Workspace
-from restack_ai.function import function
+from ..database.connection import get_async_db
+from ..database.models import Workspace, UserWorkspace
+from restack_ai.function import function, NonRetryableError
 
 # Pydantic models for input validation
 class WorkspaceCreateInput(BaseModel):
@@ -34,18 +34,20 @@ class WorkspaceListOutput(BaseModel):
 @function.defn()
 async def workspaces_read(input: WorkspaceReadInput) -> WorkspaceListOutput:
     """Read workspaces for a specific user based on their permissions"""
-    db = next(get_db())
-    try:
+    async for db in get_async_db():
         # Filter workspaces by user permissions
-        from ..database.models import UserWorkspace
-        user_workspaces = db.query(UserWorkspace).filter(
+        user_workspaces_query = select(UserWorkspace).where(
             UserWorkspace.user_id == uuid.UUID(input.user_id)
-        ).all()
+        )
+        user_workspaces_result = await db.execute(user_workspaces_query)
+        user_workspaces = user_workspaces_result.scalars().all()
         
         workspace_ids = [uw.workspace_id for uw in user_workspaces]
-        workspaces = db.query(Workspace).filter(Workspace.id.in_(workspace_ids)).all()
+        workspaces_query = select(Workspace).where(Workspace.id.in_(workspace_ids))
+        workspaces_result = await db.execute(workspaces_query)
+        workspaces = workspaces_result.scalars().all()
         
-        result = [
+        output_result = [
             WorkspaceOutput(
                 id=str(workspace.id),
                 name=workspace.name,
@@ -54,15 +56,12 @@ async def workspaces_read(input: WorkspaceReadInput) -> WorkspaceListOutput:
             )
             for workspace in workspaces
         ]
-        return WorkspaceListOutput(workspaces=result)
-    finally:
-        db.close()
+        return WorkspaceListOutput(workspaces=output_result)
 
 @function.defn()
 async def workspaces_create(workspace_data: WorkspaceCreateInput) -> WorkspaceSingleOutput:
     """Create a new workspace"""
-    db = next(get_db())
-    try:
+    async for db in get_async_db():
         workspace_id = uuid.uuid4()
         workspace = Workspace(
             id=workspace_id,
@@ -70,8 +69,8 @@ async def workspaces_create(workspace_data: WorkspaceCreateInput) -> WorkspaceSi
         )
         
         db.add(workspace)
-        db.commit()
-        db.refresh(workspace)
+        await db.commit()
+        await db.refresh(workspace)
         
         result = WorkspaceOutput(
             id=str(workspace.id),
@@ -81,17 +80,17 @@ async def workspaces_create(workspace_data: WorkspaceCreateInput) -> WorkspaceSi
         )
         
         return WorkspaceSingleOutput(workspace=result)
-    finally:
-        db.close()
 
 @function.defn()
 async def workspaces_update(workspace_id: str, updates: WorkspaceUpdateInput) -> WorkspaceSingleOutput:
     """Update an existing workspace"""
-    db = next(get_db())
-    try:
-        workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
+    async for db in get_async_db():
+        workspace_query = select(Workspace).where(Workspace.id == uuid.UUID(workspace_id))
+        result = await db.execute(workspace_query)
+        workspace = result.scalar_one_or_none()
+        
         if not workspace:
-            raise ValueError(f"Workspace with id {workspace_id} not found")
+            raise NonRetryableError(message=f"Workspace with id {workspace_id} not found")
         
         # Update fields (only non-None values)
         update_data = updates.dict(exclude_unset=True)
@@ -100,8 +99,8 @@ async def workspaces_update(workspace_id: str, updates: WorkspaceUpdateInput) ->
                 setattr(workspace, key, value)
         
         workspace.updated_at = datetime.utcnow()
-        db.commit()
-        db.refresh(workspace)
+        await db.commit()
+        await db.refresh(workspace)
         
         result = WorkspaceOutput(
             id=str(workspace.id),
@@ -111,41 +110,39 @@ async def workspaces_update(workspace_id: str, updates: WorkspaceUpdateInput) ->
         )
         
         return WorkspaceSingleOutput(workspace=result)
-    finally:
-        db.close()
 
 @function.defn()
 async def workspaces_delete(workspace_id: str) -> Dict[str, bool]:
     """Delete a workspace"""
-    db = next(get_db())
-    try:
-        workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
-        if not workspace:
-            raise ValueError(f"Workspace with id {workspace_id} not found")
+    async for db in get_async_db():
+        workspace_query = select(Workspace).where(Workspace.id == uuid.UUID(workspace_id))
+        result = await db.execute(workspace_query)
+        workspace = result.scalar_one_or_none()
         
-        db.delete(workspace)
-        db.commit()
+        if not workspace:
+            raise NonRetryableError(message=f"Workspace with id {workspace_id} not found")
+        
+        await db.delete(workspace)
+        await db.commit()
         
         return {"success": True}
-    finally:
-        db.close()
 
 @function.defn()
 async def workspaces_get_by_id(workspace_id: str) -> Optional[WorkspaceSingleOutput]:
     """Get a specific workspace by ID"""
-    db = next(get_db())
-    try:
-        workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
+    async for db in get_async_db():
+        workspace_query = select(Workspace).where(Workspace.id == uuid.UUID(workspace_id))
+        result = await db.execute(workspace_query)
+        workspace = result.scalar_one_or_none()
+        
         if not workspace:
             return None
         
-        result = WorkspaceOutput(
+        output_result = WorkspaceOutput(
             id=str(workspace.id),
             name=workspace.name,
             created_at=workspace.created_at.isoformat() if workspace.created_at else None,
             updated_at=workspace.updated_at.isoformat() if workspace.updated_at else None,
         )
         
-        return WorkspaceSingleOutput(workspace=result)
-    finally:
-        db.close() 
+        return WorkspaceSingleOutput(workspace=output_result) 

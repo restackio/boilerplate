@@ -1,3 +1,9 @@
 export { TaskDetailsTab } from "./TaskDetailsTab";
 export { TaskLogsTab } from "./TaskLogsTab";
-export { DeleteTaskModal } from "./DeleteTaskModal"; 
+export { DeleteTaskModal } from "./DeleteTaskModal";
+export { TaskHeader } from "./TaskHeader";
+export { TaskLoadingState } from "./TaskLoadingState";
+export { TaskErrorState } from "./TaskErrorState";
+export { TaskNotFoundState } from "./TaskNotFoundState";
+export { TaskChatInterface } from "./TaskChatInterface";
+export { TaskSplitView } from "./TaskSplitView"; 

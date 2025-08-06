@@ -65,14 +65,27 @@ from src.workflows.user_workspaces_crud import (
 from src.workflows.auth_crud import (
     UserSignupWorkflow, UserLoginWorkflow
 )
-
+from src.workflows.mcp_servers_crud import (
+    McpServersReadWorkflow, McpServersCreateWorkflow, McpServersUpdateWorkflow,
+    McpServersDeleteWorkflow, McpServersGetByIdWorkflow
+)
+from src.workflows.agent_mcp_servers_crud import (
+    AgentMcpServersReadByAgentWorkflow, AgentMcpServersCreateWorkflow, AgentMcpServersUpdateWorkflow,
+    AgentMcpServersDeleteWorkflow, AgentMcpServersGetByIdWorkflow
+)
+from src.functions.mcp_servers_crud import (
+    mcp_servers_read, mcp_servers_create, mcp_servers_update, mcp_servers_delete, mcp_servers_get_by_id
+)
+from src.functions.agent_mcp_servers_crud import (
+    agent_mcp_servers_read_by_agent, agent_mcp_servers_create, agent_mcp_servers_update, agent_mcp_servers_delete, agent_mcp_servers_get_by_id
+)
 from src.functions.send_agent_event import send_agent_event
-from src.database.connection import init_db
+from src.database.connection import init_async_db
 
 
 async def main() -> None:
     # Initialize database
-    init_db()
+    await init_async_db()
     logging.info("Database initialized")
     
     await client.start_service(
@@ -93,6 +106,10 @@ async def main() -> None:
             UserWorkspacesGetByUserWorkflow, UserWorkspacesGetByWorkspaceWorkflow,
             UserWorkspacesCreateWorkflow, UserWorkspacesUpdateWorkflow, UserWorkspacesDeleteWorkflow,
             UserSignupWorkflow, UserLoginWorkflow,
+            McpServersReadWorkflow, McpServersCreateWorkflow, McpServersUpdateWorkflow,
+            McpServersDeleteWorkflow, McpServersGetByIdWorkflow,
+            AgentMcpServersReadByAgentWorkflow, AgentMcpServersCreateWorkflow, AgentMcpServersUpdateWorkflow,
+            AgentMcpServersDeleteWorkflow, AgentMcpServersGetByIdWorkflow,
         ],
         functions=[
             send_agent_event, llm_chat, llm_response,
@@ -108,6 +125,8 @@ async def main() -> None:
             user_workspaces_get_by_user, user_workspaces_get_by_workspace,
             user_workspaces_create, user_workspaces_update, user_workspaces_delete,
             user_signup, user_login,
+            mcp_servers_read, mcp_servers_create, mcp_servers_update, mcp_servers_delete, mcp_servers_get_by_id,
+            agent_mcp_servers_read_by_agent, agent_mcp_servers_create, agent_mcp_servers_update, agent_mcp_servers_delete, agent_mcp_servers_get_by_id,
         ],
     )
 

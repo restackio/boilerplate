@@ -8,16 +8,20 @@ import { useRouter } from "next/navigation";
 import { Plus,RefreshCw } from "lucide-react";
 import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
 import { CreateTaskForm } from "@/components/create-task-form";
+import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 
 export default function TasksPage() {
   const router = useRouter();
+  const { currentWorkspaceId, isReady } = useDatabaseWorkspace();
   const { tasks, tasksLoading, fetchTasks, deleteTask, createTask } = useWorkspaceScopedActions();
   const [showCreateForm, setShowCreateForm] = useState(false);
 
 
   useEffect(() => {
-    fetchTasks();
-  }, [fetchTasks]);
+    if (isReady && currentWorkspaceId) {
+      fetchTasks();
+    }
+  }, [isReady, currentWorkspaceId]);
 
   const handleTaskClick = (taskId: string) => {
     router.push(`/tasks/${taskId}`);

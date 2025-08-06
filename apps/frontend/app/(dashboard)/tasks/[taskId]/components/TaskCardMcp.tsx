@@ -1,0 +1,117 @@
+"use client";
+
+import { useState } from "react";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@workspace/ui/components/ui/card";
+import { Button } from "@workspace/ui/components/ui/button";
+import { Badge } from "@workspace/ui/components/ui/badge";
+import { XCircle, Check } from "lucide-react";
+import { ConversationItem } from "../types";
+
+interface TaskCardMcpProps {
+  item: ConversationItem;
+  onApprove?: (itemId: string) => void;
+  onDeny?: (itemId: string) => void;
+}
+
+export function TaskCardMcp({ item, onApprove, onDeny }: TaskCardMcpProps) {
+  const [isProcessing, setIsProcessing] = useState(false);
+  
+  const isProcessed = item.status === "completed" || item.status === "failed";
+  const isWaitingApproval = item.status === "waiting-approval";
+
+  const handleApprove = async () => {
+    if (!onApprove) return;
+    setIsProcessing(true);
+    try {
+      await onApprove(item.id);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleDeny = async () => {
+    if (!onDeny) return;
+    setIsProcessing(true);
+    try {
+      await onDeny(item.id);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  return (
+    <Card className="w-full border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+      <CardHeader>
+        <CardTitle className="text-sm font-medium">
+          Approval required: {item.serverLabel} {item.toolName}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="pt-0">
+        {item.toolArguments && (
+          <div className="mt-2">
+            <p className="text-xs text-muted-foreground mb-1">Arguments:</p>
+            <pre className="text-xs bg-gray-100 dark:bg-gray-800 p-2 rounded border overflow-x-auto">
+              {JSON.stringify(JSON.parse(item.toolArguments), null, 2)}
+            </pre>
+          </div>
+        )}
+        {isWaitingApproval ? (
+          <div className="flex gap-2 pt-3">
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={handleDeny}
+              disabled={isProcessing}
+            >
+              <XCircle className="h-4 w-4 mr-1" />
+              Deny
+            </Button>
+            <Button
+              size="sm"
+              variant="default"
+              onClick={handleApprove}
+              disabled={isProcessing}
+            >
+              <Check className="h-4 w-4 mr-1" />
+              Approve
+            </Button>
+          </div>
+        ) : isProcessed ? (
+          <div className="flex items-center justify-start pt-3">
+            <div className="text-sm font-medium text-center">
+              {item.status === "completed" ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-green-600"
+                >
+                  <Check className="h-4 w-4 mr-1" />
+                  Approved
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-red-600"
+                >
+                  <XCircle className="h-4 w-4 mr-1" />
+                  Denied
+                </Button>
+              )}
+            </div>
+          </div>
+        ) : null}
+      </CardContent>
+      <CardFooter className="pt-3">
+        <div className="flex items-center justify-between w-full">
+          <span className="text-xs text-muted-foreground">
+            {new Date(item.timestamp).toLocaleTimeString()}
+          </span>
+          <Badge variant="secondary" className="text-xs">
+            {item.status}
+          </Badge>
+        </div>
+      </CardFooter>
+    </Card>
+  );
+}

@@ -10,18 +10,19 @@ import { useRouter } from "next/navigation";
 import { RefreshCw } from "lucide-react";
 import AgentsTabs from "./AgentsTabs";
 import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
-import { useApiHealth } from "@/hooks/use-api-health";
 import { CreateAgentModal } from "@/components/create-agent-modal";
+import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 
 export default function TechnicalSupportAgentsPage() {
   const router = useRouter();
+  const { currentWorkspaceId, isReady } = useDatabaseWorkspace();
   const { agents, agentsLoading, fetchAgents } = useWorkspaceScopedActions();
-  const { isHealthy, checkHealth } = useApiHealth();
 
   useEffect(() => {
-    fetchAgents();
-    checkHealth();
-  }, [fetchAgents, checkHealth]);
+    if (isReady && currentWorkspaceId) {
+      fetchAgents();
+    }
+  }, [isReady, currentWorkspaceId]);
 
   const handleAgentClick = (agentId: string) => {
     router.push(`/agents/${agentId}`);
@@ -57,7 +58,6 @@ export default function TechnicalSupportAgentsPage() {
           <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
             <p className="text-red-800 text-sm">
               Error: {agentsLoading.error}
-              {!isHealthy && " (API may be unavailable)"}
             </p>
           </div>
         )}

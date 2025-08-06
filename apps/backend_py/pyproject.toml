@@ -6,14 +6,15 @@ authors = [{ name = "Restack Team", email = "service@restack.io" }]
 requires-python = ">=3.10,<3.14"
 readme = "README.md"
 dependencies = [
-    "pydantic[email]>=2.10.6",
-    "watchfiles>=1.0.4",
-    "python-dotenv==1.0.1",
-    "openai>=1.97.1",
-    "restack-ai>=0.0.107",
+    "pydantic[email]>=2.11.7",
+    "watchfiles>=1.1.0",
+    "python-dotenv>=1.1.1",
+    "openai[aiohttp]>=1.98.0",
+    "restack-ai>=0.0.108",
     "psycopg2-binary>=2.9.9",
     "asyncpg>=0.29.0",
-    "sqlalchemy>=2.0.0",
+    "sqlalchemy>=2.0.42",
+    "greenlet>=3.0.0",
     "alembic>=1.13.0",
     "bcrypt>=4.0.1",
 ]

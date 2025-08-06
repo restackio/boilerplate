@@ -19,7 +19,7 @@ interface AgentStateManagerProps {
 export function AgentStateManager({ taskId, agentTaskId, runId, taskDescription }: AgentStateManagerProps) {
   const [message, setMessage] = useState("");
   const { updateTask } = useWorkspaceScopedActions();
-  const { state, agentResponses, loading, error, sendMessageToAgent, startAgent, stopAgent } = useAgentState({
+  const { responseState, agentResponses, loading, error, sendMessageToAgent, startAgent, stopAgent } = useAgentState({
     taskId,
     agentTaskId,
     runId,
@@ -30,13 +30,13 @@ export function AgentStateManager({ taskId, agentTaskId, runId, taskDescription 
 
   // Debug logging for raw state data
   console.log("=== AGENT STATE DEBUG ===");
-  console.log("Raw agent state:", state);
+  console.log("Raw agent state:", responseState);
   console.log("Agent responses:", agentResponses);
-  console.log("State type:", typeof state);
-  console.log("State keys:", state ? Object.keys(state) : "no state");
-  if (state && typeof state === 'object') {
-    console.log("State.data type:", typeof state.data);
-    console.log("State.data keys:", state.data ? Object.keys(state.data) : "no data");
+  console.log("State type:", typeof responseState);
+  console.log("State keys:", responseState ? Object.keys(responseState) : "no state");
+  if (responseState && typeof responseState === 'object') {
+    console.log("State.data type:", typeof responseState.data);
+    console.log("State.data keys:", responseState.data ? Object.keys(responseState.data) : "no data");
   }
   console.log("agentTaskId:", agentTaskId);
   console.log("runId:", runId);
@@ -91,7 +91,7 @@ export function AgentStateManager({ taskId, agentTaskId, runId, taskDescription 
   };
 
   // Extract state data from the subscription
-  const agentStateData = state?.data || state;
+  const agentStateData = responseState?.data || responseState;
   
   // Handle the streamed data format: "data: data: [{"content":"...","role":"system",...}]"
   let parsedMessages = [];
@@ -277,7 +277,7 @@ export function AgentStateManager({ taskId, agentTaskId, runId, taskDescription 
                 <div>
                   <strong>State object:</strong>
                   <pre className="mt-1 p-2 bg-gray-100 rounded text-xs overflow-auto max-h-32">
-                    {JSON.stringify(state, null, 2)}
+                    {JSON.stringify(responseState, null, 2)}
                   </pre>
                 </div>
                 <div>

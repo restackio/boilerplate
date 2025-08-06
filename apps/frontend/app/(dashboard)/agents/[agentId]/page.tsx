@@ -35,7 +35,7 @@ export default function AgentEditPage() {
   const params = useParams();
   const router = useRouter();
   const agentId = params.agentId as string;
-  const { isReady } = useDatabaseWorkspace();
+  const { isReady, workspaceId } = useDatabaseWorkspace();
   const { fetchAgents, updateAgent, createAgent, deleteAgent, agentsLoading, getAgentVersions } = useWorkspaceScopedActions();
 
   // State for the individual agent
@@ -92,6 +92,7 @@ export default function AgentEditPage() {
     try {
       // Create a new version of the agent
       const newAgentData = {
+        workspace_id: workspaceId,
         name: agentData.name,
         version: agentData.version,
         description: agentData.description,
@@ -344,6 +345,7 @@ export default function AgentEditPage() {
                     agent={agent}
                     onSave={handleSave}
                     isSaving={isSaving}
+                    workspaceId={workspaceId}
                   />
                 </TabsContent>
 

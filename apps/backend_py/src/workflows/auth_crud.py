@@ -6,7 +6,8 @@ from restack_ai.workflow import (
     NonRetryableError,
     import_functions,
     log,
-    workflow
+    workflow,
+    RetryPolicy
 )
 
 with import_functions():
@@ -50,6 +51,12 @@ class UserLoginWorkflow:
                 function=user_login,
                 function_input=workflow_input,
                 start_to_close_timeout=timedelta(seconds=30),
+                retry_policy=RetryPolicy(
+                    maximum_attempts=1,
+                    initial_interval=timedelta(seconds=1),
+                    maximum_interval=timedelta(seconds=10),
+                    backoff_coefficient=2.0,
+                )
             )
             
             return result
