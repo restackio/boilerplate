@@ -2,7 +2,7 @@
 
 import { Button } from "@workspace/ui/components/ui/button";
 import { Textarea } from "@workspace/ui/components/ui/textarea";
-import { Send } from "lucide-react";
+import { ArrowUp } from "lucide-react";
 
 interface ChatInputProps {
   message: string;
@@ -48,7 +48,7 @@ export function ChatInput({
           disabled={!message.trim() || isLoading || isThinking || isPollingForAgent}
           className="px-4"
         >
-          <Send className="h-4 w-4" />
+          <ArrowUp className="h-4 w-4" />
         </Button>
       </div>
     </div>

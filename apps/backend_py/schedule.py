@@ -3,6 +3,7 @@ import sys
 import time
 
 from restack_ai import Restack
+
 from agents.agent_task import AgentTodo
 
 
@@ -16,7 +17,9 @@ async def main() -> None:
         input=AgentTodo(),
     )
 
-    await client.get_agent_result(agent_id=agent_id, run_id=run_id)
+    await client.get_agent_result(
+        agent_id=agent_id, run_id=run_id
+    )
 
     sys.exit(0)
 

@@ -1,124 +1,144 @@
 from datetime import timedelta
-from typing import List, Optional, Dict, Any
 
-from pydantic import BaseModel
 from restack_ai.workflow import (
     NonRetryableError,
     import_functions,
     log,
-    workflow
+    workflow,
 )
 
 with import_functions():
     from src.functions.user_workspaces_crud import (
-        user_workspaces_get_by_user, user_workspaces_get_by_workspace,
-        user_workspaces_create, user_workspaces_update, user_workspaces_delete,
-        UserWorkspacesGetByUserInput, UserWorkspacesGetByWorkspaceInput,
-        UserWorkspaceCreateInput, UserWorkspaceUpdateInput, UserWorkspaceDeleteInput
+        UserWorkspaceCreateInput,
+        UserWorkspaceDeleteInput,
+        UserWorkspaceDeleteOutput,
+        UserWorkspaceListOutput,
+        UserWorkspacesGetByUserInput,
+        UserWorkspacesGetByWorkspaceInput,
+        UserWorkspaceSingleOutput,
+        UserWorkspaceUpdateInput,
+        user_workspaces_create,
+        user_workspaces_delete,
+        user_workspaces_get_by_user,
+        user_workspaces_get_by_workspace,
+        user_workspaces_update,
     )
 
 
 # Workflow definitions
 @workflow.defn()
 class UserWorkspacesGetByUserWorkflow:
-    """Workflow to get all workspaces for a user"""
-    
+    """Workflow to get all workspaces for a user."""
+
     @workflow.run
-    async def run(self, workflow_input: UserWorkspacesGetByUserInput):
+    async def run(
+        self, workflow_input: UserWorkspacesGetByUserInput
+    ) -> UserWorkspaceListOutput:
         log.info("UserWorkspacesGetByUserWorkflow started")
         try:
-            result = await workflow.step(
+            return await workflow.step(
                 function=user_workspaces_get_by_user,
                 function_input=workflow_input,
                 start_to_close_timeout=timedelta(seconds=30),
             )
-            
-            return result
+
         except Exception as e:
-            error_message = f"Error during user_workspaces_get_by_user: {e}"
+            error_message = (
+                f"Error during user_workspaces_get_by_user: {e}"
+            )
             log.error(error_message)
-            raise NonRetryableError(message=error_message)
+            raise NonRetryableError(message=error_message) from e
 
 
 @workflow.defn()
 class UserWorkspacesGetByWorkspaceWorkflow:
-    """Workflow to get all users for a workspace"""
-    
+    """Workflow to get all users for a workspace."""
+
     @workflow.run
-    async def run(self, workflow_input: UserWorkspacesGetByWorkspaceInput):
+    async def run(
+        self, workflow_input: UserWorkspacesGetByWorkspaceInput
+    ) -> UserWorkspaceListOutput:
         log.info("UserWorkspacesGetByWorkspaceWorkflow started")
         try:
-            result = await workflow.step(
+            return await workflow.step(
                 function=user_workspaces_get_by_workspace,
                 function_input=workflow_input,
                 start_to_close_timeout=timedelta(seconds=30),
             )
-            
-            return result
+
         except Exception as e:
             error_message = f"Error during user_workspaces_get_by_workspace: {e}"
             log.error(error_message)
-            raise NonRetryableError(message=error_message)
+            raise NonRetryableError(message=error_message) from e
 
 
 @workflow.defn()
 class UserWorkspacesCreateWorkflow:
-    """Workflow to add a user to a workspace"""
-    
+    """Workflow to add a user to a workspace."""
+
     @workflow.run
-    async def run(self, workflow_input: UserWorkspaceCreateInput):
+    async def run(
+        self, workflow_input: UserWorkspaceCreateInput
+    ) -> UserWorkspaceSingleOutput:
         log.info("UserWorkspacesCreateWorkflow started")
         try:
-            result = await workflow.step(
+            return await workflow.step(
                 function=user_workspaces_create,
                 function_input=workflow_input,
                 start_to_close_timeout=timedelta(seconds=30),
             )
-            
-            return result
+
         except Exception as e:
-            error_message = f"Error during user_workspaces_create: {e}"
+            error_message = (
+                f"Error during user_workspaces_create: {e}"
+            )
             log.error(error_message)
-            raise NonRetryableError(message=error_message)
+            raise NonRetryableError(message=error_message) from e
 
 
 @workflow.defn()
 class UserWorkspacesUpdateWorkflow:
-    """Workflow to update user role in workspace"""
-    
+    """Workflow to update user role in workspace."""
+
     @workflow.run
-    async def run(self, workflow_input: UserWorkspaceUpdateInput):
+    async def run(
+        self, workflow_input: UserWorkspaceUpdateInput
+    ) -> UserWorkspaceSingleOutput:
         log.info("UserWorkspacesUpdateWorkflow started")
         try:
-            result = await workflow.step(
+            return await workflow.step(
                 function=user_workspaces_update,
                 function_input=workflow_input,
                 start_to_close_timeout=timedelta(seconds=30),
             )
-            
-            return result
+
         except Exception as e:
-            error_message = f"Error during user_workspaces_update: {e}"
+            error_message = (
+                f"Error during user_workspaces_update: {e}"
+            )
             log.error(error_message)
-            raise NonRetryableError(message=error_message)
+            raise NonRetryableError(message=error_message) from e
 
 
 @workflow.defn()
 class UserWorkspacesDeleteWorkflow:
-    """Workflow to remove a user from a workspace"""
-    
+    """Workflow to remove a user from a workspace."""
+
     @workflow.run
-    async def run(self, workflow_input: UserWorkspaceDeleteInput):
+    async def run(
+        self, workflow_input: UserWorkspaceDeleteInput
+    ) -> UserWorkspaceDeleteOutput:
         log.info("UserWorkspacesDeleteWorkflow started")
         try:
-            result = await workflow.step(
+            return await workflow.step(
                 function=user_workspaces_delete,
                 function_input=workflow_input,
                 start_to_close_timeout=timedelta(seconds=30),
             )
-            
-            return result
+
         except Exception as e:
-            error_message = f"Error during user_workspaces_delete: {e}"
+            error_message = (
+                f"Error during user_workspaces_delete: {e}"
+            )
             log.error(error_message)
-            raise NonRetryableError(message=error_message) 
+            raise NonRetryableError(message=error_message) from e

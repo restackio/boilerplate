@@ -17,6 +17,7 @@ class SendAgentEventOutput(BaseModel):
     success: bool
     message: str
 
+
 @function.defn()
 async def send_agent_event(
     function_input: SendAgentEventInput,
@@ -29,13 +30,12 @@ async def send_agent_event(
             event_input=function_input.event_input,
             wait_for_completion=False,
         )
-        
+
         return SendAgentEventOutput(
             success=True,
-            message=f"Event '{function_input.event_name}' sent successfully to agent {function_input.agent_id}"
+            message=f"Event '{function_input.event_name}' sent successfully to agent {function_input.agent_id}",
         )
 
     except Exception as e:
-        raise NonRetryableError(
-            f"send_agent_event failed: {e}"
-        ) from e
+        msg = f"send_agent_event failed: {e}"
+        raise NonRetryableError(msg) from e

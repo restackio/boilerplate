@@ -65,10 +65,10 @@ export default function DashboardPage() {
         onSubmit={handleCreateTask}
         onTaskCreated={handleTaskCreated}
         placeholder="Describe a task"
-        buttonText="Create Task"
+        buttonText="Create task"
       />
 
-      {/* My Tasks */}
+      {/* My tasks */}
       {tasksLoading.isLoading ? (
         <div className="flex items-center justify-center h-32">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -80,7 +80,7 @@ export default function DashboardPage() {
       ) : (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold">My Tasks</h2>
+            <h2 className="text-xl font-semibold">My tasks</h2>
             <button
               onClick={() => router.push("/tasks")}
               className="text-sm text-primary hover:underline"

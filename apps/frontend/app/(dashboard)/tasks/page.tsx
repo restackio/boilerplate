@@ -116,7 +116,7 @@ export default function TasksPage() {
           </div>
         )}
 
-        {/* Create Task Form */}
+        {/* Create task Form */}
         {showCreateForm && (
           <div className="p-4 rounded-lg border">
             <h3 className="text-lg font-semibold mb-4">New Task</h3>
@@ -124,7 +124,7 @@ export default function TasksPage() {
               onSubmit={handleCreateTask}
               onTaskCreated={handleTaskCreated}
               placeholder="Describe a task..."
-              buttonText="Create Task"
+              buttonText="Create task"
             />
           </div>
         )}

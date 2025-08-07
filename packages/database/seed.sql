@@ -51,7 +51,7 @@ INSERT INTO mcp_servers (id, workspace_id, server_label, server_url, server_desc
   'https://mcp.intercom.com/mcp',
   'Intercom MCP server for accessing and querying customer data',
   '{"Authorization": "Bearer dG9rOmY2ODliMmVjX2Y4NGZfNGE2NF9iNTdlX2UzYWRjYTI2NDgyOToxOjA="}',
-  '{"never": {"tool_names": ["search_conversations", "get_conversation", "search_contacts" ]}, "always": {"tool_names": ["get_contact"]}}'
+  '{"never": {"tool_names": ["search", "get", "search_conversations", "get_conversation", "search_contacts" ]}, "always": {"tool_names": ["get_contact"]}}'
 )
 ON CONFLICT (id) DO NOTHING;
 
@@ -104,7 +104,7 @@ INSERT INTO agent_mcp_servers (agent_id, mcp_server_id, allowed_tools) VALUES
 (
   'f3f45678-9012-3456-7890-123456789012',
   'e3f45678-9012-3456-7890-123456789012',
-  '["search_conversations", "get_conversation", "search_contacts", "get_contact"]'
+  '["search", "get", "search_conversations", "get_conversation", "search_contacts", "get_contact"]'
 )
 ON CONFLICT (agent_id, mcp_server_id) DO NOTHING;
 

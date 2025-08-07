@@ -120,7 +120,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         isActive: true,
       },
       {
-        title: "My Tasks",
+        title: "My tasks",
         url: "/tasks?assigned=me",
         icon: CopyCheck,
       },
