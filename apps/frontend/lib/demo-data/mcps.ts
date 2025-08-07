@@ -15,6 +15,7 @@ import {
   Zap,
   Globe,
 } from "lucide-react";
+import React from "react";
 
 export interface MCP {
   id: string;
@@ -22,7 +23,7 @@ export interface MCP {
   version: string;
   visibility: "public" | "private";
   description: string;
-  icon: any;
+  icon: React.ElementType;
   category: string;
   author: string;
   downloads: string;

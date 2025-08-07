@@ -22,9 +22,26 @@ interface AgentVersion {
   parent_agent_id?: string;
 }
 
+interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: string;
+}
+
+interface RawAgent {
+  id: string;
+  name: string;
+  version: string;
+  description?: string;
+  status: "active" | "inactive";
+  created_at?: string;
+  updated_at?: string;
+  parent_agent_id?: string;
+}
+
 interface AgentVersionsTabProps {
   agentId: string;
-  getAgentVersions: (agentId: string) => Promise<any>;
+  getAgentVersions: (agentId: string) => Promise<ApiResponse<RawAgent[]>>;
 }
 
 export function AgentVersionsTab({ agentId, getAgentVersions }: AgentVersionsTabProps) {
@@ -42,7 +59,7 @@ export function AgentVersionsTab({ agentId, getAgentVersions }: AgentVersionsTab
         const result = await getAgentVersions(agentId);
         if (result.success && result.data) {
           // Convert Agent[] to AgentVersion[] format
-          const versions: AgentVersion[] = result.data.map((agent: any) => ({
+          const versions: AgentVersion[] = result.data.map((agent: RawAgent) => ({
             id: agent.id,
             name: agent.name,
             version: agent.version,

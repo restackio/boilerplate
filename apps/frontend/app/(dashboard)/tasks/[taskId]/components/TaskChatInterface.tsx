@@ -10,7 +10,7 @@ import { StreamItems } from "./TaskStreamItems";
 interface TaskChatInterfaceProps {
   conversation: ConversationItem[];
   persistentItemIds: Set<string>;
-  agentResponses: any[];
+  agentResponses: ConversationItem[];
   chatMessage: string;
   onChatMessageChange: (message: string) => void;
   onSendMessage: () => void;

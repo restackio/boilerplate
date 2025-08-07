@@ -1,21 +1,26 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "ui": "tui",
+  "globalEnv": ["RESTACK_ENGINE_ID", "RESTACK_ENGINE_ADDRESS", "RESTACK_ENGINE_API_KEY", "NODE_ENV"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": [".next/**", "!.next/cache/**"]
+      "outputs": [".next/**", "!.next/cache/**"],
+      "env": ["RESTACK_ENGINE_ID", "RESTACK_ENGINE_ADDRESS", "RESTACK_ENGINE_API_KEY", "NODE_ENV"]
     },
     "lint": {
-      "dependsOn": ["^lint"]
+      "dependsOn": ["^lint"],
+      "env": ["RESTACK_ENGINE_ID", "RESTACK_ENGINE_ADDRESS", "RESTACK_ENGINE_API_KEY", "NODE_ENV"]
     },
     "check-types": {
-      "dependsOn": ["^check-types"]
+      "dependsOn": ["^check-types"],
+      "env": ["RESTACK_ENGINE_ID", "RESTACK_ENGINE_ADDRESS", "RESTACK_ENGINE_API_KEY", "NODE_ENV"]
     },
     "dev": {
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "env": ["RESTACK_ENGINE_ID", "RESTACK_ENGINE_ADDRESS", "RESTACK_ENGINE_API_KEY", "NODE_ENV"]
     },
     "install": {
       "cache": false

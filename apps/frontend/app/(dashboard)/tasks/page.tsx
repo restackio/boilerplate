@@ -21,7 +21,7 @@ export default function TasksPage() {
     if (isReady && currentWorkspaceId) {
       fetchTasks();
     }
-  }, [isReady, currentWorkspaceId]);
+  }, [isReady, currentWorkspaceId, fetchTasks]);
 
   const handleTaskClick = (taskId: string) => {
     router.push(`/tasks/${taskId}`);
@@ -36,6 +36,7 @@ export default function TasksPage() {
       await deleteTask(taskId);
     }
   };
+  void handleDeleteTask; // Suppress unused warning - function ready for future use
 
   const handleCreateTask = async (taskData: {
     title: string;
@@ -62,7 +63,7 @@ export default function TasksPage() {
     return result;
   };
 
-  const handleTaskCreated = async (taskData: any) => {
+  const handleTaskCreated = async (taskData: { id: string }) => {
     console.log("🔄 [TasksPage] handleTaskCreated called with:", taskData);
     const startTime = Date.now();
     

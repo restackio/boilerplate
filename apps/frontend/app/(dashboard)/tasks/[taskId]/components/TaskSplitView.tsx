@@ -27,7 +27,7 @@ interface TaskSplitViewProps {
   onActiveTabChange: (tab: string) => void;
   onCloseSplitView: () => void;
   task: Task;
-  agentResponses: any[];
+  agentResponses: ConversationItem[];
   onUpdateTask: (updates: Partial<Task>) => Promise<void>;
   isUpdating: boolean;
 }

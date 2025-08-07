@@ -87,6 +87,7 @@ export function SignupForm({
         setError(workflowResult?.error || "Signup failed");
       }
     } catch (error) {
+      void error; // Suppress unused warning
       setError("Signup failed. Please try again.");
     } finally {
       setIsLoading(false);

@@ -9,6 +9,46 @@ import { Loader2, Play, Square, Send } from "lucide-react";
 import { useAgentState } from "@/hooks/use-agent-state";
 import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
 
+interface TextContent {
+  type: string;
+  text: string;
+}
+
+interface MessageOutput {
+  type: string;
+  role?: string;
+  content: TextContent[];
+  created_at?: string;
+}
+
+interface ResponseOutput {
+  output: MessageOutput[];
+}
+
+interface Tool {
+  name: string;
+  [key: string]: unknown;
+}
+
+interface ToolList {
+  tools: Tool[];
+  [key: string]: unknown;
+}
+
+interface ParsedMessage {
+  role: string;
+  content: string;
+  timestamp: string;
+  type: string;
+}
+
+interface AgentResponse {
+  type: string;
+  response?: ResponseOutput;
+  item?: ToolList;
+  [key: string]: unknown;
+}
+
 interface AgentStateManagerProps {
   taskId: string;
   agentTaskId?: string;
@@ -104,12 +144,12 @@ export function AgentStateManager({ taskId, agentTaskId, runId, taskDescription 
     // Process agent responses to extract messages
     const messageMap = new Map(); // Track messages by item_id
     
-    agentResponses.forEach((response: any) => {
+    agentResponses.forEach((response: AgentResponse) => {
       if (response.type === "response.completed" && response.response?.output) {
-        response.response.output.forEach((output: any) => {
+        response.response.output.forEach((output: MessageOutput) => {
           if (output.type === "message" && output.content) {
             // Extract text content from the message
-            const textContent = output.content.find((content: any) => content.type === "output_text");
+            const textContent = output.content.find((content: TextContent) => content.type === "output_text");
             if (textContent && textContent.text) {
               parsedMessages.push({
                 role: output.role || "assistant",
@@ -159,7 +199,7 @@ export function AgentStateManager({ taskId, agentTaskId, runId, taskDescription 
         // Handle MCP tool listing
         const toolList = response.item;
         if (toolList.tools && toolList.tools.length > 0) {
-          const toolNames = toolList.tools.map((tool: any) => tool.name).join(", ");
+          const toolNames = toolList.tools.map((tool: Tool) => tool.name).join(", ");
           parsedMessages.push({
             role: "system",
             content: `Available tools: ${toolNames}`,
@@ -231,7 +271,7 @@ export function AgentStateManager({ taskId, agentTaskId, runId, taskDescription 
   }
   
   // Deduplicate messages based on content and role to avoid showing duplicates
-  const messages = parsedMessages.filter((message: any, index: number, self: any[]) => {
+      const messages = parsedMessages.filter((message: ParsedMessage, index: number, self: ParsedMessage[]) => {
     const firstIndex = self.findIndex(m => 
       m.content === message.content && 
       m.role === message.role
@@ -240,7 +280,7 @@ export function AgentStateManager({ taskId, agentTaskId, runId, taskDescription 
   });
 
   // Check if agent is actively processing (has streaming messages)
-  const hasStreamingMessages = messages.some((msg: any) => msg.type === "streaming");
+      const hasStreamingMessages = messages.some((msg: ParsedMessage) => msg.type === "streaming");
   const isProcessing = hasStreamingMessages || status === "running";
 
   return (
@@ -325,7 +365,7 @@ export function AgentStateManager({ taskId, agentTaskId, runId, taskDescription 
                 <div>
                   <h4 className="font-medium mb-2">Messages ({messages.length})</h4>
                   <div className="space-y-2 overflow-y-auto">
-                    {messages.map((msg: any, index: number) => (
+                    {messages.map((msg: ParsedMessage, index: number) => (
                       <div
                         key={index}
                         className={`p-3 rounded-lg ${

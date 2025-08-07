@@ -37,6 +37,7 @@ export default function AgentEditPage() {
   const agentId = params.agentId as string;
   const { isReady, workspaceId } = useDatabaseWorkspace();
   const { fetchAgents, updateAgent, createAgent, deleteAgent, agentsLoading, getAgentVersions } = useWorkspaceScopedActions();
+  void agentsLoading; // Suppress unused warning
 
   // State for the individual agent
   const [agent, setAgent] = useState<Agent | null>(null);
@@ -85,7 +86,7 @@ export default function AgentEditPage() {
     fetchAgent();
   }, [agentId, fetchAgents, isReady]);
 
-  const handleSave = async (agentData: any) => {
+  const handleSave = async (agentData: { name: string; version: string; description: string; instructions: string }) => {
     if (!agent) return;
 
     setIsSaving(true);
@@ -220,7 +221,7 @@ export default function AgentEditPage() {
           <Bot className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
           <h2 className="text-lg font-semibold mb-2">Agent not found</h2>
           <p className="text-muted-foreground">
-            The agent you're looking for doesn't exist or has been removed.
+            The agent you&apos;re looking for doesn&apos;t exist or has been removed.
           </p>
           <Button 
             onClick={() => router.push("/agents")} 

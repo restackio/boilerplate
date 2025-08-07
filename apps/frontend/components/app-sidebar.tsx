@@ -30,8 +30,30 @@ import {
 import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
 
+interface RawWorkspace {
+  id: string;
+  name: string;
+}
+
+interface RawUser {
+  id: string;
+  name: string;
+  email: string;
+  avatar_url?: string;
+}
+
+interface RawTeam {
+  id: string;
+  name: string;
+  icon: string;
+}
+
+interface WorkspaceForChange {
+  id: string;
+}
+
 // Helper function to format workspace data for UI components
-function formatWorkspaceForUI(workspace: any) {
+function formatWorkspaceForUI(workspace: RawWorkspace) {
   return {
     id: workspace.id,
     name: workspace.name,
@@ -40,7 +62,7 @@ function formatWorkspaceForUI(workspace: any) {
 }
 
 // Helper function to format user data for UI components
-function formatUserForUI(user: any) {
+function formatUserForUI(user: RawUser) {
   return {
     id: user.id,
     name: user.name,
@@ -65,7 +87,7 @@ function getIconByName(iconName?: string): LucideIcon {
 }
 
 // Helper function to format team data for UI components
-function formatTeamForUI(team: any) {
+function formatTeamForUI(team: RawTeam) {
   return {
     name: team.name,
     url: `/teams/${team.id}`,
@@ -141,11 +163,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     teams: teams.map(formatTeamForUI),
   };
 
-  const handleWorkspaceChange = (workspace: any) => {
+  const handleWorkspaceChange = (workspace: WorkspaceForChange) => {
     if (workspace.id) {
       setCurrentWorkspaceId(workspace.id);
     }
   };
+  void handleWorkspaceChange; // Suppress unused warning
 
   const handleLogout = () => {
     localStorage.removeItem("currentUser");

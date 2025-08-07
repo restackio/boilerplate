@@ -6,8 +6,8 @@ export async function runWorkflow({
   input = {},
 }: {
   workflowName: string,
-  input: any,
-}) : Promise<any> {
+  input: Record<string, unknown>,
+}) : Promise<{ workflowId: string; runId: string }> {
   console.log(`🔄 [runWorkflow] Starting to schedule workflow ${workflowName}`);
   const startTime = Date.now();
   
@@ -67,7 +67,7 @@ export async function getWorkflowResult({
 }: {
   workflowId: string,
   runId: string
-}) : Promise<any> {
+}) : Promise<unknown> {
   console.log(`🔄 [getWorkflowResult] Starting to get result for workflow ${workflowId}, run ${runId}`);
   const startTime = Date.now();
   

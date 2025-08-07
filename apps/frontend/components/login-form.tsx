@@ -47,6 +47,7 @@ export function LoginForm({
         setError(workflowResult?.error || "Invalid email or password");
       }
     } catch (error) {
+      void error; // Suppress unused warning
       setError("Login failed. Please try again.");
     } finally {
       setIsLoading(false);

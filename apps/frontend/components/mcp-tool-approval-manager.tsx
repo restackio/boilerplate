@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/ui/card";
 import { Button } from "@workspace/ui/components/ui/button";
 import { Input } from "@workspace/ui/components/ui/input";
@@ -111,7 +111,7 @@ export function McpToolApprovalManager({
           Tool Approval Settings
         </CardTitle>
         <p className="text-sm text-muted-foreground">
-          Configure which tools require approval before execution. Use "*" for all tools.
+          Configure which tools require approval before execution. Use &quot;*&quot; for all tools.
         </p>
       </CardHeader>
       <CardContent className="space-y-6">

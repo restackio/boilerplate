@@ -22,7 +22,7 @@ export default function TechnicalSupportAgentsPage() {
     if (isReady && currentWorkspaceId) {
       fetchAgents();
     }
-  }, [isReady, currentWorkspaceId]);
+  }, [isReady, currentWorkspaceId, fetchAgents]);
 
   const handleAgentClick = (agentId: string) => {
     router.push(`/agents/${agentId}`);

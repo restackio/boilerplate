@@ -11,19 +11,27 @@ import { Button } from "@workspace/ui/components/ui/button";
 import { Textarea } from "@workspace/ui/components/ui/textarea";
 import { Input } from "@workspace/ui/components/ui/input";
 import { Label } from "@workspace/ui/components/ui/label";
-import { Badge } from "@workspace/ui/components/ui/badge";
-import {
-  Settings,
-  Filter,
-  Globe,
-  Lock,
-  CheckCircle,
-} from "lucide-react";
+import { Settings } from "lucide-react";
 import { McpServerSelector } from "./McpServerSelector";
 
+interface Agent {
+  id?: string;
+  name?: string;
+  version?: string;
+  description?: string;
+  instructions?: string;
+}
+
+interface AgentData {
+  name: string;
+  version: string;
+  description: string;
+  instructions: string;
+}
+
 interface AgentSetupTabProps {
-  agent: any;
-  onSave: (agentData: any) => Promise<void>;
+  agent: Agent | null;
+  onSave: (agentData: AgentData) => Promise<void>;
   isSaving: boolean;
   workspaceId: string;
 }
@@ -59,6 +67,9 @@ const InstructionsPreview = ({ instructions }: { instructions: string }) => {
 };
 
 export function AgentSetupTab({ agent, onSave, isSaving, workspaceId }: AgentSetupTabProps) {
+  // onSave and isSaving are provided by parent but not used in this component yet
+  void onSave; // Suppress unused warning
+  void isSaving; // Suppress unused warning
   // State for editing
   const [name, setName] = useState("");
   const [version, setVersion] = useState("");
@@ -78,15 +89,7 @@ export function AgentSetupTab({ agent, onSave, isSaving, workspaceId }: AgentSet
     }
   }, [agent]);
 
-  const handleSave = async () => {
-    const agentData = {
-      name,
-      version,
-      description,
-      instructions,
-    };
-    await onSave(agentData);
-  };
+
 
 
 

@@ -35,7 +35,7 @@ export function DeleteTaskModal({
             Delete Task
           </DialogTitle>
           <DialogDescription>
-            Are you sure you want to delete the task "{taskTitle}"? This action cannot be undone.
+            Are you sure you want to delete the task &quot;{taskTitle}&quot;? This action cannot be undone.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
