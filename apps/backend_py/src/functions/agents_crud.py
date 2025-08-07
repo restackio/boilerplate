@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from pydantic import BaseModel, Field
 from restack_ai.function import NonRetryableError, function
 from sqlalchemy import and_, func, select
+from sqlalchemy.orm import selectinload
 
 from src.database.connection import get_async_db
 from src.database.models import Agent, AgentMcpServer
@@ -66,6 +67,8 @@ class AgentGetByWorkspaceInput(BaseModel):
 class AgentOutput(BaseModel):
     id: str
     workspace_id: str
+    team_id: str | None
+    team_name: str | None
     name: str
     version: str
     description: str | None
@@ -189,6 +192,7 @@ async def agents_read(
             # Main query to get the latest version of each agent in the workspace
             latest_agents_query = (
                 select(Agent)
+                .options(selectinload(Agent.team))
                 .join(
                     latest_versions_subquery,
                     and_(
@@ -233,6 +237,12 @@ async def agents_read(
                     AgentOutput(
                         id=str(agent.id),
                         workspace_id=str(agent.workspace_id),
+                        team_id=str(agent.team_id)
+                        if agent.team_id
+                        else None,
+                        team_name=agent.team.name
+                        if agent.team
+                        else None,
                         name=agent.name,
                         version=agent.version,
                         description=agent.description,
@@ -468,7 +478,7 @@ async def agents_get_by_id(
     async for db in get_async_db():
         try:
             # Get the specific agent by ID
-            agent_query = select(Agent).where(
+            agent_query = select(Agent).options(selectinload(Agent.team)).where(
                 Agent.id == uuid.UUID(function_input.agent_id)
             )
             result = await db.execute(agent_query)
@@ -481,6 +491,12 @@ async def agents_get_by_id(
             result = AgentOutput(
                 id=str(agent.id),
                 workspace_id=str(agent.workspace_id),
+                team_id=str(agent.team_id)
+                if agent.team_id
+                else None,
+                team_name=agent.team.name
+                if agent.team
+                else None,
                 name=agent.name,
                 version=agent.version,
                 description=agent.description,

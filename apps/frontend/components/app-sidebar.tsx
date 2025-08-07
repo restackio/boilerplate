@@ -28,7 +28,7 @@ import {
   SidebarRail,
 } from "@workspace/ui/components/ui/sidebar";
 import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
-import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
+import { useWorkspaceScopedActions, type Team } from "@/hooks/use-workspace-scoped-actions";
 
 interface RawWorkspace {
   id: string;
@@ -42,11 +42,7 @@ interface RawUser {
   avatar_url?: string;
 }
 
-interface RawTeam {
-  id: string;
-  name: string;
-  icon: string;
-}
+
 
 interface WorkspaceForChange {
   id: string;
@@ -87,19 +83,19 @@ function getIconByName(iconName?: string): LucideIcon {
 }
 
 // Helper function to format team data for UI components
-function formatTeamForUI(team: RawTeam) {
+function formatTeamForUI(team: Team) {
   return {
     name: team.name,
     url: `/teams/${team.id}`,
-    icon: getIconByName(team.icon),
+    icon: getIconByName(team.icon || 'Building'),
     items: [
       {
         title: "Tasks",
-        url: `/teams/${team.id}/tasks`,
+        url: `/tasks?team=${encodeURIComponent(team.name)}`,
       },
       {
         title: "Agents",
-        url: `/teams/${team.id}/agents`,
+        url: `/agents?team=${encodeURIComponent(team.name)}`,
       },
     ],
   };
