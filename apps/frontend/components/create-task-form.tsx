@@ -25,7 +25,7 @@ export function CreateTaskForm({
   onSubmit,
   onTaskCreated,
   placeholder = "Describe a task",
-  buttonText = "Create Task",
+  buttonText = "Create task",
 }: CreateTaskFormProps) {
   const [taskDescription, setTaskDescription] = useState("");
   const [selectedAgentId, setSelectedAgentId] = useState("");

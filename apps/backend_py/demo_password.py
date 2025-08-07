@@ -1,23 +1,17 @@
 #!/usr/bin/env python3
-import sys
+"""Demo script to generate password hash."""
 import os
+import sys
+from pathlib import Path
 
 # Add the src directory to the path
-sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
+sys.path.append(str(Path(__file__).parent / "src"))
 
 from utils.password import hash_password
 
 # Set the environment variable for the salt
-os.environ['PASSWORD_SALT'] = os.getenv('PASSWORD_SALT')
+os.environ["PASSWORD_SALT"] = os.getenv("PASSWORD_SALT")
 
-# Generate the hash for "password"
-password = "password"
-hashed = hash_password(password)
-
-print(f"Password: {password}")
-print(f"Generated hash: {hashed}")
-print()
-print("SQL INSERT statement:")
-print(f"INSERT INTO users (id, workspace_id, name, email, password_hash, avatar_url) VALUES ")
-print(f"(uuid_generate_v4(), (SELECT id FROM workspaces WHERE name = 'Demo Company' LIMIT 1), 'Demo', 'demo@example.com', '{hashed}', 'https://avatars.githubusercontent.com/u/1234567?v=4')")
-print("ON CONFLICT (id) DO NOTHING;") 
+# Generate the hash for demo password
+demo_password = "password"  # noqa: S105
+hashed = hash_password(demo_password)

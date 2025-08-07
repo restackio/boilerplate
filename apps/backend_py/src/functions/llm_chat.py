@@ -36,20 +36,32 @@ def raise_exception(message: str) -> None:
 
 
 @function.defn()
-async def llm_chat(function_input: LlmChatInput) -> ChatCompletion:
+async def llm_chat(
+    function_input: LlmChatInput,
+) -> ChatCompletion:
     try:
-        log.info("llm_chat function started", function_input=function_input)
+        log.info(
+            "llm_chat function started",
+            function_input=function_input,
+        )
 
         if os.environ.get("OPENAI_API_KEY") is None:
             raise_exception("OPENAI_API_KEY is not set")
 
-        client = AsyncOpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+        client = AsyncOpenAI(
+            api_key=os.environ.get("OPENAI_API_KEY")
+        )
 
-        log.info("pydantic_function_tool", tools=function_input.tools)
+        log.info(
+            "pydantic_function_tool", tools=function_input.tools
+        )
 
         if function_input.system_content:
             function_input.messages.append(
-                Message(role="system", content=function_input.system_content or "")
+                Message(
+                    role="system",
+                    content=function_input.system_content or "",
+                )
             )
 
         response = await client.chat.completions.create(
