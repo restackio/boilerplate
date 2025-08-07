@@ -52,6 +52,8 @@ export interface Agent {
   instructions: string;
   status: "active" | "inactive";
   parent_agent_id?: string;
+  team_id?: string;
+  team_name?: string;
   created_at?: string;
   updated_at?: string;
   version_count?: number;
@@ -76,6 +78,13 @@ export const agentColumnsConfig = [
     .accessor((row: Agent) => row.status)
     .displayName("Status")
     .icon(CheckCircle)
+    .build(),
+  dtf
+    .option()
+    .id("team")
+    .accessor((row: Agent) => row.team_name || "No Team")
+    .displayName("Team")
+    .icon(Users)
     .build(),
 ] as const;
 
@@ -111,17 +120,21 @@ const getStatusIcon = (status: string) => {
 interface AgentsTableProps {
   data: Agent[];
   onRowClick?: (agentId: string) => void;
+  teams?: Array<{ label: string; value: string; icon: any }>;
+  defaultFilters?: any[];
 }
 
-export function AgentsTable({ data, onRowClick }: AgentsTableProps) {
+export function AgentsTable({ data, onRowClick, teams = [], defaultFilters = [] }: AgentsTableProps) {
   // Create data table filters instance
   const { columns, filters, actions, strategy, filteredData } =
     useDataTableFilters({
       strategy: "client",
       data,
       columnsConfig: agentColumnsConfig,
+      defaultFilters,
       options: {
         status: statusOptions,
+        team: teams,
       },
     });
 
@@ -152,6 +165,7 @@ export function AgentsTable({ data, onRowClick }: AgentsTableProps) {
               <TableRow>
                 <TableHead>Agent</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Team</TableHead>
                 <TableHead>Latest Version</TableHead>
                 <TableHead>Versions</TableHead>
                 <TableHead>Created At</TableHead>
@@ -184,6 +198,12 @@ export function AgentsTable({ data, onRowClick }: AgentsTableProps) {
                       {getStatusIcon(agent.status)}
                       <span>{agent.status}</span>
                     </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center space-x-2">
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm">{agent.team_name || "No Team"}</span>
+                    </div>
                   </TableCell>
                   <TableCell>
                     <Tooltip>

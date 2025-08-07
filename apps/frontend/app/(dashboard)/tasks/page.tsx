@@ -1,27 +1,29 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { TasksTable } from "@workspace/ui/components/tasks-table";
 import { PageHeader } from "@workspace/ui/components/page-header";
 import { Button } from "@workspace/ui/components/ui/button";
-import { useRouter } from "next/navigation";
-import { Plus,RefreshCw } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Plus, RefreshCw, Users } from "lucide-react";
 import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
 import { CreateTaskForm } from "@/components/create-task-form";
 import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 
 export default function TasksPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { currentWorkspaceId, isReady } = useDatabaseWorkspace();
-  const { tasks, tasksLoading, fetchTasks, deleteTask, createTask } = useWorkspaceScopedActions();
+  const { tasks, tasksLoading, fetchTasks, deleteTask, createTask, teams, fetchTeams } = useWorkspaceScopedActions();
   const [showCreateForm, setShowCreateForm] = useState(false);
 
 
   useEffect(() => {
     if (isReady && currentWorkspaceId) {
       fetchTasks();
+      fetchTeams();
     }
-  }, [isReady, currentWorkspaceId, fetchTasks]);
+  }, [isReady, currentWorkspaceId, fetchTasks, fetchTeams]);
 
   const handleTaskClick = (taskId: string) => {
     router.push(`/tasks/${taskId}`);
@@ -83,6 +85,41 @@ export default function TasksPage() {
     updated: task.updated_at || new Date().toISOString(),
   }));
 
+  // Create team options for filtering
+  const teamOptions = useMemo(() => {
+    const uniqueTeams = new Set<string>();
+    const options = [];
+    
+    // Add "No Team" option
+    options.push({ label: "No Team", value: "No Team", icon: Users });
+    
+    // Add teams from the teams list
+    teams.forEach((team) => {
+      if (!uniqueTeams.has(team.name)) {
+        uniqueTeams.add(team.name);
+        options.push({ label: team.name, value: team.name, icon: Users });
+      }
+    });
+    
+    return options;
+  }, [teams]);
+
+  // Get initial filters from URL parameters
+  const initialFilters = useMemo(() => {
+    const teamParam = searchParams.get('team');
+    if (teamParam) {
+      return [
+        {
+          columnId: 'team',
+          type: 'option' as const,
+          operator: 'is any of' as const,
+          values: [teamParam],
+        },
+      ];
+    }
+    return [];
+  }, [searchParams]);
+
   const breadcrumbs = [{ label: "Tasks" }];
 
   const actions = (
@@ -141,6 +178,8 @@ export default function TasksPage() {
           <TasksTable 
             data={tasksData} 
             onViewTask={handleTaskClick}
+            teams={teamOptions}
+            defaultFilters={initialFilters}
           />
         )}
       </div>

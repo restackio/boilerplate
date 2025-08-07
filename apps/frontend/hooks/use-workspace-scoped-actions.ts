@@ -25,6 +25,8 @@ export interface Agent {
   instructions: string;
   status: "active" | "inactive";
   parent_agent_id?: string;
+  team_id?: string;
+  team_name?: string;
   created_at?: string;
   updated_at?: string;
   version_count?: number;
@@ -40,6 +42,8 @@ export interface Task {
   agent_name: string;
   assigned_to_id: string;
   assigned_to_name: string;
+  team_id?: string;
+  team_name?: string;
   agent_task_id?: string; 
   created_at?: string;
   updated_at?: string;

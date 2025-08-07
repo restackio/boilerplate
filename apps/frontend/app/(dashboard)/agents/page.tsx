@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import {
   AgentsTable,
 } from "@workspace/ui/components/agents-table";
 import { PageHeader } from "@workspace/ui/components/page-header";
 import { Button } from "@workspace/ui/components/ui/button";
-import { useRouter } from "next/navigation";
-import { RefreshCw } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { RefreshCw, Users } from "lucide-react";
 import AgentsTabs from "./AgentsTabs";
 import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
 import { CreateAgentModal } from "@/components/create-agent-modal";
@@ -15,14 +15,16 @@ import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 
 export default function TechnicalSupportAgentsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { currentWorkspaceId, isReady } = useDatabaseWorkspace();
-  const { agents, agentsLoading, fetchAgents } = useWorkspaceScopedActions();
+  const { agents, agentsLoading, fetchAgents, teams, fetchTeams } = useWorkspaceScopedActions();
 
   useEffect(() => {
     if (isReady && currentWorkspaceId) {
       fetchAgents();
+      fetchTeams();
     }
-  }, [isReady, currentWorkspaceId, fetchAgents]);
+  }, [isReady, currentWorkspaceId, fetchAgents, fetchTeams]);
 
   const handleAgentClick = (agentId: string) => {
     router.push(`/agents/${agentId}`);
@@ -31,6 +33,41 @@ export default function TechnicalSupportAgentsPage() {
   const handleRefresh = () => {
     fetchAgents();
   };
+
+  // Create team options for filtering
+  const teamOptions = useMemo(() => {
+    const uniqueTeams = new Set<string>();
+    const options = [];
+    
+    // Add "No Team" option
+    options.push({ label: "No Team", value: "No Team", icon: Users });
+    
+    // Add teams from the teams list
+    teams.forEach((team) => {
+      if (!uniqueTeams.has(team.name)) {
+        uniqueTeams.add(team.name);
+        options.push({ label: team.name, value: team.name, icon: Users });
+      }
+    });
+    
+    return options;
+  }, [teams]);
+
+  // Get initial filters from URL parameters
+  const initialFilters = useMemo(() => {
+    const teamParam = searchParams.get('team');
+    if (teamParam) {
+      return [
+        {
+          columnId: 'team',
+          type: 'option' as const,
+          operator: 'is any of' as const,
+          values: [teamParam],
+        },
+      ];
+    }
+    return [];
+  }, [searchParams]);
 
   const breadcrumbs = [{ label: "Agents" }];
 
@@ -72,6 +109,8 @@ export default function TechnicalSupportAgentsPage() {
           <AgentsTable 
             data={agents} 
             onRowClick={handleAgentClick}
+            teams={teamOptions}
+            defaultFilters={initialFilters}
           />
         )}
       </div>

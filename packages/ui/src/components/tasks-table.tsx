@@ -42,6 +42,8 @@ export interface Task {
   agent_name: string;
   assigned_to_id: string;
   assigned_to_name: string;
+  team_id?: string;
+  team_name?: string;
   created: string;
   updated: string;
 }
@@ -71,6 +73,13 @@ export const taskColumnsConfig = [
     .accessor((row: Task) => row.agent_name)
     .displayName("Agent")
     .icon(Shield)
+    .build(),
+  dtf
+    .option()
+    .id("team")
+    .accessor((row: Task) => row.team_name || "No Team")
+    .displayName("Team")
+    .icon(Users)
     .build(),
 ] as const;
 
@@ -130,12 +139,16 @@ interface TasksTableProps {
   data: Task[];
   onViewTask?: (taskId: string) => void;
   withFilters?: boolean;
+  teams?: Array<{ label: string; value: string; icon: any }>;
+  defaultFilters?: any[];
 }
 
 export function TasksTable({
   data,
   onViewTask,
   withFilters = true,
+  teams = [],
+  defaultFilters = [],
 }: TasksTableProps) {
   // Create data table filters instance
   const { columns, filters, actions, strategy, filteredData } =
@@ -143,9 +156,11 @@ export function TasksTable({
       strategy: "client",
       data,
       columnsConfig: taskColumnsConfig,
+      defaultFilters,
       options: {
         status: taskStatusOptions,
         agent: taskAgentOptions,
+        team: teams,
       },
     });
 
@@ -178,6 +193,7 @@ export function TasksTable({
               <TableHead>Task</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Agent</TableHead>
+              <TableHead>Team</TableHead>
               <TableHead>Assigned To</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
@@ -204,6 +220,12 @@ export function TasksTable({
                   <div className="flex items-center space-x-2">
                     <Bot className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm">{task.agent_name}</span>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center space-x-2">
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm">{task.team_name || "No Team"}</span>
                   </div>
                 </TableCell>
                 <TableCell>
