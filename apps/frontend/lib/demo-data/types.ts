@@ -1,7 +1,9 @@
+import React from "react";
+
 export interface WorkspaceData {
   workspace: {
     name: string;
-    logo: any; // React.ElementType
+    logo: React.ElementType;
     plan: string;
   };
   user: {
@@ -14,7 +16,7 @@ export interface WorkspaceData {
     teams: Array<{
       name: string;
       url: string;
-      icon: any; // React.ElementType
+      icon: React.ElementType;
       items: Array<{
         title: string;
         url: string;

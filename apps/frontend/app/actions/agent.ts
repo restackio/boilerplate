@@ -50,7 +50,7 @@ export async function sendAgentEvent({
 }: {
   agentId: string;
   eventName: string;
-  eventInput?: any;
+  eventInput?: Record<string, unknown>;
 }): Promise<{ success: boolean; error?: string }> {
   try {
     if (!agentId || !eventName) {
@@ -129,7 +129,7 @@ export async function getAgentResult({
   agentId,
 }: {
   agentId: string;
-}): Promise<{ success: boolean; data?: any; error?: string }> {
+}): Promise<{ success: boolean; data?: unknown; error?: string }> {
   try {
     if (!agentId) {
       throw new Error("Agent ID is required");

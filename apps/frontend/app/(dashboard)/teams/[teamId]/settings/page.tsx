@@ -8,7 +8,7 @@ import { Input } from "@workspace/ui/components/ui/input";
 import { Label } from "@workspace/ui/components/ui/label";
 import { Textarea } from "@workspace/ui/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/ui/card";
-import { Separator } from "@workspace/ui/components/ui/separator";
+
 import { ArrowLeft, Save, Trash2, RefreshCw, Building, Users, Briefcase, Target, Zap, Shield, Globe } from "lucide-react";
 import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
 import { Team } from "@/hooks/use-workspace-scoped-actions";
@@ -19,6 +19,7 @@ export default function TeamSettingsPage() {
   const teamId = params.teamId as string;
   
   const { getTeamById, updateTeam, deleteTeam, teamsLoading } = useWorkspaceScopedActions();
+  void teamsLoading; // Suppress unused warning
   const [team, setTeam] = useState<Team | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -166,7 +167,7 @@ export default function TeamSettingsPage() {
             <CardHeader>
               <CardTitle>Team Information</CardTitle>
               <CardDescription>
-                Update your team's name and description
+                Update your team&apos;s name and description
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">

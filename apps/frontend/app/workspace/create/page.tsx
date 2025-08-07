@@ -156,6 +156,7 @@ export default function CreateWorkspacePage() {
       // Force a page reload to refresh workspace data
       window.location.href = "/dashboard";
     } catch (error) {
+      void error; // Suppress unused warning
       setError("Failed to create workspace. Please try again.");
     } finally {
       setIsLoading(false);
@@ -207,7 +208,7 @@ export default function CreateWorkspacePage() {
             Create Your Workspace
           </h2>
           <p className="text-lg text-neutral-600 dark:text-neutral-400 max-w-2xl mx-auto">
-            Let's set up your agent orchestration workspace
+            Let&apos;s set up your agent orchestration workspace
           </p>
         </div>
 

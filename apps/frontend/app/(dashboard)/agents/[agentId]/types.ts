@@ -27,7 +27,7 @@ export interface TestAgentLog {
   action: string;
   type: string;
   details: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 // Agent data interface - flexible to handle both backend and demo data

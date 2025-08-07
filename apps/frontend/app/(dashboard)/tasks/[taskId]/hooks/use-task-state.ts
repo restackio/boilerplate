@@ -1,8 +1,21 @@
 import { useState, useEffect, useRef } from "react";
 import { ConversationItem } from "../types";
 
+interface ResponseStateItem {
+  id: string;
+  type: string;
+  content: string;
+  timestamp?: string;
+  status?: string;
+  toolName?: string;
+  toolArguments?: Record<string, unknown>;
+  toolOutput?: unknown;
+  serverLabel?: string;
+  [key: string]: unknown;
+}
+
 interface UseTaskStateProps {
-  responseState?: any; // Unified persistent state from agent
+  responseState?: ResponseStateItem[] | { data: ResponseStateItem[] } | ResponseStateItem; // Unified persistent state from agent
   taskAgentTaskId?: string | null;
 }
 
@@ -45,7 +58,7 @@ export function useTaskState({ responseState, taskAgentTaskId }: UseTaskStatePro
     const persistentItems: ConversationItem[] = [];
     const currentItemIds = new Set<string>();
 
-    conversationItems.forEach((item: any) => {
+    conversationItems.forEach((item: ResponseStateItem) => {
       if (item.type === "developer" || item.type === "system") {
         return;
       }

@@ -4,7 +4,7 @@ import * as React from "react";
 import { ThemeProvider as NextThemesProvider } from "next-themes";
 import { PostHogProvider } from "./posthog-provider";
 
-export function Providers({ children }: { children: any }): React.JSX.Element {
+export function Providers({ children }: { children: React.ReactNode }): React.JSX.Element {
   return (
     <PostHogProvider>
       <NextThemesProvider

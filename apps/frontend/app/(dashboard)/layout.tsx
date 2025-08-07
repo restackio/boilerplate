@@ -18,23 +18,9 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
 
-  const getBreadcrumbs = () => {
-    const segments = pathname.split("/").filter(Boolean);
 
-    if (segments.length === 1 && segments[0] === "dashboard") {
-      return { title: "Dashboard", subtitle: "Overview" };
-    } else if (segments[0] === "tasks" && segments.length === 1) {
-      return { title: "Tasks", subtitle: "Task Management" };
-    } else if (segments[0] === "tasks" && segments.length === 2) {
-      return { title: "Tasks", subtitle: `Task ${segments[1]}` };
-    } else if (segments[0] === "agents") {
-      return { title: "Agents", subtitle: "Agent Management" };
-    } else {
-      return { title: "Boilerplate", subtitle: "Support Automation" };
-    }
-  };
 
-  const breadcrumbs = getBreadcrumbs();
+
 
   // Check if we're on a task detail page to minify sidebar by default
   const isTaskDetailPage =

@@ -15,8 +15,8 @@ interface CreateTaskFormProps {
     status: "open" | "active" | "waiting" | "closed" | "completed";
     agent_id: string;
     assigned_to_id: string;
-  }) => Promise<{ success: boolean; data?: any; error?: string }>;
-  onTaskCreated?: (taskData: any) => void;
+  }) => Promise<{ success: boolean; data?: { id: string; title: string; description: string }; error?: string }>;
+  onTaskCreated?: (taskData: { id: string; title: string; description: string }) => void;
   placeholder?: string;
   buttonText?: string;
 }

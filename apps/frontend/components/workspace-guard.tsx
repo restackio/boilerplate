@@ -5,10 +5,6 @@ import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 
-interface WorkspaceGuardProps {
-  children: React.ReactNode;
-}
-
 export function WorkspaceGuard({ children }: { children: React.ReactNode }) {
   const { isReady, loading } = useDatabaseWorkspace();
   const router = useRouter();

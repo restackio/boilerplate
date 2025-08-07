@@ -1,8 +1,6 @@
 import {
   Building,
   LifeBuoy,
-  Users,
-  Activity,
   DollarSign,
   TrendingUp,
   Code,

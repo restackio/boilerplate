@@ -12,5 +12,5 @@ export interface ConversationItem {
   toolArguments?: string;
   serverLabel?: string;
   isStreaming?: boolean;
-  rawData?: any; // For storing the original response data
+  rawData?: Record<string, unknown>; // For storing the original response data
 } 

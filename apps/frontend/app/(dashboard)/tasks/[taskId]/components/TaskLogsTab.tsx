@@ -19,21 +19,40 @@ import {
   CheckCircle,
 } from "lucide-react";
 
+interface McpCallItem {
+  type: string;
+  name: string;
+  [key: string]: unknown;
+}
+
+interface ResponseItem {
+  type: string;
+  item?: McpCallItem;
+  [key: string]: unknown;
+}
+
+interface AgentResponse {
+  type: string;
+  item?: ResponseItem;
+  [key: string]: unknown;
+}
+
 interface LogEntry {
   timestamp: string;
   agent: string;
   action: string;
   type: string;
   details: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 interface TaskLogsTabProps {
   taskId: string;
-  agentResponses?: any[];
+  agentResponses?: AgentResponse[];
 }
 
 export function TaskLogsTab({ taskId, agentResponses }: TaskLogsTabProps) {
+  void taskId; // Suppress unused warning
   const getLogTypeIcon = (type: string) => {
     switch (type) {
       case "system":
@@ -88,7 +107,7 @@ export function TaskLogsTab({ taskId, agentResponses }: TaskLogsTabProps) {
   const realLogs: LogEntry[] = [];
   
   if (agentResponses && Array.isArray(agentResponses)) {
-    agentResponses.forEach((response: any) => {
+    agentResponses.forEach((response: AgentResponse) => {
       if (response.type === "response.output_item.added" && response.item) {
         const item = response.item;
         if (item.type === "mcp_call") {

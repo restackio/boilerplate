@@ -6,6 +6,27 @@ import { ConversationMessage } from "./conversation-message";
 import { TaskCardTool } from "./TaskCardTool";
 import { TaskCardMcp } from "./TaskCardMcp";
 
+interface Tool {
+  name: string;
+  [key: string]: unknown;
+}
+
+interface StreamResponse {
+  type: string;
+  sequence_number?: number;
+  delta?: string;
+  item_id?: string;
+  item?: {
+    type?: string;
+    name?: string;
+    arguments?: Record<string, unknown>;
+    output?: unknown;
+    tools?: Tool[];
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+}
+
 interface StreamingItem {
   id: string;
   itemId: string;
@@ -14,15 +35,15 @@ interface StreamingItem {
   isStreaming: boolean;
   timestamp: string;
   toolName?: string;
-  toolArguments?: any;
-  toolOutput?: any;
+  toolArguments?: Record<string, unknown>;
+  toolOutput?: unknown;
   serverLabel?: string;
   status?: string;
-  rawData?: any;
+  rawData?: Record<string, unknown>;
 }
 
 interface StreamItemsProps {
-  agentResponses: any[];
+  agentResponses: StreamResponse[];
   persistentItemIds: Set<string>;
   taskAgentTaskId?: string | null;
   onApproveRequest?: (itemId: string) => void;
@@ -60,7 +81,7 @@ export function StreamItems({
     // Sort by sequence number for correct order
     const sortedResponses = [...agentResponses].sort((a, b) => (a.sequence_number || 0) - (b.sequence_number || 0));
 
-    sortedResponses.forEach((response: any) => {
+    sortedResponses.forEach((response: StreamResponse) => {
       // Text streaming
       if (response.type === "response.output_text.delta" && response.delta && response.item_id) {
         const itemId = response.item_id;
@@ -195,7 +216,7 @@ export function StreamItems({
           streamingRefs.current.set(itemId, updatedItem);
           hasUpdates = true;
         } else if (streamItem && item.type === "mcp_list_tools" && item.tools) {
-          const toolNames = item.tools.map((tool: any) => tool.name).join(", ");
+          const toolNames = item.tools.map((tool: Tool) => tool.name).join(", ");
           // Create a new object to ensure React detects the change
           const updatedItem = {
             ...streamItem,

@@ -1,13 +1,24 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { TasksTable, type Task as UITask } from "@workspace/ui/components/tasks-table";
 import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
 import { CreateTaskForm } from "@/components/create-task-form";
 import { Loader2 } from "lucide-react";
 
-function convertBackendTaskToUITask(backendTask: any): UITask {
+interface BackendTask {
+  id: string;
+  title: string;
+  description: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  workspace_id: string;
+  user_id: string;
+}
+
+function convertBackendTaskToUITask(backendTask: BackendTask): UITask {
   return {
     id: backendTask.id,
     title: backendTask.title,
@@ -47,7 +58,7 @@ export default function DashboardPage() {
     return result;
   };
 
-  const handleTaskCreated = (taskData: any) => {
+  const handleTaskCreated = (taskData: { id: string }) => {
     router.push(`/tasks/${taskData.id}`);
   };
 

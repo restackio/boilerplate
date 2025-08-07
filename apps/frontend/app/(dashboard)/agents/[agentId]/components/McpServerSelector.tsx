@@ -11,7 +11,6 @@ import { Button } from "@workspace/ui/components/ui/button";
 import { Badge } from "@workspace/ui/components/ui/badge";
 import { Label } from "@workspace/ui/components/ui/label";
 import { Input } from "@workspace/ui/components/ui/input";
-import { Textarea } from "@workspace/ui/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -29,13 +28,9 @@ import {
 import {
   Plus,
   Trash2,
-  Settings,
-  Globe,
-  Lock,
-  CheckCircle,
   Server,
 } from "lucide-react";
-import { useWorkspaceScopedActions, McpServer } from "@/hooks/use-workspace-scoped-actions";
+import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
 import { 
   createAgentMcpServer, 
   deleteAgentMcpServer, 
@@ -59,6 +54,7 @@ interface McpServerSelectorProps {
 }
 
 export function McpServerSelector({ agentId, workspaceId, onMcpServersChange }: McpServerSelectorProps) {
+  void workspaceId; // Suppress unused warning
   const { mcpServers, fetchMcpServers } = useWorkspaceScopedActions();
   const [agentMcpServers, setAgentMcpServers] = useState<AgentMcpServer[]>([]);
   const [isLoading, setIsLoading] = useState(true);

@@ -4,13 +4,12 @@ import { useEffect } from "react";
 import { MCPsTable } from "@workspace/ui/components/mcps-table";
 import { PageHeader } from "@workspace/ui/components/page-header";
 import { useRouter } from "next/navigation";
-import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 import { Button } from "@workspace/ui/components/ui/button";
 import { RefreshCw } from "lucide-react";
 import AgentsTabs from "../AgentsTabs";
 import { Plus } from "lucide-react";
 import { useWorkspaceScopedActions, McpServer } from "@/hooks/use-workspace-scoped-actions";
-import { Server, Globe, Lock } from "lucide-react";
+import { Server } from "lucide-react";
 
 // Helper function to determine overall approval behavior
 const getApprovalStatus = (requireApproval: McpServer['require_approval']): "private" | "public" => {

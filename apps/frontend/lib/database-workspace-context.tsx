@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useWorkspaceActions } from "../hooks/use-workspace-actions";
 import { User } from "../hooks/use-user-actions";
 import { Workspace } from "../hooks/use-workspace-actions";
@@ -28,9 +28,9 @@ export function DatabaseWorkspaceProvider({ children }: { children: React.ReactN
 
   const { workspaces, fetchWorkspaces } = useWorkspaceActions(currentUser, currentWorkspaceId);
 
-  // Simple initialization
+  // Initialize user from localStorage on mount
   useEffect(() => {
-    const initialize = async () => {
+    const initialize = () => {
       try {
         setIsLoading(true);
         setError(null);
@@ -38,27 +38,47 @@ export function DatabaseWorkspaceProvider({ children }: { children: React.ReactN
         const storedUser = localStorage.getItem("currentUser");
         if (!storedUser) {
           setError("No user session found");
+          setIsLoading(false);
           return;
         }
 
         const userData = JSON.parse(storedUser);
         if (!userData?.id) {
           setError("No valid user session found");
+          setIsLoading(false);
           return;
         }
 
         setCurrentUser(userData);
-        await fetchWorkspaces(userData);
+        // Note: fetchWorkspaces will be called in a separate useEffect when currentUser is set
       } catch (error) {
         console.error("Failed to initialize workspace", error);
         setError("Failed to initialize workspace");
-      } finally {
         setIsLoading(false);
       }
     };
 
     initialize();
-  }, []); // Empty dependency array - only run once
+  }, []); // Empty dependency array - only run once on mount
+
+  // Fetch workspaces when currentUser is set  
+  useEffect(() => {
+    if (currentUser && fetchWorkspaces) {
+      const loadWorkspaces = async () => {
+        try {
+          await fetchWorkspaces(currentUser);
+        } catch (error) {
+          console.error("Failed to fetch workspaces", error);
+          setError("Failed to fetch workspaces");
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      loadWorkspaces();
+    }
+    // ESLint disable: fetchWorkspaces creates dependency loop if included
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser]); // Only depend on currentUser to avoid infinite loop
 
   // Auto-select first workspace when available
   useEffect(() => {
