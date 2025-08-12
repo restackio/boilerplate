@@ -30,6 +30,8 @@ export function CreateAgentModal({ onAgentCreated }: CreateAgentModalProps) {
     description: "",
     version: "v1.0",
     status: "inactive" as "active" | "inactive",
+    model: "gpt-5",
+    reasoning_effort: "medium",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -45,6 +47,11 @@ export function CreateAgentModal({ onAgentCreated }: CreateAgentModalProps) {
           description: "",
           version: "v1.0",
           status: "inactive" as "active" | "inactive",
+          // New GPT-5 model configuration fields
+          model: "gpt-5",
+          reasoning_effort: "medium",
+          response_format: { type: "text" },
+      
         });
         onAgentCreated?.();
       } else {
@@ -116,6 +123,37 @@ export function CreateAgentModal({ onAgentCreated }: CreateAgentModalProps) {
                 <SelectItem value="inactive">Inactive</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          {/* GPT-5 Model Configuration */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="model">Model</Label>
+              <Select value={formData.model} onValueChange={(value) => handleInputChange("model", value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="gpt-5">GPT-5</SelectItem>
+                  <SelectItem value="gpt-5-mini">GPT-5 Mini</SelectItem>
+                  <SelectItem value="gpt-5-nano">GPT-5 Nano</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="reasoning-effort">Reasoning</Label>
+              <Select value={formData.reasoning_effort} onValueChange={(value) => handleInputChange("reasoning_effort", value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="minimal">Minimal</SelectItem>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="flex justify-end space-x-2 pt-4">

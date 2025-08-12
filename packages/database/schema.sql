@@ -67,19 +67,48 @@ CREATE TABLE IF NOT EXISTS agents (
     instructions TEXT,
     status VARCHAR(50) NOT NULL DEFAULT 'inactive' CHECK (status IN ('active', 'inactive')),
     parent_agent_id UUID REFERENCES agents(id) ON DELETE SET NULL,
+    -- New GPT-5 model configuration fields
+    model VARCHAR(100) DEFAULT 'gpt-5' CHECK (model IN (
+        'gpt-5', 'gpt-5-mini', 'gpt-5-nano',
+        'gpt-5-2025-08-07', 'gpt-5-mini-2025-08-07', 'gpt-5-nano-2025-08-07',
+        'gpt-4.1', 'gpt-4.1-mini', 'gpt-4.1-nano', 'gpt-4o', 'gpt-4o-mini'
+    )),
+    reasoning_effort VARCHAR(20) DEFAULT 'medium' CHECK (reasoning_effort IN ('minimal', 'low', 'medium', 'high')),
+    response_format JSONB DEFAULT '{"type": "text"}', -- Store response format configuration
+
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Create agent_mcp_servers junction table for many-to-many relationship with allowed_tools
-CREATE TABLE IF NOT EXISTS agent_mcp_servers (
+
+
+-- Unified agent tools table mirroring Responses API tool types
+-- tool_type ∈ ('file_search','web_search','computer','mcp','code_interpreter','image_generation','local_shell')
+CREATE TABLE IF NOT EXISTS agent_tools (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     agent_id UUID NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
-    mcp_server_id UUID NOT NULL REFERENCES mcp_servers(id) ON DELETE CASCADE,
-    allowed_tools JSONB, -- Array of allowed tool names
+    tool_type VARCHAR(32) NOT NULL CHECK (tool_type IN (
+        'file_search','web_search','computer','mcp','code_interpreter','image_generation','local_shell'
+    )),
+    mcp_server_id UUID REFERENCES mcp_servers(id) ON DELETE CASCADE,
+    config JSONB,
+    allowed_tools JSONB,
+    execution_order INTEGER,
+    enabled BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(agent_id, mcp_server_id)
+    -- Validation via CHECK constraints (no triggers)
+    CONSTRAINT chk_agent_tools_mcp_server
+        CHECK (tool_type <> 'mcp' OR mcp_server_id IS NOT NULL)
 );
+
+-- Uniqueness constraints per tool type
+CREATE UNIQUE INDEX IF NOT EXISTS ux_agent_tools_mcp
+  ON agent_tools(agent_id, tool_type, mcp_server_id)
+  WHERE tool_type = 'mcp';
+
+CREATE UNIQUE INDEX IF NOT EXISTS ux_agent_tools_simple
+  ON agent_tools(agent_id, tool_type)
+  WHERE tool_type NOT IN ('mcp');
 
 -- Create tasks table
 CREATE TABLE IF NOT EXISTS tasks (
@@ -108,8 +137,9 @@ CREATE INDEX IF NOT EXISTS idx_agents_parent_id ON agents(parent_agent_id);
 CREATE INDEX IF NOT EXISTS idx_agents_created_at ON agents(created_at);
 CREATE INDEX IF NOT EXISTS idx_agents_parent_created ON agents(parent_agent_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_agents_status_created ON agents(status, created_at);
-CREATE INDEX IF NOT EXISTS idx_agent_mcp_servers_agent_id ON agent_mcp_servers(agent_id);
-CREATE INDEX IF NOT EXISTS idx_agent_mcp_servers_mcp_server_id ON agent_mcp_servers(mcp_server_id);
+CREATE INDEX IF NOT EXISTS idx_agent_tools_agent_id ON agent_tools(agent_id);
+CREATE INDEX IF NOT EXISTS idx_agent_tools_tool_type ON agent_tools(tool_type);
+CREATE INDEX IF NOT EXISTS idx_agent_tools_mcp_server_id ON agent_tools(mcp_server_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_workspace_id ON tasks(workspace_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_team_id ON tasks(team_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);

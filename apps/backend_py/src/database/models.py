@@ -1,10 +1,12 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     Column,
     DateTime,
     ForeignKey,
+    Integer,
     String,
     Text,
 )
@@ -20,11 +22,11 @@ class Workspace(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True)
     name = Column(String(255), nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(tz=timezone.utc).replace(tzinfo=None))
     updated_at = Column(
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        default=lambda: datetime.now(tz=timezone.utc).replace(tzinfo=None),
+        onupdate=lambda: datetime.now(tz=timezone.utc).replace(tzinfo=None),
     )
 
     # Relationships
@@ -52,7 +54,7 @@ class UserWorkspace(Base):
         nullable=False,
     )
     role = Column(String(50), nullable=False, default="member")
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(tz=timezone.utc).replace(tzinfo=None))
 
     # Constraints
     __table_args__ = (
@@ -81,11 +83,11 @@ class Team(Base):
     name = Column(String(255), nullable=False)
     description = Column(Text)
     icon = Column(String(50), default="Building")
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(tz=timezone.utc).replace(tzinfo=None))
     updated_at = Column(
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        default=lambda: datetime.now(tz=timezone.utc).replace(tzinfo=None),
+        onupdate=lambda: datetime.now(tz=timezone.utc).replace(tzinfo=None),
     )
 
     # Relationships
@@ -115,20 +117,18 @@ class McpServer(Base):
             "always": {"tool_names": []},
         },
     )
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(tz=timezone.utc).replace(tzinfo=None))
     updated_at = Column(
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        default=lambda: datetime.now(tz=timezone.utc).replace(tzinfo=None),
+        onupdate=lambda: datetime.now(tz=timezone.utc).replace(tzinfo=None),
     )
 
     # Relationships
     workspace = relationship(
         "Workspace", back_populates="mcp_servers"
     )
-    agent_mcp_servers = relationship(
-        "AgentMcpServer", back_populates="mcp_server"
-    )
+
 
 
 class User(Base):
@@ -139,11 +139,11 @@ class User(Base):
     email = Column(String(255), nullable=False, unique=True)
     password_hash = Column(String(255), nullable=False)
     avatar_url = Column(Text)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(tz=timezone.utc).replace(tzinfo=None))
     updated_at = Column(
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        default=lambda: datetime.now(tz=timezone.utc).replace(tzinfo=None),
+        onupdate=lambda: datetime.now(tz=timezone.utc).replace(tzinfo=None),
     )
 
     # Relationships
@@ -178,11 +178,16 @@ class Agent(Base):
         ForeignKey("agents.id", ondelete="SET NULL"),
         nullable=True,
     )
-    created_at = Column(DateTime, default=datetime.utcnow)
+    # New GPT-5 model configuration fields
+    model = Column(String(100), nullable=False, default="gpt-5")
+    reasoning_effort = Column(String(20), nullable=False, default="medium")
+    response_format = Column(JSONB, nullable=False, default={"type": "text"})
+
+    created_at = Column(DateTime, default=lambda: datetime.now(tz=timezone.utc).replace(tzinfo=None))
     updated_at = Column(
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        default=lambda: datetime.now(tz=timezone.utc).replace(tzinfo=None),
+        onupdate=lambda: datetime.now(tz=timezone.utc).replace(tzinfo=None),
     )
 
     # Constraints
@@ -190,6 +195,17 @@ class Agent(Base):
         CheckConstraint(
             status.in_(["active", "inactive"]),
             name="valid_status",
+        ),
+        CheckConstraint(
+            model.in_([
+                "gpt-5", "gpt-5-mini", "gpt-5-nano",
+                "gpt-5-2025-08-07", "gpt-5-mini-2025-08-07", "gpt-5-nano-2025-08-07",
+            ]),
+            name="valid_model",
+        ),
+        CheckConstraint(
+            reasoning_effort.in_(["minimal", "low", "medium", "high"]),
+            name="valid_reasoning_effort",
         ),
     )
 
@@ -200,13 +216,14 @@ class Agent(Base):
     parent_agent = relationship(
         "Agent", remote_side=[id], backref="child_agents"
     )
-    agent_mcp_servers = relationship(
-        "AgentMcpServer", back_populates="agent"
-    )
 
 
-class AgentMcpServer(Base):
-    __tablename__ = "agent_mcp_servers"
+
+
+
+
+class AgentTool(Base):
+    __tablename__ = "agent_tools"
 
     id = Column(UUID(as_uuid=True), primary_key=True)
     agent_id = Column(
@@ -214,22 +231,36 @@ class AgentMcpServer(Base):
         ForeignKey("agents.id", ondelete="CASCADE"),
         nullable=False,
     )
+    tool_type = Column(
+        String(32), nullable=False
+    )  # file_search, web_search, computer, mcp, code_interpreter, image_generation, local_shell
     mcp_server_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("mcp_servers.id", ondelete="CASCADE"),
-        nullable=False,
+        UUID(as_uuid=True), ForeignKey("mcp_servers.id", ondelete="CASCADE")
     )
-    allowed_tools = Column(JSONB)  # Array of allowed tool names
-    created_at = Column(DateTime, default=datetime.utcnow)
+    config = Column(JSONB)
+    allowed_tools = Column(JSONB)
+    execution_order = Column(Integer)
+    enabled = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(tz=timezone.utc).replace(tzinfo=None))
+
+    # Constraints
+    __table_args__ = (
+        CheckConstraint(
+            tool_type.in_([
+                "file_search", "web_search", "computer", "mcp",
+                "code_interpreter", "image_generation", "local_shell"
+            ]),
+            name="valid_tool_type",
+        ),
+        CheckConstraint(
+            "(tool_type <> 'mcp' OR mcp_server_id IS NOT NULL)",
+            name="chk_agent_tools_mcp_server",
+        ),
+    )
 
     # Relationships
-    agent = relationship(
-        "Agent", back_populates="agent_mcp_servers"
-    )
-    mcp_server = relationship(
-        "McpServer", back_populates="agent_mcp_servers"
-    )
-
+    agent = relationship("Agent", backref="agent_tools")
+    mcp_server = relationship("McpServer", backref="agent_tools")
 
 class Task(Base):
     __tablename__ = "tasks"
@@ -261,11 +292,11 @@ class Task(Base):
     agent_task_id = Column(
         String(255), nullable=True
     )  # Restack agent task ID for state management
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(tz=timezone.utc).replace(tzinfo=None))
     updated_at = Column(
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        default=lambda: datetime.now(tz=timezone.utc).replace(tzinfo=None),
+        onupdate=lambda: datetime.now(tz=timezone.utc).replace(tzinfo=None),
     )
 
     # Constraints

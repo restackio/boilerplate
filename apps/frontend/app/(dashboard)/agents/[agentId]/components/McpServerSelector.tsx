@@ -62,6 +62,8 @@ export function McpServerSelector({ agentId, workspaceId, onMcpServersChange }: 
   const [selectedMcpServerId, setSelectedMcpServerId] = useState("");
   const [allowedTools, setAllowedTools] = useState<string[]>([]);
   const [customTool, setCustomTool] = useState("");
+  const [availableTools, setAvailableTools] = useState<string[]>([]);
+  const [selectedAvailableTool, setSelectedAvailableTool] = useState("");
 
   // Load available MCP servers
   useEffect(() => {
@@ -96,6 +98,22 @@ export function McpServerSelector({ agentId, workspaceId, onMcpServersChange }: 
     }
   }, [agentId]);
 
+  // Load available tools when MCP server is selected
+  useEffect(() => {
+    if (selectedMcpServerId) {
+      const selectedServer = mcpServers.find(s => s.id === selectedMcpServerId);
+      if (selectedServer?.require_approval) {
+        const approval = selectedServer.require_approval as any;
+        const neverTools = approval?.never?.tool_names || [];
+        const alwaysTools = approval?.always?.tool_names || [];
+        const allTools = [...new Set([...neverTools, ...alwaysTools])];
+        setAvailableTools(allTools);
+      }
+    } else {
+      setAvailableTools([]);
+    }
+  }, [selectedMcpServerId, mcpServers]);
+
   const handleAddMcpServer = async () => {
     if (!selectedMcpServerId) return;
 
@@ -106,8 +124,8 @@ export function McpServerSelector({ agentId, workspaceId, onMcpServersChange }: 
         allowed_tools: allowedTools.length > 0 ? allowedTools : undefined,
       });
 
-      if (result && result.agent_mcp_server) {
-        const newAgentMcpServer = result.agent_mcp_server;
+      if (result && (result as any).agent_tool) {
+        const newAgentMcpServer = (result as any).agent_tool;
         const updatedAgentMcpServers = [...agentMcpServers, newAgentMcpServer];
         setAgentMcpServers(updatedAgentMcpServers);
         onMcpServersChange(updatedAgentMcpServers);
@@ -115,6 +133,9 @@ export function McpServerSelector({ agentId, workspaceId, onMcpServersChange }: 
         // Reset form
         setSelectedMcpServerId("");
         setAllowedTools([]);
+        setAvailableTools([]);
+        setSelectedAvailableTool("");
+        setCustomTool("");
         setIsDialogOpen(false);
       }
     } catch (error) {
@@ -139,6 +160,13 @@ export function McpServerSelector({ agentId, workspaceId, onMcpServersChange }: 
     if (customTool.trim() && !allowedTools.includes(customTool.trim())) {
       setAllowedTools([...allowedTools, customTool.trim()]);
       setCustomTool("");
+    }
+  };
+
+  const addAvailableTool = () => {
+    if (selectedAvailableTool && !allowedTools.includes(selectedAvailableTool)) {
+      setAllowedTools([...allowedTools, selectedAvailableTool]);
+      setSelectedAvailableTool("");
     }
   };
 
@@ -194,10 +222,10 @@ export function McpServerSelector({ agentId, workspaceId, onMcpServersChange }: 
                           {mcpServer?.server_label || agentMcpServer.mcp_server_label}
                         </h4>
                         <Badge
-                          variant={mcpServer?.require_approval === "always" ? "destructive" : "secondary"}
+                          variant={(mcpServer?.require_approval as any)?.always ? "destructive" : "secondary"}
                           className="text-xs"
                         >
-                          {mcpServer?.require_approval === "always" ? "Approval Required" : "Auto"}
+                          {(mcpServer?.require_approval as any)?.always ? "Approval Required" : "Auto"}
                         </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground mt-1">
@@ -255,7 +283,7 @@ export function McpServerSelector({ agentId, workspaceId, onMcpServersChange }: 
                           <div className="flex items-center gap-2">
                             {mcp.server_label}
                             <Badge variant="outline" className="text-xs">
-                              {mcp.require_approval === "always" ? "Approval" : "Auto"}
+                              {(mcp.require_approval as any)?.always ? "Approval" : "Auto"}
                             </Badge>
                           </div>
                         </SelectItem>
@@ -271,17 +299,51 @@ export function McpServerSelector({ agentId, workspaceId, onMcpServersChange }: 
                     Leave empty to allow all tools, or specify specific tools this agent can use.
                   </p>
                   
+                  {/* Available Tools Dropdown */}
+                  {availableTools.length > 0 && (
+                    <div className="space-y-2">
+                      <Label className="text-xs">Select from available tools</Label>
+                      <div className="flex gap-2">
+                        <Select value={selectedAvailableTool} onValueChange={setSelectedAvailableTool}>
+                          <SelectTrigger className="flex-1">
+                            <SelectValue placeholder="Choose a tool..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableTools
+                              .filter(tool => !allowedTools.includes(tool))
+                              .map((tool) => (
+                                <SelectItem key={tool} value={tool}>
+                                  {tool}
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                        <Button 
+                          type="button" 
+                          size="sm" 
+                          onClick={addAvailableTool}
+                          disabled={!selectedAvailableTool}
+                        >
+                          Add
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Custom Tool Input */}
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Enter tool name..."
-                      value={customTool}
-                      onChange={(e) => setCustomTool(e.target.value)}
-                      onKeyPress={(e) => e.key === "Enter" && addCustomTool()}
-                    />
-                    <Button type="button" size="sm" onClick={addCustomTool}>
-                      Add
-                    </Button>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Or enter custom tool name</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Enter tool name..."
+                        value={customTool}
+                        onChange={(e) => setCustomTool(e.target.value)}
+                        onKeyPress={(e) => e.key === "Enter" && addCustomTool()}
+                      />
+                      <Button type="button" size="sm" onClick={addCustomTool}>
+                        Add
+                      </Button>
+                    </div>
                   </div>
 
                   {/* Selected Tools */}

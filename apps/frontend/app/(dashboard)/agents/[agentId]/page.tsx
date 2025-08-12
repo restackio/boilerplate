@@ -24,12 +24,15 @@ import {
   Settings,
   Workflow,
   History,
+  Wrench,
 } from "lucide-react";
 import { 
   AgentSetupTab, 
   AgentVersionsTab, 
-  DeleteAgentModal 
+  DeleteAgentModal,
+  AgentToolsManager
 } from "./components";
+import { getAgentTools, createAgentTool } from "@/app/actions/workflow";
 
 export default function AgentEditPage() {
   const params = useParams();
@@ -50,6 +53,8 @@ export default function AgentEditPage() {
   // Loading states for buttons
   const [isSaving, setIsSaving] = useState(false);
   const [isTogglingStatus, setIsTogglingStatus] = useState(false);
+  // Track draft edits from AgentSetupTab to ensure Save uses latest UI state
+  const [draft, setDraft] = useState<{ name: string; version: string; description: string; instructions: string; model?: string; reasoning_effort?: string } | null>(null);
 
   // Tab navigation state - default to setup
   const [activeTab, setActiveTab] = useState("setup");
@@ -86,18 +91,22 @@ export default function AgentEditPage() {
     fetchAgent();
   }, [agentId, fetchAgents, isReady]);
 
-  const handleSave = async (agentData: { name: string; version: string; description: string; instructions: string }) => {
+  const handleSave = async (agentData: { name: string; version: string; description: string; instructions: string; model?: string; reasoning_effort?: string }) => {
     if (!agent) return;
 
     setIsSaving(true);
     try {
       // Create a new version of the agent
+      const latest = { ...(draft || {}), ...agentData };
       const newAgentData = {
         workspace_id: workspaceId,
-        name: agentData.name,
-        version: agentData.version,
-        description: agentData.description,
-        instructions: agentData.instructions,
+        name: latest.name,
+        version: latest.version,
+        description: latest.description,
+        instructions: latest.instructions,
+        // propagate model settings if present
+        model: latest.model,
+        reasoning_effort: latest.reasoning_effort,
         status: "inactive" as const, // New versions start as inactive
         parent_agent_id: agentId, // Link to the current agent as parent
       };
@@ -105,9 +114,42 @@ export default function AgentEditPage() {
       const result = await createAgent(newAgentData);
       if (result.success) {
         console.log("New agent version created successfully");
-        // Optionally redirect to the new agent or refresh the current one
-        // For now, we'll just show a success message
+        const newAgent: any = result.data;
+        // Clone tools from current agent to new version
+        try {
+          const toolsRes: any = await getAgentTools(agentId);
+          const tools: any[] = toolsRes?.agent_tools || [];
+          if (newAgent?.id && Array.isArray(tools) && tools.length > 0) {
+            await Promise.all(
+              tools.map((t: any) => {
+                const payload: any = {
+                  agent_id: newAgent.id,
+                  tool_type: t.tool_type,
+                };
+                if (t.tool_type === "mcp") {
+                  if (t.mcp_server_id) payload.mcp_server_id = t.mcp_server_id;
+                  if (t.allowed_tools?.length) payload.allowed_tools = t.allowed_tools;
+                }
+                if (t.tool_type === "custom") {
+                  if (t.config) payload.config = t.config;
+                }
+                if (typeof t.execution_order === "number") payload.execution_order = t.execution_order;
+                return createAgentTool(payload);
+              })
+            );
+            console.log(`Cloned ${tools.length} tools to new version ${newAgent.id}`);
+          }
+        } catch (e) {
+          console.error("Failed to clone tools to new version", e);
+        }
         alert("New version created successfully!");
+        // Navigate to the new agent so UI reflects its instructions and tools
+        if (newAgent?.id) {
+          router.push(`/agents/${newAgent.id}`);
+          return;
+        }
+        // Fallback: refresh agents list
+        await fetchAgents();
       } else {
         console.error("Failed to create new agent version:", result.error);
         alert("Failed to create new version: " + result.error);
@@ -274,10 +316,12 @@ export default function AgentEditPage() {
       </Button>
       <Button 
         onClick={() => handleSave({
-          name: agent.name,
-          version: agent.version,
-          description: agent.description,
-          instructions: agent.instructions,
+          name: draft?.name ?? agent.name,
+          version: draft?.version ?? agent.version,
+          description: draft?.description ?? agent.description,
+          instructions: draft?.instructions ?? agent.instructions,
+          model: draft?.model,
+          reasoning_effort: draft?.reasoning_effort,
         })} 
         disabled={isSaving}
       >
@@ -347,7 +391,11 @@ export default function AgentEditPage() {
                     onSave={handleSave}
                     isSaving={isSaving}
                     workspaceId={workspaceId}
+                    onChange={(d) => setDraft(d)}
                   />
+                  
+                  {/* Tools Management */}
+                  <AgentToolsManager agentId={agentId} />
                 </TabsContent>
 
                 {/* Flow Tab */}
