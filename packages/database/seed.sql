@@ -182,55 +182,55 @@ INSERT INTO mcp_servers (id, workspace_id, server_label, server_url, server_desc
   'f4567890-1234-5678-9abc-def012345678',
   'c926e979-1f16-46bf-a7cc-8aab70162d65',
   'zendesk-workflow',
-  'https://bbbe0213f601.ngrok-free.app/mcp',
+  'https://e5a93c19617c.ngrok-free.app/mcp',
   'Zendesk Ticket Workflow MCP server for support ticket management',
   NULL,
-  '{"never": {"tool_names": ["ZendeskTicketWorkflow"]}, "always": {"tool_names": []}}'
+  '{"never": {"tool_names": ["zendeskticketworkflow"]}, "always": {"tool_names": []}}'
 ),
 (
   '15678901-2345-6789-bcde-f01234567890',
   'c926e979-1f16-46bf-a7cc-8aab70162d65',
   'knowledge-base-workflow',
-  'https://bbbe0213f601.ngrok-free.app/mcp',
+  'https://e5a93c19617c.ngrok-free.app/mcp',
   'Knowledge Base Workflow MCP server for documentation search and retrieval',
   NULL,
-  '{"never": {"tool_names": ["KnowledgeBaseWorkflow"]}, "always": {"tool_names": []}}'
+  '{"never": {"tool_names": ["knowledgebaseworkflow"]}, "always": {"tool_names": []}}'
 ),
 (
   '26789012-3456-789a-cdef-012345678901',
   'c926e979-1f16-46bf-a7cc-8aab70162d65',
   'pagerduty-workflow',
-  'https://bbbe0213f601.ngrok-free.app/mcp',
+  'https://e5a93c19617c.ngrok-free.app/mcp',
   'PagerDuty Incident Workflow MCP server for incident management and monitoring',
   NULL,
-  '{"never": {"tool_names": ["PagerDutyIncidentWorkflow"]}, "always": {"tool_names": []}}'
+  '{"never": {"tool_names": ["pagerdutyincidentworkflow"]}, "always": {"tool_names": []}}'
 ),
 (
   '37890123-4567-890b-cdef-123456789012',
   'c926e979-1f16-46bf-a7cc-8aab70162d65',
   'datadog-workflow',
-  'https://bbbe0213f601.ngrok-free.app/mcp',
+  'https://e5a93c19617c.ngrok-free.app/mcp',
   'Datadog Logs Workflow MCP server for logs, metrics, and monitoring data',
   NULL,
-  '{"never": {"tool_names": ["DatadogLogsWorkflow"]}, "always": {"tool_names": []}}'
+  '{"never": {"tool_names": ["datadoglogsworkflow"]}, "always": {"tool_names": []}}'
 ),
 (
   '48901234-5678-901c-def0-234567890123',
   'c926e979-1f16-46bf-a7cc-8aab70162d65',
   'linear-workflow',
-  'https://bbbe0213f601.ngrok-free.app/mcp',
+  'https://e5a93c19617c.ngrok-free.app/mcp',
   'Linear Issue Workflow MCP server for issue tracking and project management',
   NULL,
-  '{"never": {"tool_names": ["LinearIssueWorkflow"]}, "always": {"tool_names": []}}'
+  '{"never": {"tool_names": ["linearissueworkflow"]}, "always": {"tool_names": []}}'
 ),
 (
   '59012345-6789-012d-ef01-345678901234',
   'c926e979-1f16-46bf-a7cc-8aab70162d65',
   'github-workflow',
-  'https://bbbe0213f601.ngrok-free.app/mcp',
+  'https://e5a93c19617c.ngrok-free.app/mcp',
   'GitHub PR Workflow MCP server for repository management and pull requests',
   NULL,
-  '{"never": {"tool_names": ["GitHubPRWorkflow"]}, "always": {"tool_names": []}}'
+  '{"never": {"tool_names": ["githubprworkflow"]}, "always": {"tool_names": []}}'
 ),
 (
   '60123456-789a-123e-f012-456789012345',
@@ -443,42 +443,42 @@ INSERT INTO agent_tools (agent_id, tool_type, mcp_server_id, allowed_tools, enab
     '77777777-7777-7777-7777-777777777777',
     'mcp',
     'f4567890-1234-5678-9abc-def012345678',
-    '["ZendeskTicketWorkflow"]',
+    '["zendeskticketworkflow"]',
     true
 ),
 (
     '77777777-7777-7777-7777-777777777777',
     'mcp',
     '15678901-2345-6789-bcde-f01234567890',
-    '["KnowledgeBaseWorkflow"]',
+    '["knowledgebaseworkflow"]',
     true
 ),
 (
     '77777777-7777-7777-7777-777777777777',
     'mcp',
     '26789012-3456-789a-cdef-012345678901',
-    '["PagerDutyIncidentWorkflow"]',
+    '["pagerdutyincidentworkflow"]',
     true
 ),
 (
     '77777777-7777-7777-7777-777777777777',
     'mcp',
     '37890123-4567-890b-cdef-123456789012',
-    '["DatadogLogsWorkflow"]',
+    '["datadoglogsworkflow"]',
     true
 ),
 (
     '77777777-7777-7777-7777-777777777777',
     'mcp',
     '48901234-5678-901c-def0-234567890123',
-    '["LinearIssueWorkflow"]',
+    '["linearissueworkflow"]',
     true
 ),
 (
     '77777777-7777-7777-7777-777777777777',
     'mcp',
     '59012345-6789-012d-ef01-345678901234',
-    '["GitHubPRWorkflow"]',
+    '["githubprworkflow"]',
     true
 ),
 (
