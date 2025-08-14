@@ -3,56 +3,32 @@
 import { useEffect } from "react";
 import { MCPsTable } from "@workspace/ui/components/mcps-table";
 import { PageHeader } from "@workspace/ui/components/page-header";
-import { useRouter } from "next/navigation";
 import { Button } from "@workspace/ui/components/ui/button";
 import { RefreshCw } from "lucide-react";
 import AgentsTabs from "../AgentsTabs";
 import { Plus } from "lucide-react";
 import { useWorkspaceScopedActions, McpServer } from "@/hooks/use-workspace-scoped-actions";
-import { Server } from "lucide-react";
-
-// Helper function to determine overall approval behavior
-const getApprovalStatus = (requireApproval: McpServer['require_approval']): "private" | "public" => {
-  // If there are always-approve tools, it's more restrictive
-  if (requireApproval.always.tool_names.length > 0) {
-    return "private";
-  }
-  // If all tools are explicitly in never-approve, it's public
-  if (requireApproval.never.tool_names.length > 0) {
-    return "public";
-  }
-  // Default to public if no specific rules are set
-  return "public";
-};
 
 // Map McpServer to MCP format for the table component
 const mapMcpServerToMCP = (mcpServer: McpServer) => ({
   id: mcpServer.id,
   name: mcpServer.server_label,
-  version: "v1.0", // Default version since we don't store this in the database
-  visibility: getApprovalStatus(mcpServer.require_approval),
   description: mcpServer.server_description || "No description available",
-  icon: Server, // Default icon
-  category: "Integration", // Default category
-  author: "System", // Default author
-  downloads: "0", // Default downloads
+  server_url: mcpServer.server_url,
+  tools_count: mcpServer.require_approval.always.tool_names.length + mcpServer.require_approval.never.tool_names.length,
   lastUpdated: mcpServer.updated_at || mcpServer.created_at || "",
-  capabilities: [], // We don't store capabilities in the database
-  mentions: [], // We don't store mentions in the database
-  documentation: mcpServer.server_url, // Use server URL as documentation
-  status: "active" as const, // Default status
 });
 
 export default function MCPsPage() {
-  const router = useRouter();
   const { mcpServers, mcpServersLoading, fetchMcpServers } = useWorkspaceScopedActions();
 
   useEffect(() => {
     fetchMcpServers();
   }, [fetchMcpServers]);
 
-  const handleViewMCP = (mcpId: string) => {
-    router.push(`/mcps/${mcpId}`);
+
+  const handleDeleteMCP = (mcpId: string) => {
+    alert(`TODO: Implement MCP deletion: ${mcpId}`);
   };
 
   const handleRefresh = () => {
@@ -104,7 +80,7 @@ export default function MCPsPage() {
             </div>
           </div>
         ) : (
-          <MCPsTable data={mcpData} onViewMCP={handleViewMCP} />
+          <MCPsTable data={mcpData} onDeleteMCP={handleDeleteMCP} />
         )}
       </div>
     </div>

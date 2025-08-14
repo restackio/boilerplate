@@ -38,13 +38,22 @@ VALUES (
 ## Objective
 Process incoming support tickets from Zendesk, classifying and managing each according to issue severity, and track all related actions and communications.
 
+## Available Tools
+You have access to the following workflow tools that you MUST use for the corresponding actions:
+- **ZendeskTicketWorkflow**: Create, update, or query Zendesk tickets
+- **KnowledgeBaseWorkflow**: Search documentation and knowledge base for solutions
+- **PagerDutyIncidentWorkflow**: Check incidents and monitoring data from PagerDuty
+- **DatadogLogsWorkflow**: Query logs and metrics from Datadog for investigation
+- **LinearIssueWorkflow**: Create and manage Linear tickets for engineering tasks
+- **GitHubPRWorkflow**: Create GitHub issues and pull requests for code changes
+
 ## Workflow Checklist
 Begin with a concise checklist (3–7 bullets) outlining your approach:
-- Review the Zendesk ticket for required information
+- Review the Zendesk ticket for required information using ZendeskTicketWorkflow
 - Classify ticket as L1, L2, L3, or 'Incomplete Data'
-- For L1: consult documentation and draft a solution response
-- For L2: investigate using PagerDuty, Datadog, and Temporal; summarize findings and respond
-- For L3: notify user, create Linear ticket, and if code change needed, open GitHub issue and PR, then follow up post-merge
+- For L1: use KnowledgeBaseWorkflow to consult documentation and draft a solution response
+- For L2: use PagerDutyIncidentWorkflow and DatadogLogsWorkflow to investigate; summarize findings and respond
+- For L3: notify user, use LinearIssueWorkflow to create ticket, and if code change needed, use GitHubPRWorkflow to open issue and PR, then follow up post-merge
 - Document all actions, artifact references, and communications
 - Return structured output as specified
 
@@ -54,21 +63,28 @@ Begin with a concise checklist (3–7 bullets) outlining your approach:
    - **L2:** Requires deeper investigation with monitoring tools.
    - **L3:** Needs engineering intervention.
 2. **L1 Tickets:**
-   - Consult documentation for possible solutions.
+   - Use KnowledgeBaseWorkflow to search documentation for possible solutions.
    - Draft a response for the user referencing any documentation or solutions used.
 3. **L2 Tickets:**
-   - Investigate using PagerDuty, Datadog.
+   - Use PagerDutyIncidentWorkflow to check for related incidents.
+   - Use DatadogLogsWorkflow to investigate logs and metrics.
    - Summarize findings.
    - Draft a user response outlining investigation results and next steps.
 4. **L3 Tickets:**
    - Notify the user that the engineering team will handle the issue.
-   - Create a Linear ticket summarizing the problem and include the reference.
-   - If a code change is required, create a GitHub issue and PR. Include references for both.
+   - Use LinearIssueWorkflow to create a Linear ticket summarizing the problem and include the reference.
+   - If a code change is required, use GitHubPRWorkflow to create a GitHub issue and PR. Include references for both.
    - After the PR is merged, send a follow-up response to the user about the resolution.
 5. **Error Handling:**
    - If any required data is missing from the ticket, note this in the output and flag the ticket as 'Incomplete Data'.
 6. **Artifact References:**
    - Ensure all actions reference their related artifacts (documentation, tickets, issues, etc.) with unique IDs or URLs where applicable.
+
+## Tool Usage Guidelines
+- **ALWAYS use the appropriate workflow tool** for each action - do not attempt to perform actions manually
+- Call tools in the logical sequence needed to complete the ticket processing
+- If a tool call fails, try again with adjusted parameters or explain the limitation
+- Use multiple tools in parallel when gathering information (e.g., PagerDutyIncidentWorkflow and DatadogLogsWorkflow for L2 tickets)
 
 ## Validation
 After processing each ticket, briefly validate that all actions match the ticket's classification and required references are included. If output is incomplete or a reference is missing, self-correct or explain in output.
@@ -166,7 +182,7 @@ INSERT INTO mcp_servers (id, workspace_id, server_label, server_url, server_desc
   'f4567890-1234-5678-9abc-def012345678',
   'c926e979-1f16-46bf-a7cc-8aab70162d65',
   'zendesk-workflow',
-  'https://172fca8e4df4.ngrok-free.app/mcp',
+  'https://bbbe0213f601.ngrok-free.app/mcp',
   'Zendesk Ticket Workflow MCP server for support ticket management',
   NULL,
   '{"never": {"tool_names": ["ZendeskTicketWorkflow"]}, "always": {"tool_names": []}}'
@@ -175,7 +191,7 @@ INSERT INTO mcp_servers (id, workspace_id, server_label, server_url, server_desc
   '15678901-2345-6789-bcde-f01234567890',
   'c926e979-1f16-46bf-a7cc-8aab70162d65',
   'knowledge-base-workflow',
-  'https://172fca8e4df4.ngrok-free.app/mcp',
+  'https://bbbe0213f601.ngrok-free.app/mcp',
   'Knowledge Base Workflow MCP server for documentation search and retrieval',
   NULL,
   '{"never": {"tool_names": ["KnowledgeBaseWorkflow"]}, "always": {"tool_names": []}}'
@@ -184,7 +200,7 @@ INSERT INTO mcp_servers (id, workspace_id, server_label, server_url, server_desc
   '26789012-3456-789a-cdef-012345678901',
   'c926e979-1f16-46bf-a7cc-8aab70162d65',
   'pagerduty-workflow',
-  'https://172fca8e4df4.ngrok-free.app/mcp',
+  'https://bbbe0213f601.ngrok-free.app/mcp',
   'PagerDuty Incident Workflow MCP server for incident management and monitoring',
   NULL,
   '{"never": {"tool_names": ["PagerDutyIncidentWorkflow"]}, "always": {"tool_names": []}}'
@@ -193,7 +209,7 @@ INSERT INTO mcp_servers (id, workspace_id, server_label, server_url, server_desc
   '37890123-4567-890b-cdef-123456789012',
   'c926e979-1f16-46bf-a7cc-8aab70162d65',
   'datadog-workflow',
-  'https://172fca8e4df4.ngrok-free.app/mcp',
+  'https://bbbe0213f601.ngrok-free.app/mcp',
   'Datadog Logs Workflow MCP server for logs, metrics, and monitoring data',
   NULL,
   '{"never": {"tool_names": ["DatadogLogsWorkflow"]}, "always": {"tool_names": []}}'
@@ -202,7 +218,7 @@ INSERT INTO mcp_servers (id, workspace_id, server_label, server_url, server_desc
   '48901234-5678-901c-def0-234567890123',
   'c926e979-1f16-46bf-a7cc-8aab70162d65',
   'linear-workflow',
-  'https://172fca8e4df4.ngrok-free.app/mcp',
+  'https://bbbe0213f601.ngrok-free.app/mcp',
   'Linear Issue Workflow MCP server for issue tracking and project management',
   NULL,
   '{"never": {"tool_names": ["LinearIssueWorkflow"]}, "always": {"tool_names": []}}'
@@ -211,7 +227,7 @@ INSERT INTO mcp_servers (id, workspace_id, server_label, server_url, server_desc
   '59012345-6789-012d-ef01-345678901234',
   'c926e979-1f16-46bf-a7cc-8aab70162d65',
   'github-workflow',
-  'https://172fca8e4df4.ngrok-free.app/mcp',
+  'https://bbbe0213f601.ngrok-free.app/mcp',
   'GitHub PR Workflow MCP server for repository management and pull requests',
   NULL,
   '{"never": {"tool_names": ["GitHubPRWorkflow"]}, "always": {"tool_names": []}}'

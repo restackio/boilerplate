@@ -1,6 +1,6 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "ui": "tui",
+  "ui": "stream",
   "globalEnv": ["RESTACK_ENGINE_ID", "RESTACK_ENGINE_ADDRESS", "RESTACK_ENGINE_API_KEY", "NODE_ENV"],
   "tasks": {
     "build": {

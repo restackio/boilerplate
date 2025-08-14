@@ -14,6 +14,7 @@ import {
 import {
   TooltipProvider,
 } from "@workspace/ui/components/ui/tooltip";
+import { Skeleton } from "@workspace/ui/components/ui/skeleton";
 import { PageHeader } from "@workspace/ui/components/page-header";
 import AgentFlow from "@workspace/ui/components/agent-flow";
 import {
@@ -242,18 +243,106 @@ export default function AgentEditPage() {
     },
   ];
 
-  // Show loading state
+  // Show loading state with skeleton layout
   if (!isReady || isLoading) {
+    const skeletonBreadcrumbs = [
+      { label: "Agents", href: "/agents" },
+      { label: "Loading..." }, // Placeholder for agent name
+    ];
+
+    const skeletonActions = (
+      <>
+        <Skeleton className="h-8 w-8" />
+        <Skeleton className="h-8 w-24" />
+        <Skeleton className="h-8 w-16" />
+      </>
+    );
+
     return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-center">
-          <Bot className="h-12 w-12 mx-auto text-muted-foreground mb-4 animate-pulse" />
-          <h2 className="text-lg font-semibold mb-2">Loading agent...</h2>
-          <p className="text-muted-foreground">
-            Fetching agent details from the database.
-          </p>
+      <TooltipProvider>
+        <div className="flex-1">
+          {/* Use actual PageHeader with skeleton content */}
+          <PageHeader 
+            breadcrumbs={skeletonBreadcrumbs} 
+            actions={skeletonActions} 
+            fixed={true}
+          />
+
+          {/* Main Content - with top padding for fixed header */}
+          <div className="bg-primary-foreground p-4">
+            <div className="space-y-6">
+              {/* Tab Navigation Skeleton */}
+              <div className="bg-background rounded-lg border">
+                <div className="border-b bg-muted/30 rounded-t-lg px-4 py-2">
+                  <div className="flex gap-1">
+                    {tabsConfig.map((tab) => (
+                      <div key={tab.id} className="flex items-center gap-2 px-4 py-2">
+                        <Skeleton className="h-4 w-4" />
+                        <Skeleton className="h-4 w-12" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Tab Content Skeleton */}
+                <div className="p-6 space-y-6">
+                  {/* Agent Setup Form Skeleton */}
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <Skeleton className="h-4 w-16" />
+                        <Skeleton className="h-10 w-full" />
+                      </div>
+                      <div className="space-y-2">
+                        <Skeleton className="h-4 w-16" />
+                        <Skeleton className="h-10 w-full" />
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-20 w-full" />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-20" />
+                      <Skeleton className="h-32 w-full" />
+                    </div>
+
+                    {/* Model Settings Skeleton */}
+                    <div className="space-y-4 p-4 border rounded-lg">
+                      <Skeleton className="h-5 w-32" />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Skeleton className="h-4 w-16" />
+                          <Skeleton className="h-10 w-full" />
+                        </div>
+                        <div className="space-y-2">
+                          <Skeleton className="h-4 w-24" />
+                          <Skeleton className="h-10 w-full" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Tools Section Skeleton */}
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <Skeleton className="h-5 w-16" />
+                        <Skeleton className="h-8 w-20" />
+                      </div>
+                      <div className="space-y-2">
+                        <Skeleton className="h-16 w-full" />
+                        <Skeleton className="h-16 w-full" />
+                        <Skeleton className="h-16 w-full" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+      </TooltipProvider>
     );
   }
 
@@ -355,7 +444,7 @@ export default function AgentEditPage() {
         />
 
         {/* Main Content - with top padding for fixed header */}
-        <div className="bg-primary-foreground pt-8 p-4">
+        <div className="bg-primary-foreground p-4">
           <div className="space-y-6">
             {/* Tab Navigation */}
             <div className="bg-background rounded-lg border">

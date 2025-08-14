@@ -110,6 +110,7 @@ export default function TechnicalSupportAgentsPage() {
           <AgentsTable 
             data={agents} 
             onRowClick={handleAgentClick}
+            onViewAgent={handleAgentClick}
             teams={teamOptions}
             defaultFilters={initialFilters}
           />

@@ -23,6 +23,7 @@ import {
   HelpCircle,
   ChevronRight,
   Hash,
+  Eye,
 } from "lucide-react";
 import {
   Tooltip,
@@ -31,6 +32,7 @@ import {
   TooltipTrigger,
 } from "./ui/tooltip";
 import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
 import { DataTableFilter } from "./table/index";
 import { createColumnConfigHelper } from "./table/core/filters";
 import { useDataTableFilters } from "./table/hooks/use-data-table-filters";
@@ -120,11 +122,12 @@ const getStatusIcon = (status: string) => {
 interface AgentsTableProps {
   data: Agent[];
   onRowClick?: (agentId: string) => void;
+  onViewAgent?: (agentId: string) => void;
   teams?: Array<{ label: string; value: string; icon: any }>;
   defaultFilters?: any[];
 }
 
-export function AgentsTable({ data, onRowClick, teams = [], defaultFilters = [] }: AgentsTableProps) {
+export function AgentsTable({ data, onRowClick, onViewAgent, teams = [], defaultFilters = [] }: AgentsTableProps) {
   // Create data table filters instance
   const { columns, filters, actions, strategy, filteredData } =
     useDataTableFilters({
@@ -166,10 +169,9 @@ export function AgentsTable({ data, onRowClick, teams = [], defaultFilters = [] 
                 <TableHead>Agent</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Team</TableHead>
-                <TableHead>Latest Version</TableHead>
-                <TableHead>Versions</TableHead>
-                <TableHead>Created At</TableHead>
+                <TableHead>Version</TableHead>
                 <TableHead>Updated At</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -186,7 +188,7 @@ export function AgentsTable({ data, onRowClick, teams = [], defaultFilters = [] 
                       <div className="font-medium flex items-center gap-2">
                         {agent.name}
                       </div>
-                      <div className="text-sm text-muted-foreground line-clamp-1">
+                      <div className="text-sm text-muted-foreground line-clamp-1 max-w-60 truncate">
                         {agent.description}
                       </div>
                     </div>
@@ -208,51 +210,47 @@ export function AgentsTable({ data, onRowClick, teams = [], defaultFilters = [] 
                   <TableCell>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <div className="flex items-center gap-2">
-                          <GitBranch className="h-3 w-3 text-muted-foreground" />
-                          <Badge variant="outline" className="font-mono text-xs">
-                            {agent.latest_version || agent.version}
-                          </Badge>
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <GitBranch className="h-3 w-3 text-muted-foreground" />
+                              {agent.latest_version || agent.version}
+                          </div>
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <Hash className="h-3 w-3" />
+                              <span>{agent.version_count ?? 1} versions</span>
+                            </div>
                         </div>
                       </TooltipTrigger>
                       <TooltipContent>
                         <p>Latest version: {agent.latest_version || agent.version}</p>
                         {agent.version_count && agent.version_count > 1 && (
-                          <p className="text-xs text-muted-foreground">
-                            Current version: {agent.version}
+                          <p className="text-xs">
+                            Active version: {agent.version}
+                          </p>
+                        )}
+                        {agent.version_count && agent.version_count > 1 && (
+                          <p className="text-xs">
+                            Total versions: {agent.version_count}
                           </p>
                         )}
                       </TooltipContent>
                     </Tooltip>
                   </TableCell>
                   <TableCell>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className="flex items-center gap-2">
-                          <Hash className="h-3 w-3 text-muted-foreground" />
-                          <Badge variant="secondary" className="text-xs">
-                            {agent.version_count || 1}
-                          </Badge>
-                          {agent.version_count && agent.version_count > 1 && (
-                            <span className="text-xs text-muted-foreground">
-                              versions
-                            </span>
-                          )}
-                        </div>
-                      </TooltipTrigger>
-                      {agent.version_count && agent.version_count > 1 && (
-                        <TooltipContent>
-                          <p>This agent has {agent.version_count} versions</p>
-                          <p className="text-xs text-muted-foreground">Click to view version history</p>
-                        </TooltipContent>
-                      )}
-                    </Tooltip>
-                  </TableCell>
-                  <TableCell>
-                    {new Date(agent.created_at || "").toLocaleDateString()}
-                  </TableCell>
-                  <TableCell>
                     {new Date(agent.updated_at || "").toLocaleDateString()}
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onViewAgent?.(agent.id);
+                      }}
+                    >
+                      <Eye className="h-4 w-4 mr-2" />
+                      View
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}
