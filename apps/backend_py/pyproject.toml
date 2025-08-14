@@ -1,7 +1,7 @@
 [project]
-name = "quickstart"
+name = "backend-py"
 version = "0.0.1"
-description = "A quickstart for Restack"
+description = "Python backend services for Restack AI application"
 authors = [{ name = "Restack Team", email = "service@restack.io" }]
 requires-python = ">=3.10,<3.14"
 readme = "README.md"
@@ -17,9 +17,6 @@ dependencies = [
     "greenlet>=3.0.0",
     "alembic>=1.13.0",
     "bcrypt>=4.0.1",
-    "fastapi>=0.104.0",
-    "uvicorn[standard]>=0.24.0",
-    "requests>=2.31.0",
 ]
 
 [project.scripts]

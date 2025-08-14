@@ -9,14 +9,6 @@ from sqlalchemy.orm import selectinload
 from src.database.connection import get_async_db
 from src.database.models import Agent
 
-
-# Helper functions for error handling
-def _raise_agent_not_found(agent_name: str) -> None:
-    """Raise an error when an agent is not found."""
-    error_message = f"Agent '{agent_name}' not found or not active in workspace"
-    raise NonRetryableError(message=error_message)
-
-
 # Pydantic models for input validation
 class AgentMcpRelationshipInput(BaseModel):
     mcp_server_id: str = Field(..., min_length=1)
@@ -808,7 +800,9 @@ async def agents_resolve_by_name(
             agent = result.scalars().first()
 
             if not agent:
-                _raise_agent_not_found(function_input.agent_name)
+                raise NonRetryableError(
+                    message=f"Agent '{function_input.agent_name}' not found or not active in workspace"
+                )
 
             return AgentResolveOutput(agent_id=str(agent.id))
 
