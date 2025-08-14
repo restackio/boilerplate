@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@workspace/ui/components/ui/card";
 import { Button } from "@workspace/ui/components/ui/button";
 import { Badge } from "@workspace/ui/components/ui/badge";
-import { XCircle, Check } from "lucide-react";
+import { XCircle, Check, Loader2 } from "lucide-react";
 import { ConversationItem } from "../types";
 
 interface TaskCardMcpProps {
@@ -40,10 +40,15 @@ export function TaskCardMcp({ item, onApprove, onDeny }: TaskCardMcpProps) {
   };
 
   return (
-    <Card className="w-full border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+    <Card className={`w-full border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${
+      isProcessing ? "opacity-75 pointer-events-none" : ""
+    }`}>
       <CardHeader>
-        <CardTitle className="text-sm font-medium">
+        <CardTitle className="text-sm font-medium flex items-center gap-2">
           Approval required: {item.serverLabel} {item.toolName}
+          {isProcessing && (
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-0">
@@ -63,8 +68,12 @@ export function TaskCardMcp({ item, onApprove, onDeny }: TaskCardMcpProps) {
               onClick={handleDeny}
               disabled={isProcessing}
             >
-              <XCircle className="h-4 w-4 mr-1" />
-              Deny
+              {isProcessing ? (
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+              ) : (
+                <XCircle className="h-4 w-4 mr-1" />
+              )}
+              {isProcessing ? "Denying..." : "Deny"}
             </Button>
             <Button
               size="sm"
@@ -72,8 +81,12 @@ export function TaskCardMcp({ item, onApprove, onDeny }: TaskCardMcpProps) {
               onClick={handleApprove}
               disabled={isProcessing}
             >
-              <Check className="h-4 w-4 mr-1" />
-              Approve
+              {isProcessing ? (
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+              ) : (
+                <Check className="h-4 w-4 mr-1" />
+              )}
+              {isProcessing ? "Approving..." : "Approve"}
             </Button>
           </div>
         ) : isProcessed ? (

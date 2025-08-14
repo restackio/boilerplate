@@ -15,7 +15,10 @@ from restack_ai.function import (
     log,
 )
 
-from src.functions.llm_response_stream import LlmResponseInput, Message
+from src.functions.llm_response_stream import (
+    LlmResponseInput,
+    Message,
+)
 
 
 class LlmPrepareResponseInput(BaseModel):
@@ -122,7 +125,7 @@ async def llm_prepare_response(  # noqa: C901, PLR0912, PLR0915
                 except Exception:  # noqa: BLE001
                     return tool_dict
 
-            if tool_type == "web_search":
+            if tool_type == "web_search_preview":
                 try:
                     return WebSearchToolParam.model_validate(tool_dict)
                 except Exception:  # noqa: BLE001

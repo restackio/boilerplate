@@ -86,14 +86,7 @@ export function AgentVersionsTab({ agentId, getAgentVersions }: AgentVersionsTab
   }, [agentId, getAgentVersions]);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <History className="h-5 w-5" />
-          Versions
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
+
         <div className="space-y-4">
           {versionsLoading ? (
             <div className="flex items-center justify-center h-32">
@@ -156,7 +149,5 @@ export function AgentVersionsTab({ agentId, getAgentVersions }: AgentVersionsTab
             </div>
           )}
         </div>
-      </CardContent>
-    </Card>
   );
 } 

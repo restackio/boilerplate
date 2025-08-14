@@ -12,7 +12,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@workspace/ui/components/ui/select";
-import { Settings } from "lucide-react";
 import { AgentToolsManager } from "./AgentToolsManager";
 import { PROMPT_TEMPLATES } from "./promptTemplates";
 
@@ -90,6 +89,7 @@ export function AgentSetupTab({ agent, onSave, isSaving, workspaceId, onChange }
   const [reasoningEffort, setReasoningEffort] = useState("medium");
 
   const [previewMode, setPreviewMode] = useState(true);
+  const [nameError, setNameError] = useState("");
 
   const emitChange = (overrides: Partial<AgentData> = {}) => {
     const payload: AgentData = {
@@ -103,6 +103,20 @@ export function AgentSetupTab({ agent, onSave, isSaving, workspaceId, onChange }
       ...overrides,
     } as AgentData;
     onChange?.(payload);
+  };
+
+  const validateAgentName = (name: string): boolean => {
+    const slugPattern = /^[a-z0-9-_]+$/;
+    if (!name) {
+      setNameError("Agent name is required");
+      return false;
+    }
+    if (!slugPattern.test(name)) {
+      setNameError("Agent name must be in slug format (lowercase letters, numbers, hyphens, underscores only)");
+      return false;
+    }
+    setNameError("");
+    return true;
   };
 
   // Update form fields when agent data loads
@@ -151,9 +165,21 @@ export function AgentSetupTab({ agent, onSave, isSaving, workspaceId, onChange }
             <Input
               id="name"
               value={name}
-              onChange={(e) => { const v = e.target.value; setName(v); emitChange({ name: v }); }}
-              placeholder="Enter agent name..."
+              onChange={(e) => { 
+                const v = e.target.value; 
+                setName(v); 
+                validateAgentName(v);
+                emitChange({ name: v }); 
+              }}
+              placeholder="e.g., github-pr-agent, zendesk-support"
+              className={nameError ? "border-red-500" : ""}
             />
+            {nameError && (
+              <p className="text-sm text-red-500">{nameError}</p>
+            )}
+            <p className="text-xs text-gray-500">
+              Use lowercase letters, numbers, hyphens, and underscores only
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="version">Version</Label>

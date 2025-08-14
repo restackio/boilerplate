@@ -166,7 +166,7 @@ class Agent(Base):
         ForeignKey("teams.id", ondelete="SET NULL"),
         nullable=True,
     )
-    name = Column(String(255), nullable=False)
+    name = Column(String(255), nullable=False)  # Must be slug format: lowercase, numbers, hyphens, underscores only
     version = Column(String(50), nullable=False, default="v1.0")
     description = Column(Text)
     instructions = Column(Text, nullable=True)
@@ -207,6 +207,7 @@ class Agent(Base):
             reasoning_effort.in_(["minimal", "low", "medium", "high"]),
             name="valid_reasoning_effort",
         ),
+        # Note: Unique constraint for root agent names is handled by partial index in schema.sql
     )
 
     # Relationships
@@ -233,7 +234,7 @@ class AgentTool(Base):
     )
     tool_type = Column(
         String(32), nullable=False
-    )  # file_search, web_search, computer, mcp, code_interpreter, image_generation, local_shell
+    )  # file_search, web_search_preview, mcp, code_interpreter, image_generation, local_shell
     mcp_server_id = Column(
         UUID(as_uuid=True), ForeignKey("mcp_servers.id", ondelete="CASCADE")
     )
@@ -247,7 +248,7 @@ class AgentTool(Base):
     __table_args__ = (
         CheckConstraint(
             tool_type.in_([
-                "file_search", "web_search", "computer", "mcp",
+                "file_search", "web_search_preview", "mcp",
                 "code_interpreter", "image_generation", "local_shell"
             ]),
             name="valid_tool_type",

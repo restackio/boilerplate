@@ -1,31 +1,21 @@
 [project]
-name = "quickstart"
+name = "webhook"
 version = "0.0.1"
-description = "A quickstart for Restack"
+description = "Dedicated webhook server for creating tasks from external events"
 authors = [{ name = "Restack Team", email = "service@restack.io" }]
 requires-python = ">=3.10,<3.14"
 readme = "README.md"
 dependencies = [
     "pydantic[email]>=2.11.7",
-    "watchfiles>=1.1.0",
     "python-dotenv>=1.1.1",
-    "openai[aiohttp]>=1.99.5",
     "restack-ai>=0.0.108",
-    "psycopg2-binary>=2.9.9",
-    "asyncpg>=0.29.0",
-    "sqlalchemy>=2.0.42",
-    "greenlet>=3.0.0",
-    "alembic>=1.13.0",
-    "bcrypt>=4.0.1",
     "fastapi>=0.104.0",
     "uvicorn[standard]>=0.24.0",
-    "requests>=2.31.0",
 ]
 
 [project.scripts]
-dev = "src.services:dev_watch"
-start = "src.services:start"
-schedule = "schedule:run_schedule"
+dev = "src.server:dev"
+start = "src.server:start"
 
 [tool.hatch.build.targets.sdist]
 include = ["src"]

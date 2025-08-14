@@ -22,6 +22,11 @@
       "persistent": true,
       "env": ["RESTACK_ENGINE_ID", "RESTACK_ENGINE_ADDRESS", "RESTACK_ENGINE_API_KEY", "NODE_ENV"]
     },
+    "start": {
+      "cache": false,
+      "persistent": true,
+      "env": ["RESTACK_ENGINE_ID", "RESTACK_ENGINE_ADDRESS", "RESTACK_ENGINE_API_KEY", "NODE_ENV"]
+    },
     "install": {
       "cache": false
     }

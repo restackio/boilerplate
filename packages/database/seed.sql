@@ -5,13 +5,32 @@ INSERT INTO workspaces (id, name) VALUES
 ('c926e979-1f16-46bf-a7cc-8aab70162d65', 'Demo Company')
 ON CONFLICT (id) DO NOTHING;
 
+-- Insert demo user with fixed ID for consistency (password: "password" - will be hashed by the application)
+INSERT INTO users (id, name, email, password_hash, avatar_url) VALUES
+('29fcdd0a-708e-478a-8030-34b02ad9ef84', 'Demo', 'demo@example.com', '$2b$12$cL0ShBkTO1OH0lwd4rXc1efFz0Zvg764SgVB2E0UY1xTMmKOL3qHa', 'https://avatars.githubusercontent.com/u/1234567?v=4')
+ON CONFLICT (id) DO NOTHING;
+
+-- Link user to workspace using fixed IDs
+INSERT INTO user_workspaces (user_id, workspace_id, role) VALUES
+('29fcdd0a-708e-478a-8030-34b02ad9ef84', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'owner')
+ON CONFLICT (user_id, workspace_id) DO NOTHING;
+
+-- Insert demo teams
+INSERT INTO teams (id, workspace_id, name, description, icon) VALUES
+(uuid_generate_v4(), 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'Customer Support', 'Handles customer inquiries and support tickets', 'Users'),
+(uuid_generate_v4(), 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'Sales', 'Manages sales leads and customer relationships', 'Target'),
+(uuid_generate_v4(), 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'Marketing', 'Handles marketing campaigns and brand management', 'Zap'),
+(uuid_generate_v4(), 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'Engineering', 'Develops and maintains the product', 'Shield'),
+(uuid_generate_v4(), 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'HR', 'Manages human resources and employee relations', 'Briefcase')
+ON CONFLICT (id) DO NOTHING;
+
 -- Customer Service Demo agent with Zendesk workflow instructions
 INSERT INTO agents (id, workspace_id, team_id, name, version, description, instructions, status, model, reasoning_effort, response_format)
 VALUES (
     '77777777-7777-7777-7777-777777777777',
     'c926e979-1f16-46bf-a7cc-8aab70162d65',
     (SELECT id FROM teams WHERE name = 'Customer Support' LIMIT 1),
-    'Zendesk Support Orchestrator',
+    'zendesk-support-orchestrator',
     'v1.0.0',
     'Demo agent orchestrating Zendesk, PagerDuty, Datadog, Linear, and GitHub workflows',
     $$Developer: # Support Ticket Workflow for Zendesk
@@ -114,27 +133,6 @@ ON CONFLICT (id) DO NOTHING;
 
 
 
-
-
--- Insert demo user with fixed ID for consistency (password: "password" - will be hashed by the application)
-INSERT INTO users (id, name, email, password_hash, avatar_url) VALUES
-('29fcdd0a-708e-478a-8030-34b02ad9ef84', 'Demo', 'demo@example.com', '$2b$12$cL0ShBkTO1OH0lwd4rXc1efFz0Zvg764SgVB2E0UY1xTMmKOL3qHa', 'https://avatars.githubusercontent.com/u/1234567?v=4')
-ON CONFLICT (id) DO NOTHING;
-
--- Link user to workspace using fixed IDs
-INSERT INTO user_workspaces (user_id, workspace_id, role) VALUES
-('29fcdd0a-708e-478a-8030-34b02ad9ef84', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'owner')
-ON CONFLICT (user_id, workspace_id) DO NOTHING;
-
--- Insert demo teams
-INSERT INTO teams (id, workspace_id, name, description, icon) VALUES
-(uuid_generate_v4(), 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'Customer Support', 'Handles customer inquiries and support tickets', 'Users'),
-(uuid_generate_v4(), 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'Sales', 'Manages sales leads and customer relationships', 'Target'),
-(uuid_generate_v4(), 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'Marketing', 'Handles marketing campaigns and brand management', 'Zap'),
-(uuid_generate_v4(), 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'Engineering', 'Develops and maintains the product', 'Shield'),
-(uuid_generate_v4(), 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'HR', 'Manages human resources and employee relations', 'Briefcase')
-ON CONFLICT (id) DO NOTHING;
-
 -- Insert MCP servers with granular approval settings
 INSERT INTO mcp_servers (id, workspace_id, server_label, server_url, server_description, headers, require_approval) VALUES
 (
@@ -217,16 +215,25 @@ INSERT INTO mcp_servers (id, workspace_id, server_label, server_url, server_desc
   'GitHub PR Workflow MCP server for repository management and pull requests',
   NULL,
   '{"never": {"tool_names": ["GitHubPRWorkflow"]}, "always": {"tool_names": []}}'
+),
+(
+  '60123456-789a-123e-f012-456789012345',
+  'c926e979-1f16-46bf-a7cc-8aab70162d65',
+  'mintlify-docs',
+  'https://docs.restack.io/mcp',
+  'Mintlify MCP server for accessing Restack documentation and API references',
+  NULL,
+  '{"never": {"tool_names": ["search"]}, "always": {"tool_names": []}}'
 )
 ON CONFLICT (id) DO NOTHING;
 
 -- Insert demo agents with GPT-5 model configurations
-INSERT INTO agents (id, workspace_id, team_id, name, version, description, instructions, status, model, reasoning_effort, response_format) VALUES
+INSERT INTO agents (id, workspace_id, team_id, name, version, description, instructions, status, model, reasoning_effort, response_format, parent_agent_id) VALUES
 (
     'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
     'c926e979-1f16-46bf-a7cc-8aab70162d65',
     (SELECT id FROM teams WHERE name = 'Engineering' LIMIT 1),
-    'DeepWiki Knowledge Agent',
+    'deepwiki-knowledge-agent',
     'v1.0.0',
     'Agent for querying and retrieving information from DeepWiki knowledge base',
     $$You are a helpful knowledge assistant.
@@ -252,16 +259,17 @@ Early stop criteria:
 </tool_preambles>
 
 Use the ask_question tool to search for relevant information.$$,
-    'active',
+    'inactive',  -- v1.0 is now inactive since v2.0 is active
     'gpt-5',
     'high',
-    '{"type": "text"}'
+    '{"type": "text"}',
+    NULL  -- No parent agent
 ),
 (
     'b2c3d456-7890-8901-bcde-f23456789012',
     'c926e979-1f16-46bf-a7cc-8aab70162d65',
     (SELECT id FROM teams WHERE name = 'Marketing' LIMIT 1),
-    'PostHog Analytics Agent',
+    'posthog-analytics-agent',
     'v1.0.0',
     'Agent for managing PostHog analytics dashboards and data',
     $$You are a helpful analytics assistant.
@@ -278,13 +286,14 @@ Use dashboards-get-all and dashboard-get when needed.$$,
     'active',
     'gpt-5-mini',
     'medium',
-    '{"type": "json_object"}'
+    '{"type": "json_object"}',
+    NULL  -- No parent agent
 ),
 (
   'f3f45678-9012-3456-7890-123456789012',
   'c926e979-1f16-46bf-a7cc-8aab70162d65',
   (SELECT id FROM teams WHERE name = 'Customer Support' LIMIT 1),
-  'Intercom Customer Support Agent',
+  'intercom-customer-support-agent',
   'v1.0.0',
   'Agent for managing Intercom customer support and retrieving customer data',
   $$You are a helpful customer support assistant.
@@ -301,14 +310,100 @@ Use search_conversations, get_conversation, and search_contacts as necessary.$$,
   'active',
   'gpt-5',
   'low',
-  '{"type": "text"}'
+  '{"type": "text"}',
+  NULL  -- No parent agent
+),
+(
+  -- Example of agent versioning: v2.0 of deepwiki-knowledge-agent
+  '1a2b3c4d-e5f6-7890-abcd-ef1234567890',
+  'c926e979-1f16-46bf-a7cc-8aab70162d65',
+  (SELECT id FROM teams WHERE name = 'Engineering' LIMIT 1),
+  'deepwiki-knowledge-agent',  -- Same name as parent
+  'v2.0.0',
+  'Enhanced agent with improved knowledge retrieval and caching',
+  $$You are an enhanced knowledge assistant with improved search capabilities.
+
+<context_gathering>
+Goal: Get context faster with enhanced caching and parallel queries.
+Method:
+- Use improved search algorithms with semantic understanding
+- Implement intelligent caching for faster responses
+- Parallel processing of related queries
+</context_gathering>
+
+<persistence>
+- Enhanced persistence with better error recovery
+- Advanced context retention across sessions
+</persistence>
+
+<tool_preambles>
+- Advanced goal analysis with multi-step planning
+- Enhanced progress tracking and optimization
+</tool_preambles>
+
+Use the ask_question tool with enhanced search strategies.$$,
+  'active',  -- This is now the active version
+  'gpt-5',
+  'high',
+  '{"type": "text"}',
+  'a1b2c3d4-e5f6-7890-abcd-ef1234567890'  -- Parent agent ID (v1.0)
+),
+(
+    'b3c4d567-8901-2345-6789-abcdef123456',
+    'c926e979-1f16-46bf-a7cc-8aab70162d65',
+    (SELECT id FROM teams WHERE name = 'Engineering' LIMIT 1),
+    'web-search-research-agent',
+    'v1.0.0',
+    'Agent for conducting web research and gathering real-time information from the internet',
+    $$You are a helpful research assistant with access to real-time web search capabilities and Restack documentation.
+
+<context_gathering>
+Goal: Use web search and documentation access to gather current, accurate information.
+Method:
+- Use web_search_preview tool to find relevant and up-to-date information from the internet
+- Use search tool to access Restack documentation and API references
+- Cross-reference multiple sources when possible
+- Provide citations and source URLs for all findings
+- Focus on authoritative and reliable sources
+- For Restack-related queries, prioritize official documentation
+</context_gathering>
+
+<persistence>
+- Continue searching until you have comprehensive information to answer the user's query
+- Don't stop at the first search result - explore multiple relevant sources
+- Verify information across different sources when possible
+- Check both web sources and official documentation when applicable
+</persistence>
+
+<tool_preambles>
+- Begin by understanding the research goal clearly
+- Outline your search strategy before beginning (web search vs documentation search)
+- Provide progress updates as you gather information
+- Summarize findings with proper citations
+</tool_preambles>
+
+Use the web_search_preview tool for general internet research and the Mintlify search tool for Restack-specific documentation. Always provide source URLs and documentation references for your findings.$$,
+    'active',
+    'gpt-5',
+    'medium',
+    '{"type": "text"}',
+    NULL  -- No parent agent
 )
 ON CONFLICT (id) DO NOTHING;
 
 -- Link agents to MCP servers via unified agent_tools table
 INSERT INTO agent_tools (agent_id, tool_type, mcp_server_id, allowed_tools, enabled) VALUES
 (
+    -- v1.0 deepwiki agent (inactive)
     'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+    'mcp',
+    'c1d2e3f4-5678-9012-cdef-345678901234',
+    '["ask_question"]',
+    true
+),
+(
+    -- v2.0 deepwiki agent (active) - same MCP tools
+    '1a2b3c4d-e5f6-7890-abcd-ef1234567890',
     'mcp',
     'c1d2e3f4-5678-9012-cdef-345678901234',
     '["ask_question"]',
@@ -369,6 +464,22 @@ INSERT INTO agent_tools (agent_id, tool_type, mcp_server_id, allowed_tools, enab
     '59012345-6789-012d-ef01-345678901234',
     '["GitHubPRWorkflow"]',
     true
+),
+(
+    -- Web search research agent with web_search_preview tool
+    'b3c4d567-8901-2345-6789-abcdef123456',
+    'web_search_preview',
+    NULL,  -- No MCP server needed for built-in tools
+    NULL,  -- No allowed_tools needed for built-in tools
+    true
+),
+(
+    -- Web search research agent with Mintlify docs MCP
+    'b3c4d567-8901-2345-6789-abcdef123456',
+    'mcp',
+    '60123456-789a-123e-f012-456789012345',
+    '["search"]',
+    true
 )
 ON CONFLICT DO NOTHING;
 
@@ -394,6 +505,16 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
     'Review and analyze current marketing campaign performance dashboards',
     'open',
     'b2c3d456-7890-8901-bcde-f23456789012',
+    '29fcdd0a-708e-478a-8030-34b02ad9ef84'
+),
+(
+    uuid_generate_v4(),
+    'c926e979-1f16-46bf-a7cc-8aab70162d65',
+    (SELECT id FROM teams WHERE name = 'Engineering' LIMIT 1),
+    'Research Latest AI Trends',
+    'Conduct web research on the latest AI and machine learning trends for Q1 2025',
+    'open',
+    'b3c4d567-8901-2345-6789-abcdef123456',
     '29fcdd0a-708e-478a-8030-34b02ad9ef84'
 )
 ON CONFLICT (id) DO NOTHING;

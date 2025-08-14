@@ -33,7 +33,8 @@ async def llm_response(
 
         log.info("llm_response completed (non_streaming_response)", response=response)
 
-        return response.output_text 
     except Exception as e:
         error_message = f"llm_response failed: {e}"
         raise NonRetryableError(error_message) from e
+
+    return response.output_text

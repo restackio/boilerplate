@@ -49,7 +49,7 @@ class AgentTaskInput(BaseModel):
     description: str
     status: str
     agent_id: str
-    assigned_to_id: str
+    assigned_to_id: str | None = None
 
 
 @agent.defn()

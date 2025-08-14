@@ -19,11 +19,10 @@ class TaskCreateInput(BaseModel):
         default="open",
         pattern="^(open|active|waiting|closed|completed)$",
     )
-    agent_id: str = Field(..., min_length=1)
-    assigned_to_id: str = Field(
-        ..., min_length=1
-    )  # This can be email or UUID
-    agent_task_id: str | None = None  # Restack agent task ID
+    agent_id: str | None = None
+    agent_name: str | None = None
+    assigned_to_id: str | None = None
+    agent_task_id: str | None = None
 
 
 class TaskUpdateInput(BaseModel):
@@ -35,7 +34,7 @@ class TaskUpdateInput(BaseModel):
     )
     agent_id: str | None = Field(None, min_length=1)
     assigned_to_id: str | None = Field(None, min_length=1)
-    agent_task_id: str | None = None  # Restack agent task ID
+    agent_task_id: str | None = None
 
 
 class TaskGetByIdInput(BaseModel):
@@ -72,9 +71,9 @@ class TaskOutput(BaseModel):
     status: str
     agent_id: str
     agent_name: str
-    assigned_to_id: str
-    assigned_to_name: str
-    agent_task_id: str | None  # Restack agent task ID
+    assigned_to_id: str | None
+    assigned_to_name: str | None
+    agent_task_id: str | None
     created_at: str | None
     updated_at: str | None
 
@@ -137,7 +136,7 @@ async def tasks_read(
                         agent_name=task.agent.name
                         if task.agent
                         else "N/A",
-                        assigned_to_id=str(task.assigned_to_id),
+                        assigned_to_id=str(task.assigned_to_id) if task.assigned_to_id else None,
                         assigned_to_name=task.assigned_to_user.name
                         if task.assigned_to_user
                         else "N/A",
@@ -174,9 +173,7 @@ async def tasks_create(
                 description=task_data.description,
                 status=task_data.status,
                 agent_id=uuid.UUID(task_data.agent_id),
-                assigned_to_id=uuid.UUID(
-                    task_data.assigned_to_id
-                ),
+                assigned_to_id=uuid.UUID(task_data.assigned_to_id) if task_data.assigned_to_id else None,
                 agent_task_id=task_data.agent_task_id,
             )
 
@@ -203,10 +200,10 @@ async def tasks_create(
                 agent_name=task.agent.name
                 if task.agent
                 else "N/A",
-                assigned_to_id=str(task.assigned_to_id),
+                assigned_to_id=str(task.assigned_to_id) if task.assigned_to_id else None,
                 assigned_to_name=task.assigned_to_user.name
                 if task.assigned_to_user
-                else "N/A",
+                else None,
                 agent_task_id=task.agent_task_id,
                 created_at=task.created_at.isoformat()
                 if task.created_at
@@ -281,10 +278,10 @@ async def tasks_update(
                 agent_name=task.agent.name
                 if task.agent
                 else "N/A",
-                assigned_to_id=str(task.assigned_to_id),
+                assigned_to_id=str(task.assigned_to_id) if task.assigned_to_id else None,
                 assigned_to_name=task.assigned_to_user.name
                 if task.assigned_to_user
-                else "N/A",
+                else None,
                 agent_task_id=task.agent_task_id,
                 created_at=task.created_at.isoformat()
                 if task.created_at
@@ -368,10 +365,10 @@ async def tasks_get_by_id(
                 agent_name=task.agent.name
                 if task.agent
                 else "N/A",
-                assigned_to_id=str(task.assigned_to_id),
+                assigned_to_id=str(task.assigned_to_id) if task.assigned_to_id else None,
                 assigned_to_name=task.assigned_to_user.name
                 if task.assigned_to_user
-                else "N/A",
+                else None,
                 agent_task_id=task.agent_task_id,
                 created_at=task.created_at.isoformat()
                 if task.created_at
@@ -427,7 +424,7 @@ async def tasks_get_by_status(
                         agent_name=task.agent.name
                         if task.agent
                         else "N/A",
-                        assigned_to_id=str(task.assigned_to_id),
+                        assigned_to_id=str(task.assigned_to_id) if task.assigned_to_id else None,
                         assigned_to_name=task.assigned_to_user.name
                         if task.assigned_to_user
                         else "N/A",
@@ -492,10 +489,10 @@ async def tasks_update_agent_task_id(
                 agent_name=task.agent.name
                 if task.agent
                 else "N/A",
-                assigned_to_id=str(task.assigned_to_id),
+                assigned_to_id=str(task.assigned_to_id) if task.assigned_to_id else None,
                 assigned_to_name=task.assigned_to_user.name
                 if task.assigned_to_user
-                else "N/A",
+                else None,
                 agent_task_id=task.agent_task_id,
                 created_at=task.created_at.isoformat()
                 if task.created_at

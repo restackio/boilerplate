@@ -10,7 +10,17 @@ from restack_ai.workflow import (
     workflow,
 )
 
-from src.schemas.pagerduty_incident import PAGERDUTY_INCIDENT_SCHEMA
+from src.schemas.pagerduty_incident import (
+    PAGERDUTY_INCIDENT_SCHEMA,
+)
+
+
+# Helper functions for error handling
+def _raise_no_llm_response() -> None:
+    """Raise an error when LLM returns no response."""
+    error_message = "No text response from LLM"
+    raise NonRetryableError(error_message)
+
 
 with import_functions():
     from src.functions.llm_response import (
@@ -87,8 +97,8 @@ Return the complete JSON structure following the PagerDuty API format."""
             )
 
             if not response_text:
-                raise NonRetryableError("No text response from LLM")
-            
+                _raise_no_llm_response()
+
             incident_data = json.loads(response_text)
 
             log.info("PagerDutyIncidentWorkflow completed", incident=incident_data)

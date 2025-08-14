@@ -30,20 +30,27 @@ If using pip:
 python -m venv .venv && source .venv/bin/activate
 ```
 
-## Install dependencies
+## Install dependencies and run
 
-If using uv:
-
+**Development mode** (with file watching):
 ```bash
-uv sync
 uv run dev
+# or with pnpm from the monorepo root:
+pnpm --filter backend-py dev
 ```
 
-If using pip:
+**Production mode** (runs both Restack services and webhook server):
+```bash
+uv run start  
+# or with pnpm from the monorepo root:
+pnpm --filter backend-py start
+```
 
+**Alternative setup with pip:**
 ```bash
 pip install -e .
-python -c "from src.services import watch_services; watch_services()"
+python -c "from src.services import watch_services; watch_services()"  # dev mode
+python -c "from src.services import run_services_with_webhook; run_services_with_webhook()"  # start mode
 ```
 
 ## Run agents

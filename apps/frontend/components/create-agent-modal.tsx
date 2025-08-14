@@ -34,8 +34,16 @@ export function CreateAgentModal({ onAgentCreated }: CreateAgentModalProps) {
     reasoning_effort: "medium",
   });
 
+  const [nameError, setNameError] = useState("");
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate agent name before submission
+    if (!validateAgentName(formData.name)) {
+      return;
+    }
+    
     setIsLoading(true);
 
     try {
@@ -50,9 +58,8 @@ export function CreateAgentModal({ onAgentCreated }: CreateAgentModalProps) {
           // New GPT-5 model configuration fields
           model: "gpt-5",
           reasoning_effort: "medium",
-          response_format: { type: "text" },
-      
         });
+        setNameError("");
         onAgentCreated?.();
       } else {
         alert(`Failed to create agent: ${result.error}`);
@@ -64,8 +71,25 @@ export function CreateAgentModal({ onAgentCreated }: CreateAgentModalProps) {
     }
   };
 
+  const validateAgentName = (name: string): boolean => {
+    const slugPattern = /^[a-z0-9-_]+$/;
+    if (!name) {
+      setNameError("Agent name is required");
+      return false;
+    }
+    if (!slugPattern.test(name)) {
+      setNameError("Agent name must be in slug format (lowercase letters, numbers, hyphens, underscores only)");
+      return false;
+    }
+    setNameError("");
+    return true;
+  };
+
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    if (field === "name") {
+      validateAgentName(value);
+    }
   };
 
   return (
@@ -73,12 +97,12 @@ export function CreateAgentModal({ onAgentCreated }: CreateAgentModalProps) {
       <DialogTrigger asChild>
         <Button size="sm">
           <Plus className="h-4 w-4 mr-1" />
-          New Agent
+          New agent
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Create New Agent</DialogTitle>
+          <DialogTitle>New agent</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
@@ -87,9 +111,16 @@ export function CreateAgentModal({ onAgentCreated }: CreateAgentModalProps) {
               id="name"
               value={formData.name}
               onChange={(e) => handleInputChange("name", e.target.value)}
-              placeholder="Enter agent name"
+              placeholder="e.g., github-pr-agent, zendesk-support"
               required
+              className={nameError ? "border-red-500" : ""}
             />
+            {nameError && (
+              <p className="text-sm text-red-500">{nameError}</p>
+            )}
+            <p className="text-xs text-gray-500">
+              Use lowercase letters, numbers, hyphens, and underscores only
+            </p>
           </div>
 
           <div className="space-y-2">
@@ -161,7 +192,7 @@ export function CreateAgentModal({ onAgentCreated }: CreateAgentModalProps) {
               Cancel
             </Button>
             <Button type="submit" disabled={isLoading}>
-              {isLoading ? "Creating..." : "Create Agent"}
+              {isLoading ? "Creating..." : "Create agent"}
             </Button>
           </div>
         </form>

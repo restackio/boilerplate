@@ -25,12 +25,14 @@ import {
   Workflow,
   History,
   Wrench,
+  Webhook,
 } from "lucide-react";
 import { 
   AgentSetupTab, 
   AgentVersionsTab, 
   DeleteAgentModal,
-  AgentToolsManager
+  AgentToolsManager,
+  WebhookTab
 } from "./components";
 import { getAgentTools, createAgentTool } from "@/app/actions/workflow";
 
@@ -39,7 +41,7 @@ export default function AgentEditPage() {
   const router = useRouter();
   const agentId = params.agentId as string;
   const { isReady, workspaceId } = useDatabaseWorkspace();
-  const { fetchAgents, updateAgent, createAgent, deleteAgent, agentsLoading, getAgentVersions } = useWorkspaceScopedActions();
+  const { fetchAgents, updateAgent, createAgent, deleteAgent, agentsLoading, getAgentVersions, getAgentById } = useWorkspaceScopedActions();
   void agentsLoading; // Suppress unused warning
 
   // State for the individual agent
@@ -66,22 +68,16 @@ export default function AgentEditPage() {
       
       setIsLoading(true);
       try {
-        // Fetch all agents and find the specific one
-        const result = await fetchAgents();
+        // Fetch only the specific agent by ID - much faster!
+        const result = await getAgentById(agentId);
         if (result.success && result.data) {
-          const foundAgent = result.data.find((a: Agent) => a.id === agentId);
-          if (foundAgent) {
-            setAgent(foundAgent);
-                  } else {
-          console.error("Agent not found:", agentId);
-          setAgent(null);
-        }
+          setAgent(result.data);
         } else {
-          console.error("Failed to fetch agents:", result.error);
+          console.error("Failed to fetch agent:", result.error);
           setAgent(null);
         }
       } catch (error) {
-        console.error("Error fetching agents:", error);
+        console.error("Error fetching agent:", error);
         setAgent(null);
       } finally {
         setIsLoading(false);
@@ -89,7 +85,7 @@ export default function AgentEditPage() {
     };
 
     fetchAgent();
-  }, [agentId, fetchAgents, isReady]);
+  }, [agentId, getAgentById, isReady]);
 
   const handleSave = async (agentData: { name: string; version: string; description: string; instructions: string; model?: string; reasoning_effort?: string }) => {
     if (!agent) return;
@@ -224,6 +220,12 @@ export default function AgentEditPage() {
       id: "setup",
       label: "Setup",
       icon: Settings,
+      enabled: true,
+    },
+    {
+      id: "webhooks",
+      label: "Webhooks",
+      icon: Webhook,
       enabled: true,
     },
     {
@@ -393,9 +395,14 @@ export default function AgentEditPage() {
                     workspaceId={workspaceId}
                     onChange={(d) => setDraft(d)}
                   />
-                  
-                  {/* Tools Management */}
-                  <AgentToolsManager agentId={agentId} />
+                </TabsContent>
+
+                {/* Webhooks Tab */}
+                <TabsContent value="webhooks" className="p-6">
+                  <WebhookTab
+                    agent={agent}
+                    workspaceId={workspaceId}
+                  />
                 </TabsContent>
 
                 {/* Flow Tab */}

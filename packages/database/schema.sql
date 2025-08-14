@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS agents (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     team_id UUID REFERENCES teams(id) ON DELETE SET NULL,
-    name VARCHAR(255) NOT NULL,
+    name VARCHAR(255) NOT NULL CHECK (name ~ '^[a-z0-9_\-]+$'),
     version VARCHAR(50) NOT NULL DEFAULT 'v1.0',
     description TEXT,
     instructions TEXT,
@@ -75,7 +75,6 @@ CREATE TABLE IF NOT EXISTS agents (
     )),
     reasoning_effort VARCHAR(20) DEFAULT 'medium' CHECK (reasoning_effort IN ('minimal', 'low', 'medium', 'high')),
     response_format JSONB DEFAULT '{"type": "text"}', -- Store response format configuration
-
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -83,12 +82,12 @@ CREATE TABLE IF NOT EXISTS agents (
 
 
 -- Unified agent tools table mirroring Responses API tool types
--- tool_type ∈ ('file_search','web_search','computer','mcp','code_interpreter','image_generation','local_shell')
+-- tool_type ∈ ('file_search','web_search_preview','mcp','code_interpreter','image_generation','local_shell')
 CREATE TABLE IF NOT EXISTS agent_tools (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     agent_id UUID NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
     tool_type VARCHAR(32) NOT NULL CHECK (tool_type IN (
-        'file_search','web_search','computer','mcp','code_interpreter','image_generation','local_shell'
+        'file_search','web_search_preview','mcp','code_interpreter','image_generation','local_shell'
     )),
     mcp_server_id UUID REFERENCES mcp_servers(id) ON DELETE CASCADE,
     config JSONB,
@@ -119,7 +118,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     description TEXT,
     status VARCHAR(50) NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'active', 'waiting', 'closed', 'completed')),
     agent_id UUID NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
-    assigned_to_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    assigned_to_id UUID REFERENCES users(id) ON DELETE CASCADE,
     agent_task_id VARCHAR(255), -- Restack agent task ID for state management
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -137,6 +136,11 @@ CREATE INDEX IF NOT EXISTS idx_agents_parent_id ON agents(parent_agent_id);
 CREATE INDEX IF NOT EXISTS idx_agents_created_at ON agents(created_at);
 CREATE INDEX IF NOT EXISTS idx_agents_parent_created ON agents(parent_agent_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_agents_status_created ON agents(status, created_at);
+
+-- Unique constraint for root agent names within workspace (allows versions with same name)
+CREATE UNIQUE INDEX IF NOT EXISTS unique_root_agent_name_per_workspace 
+ON agents(workspace_id, name) 
+WHERE parent_agent_id IS NULL;
 CREATE INDEX IF NOT EXISTS idx_agent_tools_agent_id ON agent_tools(agent_id);
 CREATE INDEX IF NOT EXISTS idx_agent_tools_tool_type ON agent_tools(tool_type);
 CREATE INDEX IF NOT EXISTS idx_agent_tools_mcp_server_id ON agent_tools(mcp_server_id);
@@ -146,6 +150,27 @@ CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
 CREATE INDEX IF NOT EXISTS idx_tasks_agent_id ON tasks(agent_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_assigned_to_id ON tasks(assigned_to_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_agent_task_id ON tasks(agent_task_id);
+
+-- Performance-critical composite indexes for common query patterns
+CREATE INDEX IF NOT EXISTS idx_agents_workspace_status_created ON agents(workspace_id, status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_agents_workspace_name_parent ON agents(workspace_id, name, parent_agent_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_workspace_status_created ON tasks(workspace_id, status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_tasks_agent_status ON tasks(agent_id, status);
+CREATE INDEX IF NOT EXISTS idx_user_workspaces_user_role ON user_workspaces(user_id, role);
+CREATE INDEX IF NOT EXISTS idx_agent_tools_agent_type_enabled ON agent_tools(agent_id, tool_type, enabled);
+CREATE INDEX IF NOT EXISTS idx_mcp_servers_workspace_label ON mcp_servers(workspace_id, server_label);
+
+-- Partial indexes for active records (more efficient for common queries)
+CREATE INDEX IF NOT EXISTS idx_agents_active_workspace ON agents(workspace_id, created_at DESC) WHERE status = 'active';
+CREATE INDEX IF NOT EXISTS idx_tasks_open_workspace ON tasks(workspace_id, created_at DESC) WHERE status IN ('open', 'active');
+CREATE INDEX IF NOT EXISTS idx_agent_tools_enabled ON agent_tools(agent_id, tool_type) WHERE enabled = true;
+
+-- Covering indexes for read-heavy operations
+CREATE INDEX IF NOT EXISTS idx_agents_list_covering ON agents(workspace_id, status) INCLUDE (id, name, version, description, created_at, updated_at);
+CREATE INDEX IF NOT EXISTS idx_tasks_list_covering ON tasks(workspace_id, status) INCLUDE (id, title, description, agent_id, assigned_to_id, created_at, updated_at);
+
+-- Index for email lookups (very common in auth)
+CREATE INDEX IF NOT EXISTS idx_users_email_lower ON users(lower(email));
 
 -- Create updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()
