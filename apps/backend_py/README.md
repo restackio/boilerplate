@@ -1,7 +1,7 @@
-# Restack AI - Agent with todo list
+# Restack AI - Backend Python Services
 
-This repository contains an agent with todo list for Restack.
-It demonstrates how to set up a basic agent with tool call with a basic workflow and functions.
+This repository contains the Python backend services for the Restack AI application.
+It demonstrates how to set up agents with tool calls, workflows, and database functions.
 
 ## Prerequisites
 
@@ -30,20 +30,27 @@ If using pip:
 python -m venv .venv && source .venv/bin/activate
 ```
 
-## Install dependencies
+## Install dependencies and run
 
-If using uv:
-
+**Development mode** (with file watching):
 ```bash
-uv sync
 uv run dev
+# or with pnpm from the monorepo root:
+pnpm --filter backend-py dev
 ```
 
-If using pip:
+**Production mode** (runs Restack services):
+```bash
+uv run start  
+# or with pnpm from the monorepo root:
+pnpm --filter backend-py start
+```
 
+**Alternative setup with pip:**
 ```bash
 pip install -e .
-python -c "from src.services import watch_services; watch_services()"
+python -c "from src.services import watch_services; watch_services()"  # dev mode
+python -c "from src.services import run_services; run_services()"  # start mode
 ```
 
 ## Run agents
@@ -58,7 +65,7 @@ You can run agents from the UI by clicking the "Run" button.
 
 You can run agents from the API by using the generated endpoint:
 
-`POST http://localhost:6233/api/agents/AgentTodo`
+`POST http://localhost:6233/api/agents/AgentTask`
 
 ### from any client
 
@@ -76,11 +83,11 @@ If using pip:
 python -c "from schedule import run_schedule; run_schedule()"
 ```
 
-executes `schedule.py` which will connect to Restack and execute the `AgentTodo` agent.
+executes `schedule.py` which will connect to Restack and execute the `AgentTask` agent.
 
 ## Send an event to the agent
 
-In our example we will ask the AI agent to create a todo.
+In our example we will ask the AI agent to perform a task.
 
 ### from UI
 
@@ -90,7 +97,7 @@ In our example we will ask the AI agent to create a todo.
   "runId": "{run_id}",
   "eventName": "messages",
   "eventInput": {
-    "messages": [{"role": "user", "content": "Can you send an email to the CEO?"}]
+    "messages": [{"role": "user", "content": "Help me analyze this data"}]
   }
 }
 ```
@@ -99,7 +106,7 @@ In our example we will ask the AI agent to create a todo.
 
 You can send events to the agent by using the generated endpoint:
 
-`PUT http://localhost:6233/api/agents/AgentTodo/:agentId/:runId`
+`PUT http://localhost:6233/api/agents/AgentTask/:agentId/:runId`
 
 and the payload:
 
@@ -107,15 +114,15 @@ and the payload:
 {
   "eventName": "messages",
   "eventInput": {
-    "messages": [{"role": "user", "content": "Can you send an email to the CEO?"}]
+    "messages": [{"role": "user", "content": "Help me analyze this data"}]
   }
 }
 ```
 
 ## See the agent run
 
-The LLM will use tool call to create the todo.
-The creation of the todo will be done in a simple function.
+The LLM will use tool calls to interact with various services and MCP servers.
+The agent can perform database operations, call external APIs, and execute workflows.
 
 You can replay and follow the agent run in the UI.
 
@@ -123,13 +130,13 @@ You can replay and follow the agent run in the UI.
 
 Now, you can simply trigger more events from the Developer UI.
 
-In this case, the agent will ask permission to execute the todo.
+The agent can process messages, handle MCP tool approvals, and execute complex workflows.
 
 ![Send confirmation to agent](./todo_second_message.png)
 
-If confirmed, this time the agent will execute the todo in a 2-step workflow.
+When using MCP tools that require approval, the agent will wait for confirmation before proceeding.
 
-![Execute todo workflow](./todo_child_workflow.png)
+![Execute workflows](./todo_child_workflow.png)
 
 ## Deploy on Restack Cloud
 

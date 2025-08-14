@@ -1,6 +1,6 @@
 # Import all workflow functions to ensure they are registered
 from . import (
-    agent_mcp_servers_crud,
+    agent_tools_crud,
     agents_crud,
     auth_crud,
     mcp_servers_crud,
@@ -12,7 +12,7 @@ from . import (
 )
 
 __all__ = [
-    "agent_mcp_servers_crud",
+    "agent_tools_crud",
     "agents_crud",
     "auth_crud",
     "mcp_servers_crud",

@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "uv sync && uv run dev",
-    "start": "uv run services",
+    "start": "uv run start",
     "schedule": "uv run schedule",
     "install": "uv sync",
     "build": "echo 'Python backend does not need build step'",

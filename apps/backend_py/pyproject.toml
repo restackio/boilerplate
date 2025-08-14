@@ -1,7 +1,7 @@
 [project]
-name = "quickstart"
+name = "backend-py"
 version = "0.0.1"
-description = "A quickstart for Restack"
+description = "Python backend services for Restack AI application"
 authors = [{ name = "Restack Team", email = "service@restack.io" }]
 requires-python = ">=3.10,<3.14"
 readme = "README.md"
@@ -9,7 +9,7 @@ dependencies = [
     "pydantic[email]>=2.11.7",
     "watchfiles>=1.1.0",
     "python-dotenv>=1.1.1",
-    "openai[aiohttp]>=1.98.0",
+    "openai[aiohttp]>=1.99.5",
     "restack-ai>=0.0.108",
     "psycopg2-binary>=2.9.9",
     "asyncpg>=0.29.0",
@@ -20,8 +20,8 @@ dependencies = [
 ]
 
 [project.scripts]
-dev = "src.services:watch_services"
-services = "src.services:run_services"
+dev = "src.services:dev_watch"
+start = "src.services:start"
 schedule = "schedule:run_schedule"
 
 [tool.hatch.build.targets.sdist]

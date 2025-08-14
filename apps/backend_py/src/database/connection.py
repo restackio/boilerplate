@@ -26,14 +26,20 @@ elif DATABASE_URL.startswith("postgresql+psycopg2://"):
 else:
     ASYNC_DATABASE_URL = DATABASE_URL
 
-# Create async engine with simple configuration
+# Create async engine with essential optimizations
 async_engine = create_async_engine(
-    ASYNC_DATABASE_URL, echo=False, pool_pre_ping=True
+    ASYNC_DATABASE_URL,
+    echo=False,
+    pool_pre_ping=True,
+    pool_size=20,
+    max_overflow=10
 )
 
 # Create async session factory
 AsyncSessionLocal = async_sessionmaker(
-    async_engine, class_=AsyncSession, expire_on_commit=False
+    async_engine,
+    class_=AsyncSession,
+    expire_on_commit=False
 )
 
 

@@ -7,8 +7,7 @@ from sqlalchemy import and_, func, select
 from sqlalchemy.orm import selectinload
 
 from src.database.connection import get_async_db
-from src.database.models import Agent, AgentMcpServer
-
+from src.database.models import Agent
 
 # Pydantic models for input validation
 class AgentMcpRelationshipInput(BaseModel):
@@ -18,7 +17,7 @@ class AgentMcpRelationshipInput(BaseModel):
 
 class AgentCreateInput(BaseModel):
     workspace_id: str = Field(..., min_length=1)
-    name: str = Field(..., min_length=1, max_length=255)
+    name: str = Field(..., min_length=1, max_length=255, pattern=r"^[a-z0-9-_]+$")
     version: str = Field(default="v1.0", max_length=50)
     description: str | None = None
     instructions: str | None = None
@@ -26,6 +25,17 @@ class AgentCreateInput(BaseModel):
         default="inactive", pattern="^(active|inactive)$"
     )
     parent_agent_id: str | None = None
+    # New GPT-5 model configuration fields
+    model: str = Field(
+        default="gpt-5",
+        pattern=r"^(gpt-5|gpt-5-mini|gpt-5-nano|gpt-5-2025-08-07|gpt-5-mini-2025-08-07|gpt-5-nano-2025-08-07|gpt-4\.1|gpt-4\.1-mini|gpt-4\.1-nano|gpt-4o|gpt-4o-mini)$"
+    )
+    reasoning_effort: str = Field(
+        default="medium",
+        pattern="^(minimal|low|medium|high)$"
+    )
+    response_format: dict | None = Field(default={"type": "text"})
+
     mcp_relationships: list[AgentMcpRelationshipInput] | None = (
         Field(
             default=None,
@@ -36,7 +46,7 @@ class AgentCreateInput(BaseModel):
 
 class AgentUpdateInput(BaseModel):
     agent_id: str = Field(..., min_length=1)
-    name: str | None = Field(None, min_length=1, max_length=255)
+    name: str | None = Field(None, min_length=1, max_length=255, pattern=r"^[a-z0-9-_]+$")
     version: str | None = Field(None, max_length=50)
     description: str | None = None
     instructions: str | None = Field(None, min_length=1)
@@ -44,6 +54,17 @@ class AgentUpdateInput(BaseModel):
         None, pattern="^(active|inactive)$"
     )
     parent_agent_id: str | None = None
+    # New GPT-5 model configuration fields
+    model: str | None = Field(
+        None,
+        pattern=r"^(gpt-5|gpt-5-mini|gpt-5-nano|gpt-5-2025-08-07|gpt-5-mini-2025-08-07|gpt-5-nano-2025-08-07|gpt-4\.1|gpt-4\.1-mini|gpt-4\.1-nano|gpt-4o|gpt-4o-mini)$"
+    )
+    reasoning_effort: str | None = Field(
+        None,
+        pattern="^(minimal|low|medium|high)$"
+    )
+    response_format: dict | None = None
+
 
 
 class AgentIdInput(BaseModel):
@@ -67,14 +88,19 @@ class AgentGetByWorkspaceInput(BaseModel):
 class AgentOutput(BaseModel):
     id: str
     workspace_id: str
-    team_id: str | None
-    team_name: str | None
+    team_id: str | None = None
+    team_name: str | None = None
     name: str
     version: str
     description: str | None
     instructions: str | None
     status: str
     parent_agent_id: str | None
+    # New GPT-5 model configuration fields
+    model: str = "gpt-5"
+    reasoning_effort: str = "medium"
+    response_format: dict = {"type": "text"}
+
     created_at: str | None
     updated_at: str | None
     version_count: int = 1  # Number of versions for this agent
@@ -145,6 +171,11 @@ def get_latest_agent_versions(
                     )
                     if latest_agent.parent_agent_id
                     else None,
+                    # New GPT-5 model configuration fields
+                    model=latest_agent.model or "gpt-5",
+                    reasoning_effort=latest_agent.reasoning_effort or "medium",
+                    response_format=latest_agent.response_format or {"type": "text"},
+
                     created_at=latest_agent.created_at.isoformat()
                     if latest_agent.created_at
                     else None,
@@ -166,9 +197,6 @@ async def agents_read(
     """Read all agents from database for a specific workspace, returning only the latest version of each agent."""
     async for db in get_async_db():
         try:
-            # Use a subquery to get the latest version of each agent group for the specific workspace
-            # This is much more efficient than loading all agents into memory
-
             # Subquery to get the latest created_at for each agent group in the workspace
             latest_versions_subquery = (
                 select(
@@ -251,6 +279,11 @@ async def agents_read(
                         parent_agent_id=str(agent.parent_agent_id)
                         if agent.parent_agent_id
                         else None,
+                        # New GPT-5 model configuration fields
+                        model=agent.model or "gpt-5",
+                        reasoning_effort=agent.reasoning_effort or "medium",
+                        response_format=agent.response_format or {"type": "text"},
+
                         created_at=agent.created_at.isoformat()
                         if agent.created_at
                         else None,
@@ -298,6 +331,11 @@ async def agents_create(
                 instructions=agent_data.instructions,
                 status=agent_data.status,
                 parent_agent_id=parent_agent_id,
+                # New GPT-5 model configuration fields
+                model=agent_data.model,
+                reasoning_effort=agent_data.reasoning_effort,
+                response_format=agent_data.response_format,
+
             )
             db.add(agent)
             await db.commit()
@@ -305,16 +343,19 @@ async def agents_create(
 
             # Create MCP server relationships if provided
             if agent_data.mcp_relationships:
+                from src.database.models import AgentTool
                 for mcp_rel in agent_data.mcp_relationships:
-                    agent_mcp_server = AgentMcpServer(
+                    agent_tool = AgentTool(
                         id=uuid.uuid4(),
                         agent_id=agent.id,
+                        tool_type="mcp",
                         mcp_server_id=uuid.UUID(
                             mcp_rel.mcp_server_id
                         ),
                         allowed_tools=mcp_rel.allowed_tools,
+                        enabled=True,
                     )
-                    db.add(agent_mcp_server)
+                    db.add(agent_tool)
 
                 # Commit the MCP server relationships
                 await db.commit()
@@ -329,6 +370,10 @@ async def agents_create(
                 parent_agent_id=str(agent.parent_agent_id)
                 if agent.parent_agent_id
                 else None,
+                # New GPT-5 model configuration fields
+                model=agent.model or "gpt-5",
+                reasoning_effort=agent.reasoning_effort or "medium",
+                response_format=agent.response_format or {"type": "text"},
                 created_at=agent.created_at.isoformat()
                 if agent.created_at
                 else None,
@@ -395,6 +440,10 @@ async def agents_update(
                 parent_agent_id=str(agent.parent_agent_id)
                 if agent.parent_agent_id
                 else None,
+                # New GPT-5 model configuration fields
+                model=agent.model or "gpt-5",
+                reasoning_effort=agent.reasoning_effort or "medium",
+                response_format=agent.response_format or {"type": "text"},
                 created_at=agent.created_at.isoformat()
                 if agent.created_at
                 else None,
@@ -505,6 +554,10 @@ async def agents_get_by_id(
                 parent_agent_id=str(agent.parent_agent_id)
                 if agent.parent_agent_id
                 else None,
+                # New GPT-5 model configuration fields
+                model=agent.model or "gpt-5",
+                reasoning_effort=agent.reasoning_effort or "medium",
+                response_format=agent.response_format or {"type": "text"},
                 created_at=agent.created_at.isoformat()
                 if agent.created_at
                 else None,
@@ -598,6 +651,11 @@ async def agents_get_by_status(
                         parent_agent_id=str(agent.parent_agent_id)
                         if agent.parent_agent_id
                         else None,
+                        # New GPT-5 model configuration fields
+                        model=agent.model or "gpt-5",
+                        reasoning_effort=agent.reasoning_effort or "medium",
+                        response_format=agent.response_format or {"type": "text"},
+
                         created_at=agent.created_at.isoformat()
                         if agent.created_at
                         else None,
@@ -653,6 +711,11 @@ async def agents_get_versions(
                         parent_agent_id=str(agent.parent_agent_id)
                         if agent.parent_agent_id
                         else None,
+                        # New GPT-5 model configuration fields
+                        model=agent.model or "gpt-5",
+                        reasoning_effort=agent.reasoning_effort or "medium",
+                        response_format=agent.response_format or {"type": "text"},
+
                         created_at=agent.created_at.isoformat()
                         if agent.created_at
                         else None,
@@ -665,5 +728,86 @@ async def agents_get_versions(
         except Exception as e:
             raise NonRetryableError(
                 message=f"Failed to get agent versions: {e!s}"
+            ) from e
+    return None
+
+
+class AgentResolveInput(BaseModel):
+    workspace_id: str = Field(..., min_length=1)
+    agent_name: str = Field(..., min_length=1, pattern=r"^[a-z0-9-_]+$")
+
+
+class AgentResolveOutput(BaseModel):
+    agent_id: str
+
+
+@function.defn()
+async def agents_resolve_by_name(
+    function_input: AgentResolveInput,
+) -> AgentResolveOutput:
+    """Resolve agent name to the latest active agent ID."""
+    async for db in get_async_db():
+        try:
+            # Find the latest active agent by name
+            from sqlalchemy import and_, func
+
+            # Subquery to get the latest created_at for each agent group in the workspace
+            latest_versions_subquery = (
+                select(
+                    func.coalesce(
+                        Agent.parent_agent_id, Agent.id
+                    ).label("group_key"),
+                    func.max(Agent.created_at).label(
+                        "latest_created_at"
+                    ),
+                )
+                .where(
+                    and_(
+                        Agent.workspace_id == uuid.UUID(function_input.workspace_id),
+                        Agent.name == function_input.agent_name
+                    )
+                )
+                .group_by(
+                    func.coalesce(Agent.parent_agent_id, Agent.id)
+                )
+                .subquery()
+            )
+
+            # Main query to get the latest active agent by name
+            agent_query = (
+                select(Agent)
+                .join(
+                    latest_versions_subquery,
+                    and_(
+                        func.coalesce(
+                            Agent.parent_agent_id, Agent.id
+                        )
+                        == latest_versions_subquery.c.group_key,
+                        Agent.created_at
+                        == latest_versions_subquery.c.latest_created_at,
+                    ),
+                )
+                .where(
+                    and_(
+                        Agent.workspace_id == uuid.UUID(function_input.workspace_id),
+                        Agent.name == function_input.agent_name,
+                        Agent.status == "active"
+                    )
+                )
+            )
+
+            result = await db.execute(agent_query)
+            agent = result.scalars().first()
+
+            if not agent:
+                raise NonRetryableError(
+                    message=f"Agent '{function_input.agent_name}' not found or not active in workspace"
+                )
+
+            return AgentResolveOutput(agent_id=str(agent.id))
+
+        except Exception as e:
+            raise NonRetryableError(
+                message=f"Failed to resolve agent by name: {e!s}"
             ) from e
     return None

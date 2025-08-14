@@ -11,25 +11,23 @@ from restack_ai.agent import (
 )
 
 with import_functions():
-    from openai.types.responses.tool_param import Mcp
 
-    from src.functions.agent_mcp_servers_crud import (
-        AgentMcpServerGetByAgentInput,
-        agent_mcp_servers_read_by_agent,
+    from src.functions.agent_tools_crud import (
+        AgentToolsGetByAgentInput,
+        agent_tools_read_by_agent,
     )
     from src.functions.agents_crud import (
         AgentIdInput,
         agents_get_by_id,
     )
-    from src.functions.llm_response import (
+    from src.functions.llm_prepare_response import (
+        LlmPrepareResponseInput,
+        llm_prepare_response,
+    )
+    from src.functions.llm_response_stream import (
         LlmResponseInput,
         Message,
-        llm_response,
-    )
-    from src.functions.mcp_servers_crud import (
-        McpRequireApproval,
-        McpServerIdInput,
-        mcp_servers_get_by_id,
+        llm_response_stream,
     )
 
 
@@ -51,7 +49,7 @@ class AgentTaskInput(BaseModel):
     description: str
     status: str
     agent_id: str
-    assigned_to_id: str
+    assigned_to_id: str | None = None
 
 
 @agent.defn()
@@ -63,9 +61,15 @@ class AgentTask:
         self.messages = []  # Keep for backward compatibility
         self.pending_approval_requests = {}
         self.mcp_servers = []
+        self.tools = []  # unified tools per Responses API
         self.last_response_id = (
             None  # Track response ID for conversation continuity
         )
+        # Agent model configuration for GPT-5 features
+        self.agent_model = None
+        self.agent_reasoning_effort = None
+        self.agent_response_format = None
+
 
     def _add_conversation_item(
         self,
@@ -195,86 +199,65 @@ class AgentTask:
             # Also maintain the old messages array for any existing code that might need it
             self.messages.extend(messages_event.messages)
 
-            # Load MCP servers on first message if not already loaded
-            if not self.mcp_servers:
+            # Load agent configuration and tools on first message if not already loaded
+            if not self.tools:
                 log.info(
-                    "Loading MCP servers configuration on first message"
+                    "Loading agent configuration and tools on first message"
                 )
-                agent_mcp_servers_result = await agent.step(
-                    function=agent_mcp_servers_read_by_agent,
-                    function_input=AgentMcpServerGetByAgentInput(
+
+                # Fetch agent configuration for GPT-5 model settings
+                agent_result = await agent.step(
+                    function=agents_get_by_id,
+                    function_input=AgentIdInput(agent_id=self.agent_id),
+                    start_to_close_timeout=timedelta(seconds=30),
+                )
+
+                if agent_result.agent:
+                    agent_data = agent_result.agent
+                    self.agent_model = agent_data.model
+                    self.agent_reasoning_effort = agent_data.reasoning_effort
+                    self.agent_response_format = agent_data.response_format
+
+                    log.info(
+                        f"Loaded agent configuration - Model: {self.agent_model}, "
+                        f"Reasoning: {self.agent_reasoning_effort}"
+                    )
+                tools_result = await agent.step(
+                    function=agent_tools_read_by_agent,
+                    function_input=AgentToolsGetByAgentInput(
                         agent_id=self.agent_id
                     ),
                     start_to_close_timeout=timedelta(seconds=30),
                 )
-
-                mcp_servers = []
-
-                # Build MCP server configurations for each agent-MCP relationship
-                for (
-                    agent_mcp_server
-                ) in agent_mcp_servers_result.agent_mcp_servers:
-                    # Get the full MCP server details
-                    mcp_server_result = await agent.step(
-                        function=mcp_servers_get_by_id,
-                        function_input=McpServerIdInput(
-                            mcp_server_id=agent_mcp_server.mcp_server_id
-                        ),
-                        start_to_close_timeout=timedelta(
-                            seconds=30
-                        ),
-                    )
-
-                    mcp_server = mcp_server_result.mcp_server
-
-                    # Create MCP configuration with allowed tools filter
-                    # Convert require_approval to proper format using Pydantic model
-                    require_approval_data = (
-                        McpRequireApproval.model_validate(
-                            mcp_server.require_approval
-                        ).model_dump()
-                    )
-
-                    mcp_config = Mcp(
-                        type="mcp",
-                        server_label=mcp_server.server_label,
-                        server_url=mcp_server.server_url,
-                        server_description=mcp_server.server_description,
-                        headers=mcp_server.headers,
-                        require_approval=require_approval_data,
-                    )
-
-                    # Add allowed_tools filter if specified
-                    if agent_mcp_server.allowed_tools:
-                        mcp_config["allowed_tools"] = (
-                            agent_mcp_server.allowed_tools
-                        )
-
-                    mcp_servers.append(mcp_config)
-
-                self.mcp_servers = mcp_servers
+                self.tools = tools_result.tools or []
+                # For backward compatibility with any MCP-approval paths, also keep mcp_servers list
+                self.mcp_servers = [t for t in self.tools if t.get("type") == "mcp"]
                 log.info(
-                    f"Loaded {len(mcp_servers)} MCP servers for agent {self.agent_id}"
+                    f"Loaded {len(self.tools)} tools for agent {self.agent_id}"
                 )
 
             try:
-                # Use previous_response_id for conversation continuity
-                llm_input = LlmResponseInput(
-                    messages=self.messages,
-                    mcp_servers=self.mcp_servers,  # Always include MCP servers
+                # Step 1: prepare request for OpenAI (typed and fully normalized)
+                prepared: LlmResponseInput = await agent.step(
+                    function=llm_prepare_response,
+                    function_input=LlmPrepareResponseInput(
+                        messages=self.messages,
+                        tools=self.tools,
+                        model=self.agent_model,
+                        reasoning_effort=self.agent_reasoning_effort,
+                        previous_response_id=self.last_response_id,
+                    ),
+                    start_to_close_timeout=timedelta(seconds=60),
                 )
-                if self.last_response_id:
-                    llm_input.previous_response_id = (
-                        self.last_response_id
-                    )
 
+                # Step 2: execute with streaming so both steps are visible in logs
                 completion = await agent.step(
-                    function=llm_response,
-                    function_input=llm_input,
+                    function=llm_response_stream,
+                    function_input=prepared,
                     start_to_close_timeout=timedelta(seconds=120),
                 )
             except Exception as e:
-                error_message = f"Error during llm_response: {e}"
+                error_message = f"Error during llm_response_stream: {e}"
                 raise NonRetryableError(error_message) from e
             else:
                 log.info(f"completion: {completion}")
@@ -420,7 +403,7 @@ class AgentTask:
             response_id = approval_data["response_id"]
 
             # Send approval response using previous_response_id to continue the paused response
-            approval_input = LlmResponseInput(
+            approval_input = LlmPrepareResponseInput(
                 previous_response_id=response_id,
                 mcp_servers=self.mcp_servers,  # Include MCP servers for approval context
                 approval_response={
@@ -430,9 +413,16 @@ class AgentTask:
                 },
             )
 
-            completion = await agent.step(
-                function=llm_response,
+            # Prepare then execute the approval continuation as well
+            prepared: LlmResponseInput = await agent.step(
+                function=llm_prepare_response,
                 function_input=approval_input,
+                start_to_close_timeout=timedelta(seconds=60),
+            )
+
+            completion = await agent.step(
+                function=llm_response_stream,
+                function_input=prepared,
                 start_to_close_timeout=timedelta(seconds=120),
             )
 
@@ -552,12 +542,21 @@ class AgentTask:
         log.info(
             "AgentTask agents_get_by_id result", result=result
         )
-        self.messages.append(
-            Message(
-                role="developer",
-                content=result.agent.instructions,
+        # Safely add developer instructions if present (avoid None -> pydantic ValidationError)
+        try:
+            instructions = (
+                result.agent.instructions if getattr(result, "agent", None) else None
             )
-        )
+        except Exception:  # noqa: BLE001
+            instructions = None
+
+        if instructions and isinstance(instructions, str) and instructions.strip():
+            self.messages.append(
+                Message(
+                    role="developer",
+                    content=instructions,
+                )
+            )
 
         log.info("AgentTask agent_id", agent_id=self.agent_id)
         await agent.condition(lambda: self.end)

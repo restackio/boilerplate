@@ -14,6 +14,7 @@ import {
 import {
   TooltipProvider,
 } from "@workspace/ui/components/ui/tooltip";
+import { Skeleton } from "@workspace/ui/components/ui/skeleton";
 import { PageHeader } from "@workspace/ui/components/page-header";
 import AgentFlow from "@workspace/ui/components/agent-flow";
 import {
@@ -24,19 +25,24 @@ import {
   Settings,
   Workflow,
   History,
+  Wrench,
+  Webhook,
 } from "lucide-react";
 import { 
   AgentSetupTab, 
   AgentVersionsTab, 
-  DeleteAgentModal 
+  DeleteAgentModal,
+  AgentToolsManager,
+  WebhookTab
 } from "./components";
+import { getAgentTools, createAgentTool } from "@/app/actions/workflow";
 
 export default function AgentEditPage() {
   const params = useParams();
   const router = useRouter();
   const agentId = params.agentId as string;
   const { isReady, workspaceId } = useDatabaseWorkspace();
-  const { fetchAgents, updateAgent, createAgent, deleteAgent, agentsLoading, getAgentVersions } = useWorkspaceScopedActions();
+  const { fetchAgents, updateAgent, createAgent, deleteAgent, agentsLoading, getAgentVersions, getAgentById } = useWorkspaceScopedActions();
   void agentsLoading; // Suppress unused warning
 
   // State for the individual agent
@@ -50,6 +56,8 @@ export default function AgentEditPage() {
   // Loading states for buttons
   const [isSaving, setIsSaving] = useState(false);
   const [isTogglingStatus, setIsTogglingStatus] = useState(false);
+  // Track draft edits from AgentSetupTab to ensure Save uses latest UI state
+  const [draft, setDraft] = useState<{ name: string; version: string; description: string; instructions: string; model?: string; reasoning_effort?: string } | null>(null);
 
   // Tab navigation state - default to setup
   const [activeTab, setActiveTab] = useState("setup");
@@ -61,22 +69,16 @@ export default function AgentEditPage() {
       
       setIsLoading(true);
       try {
-        // Fetch all agents and find the specific one
-        const result = await fetchAgents();
+        // Fetch only the specific agent by ID - much faster!
+        const result = await getAgentById(agentId);
         if (result.success && result.data) {
-          const foundAgent = result.data.find((a: Agent) => a.id === agentId);
-          if (foundAgent) {
-            setAgent(foundAgent);
-                  } else {
-          console.error("Agent not found:", agentId);
-          setAgent(null);
-        }
+          setAgent(result.data);
         } else {
-          console.error("Failed to fetch agents:", result.error);
+          console.error("Failed to fetch agent:", result.error);
           setAgent(null);
         }
       } catch (error) {
-        console.error("Error fetching agents:", error);
+        console.error("Error fetching agent:", error);
         setAgent(null);
       } finally {
         setIsLoading(false);
@@ -84,20 +86,24 @@ export default function AgentEditPage() {
     };
 
     fetchAgent();
-  }, [agentId, fetchAgents, isReady]);
+  }, [agentId, getAgentById, isReady]);
 
-  const handleSave = async (agentData: { name: string; version: string; description: string; instructions: string }) => {
+  const handleSave = async (agentData: { name: string; version: string; description: string; instructions: string; model?: string; reasoning_effort?: string }) => {
     if (!agent) return;
 
     setIsSaving(true);
     try {
       // Create a new version of the agent
+      const latest = { ...(draft || {}), ...agentData };
       const newAgentData = {
         workspace_id: workspaceId,
-        name: agentData.name,
-        version: agentData.version,
-        description: agentData.description,
-        instructions: agentData.instructions,
+        name: latest.name,
+        version: latest.version,
+        description: latest.description,
+        instructions: latest.instructions,
+        // propagate model settings if present
+        model: latest.model,
+        reasoning_effort: latest.reasoning_effort,
         status: "inactive" as const, // New versions start as inactive
         parent_agent_id: agentId, // Link to the current agent as parent
       };
@@ -105,9 +111,42 @@ export default function AgentEditPage() {
       const result = await createAgent(newAgentData);
       if (result.success) {
         console.log("New agent version created successfully");
-        // Optionally redirect to the new agent or refresh the current one
-        // For now, we'll just show a success message
+        const newAgent: any = result.data;
+        // Clone tools from current agent to new version
+        try {
+          const toolsRes: any = await getAgentTools(agentId);
+          const tools: any[] = toolsRes?.agent_tools || [];
+          if (newAgent?.id && Array.isArray(tools) && tools.length > 0) {
+            await Promise.all(
+              tools.map((t: any) => {
+                const payload: any = {
+                  agent_id: newAgent.id,
+                  tool_type: t.tool_type,
+                };
+                if (t.tool_type === "mcp") {
+                  if (t.mcp_server_id) payload.mcp_server_id = t.mcp_server_id;
+                  if (t.allowed_tools?.length) payload.allowed_tools = t.allowed_tools;
+                }
+                if (t.tool_type === "custom") {
+                  if (t.config) payload.config = t.config;
+                }
+                if (typeof t.execution_order === "number") payload.execution_order = t.execution_order;
+                return createAgentTool(payload);
+              })
+            );
+            console.log(`Cloned ${tools.length} tools to new version ${newAgent.id}`);
+          }
+        } catch (e) {
+          console.error("Failed to clone tools to new version", e);
+        }
         alert("New version created successfully!");
+        // Navigate to the new agent so UI reflects its instructions and tools
+        if (newAgent?.id) {
+          router.push(`/agents/${newAgent.id}`);
+          return;
+        }
+        // Fallback: refresh agents list
+        await fetchAgents();
       } else {
         console.error("Failed to create new agent version:", result.error);
         alert("Failed to create new version: " + result.error);
@@ -185,6 +224,12 @@ export default function AgentEditPage() {
       enabled: true,
     },
     {
+      id: "webhooks",
+      label: "Webhooks",
+      icon: Webhook,
+      enabled: true,
+    },
+    {
       id: "flow",
       label: "Flow",
       icon: Workflow,
@@ -198,18 +243,106 @@ export default function AgentEditPage() {
     },
   ];
 
-  // Show loading state
+  // Show loading state with skeleton layout
   if (!isReady || isLoading) {
+    const skeletonBreadcrumbs = [
+      { label: "Agents", href: "/agents" },
+      { label: "Loading..." }, // Placeholder for agent name
+    ];
+
+    const skeletonActions = (
+      <>
+        <Skeleton className="h-8 w-8" />
+        <Skeleton className="h-8 w-24" />
+        <Skeleton className="h-8 w-16" />
+      </>
+    );
+
     return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-center">
-          <Bot className="h-12 w-12 mx-auto text-muted-foreground mb-4 animate-pulse" />
-          <h2 className="text-lg font-semibold mb-2">Loading agent...</h2>
-          <p className="text-muted-foreground">
-            Fetching agent details from the database.
-          </p>
+      <TooltipProvider>
+        <div className="flex-1">
+          {/* Use actual PageHeader with skeleton content */}
+          <PageHeader 
+            breadcrumbs={skeletonBreadcrumbs} 
+            actions={skeletonActions} 
+            fixed={true}
+          />
+
+          {/* Main Content - with top padding for fixed header */}
+          <div className="bg-primary-foreground p-4">
+            <div className="space-y-6">
+              {/* Tab Navigation Skeleton */}
+              <div className="bg-background rounded-lg border">
+                <div className="border-b bg-muted/30 rounded-t-lg px-4 py-2">
+                  <div className="flex gap-1">
+                    {tabsConfig.map((tab) => (
+                      <div key={tab.id} className="flex items-center gap-2 px-4 py-2">
+                        <Skeleton className="h-4 w-4" />
+                        <Skeleton className="h-4 w-12" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Tab Content Skeleton */}
+                <div className="p-6 space-y-6">
+                  {/* Agent Setup Form Skeleton */}
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <Skeleton className="h-4 w-16" />
+                        <Skeleton className="h-10 w-full" />
+                      </div>
+                      <div className="space-y-2">
+                        <Skeleton className="h-4 w-16" />
+                        <Skeleton className="h-10 w-full" />
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-20 w-full" />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-20" />
+                      <Skeleton className="h-32 w-full" />
+                    </div>
+
+                    {/* Model Settings Skeleton */}
+                    <div className="space-y-4 p-4 border rounded-lg">
+                      <Skeleton className="h-5 w-32" />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Skeleton className="h-4 w-16" />
+                          <Skeleton className="h-10 w-full" />
+                        </div>
+                        <div className="space-y-2">
+                          <Skeleton className="h-4 w-24" />
+                          <Skeleton className="h-10 w-full" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Tools Section Skeleton */}
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <Skeleton className="h-5 w-16" />
+                        <Skeleton className="h-8 w-20" />
+                      </div>
+                      <div className="space-y-2">
+                        <Skeleton className="h-16 w-full" />
+                        <Skeleton className="h-16 w-full" />
+                        <Skeleton className="h-16 w-full" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+      </TooltipProvider>
     );
   }
 
@@ -274,10 +407,12 @@ export default function AgentEditPage() {
       </Button>
       <Button 
         onClick={() => handleSave({
-          name: agent.name,
-          version: agent.version,
-          description: agent.description,
-          instructions: agent.instructions,
+          name: draft?.name ?? agent.name,
+          version: draft?.version ?? agent.version,
+          description: draft?.description ?? agent.description,
+          instructions: draft?.instructions ?? agent.instructions,
+          model: draft?.model,
+          reasoning_effort: draft?.reasoning_effort,
         })} 
         disabled={isSaving}
       >
@@ -309,7 +444,7 @@ export default function AgentEditPage() {
         />
 
         {/* Main Content - with top padding for fixed header */}
-        <div className="bg-primary-foreground pt-8 p-4">
+        <div className="bg-primary-foreground p-4">
           <div className="space-y-6">
             {/* Tab Navigation */}
             <div className="bg-background rounded-lg border">
@@ -346,6 +481,15 @@ export default function AgentEditPage() {
                     agent={agent}
                     onSave={handleSave}
                     isSaving={isSaving}
+                    workspaceId={workspaceId}
+                    onChange={(d) => setDraft(d)}
+                  />
+                </TabsContent>
+
+                {/* Webhooks Tab */}
+                <TabsContent value="webhooks" className="p-6">
+                  <WebhookTab
+                    agent={agent}
                     workspaceId={workspaceId}
                   />
                 </TabsContent>

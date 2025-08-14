@@ -1,0 +1,44 @@
+[project]
+name = "webhook"
+version = "0.0.1"
+description = "Dedicated webhook server for creating tasks from external events"
+authors = [{ name = "Restack Team", email = "service@restack.io" }]
+requires-python = ">=3.10,<3.14"
+readme = "README.md"
+dependencies = [
+    "pydantic[email]>=2.11.7",
+    "python-dotenv>=1.1.1",
+    "restack-ai>=0.0.108",
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+]
+
+[project.scripts]
+dev = "src.server:dev"
+start = "src.server:start"
+
+[tool.hatch.build.targets.sdist]
+include = ["src"]
+
+[tool.hatch.build.targets.wheel]
+include = ["src"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 66
+
+[tool.ruff.lint]
+extend-select = ["ALL"]
+ignore = ["ANN401", "E501", "D100", "D101", "D102", "D103", "D107", "TRY002", "D213", "D203", "COM812", "D104", "INP001"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+docstring-code-format = true
+docstring-code-line-length = 66
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
