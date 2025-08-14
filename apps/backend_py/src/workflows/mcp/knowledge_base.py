@@ -10,7 +10,17 @@ from restack_ai.workflow import (
     workflow,
 )
 
-from src.schemas.knowledge_base import KNOWLEDGE_BASE_SEARCH_SCHEMA
+from src.schemas.knowledge_base import (
+    KNOWLEDGE_BASE_SEARCH_SCHEMA,
+)
+
+
+# Helper functions for error handling
+def _raise_no_llm_response() -> None:
+    """Raise an error when LLM returns no response."""
+    error_message = "No text response from LLM"
+    raise NonRetryableError(error_message)
+
 
 with import_functions():
     from src.functions.llm_response import (
@@ -86,8 +96,8 @@ Return realistic search results that would help with L1 support assessment."""
             )
 
             if not response_text:
-                raise NonRetryableError("No text response from LLM")
-            
+                _raise_no_llm_response()
+
             search_results = json.loads(response_text)
 
             log.info("KnowledgeBaseWorkflow completed", results=search_results)

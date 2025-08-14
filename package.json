@@ -5,6 +5,7 @@
   "scripts": {
     "build": "turbo build",
     "dev": "turbo dev",
+    "start": "turbo start",
     "lint": "turbo lint",
     "lint:fix": "turbo lint --fix",
     "type-check": "tsc --noEmit",

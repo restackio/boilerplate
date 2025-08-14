@@ -51,13 +51,13 @@ export async function sendAgentEvent({
   agentId: string;
   eventName: string;
   eventInput?: Record<string, unknown>;
-}): Promise<{ success: boolean; error?: string }> {
+}): Promise<{ success: boolean; error?: string; updateId?: string; workflowId?: string; workflowRunId?: string }> {
   try {
     if (!agentId || !eventName) {
       throw new Error("Agent ID and event name are required");
     }
 
-    await client.sendAgentEvent({
+    const eventPayload = {
       event: {
         name: eventName,
         ...(eventInput && { input: eventInput }),
@@ -65,10 +65,20 @@ export async function sendAgentEvent({
       agent: {
         agentId: agentId,
       }
-    });
+    };
 
+    console.log("Sending agent event with payload:", JSON.stringify(eventPayload, null, 2));
+
+    const result = await client.sendAgentEvent(eventPayload);
+
+    console.log("sendAgentEvent result", result);
+
+    const typedResult = result as any;
     return {
       success: true,
+      updateId: typedResult?.updateId,
+      workflowId: typedResult?.workflowId,
+      workflowRunId: typedResult?.workflowRunId,
     };
   } catch (error) {
     console.error("Error sending agent event:", error);
@@ -119,7 +129,7 @@ export async function sendMcpApproval({
     agentId,
     eventName: "mcp_approval",
     eventInput: {
-      approvalId,
+      approval_id: approvalId,  // Convert camelCase to snake_case for backend
       approved,
     },
   });

@@ -197,7 +197,7 @@ async function executeWorkflow<T>(
       }
       
       // For delete responses (e.g., AgentsDeleteWorkflow returns { success: boolean })
-      if ('success' in result) {
+      if ('success' in result && typeof result.success === 'boolean') {
         return {
           success: result.success,
           data: result.success as T,
@@ -377,6 +377,40 @@ export function useWorkspaceScopedActions() {
     setAgentsLoading({ isLoading: false, error: null });
     return result;
   }, [currentWorkspaceId, isReady, fetchAgents]);
+
+  const getAgentById = useCallback(async (agentId: string) => {
+    console.log("🔄 [useWorkspaceScopedActions] getAgentById called with:", agentId);
+    const startTime = Date.now();
+    
+    if (!isReady || !currentWorkspaceId) {
+      console.error("❌ Cannot get agent: no valid workspace context");
+      return { success: false, error: "No valid workspace context" };
+    }
+
+    try {
+      console.log("🔄 [useWorkspaceScopedActions] Executing AgentsGetByIdWorkflow...");
+      const workflowStartTime = Date.now();
+      
+      const result = await executeWorkflow<Agent>("AgentsGetByIdWorkflow", {
+        agent_id: agentId,
+        workspace_id: currentWorkspaceId
+      });
+      
+      const workflowEndTime = Date.now();
+      console.log(`✅ [useWorkspaceScopedActions] AgentsGetByIdWorkflow completed in ${workflowEndTime - workflowStartTime}ms`);
+      console.log("✅ [useWorkspaceScopedActions] getAgentById result:", result);
+      
+      const totalTime = Date.now() - startTime;
+      console.log(`✅ [useWorkspaceScopedActions] getAgentById total time: ${totalTime}ms`);
+      
+      return result;
+    } catch (error) {
+      console.error("❌ [useWorkspaceScopedActions] Error in getAgentById:", error);
+      const totalTime = Date.now() - startTime;
+      console.log(`❌ [useWorkspaceScopedActions] getAgentById failed after ${totalTime}ms`);
+      return { success: false, error: "Failed to get agent" };
+    }
+  }, [currentWorkspaceId, isReady]);
 
   const getAgentVersions = useCallback(async (parentAgentId: string) => {
     if (!isReady || !currentWorkspaceId) {
@@ -824,6 +858,7 @@ export function useWorkspaceScopedActions() {
     createAgent,
     updateAgent,
     deleteAgent,
+    getAgentById,
     getAgentVersions,
     
     tasks,

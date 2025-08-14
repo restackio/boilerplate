@@ -14,6 +14,7 @@ import {
 import {
   TooltipProvider,
 } from "@workspace/ui/components/ui/tooltip";
+import { Skeleton } from "@workspace/ui/components/ui/skeleton";
 import { PageHeader } from "@workspace/ui/components/page-header";
 import AgentFlow from "@workspace/ui/components/agent-flow";
 import {
@@ -25,12 +26,14 @@ import {
   Workflow,
   History,
   Wrench,
+  Webhook,
 } from "lucide-react";
 import { 
   AgentSetupTab, 
   AgentVersionsTab, 
   DeleteAgentModal,
-  AgentToolsManager
+  AgentToolsManager,
+  WebhookTab
 } from "./components";
 import { getAgentTools, createAgentTool } from "@/app/actions/workflow";
 
@@ -39,7 +42,7 @@ export default function AgentEditPage() {
   const router = useRouter();
   const agentId = params.agentId as string;
   const { isReady, workspaceId } = useDatabaseWorkspace();
-  const { fetchAgents, updateAgent, createAgent, deleteAgent, agentsLoading, getAgentVersions } = useWorkspaceScopedActions();
+  const { fetchAgents, updateAgent, createAgent, deleteAgent, agentsLoading, getAgentVersions, getAgentById } = useWorkspaceScopedActions();
   void agentsLoading; // Suppress unused warning
 
   // State for the individual agent
@@ -66,22 +69,16 @@ export default function AgentEditPage() {
       
       setIsLoading(true);
       try {
-        // Fetch all agents and find the specific one
-        const result = await fetchAgents();
+        // Fetch only the specific agent by ID - much faster!
+        const result = await getAgentById(agentId);
         if (result.success && result.data) {
-          const foundAgent = result.data.find((a: Agent) => a.id === agentId);
-          if (foundAgent) {
-            setAgent(foundAgent);
-                  } else {
-          console.error("Agent not found:", agentId);
-          setAgent(null);
-        }
+          setAgent(result.data);
         } else {
-          console.error("Failed to fetch agents:", result.error);
+          console.error("Failed to fetch agent:", result.error);
           setAgent(null);
         }
       } catch (error) {
-        console.error("Error fetching agents:", error);
+        console.error("Error fetching agent:", error);
         setAgent(null);
       } finally {
         setIsLoading(false);
@@ -89,7 +86,7 @@ export default function AgentEditPage() {
     };
 
     fetchAgent();
-  }, [agentId, fetchAgents, isReady]);
+  }, [agentId, getAgentById, isReady]);
 
   const handleSave = async (agentData: { name: string; version: string; description: string; instructions: string; model?: string; reasoning_effort?: string }) => {
     if (!agent) return;
@@ -227,6 +224,12 @@ export default function AgentEditPage() {
       enabled: true,
     },
     {
+      id: "webhooks",
+      label: "Webhooks",
+      icon: Webhook,
+      enabled: true,
+    },
+    {
       id: "flow",
       label: "Flow",
       icon: Workflow,
@@ -240,18 +243,106 @@ export default function AgentEditPage() {
     },
   ];
 
-  // Show loading state
+  // Show loading state with skeleton layout
   if (!isReady || isLoading) {
+    const skeletonBreadcrumbs = [
+      { label: "Agents", href: "/agents" },
+      { label: "Loading..." }, // Placeholder for agent name
+    ];
+
+    const skeletonActions = (
+      <>
+        <Skeleton className="h-8 w-8" />
+        <Skeleton className="h-8 w-24" />
+        <Skeleton className="h-8 w-16" />
+      </>
+    );
+
     return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-center">
-          <Bot className="h-12 w-12 mx-auto text-muted-foreground mb-4 animate-pulse" />
-          <h2 className="text-lg font-semibold mb-2">Loading agent...</h2>
-          <p className="text-muted-foreground">
-            Fetching agent details from the database.
-          </p>
+      <TooltipProvider>
+        <div className="flex-1">
+          {/* Use actual PageHeader with skeleton content */}
+          <PageHeader 
+            breadcrumbs={skeletonBreadcrumbs} 
+            actions={skeletonActions} 
+            fixed={true}
+          />
+
+          {/* Main Content - with top padding for fixed header */}
+          <div className="bg-primary-foreground p-4">
+            <div className="space-y-6">
+              {/* Tab Navigation Skeleton */}
+              <div className="bg-background rounded-lg border">
+                <div className="border-b bg-muted/30 rounded-t-lg px-4 py-2">
+                  <div className="flex gap-1">
+                    {tabsConfig.map((tab) => (
+                      <div key={tab.id} className="flex items-center gap-2 px-4 py-2">
+                        <Skeleton className="h-4 w-4" />
+                        <Skeleton className="h-4 w-12" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Tab Content Skeleton */}
+                <div className="p-6 space-y-6">
+                  {/* Agent Setup Form Skeleton */}
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <Skeleton className="h-4 w-16" />
+                        <Skeleton className="h-10 w-full" />
+                      </div>
+                      <div className="space-y-2">
+                        <Skeleton className="h-4 w-16" />
+                        <Skeleton className="h-10 w-full" />
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-20 w-full" />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-20" />
+                      <Skeleton className="h-32 w-full" />
+                    </div>
+
+                    {/* Model Settings Skeleton */}
+                    <div className="space-y-4 p-4 border rounded-lg">
+                      <Skeleton className="h-5 w-32" />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Skeleton className="h-4 w-16" />
+                          <Skeleton className="h-10 w-full" />
+                        </div>
+                        <div className="space-y-2">
+                          <Skeleton className="h-4 w-24" />
+                          <Skeleton className="h-10 w-full" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Tools Section Skeleton */}
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <Skeleton className="h-5 w-16" />
+                        <Skeleton className="h-8 w-20" />
+                      </div>
+                      <div className="space-y-2">
+                        <Skeleton className="h-16 w-full" />
+                        <Skeleton className="h-16 w-full" />
+                        <Skeleton className="h-16 w-full" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+      </TooltipProvider>
     );
   }
 
@@ -353,7 +444,7 @@ export default function AgentEditPage() {
         />
 
         {/* Main Content - with top padding for fixed header */}
-        <div className="bg-primary-foreground pt-8 p-4">
+        <div className="bg-primary-foreground p-4">
           <div className="space-y-6">
             {/* Tab Navigation */}
             <div className="bg-background rounded-lg border">
@@ -393,9 +484,14 @@ export default function AgentEditPage() {
                     workspaceId={workspaceId}
                     onChange={(d) => setDraft(d)}
                   />
-                  
-                  {/* Tools Management */}
-                  <AgentToolsManager agentId={agentId} />
+                </TabsContent>
+
+                {/* Webhooks Tab */}
+                <TabsContent value="webhooks" className="p-6">
+                  <WebhookTab
+                    agent={agent}
+                    workspaceId={workspaceId}
+                  />
                 </TabsContent>
 
                 {/* Flow Tab */}

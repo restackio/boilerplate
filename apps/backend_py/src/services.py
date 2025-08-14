@@ -8,6 +8,7 @@ from watchfiles import run_process
 from src.agents.agent_task import AgentTask
 from src.client import client
 from src.database.connection import init_async_db
+
 from src.functions.agent_tools_crud import (
     agent_tools_create,
     agent_tools_delete,
@@ -22,6 +23,7 @@ from src.functions.agents_crud import (
     agents_get_by_status,
     agents_get_versions,
     agents_read,
+    agents_resolve_by_name,
     agents_update,
 )
 from src.functions.auth_crud import user_login, user_signup
@@ -76,6 +78,7 @@ from src.functions.workspaces_crud import (
     workspaces_read,
     workspaces_update,
 )
+
 from src.workflows.crud.agent_tools_crud import (
     AgentToolsCreateWorkflow,
     AgentToolsDeleteWorkflow,
@@ -141,18 +144,18 @@ from src.workflows.crud.workspaces_crud import (
     WorkspacesReadWorkflow,
     WorkspacesUpdateWorkflow,
 )
-from src.workflows.mcp.zendesk_ticket import ZendeskTicketWorkflow
 from src.workflows.mcp.datadog_logs import DatadogLogsWorkflow
-from src.workflows.mcp.linear_issue import LinearIssueWorkflow
 from src.workflows.mcp.github_pr import GitHubPRWorkflow
 from src.workflows.mcp.knowledge_base import KnowledgeBaseWorkflow
-from src.workflows.mcp.pagerduty_incident import PagerDutyIncidentWorkflow
+from src.workflows.mcp.linear_issue import LinearIssueWorkflow
+from src.workflows.mcp.pagerduty_incident import (
+    PagerDutyIncidentWorkflow,
+)
+from src.workflows.mcp.zendesk_ticket import ZendeskTicketWorkflow
 
-async def main() -> None:
-    # Initialize database
-    await init_async_db()
-    logging.info("Database initialized")
 
+async def run_restack_service() -> None:
+    """Run the Restack service."""
     await client.start_service(
         agents=[AgentTask],
         workflows=[
@@ -222,6 +225,7 @@ async def main() -> None:
             agents_get_by_id,
             agents_get_by_status,
             agents_get_versions,
+            agents_resolve_by_name,
             tasks_read,
             tasks_create,
             tasks_update,
@@ -268,24 +272,42 @@ async def main() -> None:
     )
 
 
-def run_services() -> None:
+async def main() -> None:
+    """Main function to run Restack services."""
+    # Initialize database
+    await init_async_db()
+    logging.info("Database initialized")
+
+    logging.info("Starting Restack services on default port (5233)")
+    await run_restack_service()
+
+
+def start() -> None:
+    """Start Restack services (production mode)."""
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+    
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        logging.info(
-            "Service interrupted by user. Exiting gracefully."
-        )
+        logging.info("Services interrupted by user. Exiting gracefully.")
 
 
-def watch_services() -> None:
-    watch_path = Path.cwd()
-    logging.info(
-        "Watching %s and its subdirectories for changes...",
-        watch_path,
+def dev_watch() -> None:
+    """Development mode with file watching and auto-restart."""
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
+    
+    watch_path = Path.cwd()
+    logging.info("Watching %s and its subdirectories for changes...", watch_path)
     webbrowser.open("http://localhost:5233")
-    run_process(watch_path, recursive=True, target=run_services)
+    run_process(watch_path, recursive=True, target=start)
 
 
 if __name__ == "__main__":
-    run_services()
+    # Simple direct execution
+    start()

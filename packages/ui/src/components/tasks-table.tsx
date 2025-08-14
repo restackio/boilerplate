@@ -194,7 +194,7 @@ export function TasksTable({
               <TableHead>Status</TableHead>
               <TableHead>Agent</TableHead>
               <TableHead>Team</TableHead>
-              <TableHead>Assigned To</TableHead>
+              <TableHead>Assigned to</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -203,8 +203,8 @@ export function TasksTable({
               <TableRow key={task.id} className="cursor-pointer hover:bg-muted/50" onClick={() => onViewTask?.(task.id)}>
                 <TableCell>
                   <div className="space-y-1">
-                    <div className="font-medium">{task.title}</div>
-                    <div className="text-sm text-muted-foreground">
+                    <div className="font-medium max-w-80 truncate">{task.title}</div>
+                    <div className="text-sm text-muted-foreground ">
                       {task.id}
                     </div>
                   </div>

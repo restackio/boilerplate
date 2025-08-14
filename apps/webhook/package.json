@@ -1,0 +1,18 @@
+{
+  "name": "@boilerplate/webhook",
+  "version": "0.0.1",
+  "description": "Dedicated webhook server for creating tasks from external events",
+  "private": true,
+  "scripts": {
+    "dev": "uv run dev",
+    "start": "uv run start",
+    "lint": "uv run ruff check src",
+    "lint:fix": "uv run ruff check --fix src",
+    "format": "uv run ruff format src",
+    "type-check": "uv run mypy src"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "mypy": "^1.0.0"
+  }
+}

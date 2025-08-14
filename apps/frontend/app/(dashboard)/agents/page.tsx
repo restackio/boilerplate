@@ -27,6 +27,7 @@ export default function TechnicalSupportAgentsPage() {
   }, [isReady, currentWorkspaceId, fetchAgents, fetchTeams]);
 
   const handleAgentClick = (agentId: string) => {
+    // Optimized navigation - uses Next.js router for instant navigation
     router.push(`/agents/${agentId}`);
   };
 
@@ -109,6 +110,7 @@ export default function TechnicalSupportAgentsPage() {
           <AgentsTable 
             data={agents} 
             onRowClick={handleAgentClick}
+            onViewAgent={handleAgentClick}
             teams={teamOptions}
             defaultFilters={initialFilters}
           />

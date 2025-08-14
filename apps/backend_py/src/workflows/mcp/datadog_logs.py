@@ -12,6 +12,14 @@ from restack_ai.workflow import (
 
 from src.schemas.datadog_logs import DATADOG_LOGS_SCHEMA
 
+
+# Helper functions for error handling
+def _raise_no_llm_response() -> None:
+    """Raise an error when LLM returns no response."""
+    error_message = "No text response from LLM"
+    raise NonRetryableError(error_message)
+
+
 with import_functions():
     from src.functions.llm_response import (
         LlmResponseInput,
@@ -92,8 +100,8 @@ Return relevant log entries that would help with L2 investigation."""
             )
 
             if not response_text:
-                raise NonRetryableError("No text response from LLM")
-            
+                _raise_no_llm_response()
+
             logs_data = json.loads(response_text)
 
             log.info("DatadogLogsWorkflow completed", logs=logs_data)

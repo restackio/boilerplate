@@ -62,7 +62,7 @@ export default function TaskDetailPage() {
         approved: true,
       });
 
-      console.log("returns", result);
+      console.log("sendMcpApproval returns", result);
 
       if (!result.success) {
         console.error("Failed to approve MCP request:", result.error);

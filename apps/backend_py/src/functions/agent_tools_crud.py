@@ -19,7 +19,7 @@ class AgentToolsOutput(BaseModel):
 class AgentToolCreateInput(BaseModel):
     agent_id: str = Field(..., min_length=1)
     tool_type: str = Field(
-        ..., pattern=r"^(web_search|computer|mcp|code_interpreter|image_generation)$"
+        ..., pattern=r"^(web_search_preview|mcp|code_interpreter|image_generation)$"
     )
     mcp_server_id: str | None = None
     config: dict | None = None
@@ -31,7 +31,7 @@ class AgentToolCreateInput(BaseModel):
 class AgentToolUpdateInput(BaseModel):
     agent_tool_id: str = Field(..., min_length=1)
     tool_type: str | None = Field(
-        None, pattern=r"^(web_search|computer|mcp|code_interpreter|image_generation)$"
+        None, pattern=r"^(web_search_preview|mcp|code_interpreter|image_generation)$"
     )
     mcp_server_id: str | None = None
     config: dict | None = None
