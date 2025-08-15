@@ -4,13 +4,15 @@ import { ConversationItem } from "../types";
 import { ChatInput } from "./chat-input";
 import { TaskCardMcp } from "./TaskCardMcp";
 import { TaskCardTool } from "./TaskCardTool";
+import { TaskCardWebSearch } from "./TaskCardWebSearch";
+import { TaskCardReasoning } from "./TaskCardReasoning";
 import { ConversationMessage } from "./conversation-message";
 import { StreamItems } from "./TaskStreamItems";
 
 interface TaskChatInterfaceProps {
   conversation: ConversationItem[];
   persistentItemIds: Set<string>;
-  agentResponses: ConversationItem[];
+  agentResponses: any[];
   chatMessage: string;
   onChatMessageChange: (message: string) => void;
   onSendMessage: () => void;
@@ -60,6 +62,10 @@ export function TaskChatInterface({
                     onApprove={(itemId) => onApproveRequest?.(itemId)} 
                     onDeny={(itemId) => onDenyRequest?.(itemId)} 
                   />
+                ) : item.type === "web-search" ? (
+                  <TaskCardWebSearch item={item} onClick={onCardClick} />
+                ) : item.type === "reasoning" ? (
+                  <TaskCardReasoning item={item} onClick={onCardClick} />
                 ) : (
                   <ConversationMessage item={item} />
                 )}
