@@ -13,7 +13,8 @@ services:
     volumes:
       - postgres_dev_data:/var/lib/postgresql/data
       - ./packages/database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
-      - ./packages/database/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql
+      - ./packages/database/workspace-seed.sql:/docker-entrypoint-initdb.d/02-workspace-seed.sql
+      - ./packages/database/agents-seed.sql:/docker-entrypoint-initdb.d/03-agents-seed.sql
     command: >
       postgres
       -c shared_buffers=256MB
