@@ -45,6 +45,7 @@ export interface Task {
   team_id?: string;
   team_name?: string;
   agent_task_id?: string; 
+  messages?: any[];
   created_at?: string;
   updated_at?: string;
 }
@@ -54,7 +55,7 @@ export interface Team {
   workspace_id: string;
   name: string;
   description?: string;
-  icon?: string; // Icon name from lucide-react
+  icon?: string;
   created_at?: string;
   updated_at?: string;
 }

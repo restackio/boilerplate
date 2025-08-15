@@ -17,41 +17,67 @@ interface ResponseStateItem {
 interface UseTaskStateProps {
   responseState?: ResponseStateItem[] | { data: ResponseStateItem[] } | ResponseStateItem; // Unified persistent state from agent
   taskAgentTaskId?: string | null;
+  persistedMessages?: any[];
 }
 
-export function useTaskState({ responseState, taskAgentTaskId }: UseTaskStateProps) {
+export function useTaskState({ responseState, taskAgentTaskId, persistedMessages }: UseTaskStateProps) {
   const [conversation, setConversation] = useState<ConversationItem[]>([]);
   const persistentItemIds = useRef(new Set<string>());
 
   useEffect(() => {
     if (taskAgentTaskId) {
-      console.log("💾 TASK STATE: Clearing for new task:", taskAgentTaskId);
       setConversation([]);
       persistentItemIds.current.clear();
     }
   }, [taskAgentTaskId]);
+
+  // Load persisted messages for completed tasks (when there's no active response state)
+  useEffect(() => {
+    if (persistedMessages && persistedMessages.length > 0 && !responseState) {
+      const persistedItems: ConversationItem[] = persistedMessages.map((item: any) => ({
+        id: item.id,
+        type: item.type as ConversationItem['type'],
+        content: item.content,
+        timestamp: item.timestamp || new Date().toISOString(),
+        toolName: item.toolName,
+        toolArguments: item.toolArguments,
+        toolOutput: item.toolOutput || item.result,
+        serverLabel: item.serverLabel,
+        status: item.status as ConversationItem['status'],
+        rawData: item
+      }));
+      
+      const sortedItems = persistedItems.sort((a, b) => 
+        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+      );
+      
+      setConversation(sortedItems);
+      
+      // Mark all as persistent items
+      const itemIds = new Set(persistedItems.map(item => item.id));
+      persistentItemIds.current = itemIds;
+      
+      return;
+    }
+  }, [persistedMessages, responseState]);
 
   useEffect(() => {
     if (!responseState || !taskAgentTaskId) {
       return;
     }
 
-    console.log("💾 TASK STATE: Processing persistent state:", responseState);
-    
+
     let conversationItems = null;
     if (Array.isArray(responseState)) {
       conversationItems = responseState;
-      console.log("💾 TASK STATE: Using conversation array directly:", conversationItems.length, "items");
     } else if (responseState?.data && Array.isArray(responseState.data)) {
       conversationItems = responseState.data;
-    } else if (responseState && responseState.id && responseState.type && responseState.content !== undefined) {
+    } else if (responseState && 'id' in responseState && 'type' in responseState && 'content' in responseState) {
       // Handle single conversation item
       conversationItems = [responseState];
-      console.log("💾 TASK STATE: Converting single response to array:", conversationItems);
     }
 
     if (!conversationItems || !Array.isArray(conversationItems)) {
-      console.log("💾 TASK STATE: No valid conversation items in persistent state");
       return;
     }
 
@@ -69,14 +95,14 @@ export function useTaskState({ responseState, taskAgentTaskId }: UseTaskStatePro
       
       const conversationItem: ConversationItem = {
         id: item.id,
-        type: item.type,
+        type: item.type as ConversationItem['type'],
         content: item.content,
         timestamp: item.timestamp || new Date().toISOString(),
         toolName: item.toolName,
         toolArguments: item.toolArguments,
-        toolOutput: item.toolOutput,
+        toolOutput: (item.toolOutput as string | object) || undefined,
         serverLabel: item.serverLabel,
-        status: item.status,
+        status: item.status as ConversationItem['status'],
         rawData: item
       };
       
@@ -88,14 +114,6 @@ export function useTaskState({ responseState, taskAgentTaskId }: UseTaskStatePro
     
     const sortedItems = persistentItems.sort((a, b) => 
       new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-    );
-    
-    console.log("💾 TASK STATE: Updated conversation:", 
-      sortedItems.map(item => ({
-        id: item.id,
-        type: item.type,
-        content: item.content.substring(0, 30) + "..."
-      }))
     );
 
     setConversation(sortedItems);
@@ -109,16 +127,11 @@ export function useTaskState({ responseState, taskAgentTaskId }: UseTaskStatePro
       timestamp: new Date().toISOString(),
     };
     
-    console.log("💾 TASK STATE: Adding user message:", userMessage);
-    
+
     setConversation(prev => {
       const updatedConversation = [...prev, userMessage];
       const sorted = updatedConversation.sort((a, b) => 
         new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-      );
-      
-      console.log("💾 TASK STATE: Updated conversation after user message:", 
-        sorted.map(item => ({ id: item.id, type: item.type, content: item.content.substring(0, 30) + "..." }))
       );
       
       return sorted;

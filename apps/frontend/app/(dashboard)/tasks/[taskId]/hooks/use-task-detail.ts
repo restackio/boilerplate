@@ -35,15 +35,7 @@ export function useTaskDetail() {
   const { conversation, persistentItemIds, addUserMessage, addThinkingMessage } = useTaskState({
     responseState: responseState,
     taskAgentTaskId: task?.agent_task_id,
-  });
-
-  // Debug logging
-  console.log("🔍 TASK DETAIL: Current state:", {
-    taskId,
-    agentTaskId: task?.agent_task_id,
-    responseState,
-    conversationLength: conversation?.length || 0,
-    conversation: conversation?.slice(0, 3) // Show first 3 items
+    persistedMessages: task?.messages,
   });
 
   useEffect(() => {
@@ -98,6 +90,10 @@ export function useTaskDetail() {
         assigned_to_id: task.assigned_to_id || "",
         ...updates,
       };
+      
+      if (updates.status === "completed" && conversation && conversation.length > 0) {
+        updateData.messages = conversation;
+      }
       
       const result = await updateTask(task.id, updateData);
       

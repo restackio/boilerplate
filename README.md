@@ -38,7 +38,12 @@ cp env.development.example .env
 # Update the values in .env with your actual API keys
 ```
 
-### 4. Start Development
+### 4. Seed Database
+```bash
+pnpm run db:seed
+```
+
+### 5. Start Development
 ```bash
 # Start all applications
 pnpm run dev

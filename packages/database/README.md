@@ -5,7 +5,8 @@ This package contains the database schema and seed data for the boilerplate agen
 ## Files
 
 - `schema.sql` - Database schema with all tables, indexes, and triggers
-- `seed.sql` - Seed data for development and testing
+- `workspace-seed.sql` - Basic workspace, teams, users, and MCP servers
+- `agents-seed.sql` - AI agents and completed tasks with realistic conversation history
 
 ## Database Schema
 
@@ -13,62 +14,125 @@ The platform includes a PostgreSQL database with the following tables:
 
 ### Core Tables
 - **workspaces** - Organization workspaces
+- **teams** - Teams within workspaces
 - **users** - Users within workspaces
+- **user_workspaces** - User-workspace relationships
 - **agents** - AI agents with configurations
-- **agent_runs** - Execution history of agents
-- **tasks** - Tasks assigned to agents
+- **agent_tools** - Tools and MCP servers available to agents
+- **mcp_servers** - MCP (Model Context Protocol) server configurations
+- **tasks** - Tasks assigned to agents with conversation history
 
-### Advanced Features
-- **feedbacks** - User feedback on agent responses
-- **rules** - Rules for agent behavior
-- **experiments** - A/B testing experiments
+## Quick Start
 
-## Usage
-
-### Development
-The database is automatically initialized when starting the infrastructure:
+### 🚀 Complete Setup (Recommended)
+Start the infrastructure and set up demo data in one command:
 
 ```bash
-# Start infrastructure (includes database initialization)
-pnpm run infra:start
-
-# Reset database with fresh schema and seed data
-pnpm run db:reset
-
-# Add seed data to existing database
-pnpm run db:seed
+# Start infrastructure with database and seed demo data
+pnpm infra:start && pnpm db:setup
 ```
 
-### Production
-For production deployments, you can use these SQL files to initialize your database:
+### 🔄 Database Management
+
+```bash
+# Reset database schema only
+pnpm db:reset
+
+# Seed workspace data (teams, users, MCP servers)
+pnpm db:seed:workspace
+
+# Seed agents and completed tasks
+pnpm db:seed:agents
+
+# Seed everything (workspace + agents)
+pnpm db:seed
+
+# Complete database reset and reseed
+pnpm db:setup
+```
+
+### 🔌 Database Connection
+
+```bash
+# Connect to database for manual queries
+pnpm db:connect
+```
+
+## Demo Environment
+
+### 👤 Demo Login
+- **Email**: `demo@example.com`
+- **Password**: `password`
+
+### 🏢 Demo Data Overview
+
+The seed creates a complete demo environment with:
+
+**1 Workspace**: Demo Company
+**5 Teams**: Customer Support, Sales, Marketing, Engineering, HR
+**1 User**: Demo User (assigned to all teams)
+**5 Agents**: One specialized agent per team
+**5 Completed Tasks**: Realistic conversation history showing tool usage
+
+### 🤖 Demo Agents by Team
+
+1. **Customer Support**: `zendesk-support-orchestrator`
+   - Tools: Zendesk, Knowledge Base, PagerDuty, Datadog, Linear, GitHub
+   - Demo: Login issue resolution with tool orchestration
+
+2. **Sales**: `sales-lead-manager`
+   - Tools: CRM integration
+   - Demo: Enterprise lead qualification and opportunity creation
+
+3. **Marketing**: `campaign-analytics-optimizer`
+   - Tools: PostHog analytics
+   - Demo: Q1 campaign performance analysis and optimization
+
+4. **Engineering**: `technical-research-assistant`
+   - Tools: Knowledge base, web search, documentation
+   - Demo: Microservices architecture research
+
+5. **HR**: `hr-operations-assistant`
+   - Tools: HR system integration
+   - Demo: Automated onboarding workflow design
+
+### 📋 Demo Tasks Features
+
+- **Realistic Conversations**: Each task shows complete agent-user interactions
+- **Tool Usage Examples**: See how agents call MCP tools and process results
+- **Approval Workflow**: Customer Support includes a tool approval declined example
+- **Rich Context**: Tasks demonstrate complex problem-solving across different domains
+
+### 🔧 Tool Integration Examples
+
+- **MCP Server Integration**: Zendesk, PostHog, Salesforce, BambooHR
+- **Built-in Tools**: Web search, file search, code interpreter
+- **Approval Workflows**: Configurable tool approval requirements
+- **Error Handling**: Examples of tool failures and graceful degradation
+
+## Production Deployment
+
+For production deployments, use the SQL files directly:
 
 ```sql
--- Initialize schema
+-- 1. Initialize schema
 \i schema.sql
 
--- Add seed data (optional)
-\i seed.sql
+-- 2. Add workspace data (required)
+\i workspace-seed.sql
+
+-- 3. Add agents and demo tasks (optional)
+\i agents-seed.sql
 ```
 
 ## Database Connection
-
-The database connection string format:
-```
-postgresql://username:password@host:port/database_name
-```
 
 Default development connection:
 ```
 postgresql://postgres:postgres@localhost:5432/boilerplate_db
 ```
 
-## Seed Data
-
-The seed data includes:
-- 1 demo workspace (Demo Company - Enterprise plan)
-- 1 demo user (Philippe - philippe@demo.com)
-- 5 demo agents (GitHub, Slack, Email, Alerts, Intercom support agents)
-- 5 demo tasks with various statuses and priorities
-- Sample agent runs, feedbacks, rules, and experiments
-
-This provides a complete demo environment for testing the agent orchestration platform. 
+For production, set `DATABASE_URL` environment variable:
+```
+DATABASE_URL=postgresql://username:password@host:port/database_name
+``` 
