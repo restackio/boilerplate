@@ -38,17 +38,20 @@ export function useAgentState({ taskId, agentTaskId, runId, onStateChange }: Use
   const [error, setError] = useState<string | null>(null);
   const [currentResponseState, setCurrentResponseState] = useState<any>(null);
 
+  // Only subscribe if we have both agentTaskId and runId (active agent)
+  const shouldSubscribe = Boolean(agentTaskId && runId);
+
   // Subscribe to response state for persistent response items with state replacement
   const responseState = subscribeAgentState({
     apiAddress: process.env.NEXT_PUBLIC_RESTACK_ENGINE_API_ADDRESS || "http://localhost:9233",
     apiToken: process.env.NEXT_PUBLIC_RESTACK_ENGINE_API_KEY,
-    agentId: agentTaskId || `task_agent_${taskId}`,
-    runId: runId || "",
+    agentId: shouldSubscribe ? (agentTaskId || `task_agent_${taskId}`) : "",
+    runId: shouldSubscribe ? (runId || "") : "",
     stateName: "state_response",
     options: {
       onMessage: (data: any) => {
-        // Only process messages if we have a valid agentTaskId
-        if (!agentTaskId) return;
+        // Only process messages if we should be subscribing
+        if (!shouldSubscribe) return;
         
         console.log("🔄 Raw subscription data received:", data);
         console.log("🔄 Data type:", typeof data, "is array:", Array.isArray(data));
@@ -78,11 +81,11 @@ export function useAgentState({ taskId, agentTaskId, runId, onStateChange }: Use
   const agentResponses = subscribeAgentResponses({
     apiAddress: process.env.NEXT_PUBLIC_RESTACK_ENGINE_API_ADDRESS || "http://localhost:9233",
     apiToken: process.env.NEXT_PUBLIC_RESTACK_ENGINE_API_KEY,
-    agentId: agentTaskId || `task_agent_${taskId}`, // Use task-based agent ID format from backend
+    agentId: shouldSubscribe ? (agentTaskId || `task_agent_${taskId}`) : "", // Use task-based agent ID format from backend
     options: {
       onMessage: (data: any) => {
-        // Only process messages if we have a valid agentTaskId
-        if (!agentTaskId) return;
+        // Only process messages if we should be subscribing
+        if (!shouldSubscribe) return;
         
         console.log("subscribeAgentResponses onMessage received:", data);
         console.log("Raw response data type:", typeof data);
@@ -91,8 +94,8 @@ export function useAgentState({ taskId, agentTaskId, runId, onStateChange }: Use
         console.log("Response data structure:", JSON.stringify(data, null, 2));
       },
       onError: (error: any) => {
-        // Only process errors if we have a valid agentTaskId
-        if (!agentTaskId) return;
+        // Only process errors if we should be subscribing
+        if (!shouldSubscribe) return;
         
         console.error("subscribeAgentResponses error:", error);
         setError(error.message || "Failed to subscribe to agent responses");
@@ -106,8 +109,8 @@ export function useAgentState({ taskId, agentTaskId, runId, onStateChange }: Use
 
   // Send message to agent using server action
   const sendMessageToAgent = useCallback(async (message: string) => {
-    if (!agentTaskId) {
-      throw new Error("No agent task ID available");
+    if (!shouldSubscribe) {
+      throw new Error("No active agent session available");
     }
 
     try {
@@ -122,7 +125,7 @@ export function useAgentState({ taskId, agentTaskId, runId, onStateChange }: Use
     } catch (err) {
       throw new Error(err instanceof Error ? err.message : "Failed to send message to agent");
     }
-  }, [agentTaskId, runId]);
+  }, [shouldSubscribe, agentTaskId]);
 
   // Start agent execution using server action
   const startAgentExecution = useCallback(async (taskDescription: string) => {

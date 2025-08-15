@@ -102,7 +102,7 @@ def create_webhook_app() -> FastAPI:
             )
 
             logging.info("Created task from webhook for agent %s in workspace %s", agent_name, workspace_id)
-            
+
             return {
                 "status": "success",
                 "message": f"Task created for agent {agent_name} in workspace {workspace_id}",

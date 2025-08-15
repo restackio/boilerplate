@@ -38,7 +38,22 @@ cp env.development.example .env
 # Update the values in .env with your actual API keys
 ```
 
-### 4. Start Development
+### 4. Start ngrok
+
+To have OpenAI be able to call local MCP servers, you need to use ngrok to expose your local server to the internet.
+
+```
+ngrok http 11233
+```
+
+replace the e5a93c19617c.ngrok-free.app with the ngrok url in the workspace-seed.sql
+
+### 5. Seed Database
+```bash
+pnpm run db:seed
+```
+
+### 5. Start Development
 ```bash
 # Start all applications
 pnpm run dev

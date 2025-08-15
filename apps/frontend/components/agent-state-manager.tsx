@@ -312,7 +312,7 @@ export function AgentStateManager({ taskId, agentTaskId, runId, taskDescription 
           <div className="space-y-4">
             {/* Debug section - Raw Data */}
             <details className="text-xs" open>
-              <summary className="cursor-pointer text-muted-foreground font-medium">🔍 Raw Data Debug</summary>
+              <summary className="cursor-pointer text-muted-foreground font-medium">Raw Data Debug</summary>
               <div className="mt-2 space-y-2">
                 <div>
                   <strong>State object:</strong>

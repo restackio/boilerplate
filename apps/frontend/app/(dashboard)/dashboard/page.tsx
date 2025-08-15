@@ -42,7 +42,7 @@ export default function DashboardPage() {
     fetchTasks();
   }, [fetchTasks]);
 
-  const tasksData: UITask[] = tasks.slice(0, 3).map(convertBackendTaskToUITask);
+  const tasksData: UITask[] = tasks.slice(0, 10).map(convertBackendTaskToUITask);
 
   const handleCreateTask = async (taskData: {
     title: string;

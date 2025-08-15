@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 from src.database.connection import get_async_db
 from src.database.models import Agent
 
+
 # Pydantic models for input validation
 class AgentMcpRelationshipInput(BaseModel):
     mcp_server_id: str = Field(..., min_length=1)
@@ -800,7 +801,7 @@ async def agents_resolve_by_name(
             agent = result.scalars().first()
 
             if not agent:
-                raise NonRetryableError(
+                raise NonRetryableError(  # noqa: TRY301
                     message=f"Agent '{function_input.agent_name}' not found or not active in workspace"
                 )
 

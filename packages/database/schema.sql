@@ -119,7 +119,8 @@ CREATE TABLE IF NOT EXISTS tasks (
     status VARCHAR(50) NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'active', 'waiting', 'closed', 'completed')),
     agent_id UUID NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
     assigned_to_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    agent_task_id VARCHAR(255), -- Restack agent task ID for state management
+    agent_task_id VARCHAR(255),
+    messages JSONB,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

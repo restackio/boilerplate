@@ -7,10 +7,16 @@
   "scripts": {
     "build": "echo 'Database package does not need build step'",
     "lint": "echo 'Database package does not need linting'",
-    "type-check": "echo 'Database package does not need type checking'"
+    "type-check": "echo 'Database package does not need type checking'",
+    "db:reset": "psql $DATABASE_URL -f schema.sql",
+    "db:seed:workspace": "psql $DATABASE_URL -f workspace-seed.sql",
+    "db:seed:agents": "psql $DATABASE_URL -f agents-seed.sql",
+    "db:seed": "pnpm db:seed:workspace && pnpm db:seed:agents",
+    "db:setup": "pnpm db:reset && pnpm db:seed"
   },
   "files": [
     "schema.sql",
-    "seed.sql"
+    "workspace-seed.sql",
+    "agents-seed.sql"
   ]
 } 

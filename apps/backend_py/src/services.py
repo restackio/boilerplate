@@ -8,7 +8,6 @@ from watchfiles import run_process
 from src.agents.agent_task import AgentTask
 from src.client import client
 from src.database.connection import init_async_db
-
 from src.functions.agent_tools_crud import (
     agent_tools_create,
     agent_tools_delete,
@@ -78,7 +77,6 @@ from src.functions.workspaces_crud import (
     workspaces_read,
     workspaces_update,
 )
-
 from src.workflows.crud.agent_tools_crud import (
     AgentToolsCreateWorkflow,
     AgentToolsDeleteWorkflow,
@@ -286,9 +284,9 @@ def start() -> None:
     """Start Restack services (production mode)."""
     logging.basicConfig(
         level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
-    
+
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
@@ -299,9 +297,9 @@ def dev_watch() -> None:
     """Development mode with file watching and auto-restart."""
     logging.basicConfig(
         level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
-    
+
     watch_path = Path.cwd()
     logging.info("Watching %s and its subdirectories for changes...", watch_path)
     webbrowser.open("http://localhost:5233")

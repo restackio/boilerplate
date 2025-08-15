@@ -293,6 +293,7 @@ class Task(Base):
     agent_task_id = Column(
         String(255), nullable=True
     )  # Restack agent task ID for state management
+    messages = Column(JSONB, nullable=True)  # Store conversation history for completed tasks
     created_at = Column(DateTime, default=lambda: datetime.now(tz=timezone.utc).replace(tzinfo=None))
     updated_at = Column(
         DateTime,

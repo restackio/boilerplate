@@ -19,8 +19,11 @@
     "infra:reset": "docker-compose -f docker-compose.dev.yml down -v && docker-compose -f docker-compose.dev.yml up -d",
     "infra:ps": "docker-compose -f docker-compose.dev.yml ps",
     "db:connect": "docker-compose -f docker-compose.dev.yml exec postgres psql -U postgres -d boilerplate_db",
-    "db:reset": "docker-compose -f docker-compose.dev.yml exec postgres psql -U postgres -d boilerplate_db -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;' && docker-compose -f docker-compose.dev.yml exec postgres psql -U postgres -d boilerplate_db -f /docker-entrypoint-initdb.d/01-schema.sql && docker-compose -f docker-compose.dev.yml exec postgres psql -U postgres -d boilerplate_db -f /docker-entrypoint-initdb.d/02-seed.sql",
-    "db:seed": "docker-compose -f docker-compose.dev.yml exec postgres psql -U postgres -d boilerplate_db -f /docker-entrypoint-initdb.d/02-seed.sql",
+    "db:reset": "docker-compose -f docker-compose.dev.yml exec postgres psql -U postgres -d boilerplate_db -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;' && docker-compose -f docker-compose.dev.yml exec postgres psql -U postgres -d boilerplate_db -f /docker-entrypoint-initdb.d/01-schema.sql",
+    "db:seed:workspace": "docker-compose -f docker-compose.dev.yml exec postgres psql -U postgres -d boilerplate_db -f /docker-entrypoint-initdb.d/02-workspace-seed.sql",
+    "db:seed:agents": "docker-compose -f docker-compose.dev.yml exec postgres psql -U postgres -d boilerplate_db -f /docker-entrypoint-initdb.d/03-agents-seed.sql",
+    "db:seed": "pnpm db:seed:workspace && pnpm db:seed:agents",
+    "db:setup": "pnpm db:reset && pnpm db:seed",
     "db:clean": "docker-compose -f docker-compose.dev.yml exec postgres psql -U postgres -d boilerplate_db -c 'TRUNCATE TABLE agent_runs, tasks, agents, users, workspaces RESTART IDENTITY CASCADE;'"
   },
   "devDependencies": {

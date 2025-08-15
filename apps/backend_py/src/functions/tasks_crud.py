@@ -35,6 +35,7 @@ class TaskUpdateInput(BaseModel):
     agent_id: str | None = Field(None, min_length=1)
     assigned_to_id: str | None = Field(None, min_length=1)
     agent_task_id: str | None = None
+    messages: list | None = None
 
 
 class TaskGetByIdInput(BaseModel):
@@ -74,6 +75,7 @@ class TaskOutput(BaseModel):
     assigned_to_id: str | None
     assigned_to_name: str | None
     agent_task_id: str | None
+    messages: list | None = None
     created_at: str | None
     updated_at: str | None
 
@@ -250,7 +252,7 @@ async def tasks_update(
                         key == "assigned_to_id" and value
                     ):
                         setattr(task, key, uuid.UUID(value))
-                    elif key == "agent_task_id" and value:
+                    elif (key == "agent_task_id" and value) or (key == "messages" and value is not None):
                         setattr(task, key, value)
                     else:
                         setattr(task, key, value)
@@ -283,6 +285,7 @@ async def tasks_update(
                 if task.assigned_to_user
                 else None,
                 agent_task_id=task.agent_task_id,
+                messages=task.messages,
                 created_at=task.created_at.isoformat()
                 if task.created_at
                 else None,
@@ -341,6 +344,7 @@ async def tasks_get_by_id(
                 .options(
                     selectinload(Task.agent),
                     selectinload(Task.assigned_to_user),
+                    selectinload(Task.team),
                 )
                 .where(Task.id == uuid.UUID(function_input.task_id))
             )
@@ -370,6 +374,7 @@ async def tasks_get_by_id(
                 if task.assigned_to_user
                 else None,
                 agent_task_id=task.agent_task_id,
+                messages=task.messages,
                 created_at=task.created_at.isoformat()
                 if task.created_at
                 else None,
@@ -458,6 +463,7 @@ async def tasks_update_agent_task_id(
                 .options(
                     selectinload(Task.agent),
                     selectinload(Task.assigned_to_user),
+                    selectinload(Task.team),
                 )
                 .where(Task.id == uuid.UUID(function_input.task_id))
             )
@@ -494,6 +500,7 @@ async def tasks_update_agent_task_id(
                 if task.assigned_to_user
                 else None,
                 agent_task_id=task.agent_task_id,
+                messages=task.messages,
                 created_at=task.created_at.isoformat()
                 if task.created_at
                 else None,
