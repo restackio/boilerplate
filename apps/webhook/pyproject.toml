@@ -8,7 +8,7 @@ readme = "README.md"
 dependencies = [
     "pydantic[email]>=2.11.7",
     "python-dotenv>=1.1.1",
-    "restack-ai>=0.0.108",
+    "restack-ai>=0.0.109",
     "fastapi>=0.104.0",
     "uvicorn[standard]>=0.24.0",
 ]
