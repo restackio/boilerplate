@@ -81,6 +81,8 @@ importers:
         specifier: ^5.7.3
         version: 5.8.3
 
+  apps/webhook: {}
+
   packages/database: {}
 
   packages/eslint-config:
