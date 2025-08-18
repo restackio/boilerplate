@@ -9,10 +9,9 @@
     "lint": "uv run ruff check src",
     "lint:fix": "uv run ruff check --fix src",
     "format": "uv run ruff format src",
-    "type-check": "uv run mypy src"
+    "type-check": "uv run mypy src",
+    "postinstall": "mkdir -p node_modules"
   },
   "dependencies": {},
-  "devDependencies": {
-    "mypy": "^1.0.0"
-  }
+  "devDependencies": {}
 }
