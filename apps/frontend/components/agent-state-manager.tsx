@@ -40,6 +40,9 @@ interface ParsedMessage {
   content: string;
   timestamp: string;
   type: string;
+  tool_calls?: unknown;
+  toolName?: string;
+  toolOutput?: string;
 }
 
 interface AgentResponse {

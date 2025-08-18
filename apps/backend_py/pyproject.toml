@@ -3,7 +3,7 @@ name = "backend-py"
 version = "0.0.1"
 description = "Python backend services for Restack AI application"
 authors = [{ name = "Restack Team", email = "service@restack.io" }]
-requires-python = ">=3.10,<3.14"
+requires-python = ">=3.12,<3.13"
 readme = "README.md"
 dependencies = [
     "pydantic[email]>=2.11.7",
