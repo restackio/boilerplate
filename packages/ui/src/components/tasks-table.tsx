@@ -205,7 +205,7 @@ export function TasksTable({
                   <div className="space-y-1">
                     <div className="font-medium max-w-80 truncate">{task.title}</div>
                     <div className="text-sm text-muted-foreground ">
-                      {task.id}
+                      {task.description}
                     </div>
                   </div>
                 </TableCell>
