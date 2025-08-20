@@ -237,6 +237,7 @@ async def agents_read(
                     Agent.workspace_id
                     == uuid.UUID(function_input.workspace_id)
                 )
+                .order_by(Agent.name.asc())
             )
 
             result = await db.execute(latest_agents_query)

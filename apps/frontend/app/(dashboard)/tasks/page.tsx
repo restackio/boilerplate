@@ -79,11 +79,23 @@ export default function TasksPage() {
     console.log(`✅ [TasksPage] handleTaskCreated completed in ${endTime - startTime}ms`);
   };
 
-  const tasksData = tasks.map((task) => ({
-    ...task,
-    created: task.created_at || new Date().toISOString(),
-    updated: task.updated_at || new Date().toISOString(),
-  }));
+  // Transform and filter tasks data
+  const tasksData = useMemo(() => {
+    const transformedTasks = tasks.map((task) => ({
+      ...task,
+      created: task.created_at || new Date().toISOString(),
+      updated: task.updated_at || new Date().toISOString(),
+    }));
+
+    // Filter by specific task IDs if provided in URL params
+    const tasksParam = searchParams.get('tasks');
+    if (tasksParam && searchParams.get('highlight') === 'true') {
+      const taskIds = tasksParam.split(',').filter(id => id.trim());
+      return transformedTasks.filter(task => taskIds.includes(task.id));
+    }
+
+    return transformedTasks;
+  }, [tasks, searchParams]);
 
   // Create team options for filtering
   const teamOptions = useMemo(() => {
@@ -106,18 +118,28 @@ export default function TasksPage() {
 
   // Get initial filters from URL parameters
   const initialFilters = useMemo(() => {
+    const filters = [];
+    
+    // Handle team filtering
     const teamParam = searchParams.get('team');
     if (teamParam) {
-      return [
-        {
-          columnId: 'team',
-          type: 'option' as const,
-          operator: 'is any of' as const,
-          values: [teamParam],
-        },
-      ];
+      filters.push({
+        columnId: 'team',
+        type: 'option' as const,
+        operator: 'is any of' as const,
+        values: [teamParam],
+      });
     }
-    return [];
+    
+    // Handle task IDs filtering for newly created tasks
+    // Since we can't filter by ID directly, we'll store the task IDs for client-side filtering
+    const tasksParam = searchParams.get('tasks');
+    if (tasksParam) {
+      // We'll handle this differently - by filtering the data directly in the component
+      // rather than using the table's filter system
+    }
+    
+    return filters;
   }, [searchParams]);
 
   const breadcrumbs = [{ label: "Tasks" }];
@@ -144,10 +166,38 @@ export default function TasksPage() {
     </div>
   );
 
+  // Check if we're showing newly created tasks
+  const tasksParam = searchParams.get('tasks');
+  const highlightParam = searchParams.get('highlight');
+  const createdParam = searchParams.get('created');
+  const isShowingNewTasks = tasksParam && highlightParam === 'true';
+
   return (
-    <div className="flex-1">
+    <div className="flex-1 min-w-0">
       <PageHeader breadcrumbs={breadcrumbs} actions={actions} />
-      <div className="p-4 space-y-4">
+      <div className="p-4 space-y-4 min-w-0 overflow-hidden">
+        {/* Show notification for newly created tasks */}
+        {isShowingNewTasks && (
+          <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-md">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-green-800 text-sm font-medium">
+                  Created {tasksParam.split(',').length} new tasks
+                </p>
+                <p className="text-green-700 text-xs mt-1">
+                  The tasks below are filtered to show only newly created tasks. Clear filters to see all tasks.
+                </p>
+              </div>
+              <button
+                onClick={() => router.push('/tasks')}
+                className="text-green-600 hover:text-green-800 text-xs underline"
+              >
+                Clear filter
+              </button>
+            </div>
+          </div>
+        )}
+
         {tasksLoading.error && (
           <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
             <p className="text-red-800 text-sm">Error: {tasksLoading.error}</p>

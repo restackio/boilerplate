@@ -45,6 +45,7 @@ import {
   TableRow,
 } from "./ui/table";
 import { EmptyState } from "./ui/empty-state";
+import Link from "next/link";
 
 export interface Agent {
   id: string;
@@ -162,36 +163,47 @@ export function AgentsTable({ data, onRowClick, onViewAgent, teams = [], default
           strategy={strategy}
         />
 
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Agent</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Team</TableHead>
-                <TableHead>Version</TableHead>
-                <TableHead>Updated At</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
+        <div className="w-full overflow-hidden">
+          <div className="rounded-md border overflow-x-auto max-w-full">
+            <Table className="w-full" style={{ tableLayout: 'fixed' }}>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-1/2">Agent</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="hidden sm:table-cell">Team</TableHead>
+                  <TableHead className="hidden md:table-cell">Version</TableHead>
+                  <TableHead className="hidden lg:table-cell">Updated At</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
             <TableBody>
               {filteredData.map((agent) => (
                 <TableRow
                   key={agent.id}
-                  className={
-                    onRowClick ? "cursor-pointer hover:bg-muted/50 transition-colors group" : ""
-                  }
-                  onClick={() => onRowClick?.(agent.id)}
+                  className="hover:bg-muted/50 transition-colors group"
                 >
                   <TableCell>
-                    <div className="space-y-1">
-                      <div className="font-medium flex items-center gap-2">
-                        {agent.name}
+                    <Link href={`/agents/${agent.id}`} className="block">
+                      <div className="space-y-1">
+                        <div className="font-medium flex items-center gap-2 hover:underline">
+                          {agent.name}
+                        </div>
+                        <div className="text-sm text-muted-foreground line-clamp-1 truncate">
+                          {agent.description}
+                        </div>
+                        {/* Show team and version info on mobile when columns are hidden */}
+                        <div className="sm:hidden flex flex-wrap gap-2 mt-2 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1 min-w-0">
+                            <Users className="h-3 w-3 flex-shrink-0" />
+                            <span className="truncate">{agent.team_name || "No Team"}</span>
+                          </span>
+                          <span className="flex items-center gap-1 min-w-0">
+                            <GitBranch className="h-3 w-3 flex-shrink-0" />
+                            <span className="truncate">{agent.latest_version || agent.version}</span>
+                          </span>
+                        </div>
                       </div>
-                      <div className="text-sm text-muted-foreground line-clamp-1 max-w-60 truncate">
-                        {agent.description}
-                      </div>
-                    </div>
+                    </Link>
                   </TableCell>
                   <TableCell>
                     <Badge
@@ -201,13 +213,13 @@ export function AgentsTable({ data, onRowClick, onViewAgent, teams = [], default
                       <span>{agent.status}</span>
                     </Badge>
                   </TableCell>
-                  <TableCell>
-                    <div className="flex items-center space-x-2">
-                      <Users className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm">{agent.team_name || "No Team"}</span>
+                  <TableCell className="hidden sm:table-cell">
+                    <div className="flex items-center space-x-2 min-w-0">
+                      <Users className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <span className="text-sm truncate">{agent.team_name || "No Team"}</span>
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden md:table-cell">
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <div className="space-y-1">
@@ -236,26 +248,28 @@ export function AgentsTable({ data, onRowClick, onViewAgent, teams = [], default
                       </TooltipContent>
                     </Tooltip>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden lg:table-cell">
                     {new Date(agent.updated_at || "").toLocaleDateString()}
                   </TableCell>
                   <TableCell>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onViewAgent?.(agent.id);
-                      }}
-                    >
-                      <Eye className="h-4 w-4 mr-2" />
-                      View
-                    </Button>
+                    <Link href={`/agents/${agent.id}`}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        asChild
+                      >
+                        <span>
+                          <Eye className="h-4 w-4 sm:mr-2" />
+                          <span className="hidden sm:inline">View</span>
+                        </span>
+                      </Button>
+                    </Link>
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
+          </div>
         </div>
       </div>
     </TooltipProvider>

@@ -112,35 +112,51 @@ export function MCPsTable({ data, onDeleteMCP }: MCPsTableProps) {
         strategy={strategy}
       />
 
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>MCP</TableHead>
-              <TableHead>Server URL</TableHead>
-              <TableHead>Tools</TableHead>
-              <TableHead>Updated at</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
+      <div className="w-full overflow-hidden">
+        <div className="rounded-md border overflow-x-auto max-w-full">
+          <Table className="w-full" style={{ tableLayout: 'fixed' }}>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-1/2">MCP</TableHead>
+                <TableHead className="hidden sm:table-cell">Server URL</TableHead>
+                <TableHead className="hidden md:table-cell">Tools</TableHead>
+                <TableHead className="hidden lg:table-cell">Updated at</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
           <TableBody>
             {filteredData.map((mcp) => {
               return (
                 <TableRow key={mcp.id}>
                   <TableCell>
-                    <div className="space-y-1">
-                      <div className="font-medium flex items-center gap-2">
-                      {mcp.name}
+                    <Link href="/agents/mcps" className="block">
+                      <div className="space-y-1">
+                        <div className="font-medium flex items-center gap-2 hover:underline">
+                        {mcp.name}
+                        </div>
+                        <div className="text-xs text-muted-foreground truncate">
+                         {mcp.description}
+                        </div>
+                        {/* Show server URL and tools info on mobile when columns are hidden */}
+                        <div className="sm:hidden flex flex-col gap-1 mt-2 text-xs text-muted-foreground">
+                          {mcp.server_url && (
+                            <div className="flex items-center gap-1 min-w-0">
+                              <Globe className="h-3 w-3 flex-shrink-0" />
+                              <span className="truncate">{mcp.server_url}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-1">
+                            <Wrench className="h-3 w-3 flex-shrink-0" />
+                            <span>{mcp.tools_count || 0} tools</span>
+                          </div>
+                        </div>
                       </div>
-                      <div className="text-xs text-muted-foreground max-w-60 truncate">
-                       {mcp.description}
-                      </div>
-                    </div>
+                    </Link>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden sm:table-cell">
                     {mcp.server_url ? (
                       <div className="flex items-center gap-1 text-sm">
-                        <Link href={mcp.server_url} target="_blank">
+                        <Link href={mcp.server_url} target="_blank" className="truncate block max-w-full hover:underline">
                           {mcp.server_url}
                         </Link>
                       </div>
@@ -148,30 +164,47 @@ export function MCPsTable({ data, onDeleteMCP }: MCPsTableProps) {
                       <span className="text-sm text-muted-foreground">—</span>
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden md:table-cell">
                     <div className="flex items-center gap-1">
                       <Wrench className="h-4 w-4 text-muted-foreground" />
                       <span className="text-sm">{mcp.tools_count || 0}</span>
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden lg:table-cell">
                     {new Date(mcp.lastUpdated || "").toLocaleDateString()}
                   </TableCell>
                   <TableCell>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => onDeleteMCP?.(mcp.id)}
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Delete
-                    </Button>
+                    <div className="flex gap-2">
+                      {mcp.server_url && (
+                        <Link href={mcp.server_url} target="_blank">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            asChild
+                          >
+                            <span>
+                              <ExternalLink className="h-4 w-4 sm:mr-2" />
+                              <span className="hidden sm:inline">Visit</span>
+                            </span>
+                          </Button>
+                        </Link>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onDeleteMCP?.(mcp.id)}
+                      >
+                        <Trash2 className="h-4 w-4 sm:mr-2" />
+                        <span className="hidden sm:inline">Delete</span>
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               );
             })}
           </TableBody>
         </Table>
+        </div>
       </div>
     </div>
   );

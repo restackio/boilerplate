@@ -23,7 +23,11 @@ export function TaskCardMcp({ item, onApprove, onDeny }: TaskCardMcpProps) {
     if (!onApprove) return;
     setIsProcessing(true);
     try {
-      await onApprove(item.id);
+      // For streaming items, use the original itemId from rawData
+      // For persistent items, use the item.id
+      const rawData = item.rawData as any;
+      const approvalId = rawData?.item?.id || rawData?.item_id || item.id;
+      await onApprove(approvalId);
     } finally {
       setIsProcessing(false);
     }
@@ -33,7 +37,11 @@ export function TaskCardMcp({ item, onApprove, onDeny }: TaskCardMcpProps) {
     if (!onDeny) return;
     setIsProcessing(true);
     try {
-      await onDeny(item.id);
+      // For streaming items, use the original itemId from rawData
+      // For persistent items, use the item.id
+      const rawData = item.rawData as any;
+      const approvalId = rawData?.item?.id || rawData?.item_id || item.id;
+      await onDeny(approvalId);
     } finally {
       setIsProcessing(false);
     }
@@ -56,7 +64,7 @@ export function TaskCardMcp({ item, onApprove, onDeny }: TaskCardMcpProps) {
           <div className="mt-2">
             <p className="text-xs text-muted-foreground mb-1">Arguments:</p>
             <pre className="text-xs bg-gray-100 dark:bg-gray-800 p-2 rounded border overflow-x-auto">
-              {JSON.stringify(JSON.parse(item.toolArguments), null, 2)}
+              {JSON.stringify(typeof item.toolArguments === 'string' ? JSON.parse(item.toolArguments) : item.toolArguments, null, 2)}
             </pre>
           </div>
         )}

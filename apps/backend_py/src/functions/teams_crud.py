@@ -69,7 +69,7 @@ async def teams_read(
         try:
             teams_query = select(Team).where(
                 Team.workspace_id == uuid.UUID(function_input.workspace_id)
-            )
+            ).order_by(Team.name.asc())
             result = await db.execute(teams_query)
             teams = result.scalars().all()
 

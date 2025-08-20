@@ -24,9 +24,9 @@ export function TaskCardTool({ item, onClick }: TaskCardToolProps) {
           <ChevronRight className="h-4 w-4 text-muted-foreground" />
         </div>
       </CardHeader>
-      <CardContent className="pt-0">
+      <CardContent>
         {item.type !== "tool-call" &&item.content && (
-          <div className="mt-2">
+          <div>
             <p className="text-xs text-muted-foreground mb-1">Output:</p>
             <pre className="text-xs bg-gray-100 dark:bg-gray-800 p-2 rounded border overflow-x-auto">
               {item.content}
@@ -34,7 +34,7 @@ export function TaskCardTool({ item, onClick }: TaskCardToolProps) {
           </div>
         )}
       </CardContent>
-      <CardFooter className="pt-3">
+      <CardFooter>
         <div className="flex items-center justify-between w-full">
           <span className="text-xs text-muted-foreground">
             {new Date(item.timestamp).toLocaleTimeString()}

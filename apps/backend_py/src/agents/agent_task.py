@@ -59,7 +59,6 @@ class AgentTask:
         self.agent_id = "None"
         self.conversation_items = []  # Unified storage for all conversation items (messages + response items)
         self.messages = []  # Keep for backward compatibility
-        self.pending_approval_requests = {}
         self.mcp_servers = []
         self.tools = []  # unified tools per Responses API
         self.last_response_id = (
@@ -279,29 +278,22 @@ class AgentTask:
                     for output_item in completion.final_response[
                         "output"
                     ]:
-                        # Store MCP approval requests for later processing
+                        # Handle MCP approval requests
                         if (
                             output_item.get("type")
                             == "mcp_approval_request"
                         ):
                             approval_id = output_item.get("id")
-                            if approval_id and response_id:
-                                self.pending_approval_requests[
-                                    approval_id
-                                ] = {
-                                    "response_id": response_id,
-                                    "approval_request": output_item,
-                                }
-                                log.info(
-                                    f"Stored MCP approval request: {approval_id} for response: {response_id}"
-                                )
+                            log.info(
+                                f"Found MCP approval request: {approval_id} for response: {response_id}"
+                            )
 
-                                # Add MCP approval request to unified conversation items
-                                self._add_conversation_item(
-                                    item_type="mcp-approval-request",
-                                    item_id=output_item.get("id"),
-                                    item_data=output_item,
-                                )
+                            # Add MCP approval request to unified conversation items
+                            self._add_conversation_item(
+                                item_type="mcp-approval-request",
+                                item_id=output_item.get("id"),
+                                item_data=output_item,
+                            )
 
                         # Add completed tool calls to unified conversation items
                         elif (
@@ -382,25 +374,34 @@ class AgentTask:
             f"Received MCP approval: {approval_event.approval_id} - {'approved' if approval_event.approved else 'denied'}"
         )
 
-        # Find the pending approval request
+        # Check if this approval has already been processed
         approval_id = approval_event.approval_id
-        if approval_id not in self.pending_approval_requests:
-            log.error(
-                f"No pending approval request found for ID: {approval_id}"
-            )
-            return {
-                "approval_id": approval_id,
-                "approved": approval_event.approved,
-                "processed": False,
-                "error": "No pending approval request found",
-            }
+        
+        # Look for this approval in conversation items to see if it's already been processed
+        for item in self.conversation_items:
+            if (
+                item.get("type") == "mcp-approval-request"
+                and item.get("id") == approval_id
+                and item.get("status") in ["completed", "failed"]
+            ):
+                log.warning(f"Approval {approval_id} already processed with status: {item.get('status')}")
+                return {
+                    "approval_id": approval_id,
+                    "approved": approval_event.approved,
+                    "processed": True,
+                    "message": "Already processed",
+                }
+        
+        # Use last_response_id to continue the conversation after approval
+        if not self.last_response_id:
+            error_msg = f"Approval {approval_id} received before response context is available"
+            log.warning(f"{error_msg} - will retry")
+            raise Exception(error_msg)
+        
+        response_id = self.last_response_id
+        log.info(f"Processing approval {approval_id} using last_response_id: {response_id}")
 
         try:
-            # Get the stored approval request data
-            approval_data = self.pending_approval_requests[
-                approval_id
-            ]
-            response_id = approval_data["response_id"]
 
             # Send approval response using previous_response_id to continue the paused response
             approval_input = LlmPrepareResponseInput(
@@ -505,9 +506,6 @@ class AgentTask:
                                 content=content,
                                 item_data=output_item,
                             )
-
-            # Remove the processed approval request
-            del self.pending_approval_requests[approval_id]
 
         except Exception as e:  # noqa: BLE001
             log.error(f"Error processing MCP approval: {e}")

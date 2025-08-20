@@ -115,6 +115,7 @@ async def tasks_read(
                     Task.workspace_id
                     == uuid.UUID(function_input.workspace_id)
                 )
+                .order_by(Task.updated_at.desc())
             )
             result = await db.execute(tasks_query)
             tasks = result.scalars().all()

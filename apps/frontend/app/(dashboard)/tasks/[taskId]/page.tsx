@@ -39,6 +39,7 @@ export default function TaskDetailPage() {
     handleSendMessage,
     handleCardClick,
     handleCloseSplitView,
+    updateConversationItemStatus,
   } = useTaskDetail();
 
   console.log("conversation", conversation);
@@ -50,6 +51,9 @@ export default function TaskDetailPage() {
     }
 
     try {
+      // Optimistically update the UI
+      updateConversationItemStatus(itemId, "completed");
+
       console.log("mcp approval sent");
       console.log({
         approvalId: itemId,
@@ -66,9 +70,13 @@ export default function TaskDetailPage() {
 
       if (!result.success) {
         console.error("Failed to approve MCP request:", result.error);
+        // Revert the optimistic update on failure
+        updateConversationItemStatus(itemId, "waiting-approval");
       }
     } catch (error) {
       console.error("Error approving MCP request:", error);
+      // Revert the optimistic update on error
+      updateConversationItemStatus(itemId, "waiting-approval");
     }
   };
 
@@ -79,6 +87,9 @@ export default function TaskDetailPage() {
     }
 
     try {
+      // Optimistically update the UI
+      updateConversationItemStatus(itemId, "failed");
+
       console.log("Denying MCP request:", itemId);
       const result = await sendMcpApproval({
         agentId: task.agent_task_id,
@@ -88,9 +99,13 @@ export default function TaskDetailPage() {
 
       if (!result.success) {
         console.error("Failed to deny MCP request:", result.error);
+        // Revert the optimistic update on failure
+        updateConversationItemStatus(itemId, "waiting-approval");
       }
     } catch (error) {
       console.error("Error denying MCP request:", error);
+      // Revert the optimistic update on error
+      updateConversationItemStatus(itemId, "waiting-approval");
     }
   };
 
