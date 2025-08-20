@@ -154,10 +154,28 @@ export function useTaskState({ responseState, taskAgentTaskId, persistedMessages
     });
   };
 
+  const updateConversationItemStatus = (itemId: string, status: ConversationItem['status']) => {
+    setConversation(prev => 
+      prev.map(item => {
+        // Check if this is the item to update by matching the ID or the original itemId in rawData
+        const rawData = item.rawData as any;
+        const isTargetItem = item.id === itemId || 
+                            rawData?.item?.id === itemId || 
+                            rawData?.item_id === itemId;
+        
+        if (isTargetItem) {
+          return { ...item, status };
+        }
+        return item;
+      })
+    );
+  };
+
   return {
     conversation,
     persistentItemIds: persistentItemIds.current,
     addUserMessage,
     addThinkingMessage,
+    updateConversationItemStatus,
   };
 }

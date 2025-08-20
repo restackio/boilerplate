@@ -10,7 +10,6 @@ import {
   Activity,
   DollarSign,
   Shield,
-  Flag,
   Bot,
   User,
   ClipboardList,
@@ -31,6 +30,7 @@ import {
   TableRow,
 } from "./ui/table";
 import { EmptyState } from "./ui/empty-state";
+import Link from "next/link";
 
 // Task data type
 export interface Task {
@@ -141,6 +141,7 @@ interface TasksTableProps {
   withFilters?: boolean;
   teams?: Array<{ label: string; value: string; icon: any }>;
   defaultFilters?: any[];
+  dashboard?: boolean;
 }
 
 export function TasksTable({
@@ -149,6 +150,7 @@ export function TasksTable({
   withFilters = true,
   teams = [],
   defaultFilters = [],
+  dashboard = false,
 }: TasksTableProps) {
   // Create data table filters instance
   const { columns, filters, actions, strategy, filteredData } =
@@ -176,7 +178,7 @@ export function TasksTable({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 w-full">
       {withFilters && (
         <DataTableFilter
           filters={filters}
@@ -186,71 +188,98 @@ export function TasksTable({
         />
       )}
 
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Task</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Agent</TableHead>
-              <TableHead>Team</TableHead>
-              <TableHead>Assigned to</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
+      <div className="w-full overflow-hidden">
+        <div className="rounded-md border overflow-x-auto max-w-full">
+          <Table className="w-full" style={{ tableLayout: 'fixed' }}>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-2/5">Task</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="hidden sm:table-cell" >Agent</TableHead>
+                <TableHead className="hidden md:table-cell" >Team</TableHead>
+                {!dashboard && <TableHead className="hidden lg:table-cell" >Assigned to</TableHead>}
+                <TableHead className="hidden lg:table-cell" >Updated</TableHead>
+                {!dashboard && <TableHead >Actions</TableHead>}
+              </TableRow>
+            </TableHeader>
           <TableBody>
             {filteredData.map((task) => (
-              <TableRow key={task.id} className="cursor-pointer hover:bg-muted/50" onClick={() => onViewTask?.(task.id)}>
-                <TableCell>
-                  <div className="space-y-1">
-                    <div className="font-medium max-w-80 truncate">{task.title}</div>
-                    <div className="text-sm text-muted-foreground ">
-                      {task.description}
+              <TableRow key={task.id} className="hover:bg-muted/50">
+                <TableCell className="p-3">
+                  <Link href={`/tasks/${task.id}`} className="block">
+                    <div className="space-y-1">
+                      <div className="font-medium truncate hover:underline">{task.title}</div>
+                      <div className="text-sm text-muted-foreground truncate">
+                        {task.description}
+                      </div>
+                      {/* Show agent and team info on mobile when columns are hidden */}
+                      <div className="sm:hidden flex flex-wrap gap-2 mt-2 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1 truncate">
+                          <Bot className="h-3 w-3 flex-shrink-0" />
+                          <span className="truncate">{task.agent_name}</span>
+                        </span>
+                        {task.team_name && (
+                          <span className="flex items-center gap-1 truncate">
+                            <Users className="h-3 w-3 flex-shrink-0" />
+                            <span className="truncate">{task.team_name}</span>
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  </Link>
                 </TableCell>
-                <TableCell>
+                <TableCell className="p-3">
                   <Badge
-                    className={`${getStatusColor(task.status)} border-0 w-fit`}
+                    className={`${getStatusColor(task.status)} border-0 w-fit text-xs`}
                   >
                     {task.status}
                   </Badge>
                 </TableCell>
-                <TableCell>
+                <TableCell className="hidden sm:table-cell p-3">
                   <div className="flex items-center space-x-2">
-                    <Bot className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">{task.agent_name}</span>
+                    <Bot className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    <span className="text-sm truncate">{task.agent_name}</span>
                   </div>
                 </TableCell>
-                <TableCell>
+                <TableCell className="hidden md:table-cell p-3">
                   <div className="flex items-center space-x-2">
-                    <Users className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">{task.team_name || "No Team"}</span>
+                    <Users className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    <span className="text-sm truncate">{task.team_name || "No Team"}</span>
                   </div>
                 </TableCell>
-                <TableCell>
+                {!dashboard && <TableCell className="hidden lg:table-cell p-3">
                   <div className="flex items-center space-x-2">
-                    <User className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">{task.assigned_to_name}</span>
+                    <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    <span className="text-sm truncate">{task.assigned_to_name}</span>
                   </div>
+                </TableCell>}
+                <TableCell className="hidden lg:table-cell p-3">
+                  {new Date(task.updated).toLocaleDateString(undefined, {
+                    month: 'short',
+                    day: 'numeric',
+                    hour: 'numeric',
+                    minute: 'numeric',
+                  })}
                 </TableCell>
-                <TableCell>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onViewTask?.(task.id);
-                    }}
-                  >
-                    <Eye className="h-4 w-4 mr-2" />
-                    View
-                  </Button>
-                </TableCell>
+                {!dashboard && <TableCell className="p-3">
+                  <Link href={`/tasks/${task.id}`}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      asChild
+                    >
+                      <span>
+                        <Eye className="h-4 w-4 sm:mr-2" />
+                        <span className="inline">View</span>
+                      </span>
+                    </Button>
+                  </Link>
+                </TableCell>}
               </TableRow>
             ))}
           </TableBody>
         </Table>
+        </div>
       </div>
     </div>
   );

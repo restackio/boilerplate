@@ -32,7 +32,7 @@ export function useTaskDetail() {
     },
   });
 
-  const { conversation, persistentItemIds, addUserMessage, addThinkingMessage } = useTaskState({
+  const { conversation, persistentItemIds, addUserMessage, addThinkingMessage, updateConversationItemStatus } = useTaskState({
     responseState: responseState,
     taskAgentTaskId: task?.agent_task_id,
     persistedMessages: task?.messages,
@@ -197,5 +197,6 @@ export function useTaskDetail() {
     handleSendMessage,
     handleCardClick,
     handleCloseSplitView,
+    updateConversationItemStatus,
   };
 } 

@@ -27,13 +27,15 @@ import {
   History,
   Wrench,
   Webhook,
+  TestTube,
 } from "lucide-react";
 import { 
   AgentSetupTab, 
   AgentVersionsTab, 
   DeleteAgentModal,
   AgentToolsManager,
-  WebhookTab
+  WebhookTab,
+  TestAgentModal
 } from "./components";
 import { getAgentTools, createAgentTool } from "@/app/actions/workflow";
 
@@ -52,6 +54,9 @@ export default function AgentEditPage() {
   // Delete confirmation modal state
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Test modal state
+  const [showTestModal, setShowTestModal] = useState(false);
 
   // Loading states for buttons
   const [isSaving, setIsSaving] = useState(false);
@@ -406,6 +411,14 @@ export default function AgentEditPage() {
         )}
       </Button>
       <Button 
+        variant="outline" 
+        size="sm"
+        onClick={() => setShowTestModal(true)}
+      >
+        <TestTube className="h-4 w-4 mr-2" />
+        Test
+      </Button>
+      <Button 
         onClick={() => handleSave({
           name: draft?.name ?? agent.name,
           version: draft?.version ?? agent.version,
@@ -441,6 +454,13 @@ export default function AgentEditPage() {
           onConfirm={handleDeleteAgent}
           agent={agent}
           isDeleting={isDeleting}
+        />
+
+        {/* Test Agent Modal */}
+        <TestAgentModal
+          isOpen={showTestModal}
+          onClose={() => setShowTestModal(false)}
+          agent={agent}
         />
 
         {/* Main Content - with top padding for fixed header */}

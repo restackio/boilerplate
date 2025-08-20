@@ -3,33 +3,24 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { TasksTable, type Task as UITask } from "@workspace/ui/components/tasks-table";
-import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
+import { useWorkspaceScopedActions, type Task as HookTask } from "@/hooks/use-workspace-scoped-actions";
 import { CreateTaskForm } from "@/components/create-task-form";
 import { Loader2 } from "lucide-react";
 
-interface BackendTask {
-  id: string;
-  title: string;
-  description: string;
-  status: string;
-  created_at: string;
-  updated_at: string;
-  workspace_id: string;
-  user_id: string;
-}
-
-function convertBackendTaskToUITask(backendTask: BackendTask): UITask {
+function convertHookTaskToUITask(hookTask: HookTask): UITask {
   return {
-    id: backendTask.id,
-    title: backendTask.title,
-    description: backendTask.description,
-    status: backendTask.status as "open" | "active" | "waiting" | "closed" | "completed",
-    agent_id: backendTask.agent_id,
-    agent_name: backendTask.agent_name,
-    assigned_to_id: backendTask.assigned_to_id,
-    assigned_to_name: backendTask.assigned_to_name,
-    created: backendTask.created_at || new Date().toISOString(),
-    updated: backendTask.updated_at || new Date().toISOString(),
+    id: hookTask.id,
+    title: hookTask.title,
+    description: hookTask.description,
+    status: hookTask.status,
+    agent_id: hookTask.agent_id,
+    agent_name: hookTask.agent_name,
+    assigned_to_id: hookTask.assigned_to_id,
+    assigned_to_name: hookTask.assigned_to_name,
+    team_id: hookTask.team_id,
+    team_name: hookTask.team_name,
+    created: hookTask.created_at || new Date().toISOString(),
+    updated: hookTask.updated_at || new Date().toISOString(),
   };
 }
 
@@ -42,7 +33,7 @@ export default function DashboardPage() {
     fetchTasks();
   }, [fetchTasks]);
 
-  const tasksData: UITask[] = tasks.slice(0, 10).map(convertBackendTaskToUITask);
+  const tasksData: UITask[] = tasks.slice(0, 10).map(convertHookTaskToUITask);
 
   const handleCreateTask = async (taskData: {
     title: string;
@@ -67,10 +58,11 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="space-y-10 max-w-screen-lg mx-auto p-4 pt-20">
-      <div className="flex justify-center items-center ">
-        <h1 className="text-3xl font-semibold">What are we doing next?</h1>
-      </div>
+    <div className="min-h-screen w-full max-w-screen-lg mx-auto overflow-x-hidden">
+      <div className="space-y-6 md:space-y-10 max-w-full mx-auto p-4 md:p-6 pt-8 md:pt-20">
+        <div className="flex justify-center items-center text-center">
+          <h1 className="text-2xl md:text-3xl font-semibold px-4">What are we doing next?</h1>
+        </div>
 
       <CreateTaskForm 
         onSubmit={handleCreateTask}
@@ -103,9 +95,11 @@ export default function DashboardPage() {
             data={tasksData} 
             onViewTask={handleViewTask}
             withFilters={false}
+            dashboard={true}
           />
         </div>
       )}
+      </div>
     </div>
   );
 }

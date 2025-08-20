@@ -96,7 +96,7 @@ async def mcp_servers_read(
             mcp_servers_query = select(McpServer).where(
                 McpServer.workspace_id
                 == uuid.UUID(function_input.workspace_id)
-            )
+            ).order_by(McpServer.server_label.asc())
             result = await db.execute(mcp_servers_query)
             mcp_servers = result.scalars().all()
 

@@ -4,9 +4,13 @@ import { useState, useEffect } from "react";
 import { Button } from "@workspace/ui/components/ui/button";
 import { Textarea } from "@workspace/ui/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@workspace/ui/components/ui/select";
-import { ArrowUp } from "lucide-react";
+import { Checkbox } from "@workspace/ui/components/ui/checkbox";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "@workspace/ui/components/ui/dropdown-menu";
+import { ArrowUp, ChevronDown, Settings } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
 import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
+import { Agent } from "@/hooks/use-workspace-scoped-actions";
 
 interface CreateTaskFormProps {
   onSubmit: (taskData: {
@@ -29,13 +33,76 @@ export function CreateTaskForm({
 }: CreateTaskFormProps) {
   const [taskDescription, setTaskDescription] = useState("");
   const [selectedAgentId, setSelectedAgentId] = useState("");
-  const { agents, fetchAgents } = useWorkspaceScopedActions();
+  const [selectedVersionIds, setSelectedVersionIds] = useState<string[]>([]);
+  const [allAgentVersions, setAllAgentVersions] = useState<Agent[]>([]);
+  const [showVersionSelector, setShowVersionSelector] = useState(false);
+  const { agents, fetchAgents, getAgentVersions } = useWorkspaceScopedActions();
   const { currentUser } = useDatabaseWorkspace();
+  const router = useRouter();
 
   // Fetch agents on component mount
   useEffect(() => {
     fetchAgents();
   }, [fetchAgents]);
+
+  // Fetch all versions when an agent is selected
+  useEffect(() => {
+    const fetchAllVersions = async () => {
+      if (!selectedAgentId) {
+        setAllAgentVersions([]);
+        setSelectedVersionIds([]);
+        setShowVersionSelector(false);
+        return;
+      }
+
+      try {
+        // Find the selected agent
+        const selectedAgent = agents.find(agent => agent.id === selectedAgentId);
+        if (!selectedAgent) return;
+
+        // Get the parent_agent_id (or use current id if it's a parent)
+        const parentId = selectedAgent.parent_agent_id || selectedAgent.id;
+        
+        // Fetch all versions for this agent group
+        const result = await getAgentVersions(parentId);
+        if (result.success && result.data) {
+          // Sort versions by created_at descending (latest first)
+          const sortedVersions = result.data.sort((a, b) => {
+            const dateA = new Date(a.created_at || '1970-01-01').getTime();
+            const dateB = new Date(b.created_at || '1970-01-01').getTime();
+            return dateB - dateA;
+          });
+          setAllAgentVersions(sortedVersions);
+          // Auto-select the originally selected agent
+          setSelectedVersionIds([selectedAgentId]);
+          setShowVersionSelector(true);
+        }
+      } catch (error) {
+        console.error("Failed to fetch agent versions:", error);
+        setAllAgentVersions([]);
+        setSelectedVersionIds([]);
+        setShowVersionSelector(false);
+      }
+    };
+
+    fetchAllVersions();
+  }, [selectedAgentId, agents, getAgentVersions]);
+
+  const handleVersionToggle = (versionId: string) => {
+    setSelectedVersionIds(prev => 
+      prev.includes(versionId)
+        ? prev.filter(id => id !== versionId)
+        : [...prev, versionId]
+    );
+  };
+
+  const handleSelectAllVersions = () => {
+    setSelectedVersionIds(allAgentVersions.map(v => v.id));
+  };
+
+  const handleClearAllVersions = () => {
+    setSelectedVersionIds([]);
+  };
 
   const handleSubmit = async () => {
     if (!taskDescription.trim()) return;
@@ -44,43 +111,107 @@ export function CreateTaskForm({
       return;
     }
 
-    console.log("🔄 [CreateTaskForm] Starting task creation...");
+    // Determine which agent IDs to use
+    const agentIdsToUse = showVersionSelector && selectedVersionIds.length > 0 
+      ? selectedVersionIds 
+      : [selectedAgentId];
+
+    if (agentIdsToUse.length === 0) {
+      alert("Please select at least one agent version");
+      return;
+    }
+
+    console.log(`🔄 [CreateTaskForm] Starting task creation for ${agentIdsToUse.length} agent(s)...`);
     const startTime = Date.now();
 
     try {
-      const taskData = {
+      const baseTaskData = {
         title: taskDescription.substring(0, 50) + (taskDescription.length > 50 ? "..." : ""),
         description: taskDescription,
         status: "open" as const,
-        agent_id: selectedAgentId,
-        assigned_to_id: currentUser?.id || "", // Use current user's ID
+        assigned_to_id: currentUser?.id || "",
       };
+
+      const results = [];
+      const createdTaskIds: string[] = [];
       
-      console.log("🔄 [CreateTaskForm] Calling onSubmit with task data:", taskData);
-      const onSubmitStartTime = Date.now();
-      
-      const result = await onSubmit(taskData);
-      
-      const onSubmitEndTime = Date.now();
-      console.log(`✅ [CreateTaskForm] onSubmit completed in ${onSubmitEndTime - onSubmitStartTime}ms`);
-      console.log("✅ [CreateTaskForm] onSubmit result:", result);
-      
-      if (result.success && result.data) {
-        console.log("🔄 [CreateTaskForm] Task created successfully, calling onTaskCreated...");
-        const onTaskCreatedStartTime = Date.now();
+      // Create tasks for each selected agent version
+      for (let i = 0; i < agentIdsToUse.length; i++) {
+        const agentId = agentIdsToUse[i];
+        const agent = allAgentVersions.find(a => a.id === agentId) || agents.find(a => a.id === agentId);
         
+        const taskData = {
+          ...baseTaskData,
+          agent_id: agentId,
+          // Add version info to title if multiple versions are selected
+          title: agentIdsToUse.length > 1 
+            ? `${baseTaskData.title} (${agent?.name || 'Unknown'} ${agent?.version || 'v1.0'})`
+            : baseTaskData.title,
+        };
+        
+        console.log(`🔄 [CreateTaskForm] Creating task ${i + 1}/${agentIdsToUse.length} for agent ${agent?.name} ${agent?.version}:`, taskData);
+        const onSubmitStartTime = Date.now();
+        
+        const result = await onSubmit(taskData);
+        
+        const onSubmitEndTime = Date.now();
+        console.log(`✅ [CreateTaskForm] Task ${i + 1} completed in ${onSubmitEndTime - onSubmitStartTime}ms`);
+        
+        results.push(result);
+        
+        if (result.success && result.data) {
+          createdTaskIds.push(result.data.id);
+          // Only call onTaskCreated for single task creation
+          if (agentIdsToUse.length === 1) {
+            onTaskCreated?.(result.data);
+          }
+        }
+      }
+      
+      // Clear form if all tasks were created successfully
+      const allSuccessful = results.every(r => r.success);
+      if (allSuccessful) {
         setTaskDescription("");
         setSelectedAgentId("");
-        onTaskCreated?.(result.data);
-        
-        const onTaskCreatedEndTime = Date.now();
-        console.log(`✅ [CreateTaskForm] onTaskCreated completed in ${onTaskCreatedEndTime - onTaskCreatedStartTime}ms`);
+        setSelectedVersionIds([]);
+        setAllAgentVersions([]);
+        setShowVersionSelector(false);
       }
       
       const totalTime = Date.now() - startTime;
-      console.log(`✅ [CreateTaskForm] Total task creation flow completed in ${totalTime}ms`);
+      console.log(`✅ [CreateTaskForm] Created ${results.filter(r => r.success).length}/${results.length} tasks in ${totalTime}ms`);
+      
+      // Handle navigation for multiple tasks
+      const successCount = results.filter(r => r.success).length;
+      if (agentIdsToUse.length > 1 && createdTaskIds.length > 0) {
+        // For multiple tasks, redirect to /tasks with the created task IDs as query params
+        const taskIdsParam = createdTaskIds.join(',');
+        const queryParams = new URLSearchParams({
+          tasks: taskIdsParam,
+          highlight: 'true',
+          created: new Date().toISOString()
+        });
+        
+        console.log(`🔄 [CreateTaskForm] Redirecting to /tasks with ${createdTaskIds.length} task IDs`);
+        router.push(`/tasks?${queryParams.toString()}`);
+        
+        // Show summary message briefly before redirect
+        if (successCount === agentIdsToUse.length) {
+          console.log(`✅ [CreateTaskForm] Successfully created ${successCount} tasks, redirecting...`);
+        } else {
+          console.log(`⚠️ [CreateTaskForm] Created ${successCount}/${agentIdsToUse.length} tasks, redirecting...`);
+        }
+      } else {
+        // For single task, show alert as before (onTaskCreated will handle navigation)
+        if (successCount === agentIdsToUse.length) {
+          alert(`Successfully created ${successCount} task${successCount > 1 ? 's' : ''}!`);
+        } else {
+          alert(`Created ${successCount}/${agentIdsToUse.length} tasks. Some tasks failed to create.`);
+        }
+      }
+      
     } catch (error) {
-      console.error("❌ [CreateTaskForm] Failed to create task:", error);
+      console.error("❌ [CreateTaskForm] Failed to create tasks:", error);
     }
   };
 
@@ -106,7 +237,8 @@ export function CreateTaskForm({
         />
       </div>
 
-      <div className="flex items-center space-x-4">
+      <div className="flex items-center space-x-3">
+        {/* Agent Selection */}
         <div className="flex-1">
           <Select value={selectedAgentId} onValueChange={setSelectedAgentId}>
             <SelectTrigger>
@@ -118,16 +250,107 @@ export function CreateTaskForm({
                   {agent.name}
                 </SelectItem>
               ))}
+              {agents.length > 0 && (
+                <>
+                  <div className="border-t my-1"></div>
+                  <div 
+                    className="flex items-center px-2 py-1.5 text-sm cursor-pointer hover:bg-gray-100 rounded-sm"
+                    onClick={() => router.push('/agents')}
+                  >
+                    <Settings className="h-4 w-4 mr-2" />
+                    Manage agents
+                  </div>
+                </>
+              )}
             </SelectContent>
           </Select>
         </div>
+
+        {/* Version Selection Dropdown */}
+        {showVersionSelector && allAgentVersions.length > 1 && (
+          <div className="w-48">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="w-full justify-between">
+                  <span>
+                    {selectedVersionIds.length === 0 
+                      ? "Select version" 
+                      : selectedVersionIds.length === 1 
+                        ? "1 version"
+                        : `${selectedVersionIds.length} versions`
+                    }
+                  </span>
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-80">
+                <DropdownMenuLabel className="flex items-center justify-between">
+                  <span>Select versions</span>
+                  <div className="flex space-x-2">
+                    <button
+                      type="button"
+                      onClick={handleSelectAllVersions}
+                      className="text-xs text-blue-600 hover:text-blue-800"
+                    >
+                      All
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleClearAllVersions}
+                      className="text-xs text-gray-600 hover:text-gray-800"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <div className="p-2 space-y-2 max-h-64 overflow-y-auto">
+                  {allAgentVersions.map((version) => (
+                    <div key={version.id} className="flex items-center space-x-2 px-2 py-1 hover:bg-gray-50 rounded">
+                      <Checkbox
+                        id={`dropdown-${version.id}`}
+                        checked={selectedVersionIds.includes(version.id)}
+                        onCheckedChange={() => handleVersionToggle(version.id)}
+                      />
+                      <label 
+                        htmlFor={`dropdown-${version.id}`} 
+                        className="text-sm flex-1 cursor-pointer flex items-center justify-between"
+                      >
+                        <span>{version.name} - {version.version}</span>
+                        <span className={`text-xs px-2 py-1 rounded ${
+                          version.status === 'active' 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-gray-100 text-gray-600'
+                        }`}>
+                          {version.status}
+                        </span>
+                      </label>
+                    </div>
+                  ))}
+                </div>
+                {selectedVersionIds.length > 1 && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <div className="p-2">
+                      <p className="text-xs text-gray-600">
+                        Will create {selectedVersionIds.length} tasks
+                      </p>
+                    </div>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
+
+        {/* Create Task Button */}
         <Button 
           onClick={handleSubmit}
-          disabled={!taskDescription.trim() || !selectedAgentId}
-          className="flex items-center space-x-2"
+          disabled={!taskDescription.trim() || !selectedAgentId || (showVersionSelector && selectedVersionIds.length === 0)}
+          className="flex items-center space-x-2 whitespace-nowrap"
         >
           <ArrowUp className="h-4 w-4" />
-          <span>{buttonText}</span>
+          <span>{showVersionSelector && selectedVersionIds.length > 1 ? 'Create tasks' : buttonText}</span>
         </Button>
       </div>
     </div>
