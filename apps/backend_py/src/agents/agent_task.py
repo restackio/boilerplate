@@ -70,79 +70,22 @@ class AgentTask:
         self.agent_response_format = None
 
 
-    def _add_conversation_item(
-        self,
-        item_type: str,
-        content: str | None = None,
-        item_id: str | None = None,
-        item_data: dict | None = None,
-        timestamp: str | None = None,
-    ) -> None:
-        """Helper to add items to unified conversation state with consistent structure."""
-        # Generate unique ID if not provided
-        if not item_id:
-            item_id = f"{item_type}_{uuid()}"
-
-        # Check for duplicates before adding
-        for existing_item in self.conversation_items:
-            if existing_item.get("id") == item_id:
-                log.warning(
-                    f"Duplicate item detected with ID {item_id}, skipping"
-                )
-                return existing_item
-
-        conversation_item = {
-            "id": item_id,
-            "type": item_type,
-            "content": content or "",
-            "timestamp": timestamp,
-            "rawData": item_data or {},
+    def _add_user_message_to_conversation(self, message: Message) -> None:
+        """Add user messages to conversation items with OpenAI-compatible structure."""
+        openai_structure = {
+            "type": "message",
+            "role": message.role,
+            "content": [{"type": "input_text", "text": message.content}],
+            "status": "completed"
         }
 
-        # Add type-specific fields
-        if item_type == "tool-call" and item_data:
-            conversation_item.update(
-                {
-                    "toolName": item_data.get("name"),
-                    "toolArguments": item_data.get("arguments"),
-                    "toolOutput": item_data.get("output"),
-                    "status": "completed"
-                    if item_data.get("output")
-                    else "in-progress",
-                }
-            )
-        elif (
-            item_type == "tool-list"
-            and item_data
-            and item_data.get("tools")
-        ):
-            tool_names = [
-                tool.get("name")
-                for tool in item_data.get("tools", [])
-            ]
-            conversation_item["content"] = (
-                f"Available tools: {', '.join(tool_names)}"
-            )
-            conversation_item["status"] = "completed"
-        elif item_type == "mcp-approval-request" and item_data:
-            conversation_item.update(
-                {
-                    "toolName": item_data.get("name"),
-                    "toolArguments": item_data.get("arguments"),
-                    "serverLabel": item_data.get("server_label"),
-                    "status": "waiting-approval",
-                }
-            )
-            conversation_item["content"] = (
-                f"Approval required for tool: {item_data.get('name')}"
-            )
-            if item_data.get("arguments"):
-                conversation_item["content"] += (
-                    f" with arguments: {item_data.get('arguments')}"
-                )
-
+        conversation_item = {
+            "id": f"user_{uuid()}",
+            "type": "user",
+            "timestamp": getattr(message, "timestamp", None),
+            "openai_output": openai_structure  # OpenAI-compatible structure
+        }
         self.conversation_items.append(conversation_item)
-        return conversation_item
 
     @agent.state
     def state_response(self) -> list[dict[str, Any]]:
@@ -182,18 +125,9 @@ class AgentTask:
         self, messages_event: MessagesEvent
     ) -> list[Message]:
         try:
-            # Add messages to unified conversation items with consistent structure
+            # Add messages to unified conversation items with OpenAI-compatible structure
             for message in messages_event.messages:
-                self._add_conversation_item(
-                    item_type=message.role,  # "user" or "assistant"
-                    content=message.content,
-                    timestamp=message.timestamp
-                    if hasattr(message, "timestamp")
-                    else None,
-                    item_data={
-                        "role": message.role
-                    },  # Keep original role for backward compatibility
-                )
+                self._add_user_message_to_conversation(message)
 
             # Also maintain the old messages array for any existing code that might need it
             self.messages.extend(messages_event.messages)
@@ -273,91 +207,46 @@ class AgentTask:
                     completion.final_response
                     and completion.final_response.get("output")
                 ):
-                    response_id = completion.response_id
+                    log.info(f"Processing {len(completion.final_response['output'])} output items from final_response")
 
-                    for output_item in completion.final_response[
-                        "output"
-                    ]:
-                        # Handle MCP approval requests
+                    for output_item in completion.final_response["output"]:
+                        item_type = output_item.get("type", "unknown")
+                        item_id = output_item.get("id", f"{item_type}_{uuid()}")
+
+                        log.info(f"Adding output_item to conversation: type={item_type}, id={item_id}")
+
+                        conversation_item = {
+                            "id": item_id,
+                            "type": item_type,
+                            "timestamp": None,
+                            "openai_output": output_item, 
+                        }
+
+                        duplicate_found = False
+                        for existing_item in self.conversation_items:
+                            if existing_item.get("id") == item_id:
+                                log.warning(f"Duplicate item detected with ID {item_id}, skipping")
+                                duplicate_found = True
+                                break
+
+                        if not duplicate_found:
+                            self.conversation_items.append(conversation_item)
+
+                        # Special handling: Add assistant messages to messages array for backward compatibility
                         if (
-                            output_item.get("type")
-                            == "mcp_approval_request"
+                            item_type == "message"
+                            and output_item.get("role") == "assistant"
+                            and output_item.get("status") == "completed"
                         ):
-                            approval_id = output_item.get("id")
-                            log.info(
-                                f"Found MCP approval request: {approval_id} for response: {response_id}"
-                            )
-
-                            # Add MCP approval request to unified conversation items
-                            self._add_conversation_item(
-                                item_type="mcp-approval-request",
-                                item_id=output_item.get("id"),
-                                item_data=output_item,
-                            )
-
-                        # Add completed tool calls to unified conversation items
-                        elif (
-                            output_item.get("type") == "mcp_call"
-                        ):
-                            self._add_conversation_item(
-                                item_type="tool-call",
-                                item_id=output_item.get("id"),
-                                content=f"Tool call: {output_item.get('name', '')}",
-                                item_data=output_item,
-                            )
-
-                        # Add tool lists to unified conversation items
-                        elif (
-                            output_item.get("type")
-                            == "mcp_list_tools"
-                        ):
-                            self._add_conversation_item(
-                                item_type="tool-list",
-                                item_id=output_item.get("id"),
-                                item_data=output_item,
-                            )
-
-                        # Extract assistant messages from completed responses
-                        elif (
-                            output_item.get("type") == "message"
-                            and output_item.get("role")
-                            == "assistant"
-                            and output_item.get("status")
-                            == "completed"
-                        ):
+                            # Extract text from OpenAI message content structure
                             content = ""
                             if output_item.get("content"):
-                                # Extract text content from content array
-                                for content_item in output_item[
-                                    "content"
-                                ]:
-                                    if (
-                                        content_item.get("type")
-                                        == "output_text"
-                                    ):
-                                        content += (
-                                            content_item.get(
-                                                "text", ""
-                                            )
-                                        )
+                                for content_item in output_item["content"]:
+                                    if content_item.get("type") == "output_text":
+                                        content += content_item.get("text", "")
 
-                            if (
-                                content
-                            ):  # Only add non-empty messages
-                                self.messages.append(
-                                    Message(
-                                        role="assistant",
-                                        content=content,
-                                    )
-                                )
-
-                                # Add completed assistant message to unified conversation items
-                                self._add_conversation_item(
-                                    item_type="assistant",
-                                    item_id=output_item.get("id"),
-                                    content=content,
-                                    item_data=output_item,
-                                )
+                            if content:
+                                self.messages.append(Message(role="assistant", content=content))
 
         except Exception as e:
             log.error(f"Error during message event: {e}")
@@ -376,7 +265,7 @@ class AgentTask:
 
         # Check if this approval has already been processed
         approval_id = approval_event.approval_id
-        
+
         # Look for this approval in conversation items to see if it's already been processed
         for item in self.conversation_items:
             if (
@@ -391,13 +280,13 @@ class AgentTask:
                     "processed": True,
                     "message": "Already processed",
                 }
-        
+
         # Use last_response_id to continue the conversation after approval
         if not self.last_response_id:
             error_msg = f"Approval {approval_id} received before response context is available"
             log.warning(f"{error_msg} - will retry")
             raise Exception(error_msg)
-        
+
         response_id = self.last_response_id
         log.info(f"Processing approval {approval_id} using last_response_id: {response_id}")
 
@@ -441,18 +330,17 @@ class AgentTask:
             # Update the existing approval request status in conversation items
             for item in self.conversation_items:
                 if (
-                    item.get("type") == "mcp-approval-request"
+                    item.get("type") == "mcp_approval_request"
                     and item.get("id") == approval_id
                 ):
-                    item["status"] = (
-                        "completed"
-                        if approval_event.approved
-                        else "failed"
-                    )
-                    if approval_event.approved:
-                        item["content"] += " - Approved"
-                    else:
-                        item["content"] += " - Denied"
+                    # Update the status in the openai_output structure
+                    if "openai_output" in item:
+                        item["openai_output"]["status"] = (
+                            "completed"
+                            if approval_event.approved
+                            else "failed"
+                        )
+                    log.info(f"Updated approval request {approval_id} status to {'completed' if approval_event.approved else 'failed'}")
                     break
 
             # Process the continued response
@@ -460,52 +348,47 @@ class AgentTask:
                 completion.final_response
                 and completion.final_response.get("output")
             ):
-                for output_item in completion.final_response[
-                    "output"
-                ]:
-                    # Add any new tool calls from approval continuation
-                    if output_item.get("type") == "mcp_call":
-                        self._add_conversation_item(
-                            item_type="tool-call",
-                            item_id=output_item.get("id"),
-                            content=f"Tool call: {output_item.get('name', '')}",
-                            item_data=output_item,
-                        )
+                log.info(f"Processing {len(completion.final_response['output'])} output items from approval continuation")
 
-                    elif (
-                        output_item.get("type") == "message"
+                for output_item in completion.final_response["output"]:
+                    item_type = output_item.get("type", "unknown")
+                    item_id = output_item.get("id", f"{item_type}_{uuid()}")
+
+                    log.info(f"Adding approval continuation output_item: type={item_type}, id={item_id}")
+
+                    conversation_item = {
+                        "id": item_id,
+                        "type": item_type,
+                        "timestamp": None,
+                        "openai_output": output_item,
+                    }
+
+                    # Check for duplicates before adding
+                    duplicate_found = False
+                    for existing_item in self.conversation_items:
+                        if existing_item.get("id") == item_id:
+                            log.warning(f"Duplicate item detected with ID {item_id}, skipping")
+                            duplicate_found = True
+                            break
+
+                    if not duplicate_found:
+                        self.conversation_items.append(conversation_item)
+
+                    # Special handling: Add assistant messages to messages array for backward compatibility
+                    if (
+                        item_type == "message"
                         and output_item.get("role") == "assistant"
-                        and output_item.get("status")
-                        == "completed"
+                        and output_item.get("status") == "completed"
                     ):
+                        # Extract text from OpenAI message content structure
                         content = ""
                         if output_item.get("content"):
-                            for content_item in output_item[
-                                "content"
-                            ]:
-                                if (
-                                    content_item.get("type")
-                                    == "output_text"
-                                ):
-                                    content += content_item.get(
-                                        "text", ""
-                                    )
+                            for content_item in output_item["content"]:
+                                if content_item.get("type") == "output_text":
+                                    content += content_item.get("text", "")
 
                         if content:
-                            self.messages.append(
-                                Message(
-                                    role="assistant",
-                                    content=content,
-                                )
-                            )
-
-                            # Add to unified conversation items
-                            self._add_conversation_item(
-                                item_type="assistant",
-                                item_id=output_item.get("id"),
-                                content=content,
-                                item_data=output_item,
-                            )
+                            self.messages.append(Message(role="assistant", content=content))
 
         except Exception as e:  # noqa: BLE001
             log.error(f"Error processing MCP approval: {e}")
@@ -552,7 +435,7 @@ class AgentTask:
             self.messages.append(
                 Message(
                     role="developer",
-                    content=instructions,
+                    content=f"{instructions}. Markdown is supported. Use headings wherever appropriate.",
                 )
             )
 

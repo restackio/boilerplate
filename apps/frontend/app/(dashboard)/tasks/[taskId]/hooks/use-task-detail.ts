@@ -17,7 +17,7 @@ export function useTaskDetail() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [chatMessage, setChatMessage] = useState("");
-  const [activeTab, setActiveTab] = useState("logs");
+  const [activeTab, setActiveTab] = useState("details");
   const [showSplitView, setShowSplitView] = useState(false);
   const [selectedCard, setSelectedCard] = useState<ConversationItem | null>(null);
   const [isThinking, setIsThinking] = useState(false);
@@ -153,7 +153,14 @@ export function useTaskDetail() {
   };
 
   const handleCardClick = (item: ConversationItem) => {
-    if (item.type === "tool-call" || item.type === "tool-list" || item.type === "assistant") {
+    if (item.type === "mcp_call" || 
+        item.type === "mcp_list_tools" || 
+        item.type === "mcp_approval_request" ||
+        item.type === "web_search_call" ||
+        item.type === "assistant" ||
+        item.type === "reasoning" ||
+        item.type === "tool-call" || // legacy support
+        item.type === "tool-list") { // legacy support
       // If split view is already open and same card is clicked, close it
       if (showSplitView && selectedCard?.id === item.id) {
         setShowSplitView(false);
@@ -162,7 +169,7 @@ export function useTaskDetail() {
         // Open split view with new card
         setSelectedCard(item);
         setShowSplitView(true);
-        setActiveTab("logs"); // Default to logs tab
+        setActiveTab("details"); // Default to item details tab
       }
     }
   };

@@ -259,60 +259,94 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
       {
         "id": "msg-001",
         "type": "user",
-        "content": "A customer reported they cannot log into their account. They get an error message saying \"Invalid credentials\" even though they are sure their password is correct. Customer email: john.doe@example.com",
-        "timestamp": "2024-01-15T10:30:00Z"
+        "timestamp": "2024-01-15T10:30:00Z",
+        "openai_output": {
+          "id": "msg-001",
+          "type": "message",
+          "role": "user",
+          "status": "completed",
+          "content": [{"type": "input_text", "text": "A customer reported they cannot log into their account. They get an error message saying \"Invalid credentials\" even though they are sure their password is correct. Customer email: john.doe@example.com"}]
+        }
       },
       {
         "id": "msg-002",
         "type": "assistant",
-        "content": "I will help you resolve this login issue. Let me start by investigating the customer account status and checking for any related incidents or authentication problems.",
-        "timestamp": "2024-01-15T10:30:15Z"
+        "timestamp": "2024-01-15T10:30:15Z",
+        "openai_output": {
+          "id": "msg-002",
+          "type": "message",
+          "role": "assistant",
+          "status": "completed",
+          "content": [{"type": "text", "text": "I will help you resolve this login issue. Let me start by investigating the customer account status and checking for any related incidents or authentication problems."}]
+        }
       },
       {
         "id": "msg-003",
-        "type": "tool-call",
-        "content": "Searching Zendesk for existing tickets related to login issues",
+        "type": "mcp_call",
         "timestamp": "2024-01-15T10:30:30Z",
-        "toolName": "zendeskticketworkflow",
-        "serverLabel": "zendesk-workflow",
-        "status": "completed",
-        "result": "Found 3 related tickets in the past 24 hours with similar authentication errors"
+        "openai_output": {
+          "id": "msg-003",
+          "type": "mcp_call",
+          "name": "zendeskticketworkflow",
+          "server_label": "zendesk-workflow",
+          "status": "completed",
+          "arguments": {"query": "login authentication errors", "timeframe": "24h"},
+          "output": "Found 3 related tickets in the past 24 hours with similar authentication errors"
+        }
       },
       {
         "id": "msg-004",
-        "type": "tool-call",
-        "content": "Checking PagerDuty for authentication service incidents",
+        "type": "mcp_call",
         "timestamp": "2024-01-15T10:31:00Z",
-        "toolName": "pagerdutyincidentworkflow",
-        "serverLabel": "pagerduty-workflow",
-        "status": "completed",
-        "result": "No active incidents found for authentication services"
+        "openai_output": {
+          "id": "msg-004",
+          "type": "mcp_call",
+          "name": "pagerdutyincidentworkflow",
+          "server_label": "pagerduty-workflow",
+          "status": "completed",
+          "arguments": {"service": "authentication", "status": "open"},
+          "output": "No active incidents found for authentication services"
+        }
       },
       {
         "id": "msg-005",
-        "type": "tool-call",
-        "content": "Analyzing authentication logs in Datadog for user john.doe@example.com",
+        "type": "mcp_call",
         "timestamp": "2024-01-15T10:31:30Z",
-        "toolName": "datadoglogsworkflow",
-        "serverLabel": "datadog-workflow",
-        "status": "completed",
-        "result": "Found account lockout due to 5 failed login attempts in 10 minutes. Account status: LOCKED"
+        "openai_output": {
+          "id": "msg-005",
+          "type": "mcp_call",
+          "name": "datadoglogsworkflow",
+          "server_label": "datadog-workflow",
+          "status": "completed",
+          "arguments": {"user": "john.doe@example.com", "service": "authentication", "timeframe": "1h"},
+          "output": "Found account lockout due to 5 failed login attempts in 10 minutes. Account status: LOCKED"
+        }
       },
       {
         "id": "msg-006",
         "type": "assistant",
-        "content": "I found the issue! The customer account was temporarily locked due to multiple failed login attempts (security feature). I have unlocked the account and sent them a password reset email as a precaution. The customer should now be able to log in successfully.",
-        "timestamp": "2024-01-15T10:32:00Z"
+        "timestamp": "2024-01-15T10:32:00Z",
+        "openai_output": {
+          "id": "msg-006",
+          "type": "message",
+          "role": "assistant",
+          "status": "completed",
+          "content": [{"type": "text", "text": "I found the issue! The customer account was temporarily locked due to multiple failed login attempts (security feature). I have unlocked the account and sent them a password reset email as a precaution. The customer should now be able to log in successfully."}]
+        }
       },
       {
         "id": "msg-007",
-        "type": "tool-call",
-        "content": "Creating Zendesk ticket to document the resolution",
+        "type": "mcp_call",
         "timestamp": "2024-01-15T10:32:30Z",
-        "toolName": "zendeskticketworkflow",
-        "serverLabel": "zendesk-workflow",
-        "status": "completed",
-        "result": "Ticket #ZD-12345 created and marked as resolved"
+        "openai_output": {
+          "id": "msg-007",
+          "type": "mcp_call",
+          "name": "zendeskticketworkflow",
+          "server_label": "zendesk-workflow",
+          "status": "completed",
+          "arguments": {"action": "create", "subject": "Login issue resolved", "status": "resolved"},
+          "output": "Ticket #ZD-12345 created and marked as resolved"
+        }
       },
       {
         "id": "msg-008",
@@ -349,16 +383,18 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
       },
       {
         "id": "msg-103",
-        "type": "tool-call",
-        "content": "Requesting access to Datadog payment logs for security analysis",
+        "type": "mcp_approval_request",
         "timestamp": "2024-01-16T14:21:00Z",
-        "toolName": "datadoglogsworkflow",
-        "serverLabel": "datadog-workflow",
-        "status": "approval_declined",
-        "result": "Access denied - Security investigation requires manual approval from Security team",
-        "approvalRequired": true,
-        "approvalStatus": "declined",
-        "declineReason": "Sensitive payment data access requires Security team authorization"
+        "openai_output": {
+          "id": "msg-103",
+          "type": "mcp_approval_request",
+          "name": "datadoglogsworkflow",
+          "server_label": "datadog-workflow",
+          "status": "failed",
+          "arguments": {"service": "payment", "log_level": "error", "timeframe": "1h"},
+          "output": "Access denied - Security investigation requires manual approval from Security team",
+          "decline_reason": "Sensitive payment data access requires Security team authorization"
+        }
       },
       {
         "id": "msg-104",
@@ -368,23 +404,31 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
       },
       {
         "id": "msg-105",
-        "type": "tool-call",
-        "content": "Creating high-priority Linear ticket for security team investigation",
+        "type": "mcp_call",
         "timestamp": "2024-01-16T14:22:00Z",
-        "toolName": "linearissueworkflow",
-        "serverLabel": "linear-workflow",
-        "status": "completed",
-        "result": "High-priority security ticket LIN-SEC-789 created and assigned to Security team"
+        "openai_output": {
+          "id": "msg-105",
+          "type": "mcp_call",
+          "name": "linearissueworkflow",
+          "server_label": "linear-workflow",
+          "status": "completed",
+          "arguments": {"priority": "high", "team": "security", "title": "Payment fraud investigation", "description": "Suspicious payment patterns detected"},
+          "output": "High-priority security ticket LIN-SEC-789 created and assigned to Security team"
+        }
       },
       {
         "id": "msg-106",
-        "type": "tool-call",
-        "content": "Checking PagerDuty for any related security incidents",
+        "type": "mcp_call",
         "timestamp": "2024-01-16T14:22:30Z",
-        "toolName": "pagerdutyincidentworkflow",
-        "serverLabel": "pagerduty-workflow",
-        "status": "completed",
-        "result": "Found similar incident PD-INC-456 from last week, marked as resolved - card testing attack"
+        "openai_output": {
+          "id": "msg-106",
+          "type": "mcp_call",
+          "name": "pagerdutyincidentworkflow",
+          "server_label": "pagerduty-workflow",
+          "status": "completed",
+          "arguments": {"category": "security", "status": "resolved", "timeframe": "7d"},
+          "output": "Found similar incident PD-INC-456 from last week, marked as resolved - card testing attack"
+        }
       },
       {
         "id": "msg-107",
@@ -394,13 +438,17 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
       },
       {
         "id": "msg-108",
-        "type": "tool-call",
-        "content": "Creating Zendesk ticket to document security escalation",
+        "type": "mcp_call",
         "timestamp": "2024-01-16T14:23:30Z",
-        "toolName": "zendeskticketworkflow",
-        "serverLabel": "zendesk-workflow",
-        "status": "completed",
-        "result": "Security escalation ticket #ZD-SEC-123 created"
+        "openai_output": {
+          "id": "msg-108",
+          "type": "mcp_call",
+          "name": "zendeskticketworkflow",
+          "server_label": "zendesk-workflow",
+          "status": "completed",
+          "arguments": {"action": "create", "subject": "Security escalation - Payment fraud", "priority": "high"},
+          "output": "Security escalation ticket #ZD-SEC-123 created"
+        }
       },
       {
         "id": "msg-109",
@@ -437,23 +485,31 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
       },
       {
         "id": "msg-203",
-        "type": "tool-call",
-        "content": "Creating new lead record for TechCorp in CRM",
+        "type": "mcp_call",
         "timestamp": "2024-01-17T09:16:00Z",
-        "toolName": "create_lead",
-        "serverLabel": "sales-crm",
-        "status": "completed",
-        "result": "Lead CRM-LEAD-456 created for TechCorp - Sarah Johnson"
+        "openai_output": {
+          "id": "msg-203",
+          "type": "mcp_call",
+          "name": "create_lead",
+          "server_label": "sales-crm",
+          "status": "completed",
+          "arguments": {"company": "TechCorp", "contact": "Sarah Johnson", "title": "CTO", "team_size": 200},
+          "output": "Lead CRM-LEAD-456 created for TechCorp - Sarah Johnson"
+        }
       },
       {
         "id": "msg-204",
-        "type": "tool-call",
-        "content": "Researching TechCorp company information and budget capacity",
+        "type": "mcp_call",
         "timestamp": "2024-01-17T09:17:00Z",
-        "toolName": "get_lead_status",
-        "serverLabel": "sales-crm",
-        "status": "completed",
-        "result": "TechCorp: Series B company, 500 employees, $50M ARR, budget range $100K-500K annually"
+        "openai_output": {
+          "id": "msg-204",
+          "type": "mcp_call",
+          "name": "get_lead_status",
+          "server_label": "sales-crm",
+          "status": "completed",
+          "arguments": {"company": "TechCorp", "fields": ["funding_stage", "employee_count", "arr", "budget_range"]},
+          "output": "TechCorp: Series B company, 500 employees, $50M ARR, budget range $100K-500K annually"
+        }
       },
       {
         "id": "msg-205",
@@ -463,13 +519,17 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
       },
       {
         "id": "msg-206",
-        "type": "tool-call",
-        "content": "Creating sales opportunity for TechCorp enterprise deal",
+        "type": "mcp_call",
         "timestamp": "2024-01-17T09:18:30Z",
-        "toolName": "update_opportunity",
-        "serverLabel": "sales-crm",
-        "status": "completed",
-        "result": "Opportunity CRM-OPP-789 created: $300K estimated value, 6-month timeline"
+        "openai_output": {
+          "id": "msg-206",
+          "type": "mcp_call",
+          "name": "update_opportunity",
+          "server_label": "sales-crm",
+          "status": "completed",
+          "arguments": {"lead_id": "CRM-LEAD-456", "estimated_value": 300000, "timeline": "6-month", "stage": "discovery"},
+          "output": "Opportunity CRM-OPP-789 created: $300K estimated value, 6-month timeline"
+        }
       },
       {
         "id": "msg-207",
@@ -506,23 +566,31 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
       },
       {
         "id": "msg-303",
-        "type": "tool-call",
-        "content": "Retrieving Q1 campaign performance data from PostHog",
+        "type": "mcp_call",
         "timestamp": "2024-01-18T11:01:00Z",
-        "toolName": "insights-get-all",
-        "serverLabel": "posthog",
-        "status": "completed",
-        "result": "Retrieved 15 campaigns data: Total spend $45K, Total conversions 1,247, Overall ROI 285%"
+        "openai_output": {
+          "id": "msg-303",
+          "type": "mcp_call",
+          "name": "insights-get-all",
+          "server_label": "posthog",
+          "status": "completed",
+          "arguments": {"period": "Q1", "metrics": ["spend", "conversions", "roi"]},
+          "output": "Retrieved 15 campaigns data: Total spend $45K, Total conversions 1,247, Overall ROI 285%"
+        }
       },
       {
         "id": "msg-304",
-        "type": "tool-call",
-        "content": "Analyzing detailed metrics for top-performing campaigns",
+        "type": "mcp_call",
         "timestamp": "2024-01-18T11:02:00Z",
-        "toolName": "insight-get",
-        "serverLabel": "posthog",
-        "status": "completed",
-        "result": "Top 3 campaigns: 1) Email nurture series (ROI 420%), 2) LinkedIn ads (ROI 340%), 3) Content marketing (ROI 290%)"
+        "openai_output": {
+          "id": "msg-304",
+          "type": "mcp_call",
+          "name": "insight-get",
+          "server_label": "posthog",
+          "status": "completed",
+          "arguments": {"filter": "top_performing", "limit": 3, "sort_by": "roi"},
+          "output": "Top 3 campaigns: 1) Email nurture series (ROI 420%), 2) LinkedIn ads (ROI 340%), 3) Content marketing (ROI 290%)"
+        }
       },
       {
         "id": "msg-305",
@@ -559,33 +627,43 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
       },
       {
         "id": "msg-403",
-        "type": "tool-call",
-        "content": "Searching internal knowledge base for microservices documentation",
+        "type": "mcp_call",
         "timestamp": "2024-01-19T13:31:00Z",
-        "toolName": "ask_question",
-        "serverLabel": "deepwiki",
-        "status": "completed",
-        "result": "Found 12 internal docs on microservices: API gateway patterns, service mesh, database per service"
+        "openai_output": {
+          "id": "msg-403",
+          "type": "mcp_call",
+          "name": "ask_question",
+          "server_label": "deepwiki",
+          "status": "completed",
+          "arguments": {"query": "microservices architecture patterns", "category": "engineering"},
+          "output": "Found 12 internal docs on microservices: API gateway patterns, service mesh, database per service"
+        }
       },
       {
         "id": "msg-404",
-        "type": "tool-call",
-        "content": "Researching latest microservices best practices and patterns",
+        "type": "web_search_call",
         "timestamp": "2024-01-19T13:32:00Z",
-        "toolName": "web_search_preview",
-        "serverLabel": "web-search",
-        "status": "completed",
-        "result": "Found current trends: Event-driven architecture, CQRS patterns, service mesh adoption, observability strategies"
+        "openai_output": {
+          "id": "msg-404",
+          "type": "web_search_call",
+          "action": {"query": "microservices best practices 2024", "type": "search"},
+          "status": "completed",
+          "output": "Found current trends: Event-driven architecture, CQRS patterns, service mesh adoption, observability strategies"
+        }
       },
       {
         "id": "msg-405",
-        "type": "tool-call",
-        "content": "Checking Restack documentation for microservices implementation guides",
+        "type": "mcp_call",
         "timestamp": "2024-01-19T13:33:00Z",
-        "toolName": "search",
-        "serverLabel": "mintlify-docs",
-        "status": "completed",
-        "result": "Restack workflow orchestration patterns for microservices coordination and state management"
+        "openai_output": {
+          "id": "msg-405",
+          "type": "mcp_call",
+          "name": "search",
+          "server_label": "mintlify-docs",
+          "status": "completed",
+          "arguments": {"query": "microservices orchestration", "section": "workflows"},
+          "output": "Restack workflow orchestration patterns for microservices coordination and state management"
+        }
       },
       {
         "id": "msg-406",
@@ -622,23 +700,31 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
       },
       {
         "id": "msg-503",
-        "type": "tool-call",
-        "content": "Reviewing current employee onboarding data and requirements",
+        "type": "mcp_call",
         "timestamp": "2024-01-20T10:01:00Z",
-        "toolName": "employee_search",
-        "serverLabel": "hr-system",
-        "status": "completed",
-        "result": "Current process: 15 manual steps, 3-day average setup time, 85% completion rate"
+        "openai_output": {
+          "id": "msg-503",
+          "type": "mcp_call",
+          "name": "employee_search",
+          "server_label": "hr-system",
+          "status": "completed",
+          "arguments": {"department": "engineering", "status": "recent_hires", "metrics": ["onboarding_time", "completion_rate"]},
+          "output": "Current process: 15 manual steps, 3-day average setup time, 85% completion rate"
+        }
       },
       {
         "id": "msg-504",
-        "type": "tool-call",
-        "content": "Analyzing employee feedback on onboarding experience",
+        "type": "mcp_call",
         "timestamp": "2024-01-20T10:02:00Z",
-        "toolName": "get_employee_info",
-        "serverLabel": "hr-system",
-        "status": "completed",
-        "result": "Common issues: Delayed equipment, missing access credentials, unclear first-week schedule"
+        "openai_output": {
+          "id": "msg-504",
+          "type": "mcp_call",
+          "name": "get_employee_info",
+          "server_label": "hr-system",
+          "status": "completed",
+          "arguments": {"type": "feedback", "category": "onboarding", "timeframe": "90d"},
+          "output": "Common issues: Delayed equipment, missing access credentials, unclear first-week schedule"
+        }
       },
       {
         "id": "msg-505",

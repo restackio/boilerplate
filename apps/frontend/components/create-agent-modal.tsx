@@ -61,11 +61,7 @@ export function CreateAgentModal({ onAgentCreated }: CreateAgentModalProps) {
         });
         setNameError("");
         onAgentCreated?.();
-      } else {
-        alert(`Failed to create agent: ${result.error}`);
       }
-    } catch {
-      alert("Failed to create agent");
     } finally {
       setIsLoading(false);
     }

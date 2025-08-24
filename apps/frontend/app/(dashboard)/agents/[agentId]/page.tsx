@@ -144,7 +144,6 @@ export default function AgentEditPage() {
         } catch (e) {
           console.error("Failed to clone tools to new version", e);
         }
-        alert("New version created successfully!");
         // Navigate to the new agent so UI reflects its instructions and tools
         if (newAgent?.id) {
           router.push(`/agents/${newAgent.id}`);
@@ -154,11 +153,9 @@ export default function AgentEditPage() {
         await fetchAgents();
       } else {
         console.error("Failed to create new agent version:", result.error);
-        alert("Failed to create new version: " + result.error);
       }
     } catch (error) {
       console.error("Error creating new agent version:", error);
-      alert("Error creating new version");
     } finally {
       setIsSaving(false);
     }
@@ -187,11 +184,9 @@ export default function AgentEditPage() {
         console.log(`Agent status updated to ${newStatus}`);
       } else {
         console.error("Failed to update agent status:", result.error);
-        alert("Failed to update status: " + result.error);
       }
     } catch (error) {
       console.error("Error updating agent status:", error);
-      alert("Error updating status");
     } finally {
       setIsTogglingStatus(false);
     }
@@ -209,11 +204,9 @@ export default function AgentEditPage() {
         router.push("/agents");
       } else {
         console.error("Failed to delete agent:", result.error);
-        alert("Failed to delete agent: " + result.error);
       }
     } catch (error) {
       console.error("Error deleting agent:", error);
-      alert("Error deleting agent");
     } finally {
       setIsDeleting(false);
       setShowDeleteModal(false);

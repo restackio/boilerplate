@@ -42,8 +42,6 @@ export default function TaskDetailPage() {
     updateConversationItemStatus,
   } = useTaskDetail();
 
-  console.log("conversation", conversation);
-
   const handleApproveRequest = async (itemId: string) => {
     if (!task?.agent_task_id) {
       console.error("No agent task ID available for approval");
@@ -54,19 +52,11 @@ export default function TaskDetailPage() {
       // Optimistically update the UI
       updateConversationItemStatus(itemId, "completed");
 
-      console.log("mcp approval sent");
-      console.log({
-        approvalId: itemId,
-        approved: true
-      });
-
       const result = await sendMcpApproval({
         agentId: task.agent_task_id,
         approvalId: itemId,
         approved: true,
       });
-
-      console.log("sendMcpApproval returns", result);
 
       if (!result.success) {
         console.error("Failed to approve MCP request:", result.error);
@@ -155,7 +145,6 @@ export default function TaskDetailPage() {
           onActiveTabChange={setActiveTab}
           onCloseSplitView={handleCloseSplitView}
           task={task}
-          agentResponses={agentResponses}
           onUpdateTask={handleUpdateTask}
           isUpdating={isUpdating}
         />

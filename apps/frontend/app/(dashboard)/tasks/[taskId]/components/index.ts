@@ -1,5 +1,4 @@
 export { TaskDetailsTab } from "./TaskDetailsTab";
-export { TaskLogsTab } from "./TaskLogsTab";
 export { DeleteTaskModal } from "./DeleteTaskModal";
 export { TaskHeader } from "./TaskHeader";
 export { TaskLoadingState } from "./TaskLoadingState";
@@ -10,4 +9,4 @@ export { TaskSplitView } from "./TaskSplitView";
 export { TaskCardTool } from "./TaskCardTool";
 export { TaskCardMcp } from "./TaskCardMcp";
 export { TaskCardWebSearch } from "./TaskCardWebSearch";
-export { TaskCardReasoning } from "./TaskCardReasoning"; 
+ 

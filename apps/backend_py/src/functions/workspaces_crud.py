@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pydantic import BaseModel, Field
 from restack_ai.function import NonRetryableError, function
@@ -134,7 +134,7 @@ async def workspaces_update(
             if hasattr(workspace, key):
                 setattr(workspace, key, value)
 
-        workspace.updated_at = datetime.now(tz=timezone.utc).replace(tzinfo=None)
+        workspace.updated_at = datetime.now(tz=UTC).replace(tzinfo=None)
         await db.commit()
         await db.refresh(workspace)
 

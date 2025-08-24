@@ -46,19 +46,16 @@ export function TestAgentModal({ isOpen, onClose, agent }: TestAgentModalProps) 
       const result = await createTask(taskData);
 
       if (result.success && result.data) {
-        console.log(`✅ [TestAgentModal] Test task created successfully: ${result.data.id}`);
         // Clear form and close modal
         setTaskDescription("");
         onClose();
         // Navigate to the new task
         router.push(`/tasks/${result.data.id}`);
       } else {
-        console.error("❌ [TestAgentModal] Failed to create test task:", result.error);
-        alert("Failed to create test task: " + result.error);
+        console.error(" Failed to create test task:", result.error);
       }
     } catch (error) {
-      console.error("❌ [TestAgentModal] Error creating test task:", error);
-      alert("Error creating test task");
+      console.error("Error creating test task:", error);
     } finally {
       setIsCreating(false);
     }
