@@ -207,27 +207,21 @@ class AgentTask:
                     completion.final_response
                     and completion.final_response.get("output")
                 ):
-                    # All timing and metadata should be available in the final_response from response.completed event
-                    # No need to process streaming events for state - they're already streamed to frontend
-
                     log.info(f"Processing {len(completion.final_response['output'])} output items from final_response")
 
-                    # Ultra-simple approach: Trust OpenAI's Response API structure completely
                     for output_item in completion.final_response["output"]:
                         item_type = output_item.get("type", "unknown")
                         item_id = output_item.get("id", f"{item_type}_{uuid()}")
 
                         log.info(f"Adding output_item to conversation: type={item_type}, id={item_id}")
 
-                        # Store the complete OpenAI output item as-is - let frontend handle all display logic
                         conversation_item = {
                             "id": item_id,
                             "type": item_type,
                             "timestamp": None,
-                            "openai_output": output_item,  # Store the complete OpenAI structure
+                            "openai_output": output_item, 
                         }
 
-                        # Check for duplicates before adding
                         duplicate_found = False
                         for existing_item in self.conversation_items:
                             if existing_item.get("id") == item_id:
@@ -356,14 +350,12 @@ class AgentTask:
             ):
                 log.info(f"Processing {len(completion.final_response['output'])} output items from approval continuation")
 
-                # Use the same approach as in the messages event handler
                 for output_item in completion.final_response["output"]:
                     item_type = output_item.get("type", "unknown")
                     item_id = output_item.get("id", f"{item_type}_{uuid()}")
 
                     log.info(f"Adding approval continuation output_item: type={item_type}, id={item_id}")
 
-                    # Store the complete OpenAI output item as-is
                     conversation_item = {
                         "id": item_id,
                         "type": item_type,
