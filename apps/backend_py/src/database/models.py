@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import (
     Boolean,
@@ -22,11 +22,11 @@ class Workspace(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True)
     name = Column(String(255), nullable=False)
-    created_at = Column(DateTime, default=lambda: datetime.now(tz=timezone.utc).replace(tzinfo=None))
+    created_at = Column(DateTime, default=lambda: datetime.now(tz=UTC).replace(tzinfo=None))
     updated_at = Column(
         DateTime,
-        default=lambda: datetime.now(tz=timezone.utc).replace(tzinfo=None),
-        onupdate=lambda: datetime.now(tz=timezone.utc).replace(tzinfo=None),
+        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+        onupdate=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
     )
 
     # Relationships
@@ -54,7 +54,7 @@ class UserWorkspace(Base):
         nullable=False,
     )
     role = Column(String(50), nullable=False, default="member")
-    created_at = Column(DateTime, default=lambda: datetime.now(tz=timezone.utc).replace(tzinfo=None))
+    created_at = Column(DateTime, default=lambda: datetime.now(tz=UTC).replace(tzinfo=None))
 
     # Constraints
     __table_args__ = (
@@ -83,11 +83,11 @@ class Team(Base):
     name = Column(String(255), nullable=False)
     description = Column(Text)
     icon = Column(String(50), default="Building")
-    created_at = Column(DateTime, default=lambda: datetime.now(tz=timezone.utc).replace(tzinfo=None))
+    created_at = Column(DateTime, default=lambda: datetime.now(tz=UTC).replace(tzinfo=None))
     updated_at = Column(
         DateTime,
-        default=lambda: datetime.now(tz=timezone.utc).replace(tzinfo=None),
-        onupdate=lambda: datetime.now(tz=timezone.utc).replace(tzinfo=None),
+        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+        onupdate=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
     )
 
     # Relationships
@@ -117,11 +117,11 @@ class McpServer(Base):
             "always": {"tool_names": []},
         },
     )
-    created_at = Column(DateTime, default=lambda: datetime.now(tz=timezone.utc).replace(tzinfo=None))
+    created_at = Column(DateTime, default=lambda: datetime.now(tz=UTC).replace(tzinfo=None))
     updated_at = Column(
         DateTime,
-        default=lambda: datetime.now(tz=timezone.utc).replace(tzinfo=None),
-        onupdate=lambda: datetime.now(tz=timezone.utc).replace(tzinfo=None),
+        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+        onupdate=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
     )
 
     # Relationships
@@ -139,11 +139,11 @@ class User(Base):
     email = Column(String(255), nullable=False, unique=True)
     password_hash = Column(String(255), nullable=False)
     avatar_url = Column(Text)
-    created_at = Column(DateTime, default=lambda: datetime.now(tz=timezone.utc).replace(tzinfo=None))
+    created_at = Column(DateTime, default=lambda: datetime.now(tz=UTC).replace(tzinfo=None))
     updated_at = Column(
         DateTime,
-        default=lambda: datetime.now(tz=timezone.utc).replace(tzinfo=None),
-        onupdate=lambda: datetime.now(tz=timezone.utc).replace(tzinfo=None),
+        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+        onupdate=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
     )
 
     # Relationships
@@ -183,11 +183,11 @@ class Agent(Base):
     reasoning_effort = Column(String(20), nullable=False, default="medium")
     response_format = Column(JSONB, nullable=False, default={"type": "text"})
 
-    created_at = Column(DateTime, default=lambda: datetime.now(tz=timezone.utc).replace(tzinfo=None))
+    created_at = Column(DateTime, default=lambda: datetime.now(tz=UTC).replace(tzinfo=None))
     updated_at = Column(
         DateTime,
-        default=lambda: datetime.now(tz=timezone.utc).replace(tzinfo=None),
-        onupdate=lambda: datetime.now(tz=timezone.utc).replace(tzinfo=None),
+        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+        onupdate=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
     )
 
     # Constraints
@@ -242,7 +242,7 @@ class AgentTool(Base):
     allowed_tools = Column(JSONB)
     execution_order = Column(Integer)
     enabled = Column(Boolean, nullable=False, default=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(tz=timezone.utc).replace(tzinfo=None))
+    created_at = Column(DateTime, default=lambda: datetime.now(tz=UTC).replace(tzinfo=None))
 
     # Constraints
     __table_args__ = (
@@ -294,11 +294,11 @@ class Task(Base):
         String(255), nullable=True
     )  # Restack agent task ID for state management
     messages = Column(JSONB, nullable=True)  # Store conversation history for completed tasks
-    created_at = Column(DateTime, default=lambda: datetime.now(tz=timezone.utc).replace(tzinfo=None))
+    created_at = Column(DateTime, default=lambda: datetime.now(tz=UTC).replace(tzinfo=None))
     updated_at = Column(
         DateTime,
-        default=lambda: datetime.now(tz=timezone.utc).replace(tzinfo=None),
-        onupdate=lambda: datetime.now(tz=timezone.utc).replace(tzinfo=None),
+        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+        onupdate=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
     )
 
     # Constraints

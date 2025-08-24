@@ -20,13 +20,13 @@ class Message(BaseModel):
     content: str
 
 class LlmResponseOutput(BaseModel):
-    events: list[dict[str, Any]] | None = None
-    text: str | None = None
-    event_count: int | None = None
+    # Only return what we need for state - the final completed response
     final_response: dict[str, Any] | None = None
     response_id: str | None = None
     usage: dict[str, Any] | None = None
     has_completion: bool | None = None
+    # Keep events for debugging/logging purposes only
+    event_count: int | None = None
 
 class LlmResponseInput(BaseModel):
     create_params: dict[str, Any]
@@ -48,7 +48,7 @@ async def llm_response_stream(
         response_data = await stream_to_websocket(
             api_address=api_address, data=response
         )
-        log.info("llm_response completed (execute)", response=response_data)
+        log.info("llm_response completed (execute)", response_data_keys=list(response_data.keys()), has_final_response=bool(response_data.get("final_response")), final_response_type=type(response_data.get("final_response")))
 
         # Convert the response_data to our proper output model
         final_response = response_data.get("final_response")
@@ -65,13 +65,11 @@ async def llm_response_stream(
             usage = usage.__dict__
 
         return LlmResponseOutput(
-            events=response_data.get("events", []),
-            text=response_data.get("text", ""),
-            event_count=response_data.get("event_count", 0),
             final_response=final_response,
             response_id=response_data.get("response_id"),
             usage=usage,
             has_completion=response_data.get("has_completion", False),
+            event_count=response_data.get("event_count", 0),
         )
     except Exception as e:
         error_message = f"llm_response failed: {e}"

@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pydantic import BaseModel, Field
 from restack_ai.function import NonRetryableError, function
@@ -209,7 +209,7 @@ async def mcp_servers_update(
                     else:
                         setattr(mcp_server, key, value)
 
-            mcp_server.updated_at = datetime.now(tz=timezone.utc).replace(tzinfo=None)
+            mcp_server.updated_at = datetime.now(tz=UTC).replace(tzinfo=None)
             await db.commit()
             await db.refresh(mcp_server)
             result = McpServerOutput(

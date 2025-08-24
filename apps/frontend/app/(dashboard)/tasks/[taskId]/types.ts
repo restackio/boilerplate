@@ -1,16 +1,17 @@
-// Types for conversation items
+// Simplified conversation item that uses OpenAI structure directly
 export interface ConversationItem {
   id: string;
-  type: "user" | "assistant" | "system" | "tool-call" | "tool-list" | "thinking" | "mcp-approval-request" | "web-search" | "reasoning";
-  content: string;
-  timestamp: string;
-  agent?: string;
-  status?: "completed" | "in-progress" | "pending" | "failed" | "waiting-approval" | "searching";
-  details?: string;
-  toolName?: string;
-  toolOutput?: string | object;
-  toolArguments?: string | Record<string, unknown>;
-  serverLabel?: string;
+  type: string;
+  timestamp: string | null;
+  openai_output: {
+    id: string;
+    type: string;
+    role?: string; // Allow any role string
+    status?: string;
+    content?: Array<{ type: string; text: string; [key: string]: any }>;
+    summary?: Array<{ type: string; text: string; [key: string]: any }>;
+    name?: string;
+    [key: string]: any; // Allow any other OpenAI fields
+  };
   isStreaming?: boolean;
-  rawData?: Record<string, unknown>; // For storing the original response data
 } 

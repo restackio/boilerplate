@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pydantic import BaseModel, Field
 from restack_ai.function import NonRetryableError, function
@@ -163,7 +163,7 @@ async def teams_update(
                 if hasattr(team, key):
                     setattr(team, key, value)
 
-            team.updated_at = datetime.now(tz=timezone.utc).replace(tzinfo=None)
+            team.updated_at = datetime.now(tz=UTC).replace(tzinfo=None)
             await db.commit()
             await db.refresh(team)
 

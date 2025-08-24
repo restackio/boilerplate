@@ -92,7 +92,7 @@ async def llm_prepare_response(  # noqa: C901, PLR0912, PLR0915
             "model": function_input.model or "gpt-5",
             "input": input_data,
             "tool_choice": "auto",
-            "reasoning": {"effort": function_input.reasoning_effort or "minimal"},
+            "reasoning": {"effort": function_input.reasoning_effort or "minimal", "summary": "detailed"},
             "previous_response_id": function_input.previous_response_id,
             "text": {
                 "format": format_obj,
@@ -147,7 +147,7 @@ async def llm_prepare_response(  # noqa: C901, PLR0912, PLR0915
             for tool in function_input.tools:
                 try:
                     normalized_tools.append(_normalize_tool(tool))
-                except Exception as e:  # noqa: BLE001, PERF203
+                except Exception as e:  # noqa: BLE001
                     # Skip malformed tools to avoid API 400s
                     log.warning(f"Skipping malformed tool: {tool}, error: {e}")
                     continue

@@ -11,22 +11,30 @@ interface TaskCardMcpProps {
   item: ConversationItem;
   onApprove?: (itemId: string) => void;
   onDeny?: (itemId: string) => void;
+  onClick?: (item: ConversationItem) => void;
 }
 
-export function TaskCardMcp({ item, onApprove, onDeny }: TaskCardMcpProps) {
+export function TaskCardMcp({ item, onApprove, onDeny, onClick }: TaskCardMcpProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   
-  const isProcessed = item.status === "completed" || item.status === "failed";
-  const isWaitingApproval = item.status === "waiting-approval";
+  const output = item.openai_output;
+  const status = output.status || "waiting-approval";
+  const toolName = output.name || "Unknown tool";
+  const serverLabel = output.server_label || "";
+  const toolArguments = output.arguments;
+  
+  const isProcessed = status === "completed" || status === "failed";
+  const isWaitingApproval = status === "waiting-approval" || !status;
+
+
 
   const handleApprove = async () => {
     if (!onApprove) return;
     setIsProcessing(true);
     try {
-      // For streaming items, use the original itemId from rawData
-      // For persistent items, use the item.id
-      const rawData = item.rawData as any;
-      const approvalId = rawData?.item?.id || rawData?.item_id || item.id;
+      // Use the openai_output ID or fall back to item.id
+      const approvalId = output.id || item.id;
+
       await onApprove(approvalId);
     } finally {
       setIsProcessing(false);
@@ -37,10 +45,9 @@ export function TaskCardMcp({ item, onApprove, onDeny }: TaskCardMcpProps) {
     if (!onDeny) return;
     setIsProcessing(true);
     try {
-      // For streaming items, use the original itemId from rawData
-      // For persistent items, use the item.id
-      const rawData = item.rawData as any;
-      const approvalId = rawData?.item?.id || rawData?.item_id || item.id;
+      // Use the openai_output ID or fall back to item.id
+      const approvalId = output.id || item.id;
+
       await onDeny(approvalId);
     } finally {
       setIsProcessing(false);
@@ -48,23 +55,26 @@ export function TaskCardMcp({ item, onApprove, onDeny }: TaskCardMcpProps) {
   };
 
   return (
-    <Card className={`w-full border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${
-      isProcessing ? "opacity-75 pointer-events-none" : ""
-    }`}>
+    <Card 
+      className={`w-full border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer ${
+        isProcessing ? "opacity-75 pointer-events-none" : ""
+      }`}
+      onClick={() => onClick?.(item)}
+    >
       <CardHeader>
         <CardTitle className="text-sm font-medium flex items-center gap-2">
-          Approval required: {item.serverLabel} {item.toolName}
+          Approval required: {toolName} {serverLabel && `(${serverLabel})`}
           {isProcessing && (
             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
           )}
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-0">
-        {item.toolArguments && (
+        {toolArguments && (
           <div className="mt-2">
             <p className="text-xs text-muted-foreground mb-1">Arguments:</p>
             <pre className="text-xs bg-gray-100 dark:bg-gray-800 p-2 rounded border overflow-x-auto">
-              {JSON.stringify(typeof item.toolArguments === 'string' ? JSON.parse(item.toolArguments) : item.toolArguments, null, 2)}
+              {JSON.stringify(typeof toolArguments === 'string' ? JSON.parse(toolArguments) : toolArguments, null, 2)}
             </pre>
           </div>
         )}
@@ -100,7 +110,7 @@ export function TaskCardMcp({ item, onApprove, onDeny }: TaskCardMcpProps) {
         ) : isProcessed ? (
           <div className="flex items-center justify-start pt-3">
             <div className="text-sm font-medium text-center">
-              {item.status === "completed" ? (
+              {status === "completed" ? (
                 <Button
                   size="sm"
                   variant="outline"
@@ -129,7 +139,7 @@ export function TaskCardMcp({ item, onApprove, onDeny }: TaskCardMcpProps) {
             {new Date(item.timestamp).toLocaleTimeString()}
           </span>
           <Badge variant="secondary" className="text-xs">
-            {item.status}
+            {status}
           </Badge>
         </div>
       </CardFooter>

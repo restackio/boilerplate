@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pydantic import BaseModel, Field
 from restack_ai.function import NonRetryableError, function
@@ -428,7 +428,7 @@ async def agents_update(
                 if hasattr(agent, key):
                     setattr(agent, key, value)
 
-            agent.updated_at = datetime.now(tz=timezone.utc).replace(tzinfo=None)
+            agent.updated_at = datetime.now(tz=UTC).replace(tzinfo=None)
             await db.commit()
             await db.refresh(agent)
             result = AgentOutput(

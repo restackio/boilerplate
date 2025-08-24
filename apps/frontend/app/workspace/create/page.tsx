@@ -78,7 +78,6 @@ export default function CreateWorkspacePage() {
         !formData.companySize ||
         !formData.industry
       ) {
-        alert("Please fill in all required fields");
         return;
       }
       setCurrentStep(2);

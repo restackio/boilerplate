@@ -2,19 +2,24 @@ import { Button } from "@workspace/ui/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@workspace/ui/components/ui/tabs";
 import { X } from "lucide-react";
 import { ConversationItem } from "../types";
-import { TaskLogsTab } from "./TaskLogsTab";
 import { TaskDetailsTab } from "./TaskDetailsTab";
 import { Task } from "@/hooks/use-workspace-scoped-actions";
 
 // Helper function to get status icon
 const getStatusIcon = (status: string) => {
   switch (status) {
+    case "completed":
     case "success":
       return <div className="w-2 h-2 bg-green-500 rounded-full" />;
+    case "failed":
     case "error":
       return <div className="w-2 h-2 bg-red-500 rounded-full" />;
+    case "in-progress":
     case "pending":
+    case "waiting-approval":
       return <div className="w-2 h-2 bg-yellow-500 rounded-full" />;
+    case "cancelled":
+      return <div className="w-2 h-2 bg-orange-500 rounded-full" />;
     default:
       return <div className="w-2 h-2 bg-gray-500 rounded-full" />;
   }
@@ -27,7 +32,6 @@ interface TaskSplitViewProps {
   onActiveTabChange: (tab: string) => void;
   onCloseSplitView: () => void;
   task: Task;
-  agentResponses: ConversationItem[];
   onUpdateTask: (updates: Partial<Task>) => Promise<void>;
   isUpdating: boolean;
 }
@@ -39,7 +43,6 @@ export function TaskSplitView({
   onActiveTabChange,
   onCloseSplitView,
   task,
-  agentResponses,
   onUpdateTask,
   isUpdating,
 }: TaskSplitViewProps) {
@@ -51,9 +54,12 @@ export function TaskSplitView({
         {/* Header with close button */}
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold">
-            {selectedCard?.type === "tool-call" ? "Tool Call Details" : 
-             selectedCard?.type === "tool-list" ? "Available Tools" : 
-             "Message Details"}
+            {selectedCard?.type === "mcp_call" ? "Tool" : 
+             selectedCard?.type === "mcp_list_tools" ? "List tools" :
+             selectedCard?.type === "mcp_approval_request" ? "Approval" :
+             selectedCard?.type === "web_search_call" ? "Web Search" :
+             selectedCard?.type === "reasoning" ? "Reasoning" :
+             "Message"}
           </h3>
           <Button
             variant="ghost"
@@ -70,15 +76,13 @@ export function TaskSplitView({
           className="w-full"
         >
           <TabsList>
-            <TabsTrigger value="logs">Logs</TabsTrigger>
             <TabsTrigger value="details">Details</TabsTrigger>
+            <TabsTrigger value="task">Task</TabsTrigger>
           </TabsList>
           
-          <TabsContent value="logs" className="space-y-4">
-            <TaskLogsTab taskId={task.id} agentResponses={agentResponses} />
-            {selectedCard && (
+          <TabsContent value="details" className="space-y-4">
+            {selectedCard ? (
               <div className="bg-white dark:bg-neutral-900 rounded-lg border p-4 space-y-4">
-                <h4 className="font-medium">Selected Item Details</h4>
                 
                 {/* Item Type and Status */}
                 <div className="grid grid-cols-2 gap-4">
@@ -89,39 +93,92 @@ export function TaskSplitView({
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Status</label>
                     <div className="flex items-center space-x-2">
-                      {getStatusIcon(selectedCard.status)}
-                      <span className="text-sm">{selectedCard.status || 'unknown'}</span>
+                      {getStatusIcon(selectedCard.openai_output?.status || 'unknown')}
+                      <span className="text-sm">{selectedCard.openai_output?.status || 'unknown'}</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Content */}
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Content</label>
-                  <div className="text-sm bg-gray-50 dark:bg-gray-800 p-2 rounded mt-1 whitespace-pre-wrap break-words">{selectedCard.content}</div>
-                </div>
-
-                {/* Tool-specific information */}
-                {selectedCard.toolName && (
+                {selectedCard.openai_output?.content && (
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground">Tool Name</label>
-                    <p className="text-sm font-mono bg-blue-50 dark:bg-blue-950/20 p-2 rounded mt-1">{selectedCard.toolName}</p>
+                    <label className="text-sm font-medium text-muted-foreground">Content</label>
+                    <div className="text-sm bg-gray-50 dark:bg-gray-800 p-2 rounded mt-1 whitespace-pre-wrap break-words">
+                      {Array.isArray(selectedCard.openai_output.content) 
+                        ? selectedCard.openai_output.content.map(c => c.text).join('\n')
+                        : String(selectedCard.openai_output.content)}
+                    </div>
                   </div>
                 )}
 
-                {selectedCard.toolOutput && (
+                {/* Tool-specific information */}
+                {selectedCard.openai_output?.name && (
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground">Tool Output</label>
-                    <pre className="text-xs bg-green-50 dark:bg-green-950/20 p-2 rounded mt-1 overflow-auto max-h-32 whitespace-pre-wrap break-words max-w-full">
-                      {selectedCard.toolOutput}
+                    <label className="text-sm font-medium text-muted-foreground">Tool Name</label>
+                    <p className="text-sm font-mono bg-blue-50 dark:bg-blue-950/20 p-2 rounded mt-1">{selectedCard.openai_output.name}</p>
+                  </div>
+                )}
+
+                {selectedCard.openai_output?.server_label && (
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Server</label>
+                    <p className="text-sm font-mono bg-blue-50 dark:bg-blue-950/20 p-2 rounded mt-1">{selectedCard.openai_output.server_label}</p>
+                  </div>
+                )}
+
+                {selectedCard.openai_output?.arguments && (
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Arguments</label>
+                    <pre className="text-xs bg-purple-50 dark:bg-purple-950/20 p-2 rounded mt-1 overflow-auto max-h-32 whitespace-pre-wrap break-words max-w-full">
+                      {JSON.stringify(selectedCard.openai_output.arguments, null, 2)}
                     </pre>
                   </div>
                 )}
 
-                {selectedCard.details && (
+                {selectedCard.openai_output?.output && (
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground">Details</label>
-                    <div className="text-sm bg-yellow-50 dark:bg-yellow-950/20 p-2 rounded mt-1 whitespace-pre-wrap break-words">{selectedCard.details}</div>
+                    <label className="text-sm font-medium text-muted-foreground">Tool Output</label>
+                    <pre className="text-xs bg-green-50 dark:bg-green-950/20 p-2 rounded mt-1 overflow-auto max-h-32 whitespace-pre-wrap break-words max-w-full">
+                      {typeof selectedCard.openai_output.output === 'string' 
+                        ? selectedCard.openai_output.output 
+                        : JSON.stringify(selectedCard.openai_output.output, null, 2)}
+                    </pre>
+                  </div>
+                )}
+
+                {selectedCard.openai_output?.tools && Array.isArray(selectedCard.openai_output.tools) && (
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Available Tools ({selectedCard.openai_output.tools.length})</label>
+                    <div className="space-y-2 mt-1 max-h-32 overflow-auto">
+                      {selectedCard.openai_output.tools.slice(0, 5).map((tool: any, index: number) => (
+                        <div key={index} className="text-xs bg-gray-100 dark:bg-gray-800 p-2 rounded border">
+                          <strong>{tool.name}</strong>: {tool.description}
+                        </div>
+                      ))}
+                      {selectedCard.openai_output.tools.length > 5 && (
+                        <p className="text-xs text-muted-foreground">... and {selectedCard.openai_output.tools.length - 5} more</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {selectedCard.openai_output?.action && (
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Action Details</label>
+                    <pre className="text-xs bg-orange-50 dark:bg-orange-950/20 p-2 rounded mt-1 overflow-auto max-h-32 whitespace-pre-wrap break-words max-w-full">
+                      {JSON.stringify(selectedCard.openai_output.action, null, 2)}
+                    </pre>
+                  </div>
+                )}
+
+                {selectedCard.openai_output?.summary && (
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Summary</label>
+                    <div className="text-sm bg-yellow-50 dark:bg-yellow-950/20 p-2 rounded mt-1 whitespace-pre-wrap break-words">
+                      {Array.isArray(selectedCard.openai_output.summary) 
+                        ? selectedCard.openai_output.summary.map(s => s.text || s).join('\n\n')
+                        : String(selectedCard.openai_output.summary)}
+                    </div>
                   </div>
                 )}
 
@@ -132,23 +189,28 @@ export function TaskSplitView({
                 </div>
 
                 {/* Raw Data (collapsible) */}
-                {selectedCard.rawData && (
-                  <div>
-                    <details className="group">
-                      <summary className="cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground">
-                        Raw Response Data
-                      </summary>
-                      <pre className="text-xs overflow-auto max-h-64 bg-gray-100 dark:bg-gray-800 p-2 rounded mt-2 whitespace-pre-wrap break-words max-w-full">
-                        {JSON.stringify(selectedCard.rawData, null, 2)}
-                      </pre>
-                    </details>
-                  </div>
-                )}
+                <div>
+                  <details className="group">
+                    <summary className="cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground">
+                      Debug
+                    </summary>
+                    <pre className="text-xs overflow-auto max-h-64 bg-gray-100 dark:bg-gray-800 p-2 rounded mt-2 whitespace-pre-wrap break-words max-w-full">
+                      {JSON.stringify(selectedCard.openai_output, null, 2)}
+                    </pre>
+                  </details>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white dark:bg-neutral-900 rounded-lg border p-8 text-center">
+                <div className="text-muted-foreground">
+                  <p className="text-lg font-medium mb-2">No item selected</p>
+                  <p className="text-sm">Click on any conversation item to view its details</p>
+                </div>
               </div>
             )}
           </TabsContent>
           
-          <TabsContent value="details" className="space-y-4">
+          <TabsContent value="task" className="space-y-4">
             <TaskDetailsTab
               task={task}
               onUpdateTask={onUpdateTask}

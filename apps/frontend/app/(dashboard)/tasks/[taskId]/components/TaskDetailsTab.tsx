@@ -83,11 +83,10 @@ export function TaskDetailsTab({ task, onUpdateTask, isLoading = false }: TaskDe
   };
 
   return (
-    <Card>
+    <Card className="space-y-4">
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
-          <CardTitle className="text-lg font-semibold">Task Details</CardTitle>
-          <CardDescription>Manage task information and status</CardDescription>
+          <CardTitle className="text-lg font-semibold">Task</CardTitle>
         </div>
         {!isEditing ? (
           <Button
@@ -124,7 +123,7 @@ export function TaskDetailsTab({ task, onUpdateTask, isLoading = false }: TaskDe
       <CardContent className="space-y-6">
         {/* Task ID */}
         <div>
-          <Label className="text-sm font-medium text-muted-foreground">Task ID</Label>
+          <Label className="text-sm font-medium text-muted-foreground">ID</Label>
           <div className="mt-1 text-sm font-mono bg-muted p-2 rounded">
             {task.id}
           </div>

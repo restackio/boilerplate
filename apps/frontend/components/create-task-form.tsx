@@ -107,7 +107,6 @@ export function CreateTaskForm({
   const handleSubmit = async () => {
     if (!taskDescription.trim()) return;
     if (!selectedAgentId) {
-      alert("Please select an agent first");
       return;
     }
 
@@ -117,7 +116,6 @@ export function CreateTaskForm({
       : [selectedAgentId];
 
     if (agentIdsToUse.length === 0) {
-      alert("Please select at least one agent version");
       return;
     }
 
@@ -179,8 +177,7 @@ export function CreateTaskForm({
       }
       
       const totalTime = Date.now() - startTime;
-      console.log(`✅ [CreateTaskForm] Created ${results.filter(r => r.success).length}/${results.length} tasks in ${totalTime}ms`);
-      
+
       // Handle navigation for multiple tasks
       const successCount = results.filter(r => r.success).length;
       if (agentIdsToUse.length > 1 && createdTaskIds.length > 0) {
@@ -191,27 +188,11 @@ export function CreateTaskForm({
           highlight: 'true',
           created: new Date().toISOString()
         });
-        
-        console.log(`🔄 [CreateTaskForm] Redirecting to /tasks with ${createdTaskIds.length} task IDs`);
         router.push(`/tasks?${queryParams.toString()}`);
-        
-        // Show summary message briefly before redirect
-        if (successCount === agentIdsToUse.length) {
-          console.log(`✅ [CreateTaskForm] Successfully created ${successCount} tasks, redirecting...`);
-        } else {
-          console.log(`⚠️ [CreateTaskForm] Created ${successCount}/${agentIdsToUse.length} tasks, redirecting...`);
-        }
-      } else {
-        // For single task, show alert as before (onTaskCreated will handle navigation)
-        if (successCount === agentIdsToUse.length) {
-          alert(`Successfully created ${successCount} task${successCount > 1 ? 's' : ''}!`);
-        } else {
-          alert(`Created ${successCount}/${agentIdsToUse.length} tasks. Some tasks failed to create.`);
-        }
       }
       
     } catch (error) {
-      console.error("❌ [CreateTaskForm] Failed to create tasks:", error);
+      console.error("Failed to create tasks:", error);
     }
   };
 

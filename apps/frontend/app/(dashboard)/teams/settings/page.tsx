@@ -51,7 +51,6 @@ export default function TeamsSettingsPage() {
 
   const handleSubmitCreateTeam = async () => {
     if (!createFormData.name.trim()) {
-      alert("Team name is required");
       return;
     }
 
@@ -66,8 +65,6 @@ export default function TeamsSettingsPage() {
       setShowCreateForm(false);
       setCreateFormData({ name: "", description: "", icon: "Building" });
       await fetchTeams();
-    } else {
-      alert(`Failed to create team: ${result.error}`);
     }
     setCreating(false);
   };

@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useRef } from "react";
 import { ConversationItem } from "../types";
-import { ConversationMessage } from "./conversation-message";
+import { ConversationMessage } from "./ConversationMessage";
 import { TaskCardTool } from "./TaskCardTool";
 import { TaskCardMcp } from "./TaskCardMcp";
 import { TaskCardWebSearch } from "./TaskCardWebSearch";
-import { TaskCardReasoning } from "./TaskCardReasoning";
+import { Reasoning, ReasoningTrigger, ReasoningContent } from "@workspace/ui/components/ai-elements/reasoning";
 
 interface Tool {
   name: string;
@@ -52,6 +52,8 @@ interface StreamingItem {
   toolOutput?: unknown;
   serverLabel?: string;
   status?: string;
+  startTime?: number;
+  duration?: number;
   rawData?: Record<string, unknown>;
 }
 
@@ -129,6 +131,41 @@ export function StreamItems({
         hasUpdates = true;
       }
 
+      // Reasoning summary text streaming
+      if (response.type === "response.reasoning_summary_text.delta" && response.delta && response.item_id) {
+        const itemId = response.item_id;
+        
+        // Skip if already in persistent state
+        if (persistentItemIds.has(`reasoning_${itemId}`) || persistentItemIds.has(itemId)) {
+          return;
+        }
+
+        let streamItem = streamingRefs.current.get(itemId);
+        if (!streamItem) {
+          streamItem = {
+            id: `stream_reasoning_${itemId}`,
+            itemId: itemId,
+            type: "reasoning",
+            content: "",
+            isStreaming: true,
+            timestamp: new Date().toISOString(),
+            status: "in-progress",
+            startTime: Date.now(),
+            rawData: response
+          };
+          streamingRefs.current.set(itemId, streamItem);
+        }
+
+        // Create a new object to ensure React detects the change
+        const updatedItem = {
+          ...streamItem,
+          content: streamItem.content + (response.delta || ""),
+          timestamp: new Date().toISOString()
+        };
+        streamingRefs.current.set(itemId, updatedItem);
+        hasUpdates = true;
+      }
+
       // Text completion
       if (response.type === "response.output_text.done" && response.text && response.item_id) {
         const itemId = response.item_id;
@@ -146,6 +183,35 @@ export function StreamItems({
           isStreaming: false,
           timestamp: new Date().toISOString()
         };
+          streamingRefs.current.set(itemId, updatedItem);
+          hasUpdates = true;
+        }
+      }
+
+      // Reasoning summary text completion
+      if (response.type === "response.reasoning_summary_text.done" && response.text && response.item_id) {
+        const itemId = response.item_id;
+        
+        if (persistentItemIds.has(`reasoning_${itemId}`) || persistentItemIds.has(itemId)) {
+          return;
+        }
+
+        const streamItem = streamingRefs.current.get(itemId);
+        if (streamItem && streamItem.type === "reasoning") {
+          // Calculate duration if we have a start time
+          const duration = streamItem.startTime 
+            ? Math.round((Date.now() - streamItem.startTime) / 1000)
+            : 0;
+          
+          // Create a new object to ensure React detects the change
+          const updatedItem = {
+            ...streamItem,
+            content: response.text || streamItem.content,
+            isStreaming: false,
+            status: "completed",
+            duration: duration,
+            timestamp: new Date().toISOString()
+          };
           streamingRefs.current.set(itemId, updatedItem);
           hasUpdates = true;
         }
@@ -225,7 +291,7 @@ export function StreamItems({
             id: `stream_reasoning_${itemId}`,
             itemId: itemId,
             type: "reasoning",
-            content: item.content || "Agent is reasoning...",
+            content: item.content || "Agent is thinking...",
             isStreaming: true,
             timestamp: new Date().toISOString(),
             status: "in-progress",
@@ -286,7 +352,7 @@ export function StreamItems({
           // Update reasoning with completion data
           const updatedItem = {
             ...streamItem,
-            content: item.content || "Reasoning completed",
+            content: item.content || "Thinking completed",
             status: "completed",
             isStreaming: false,
             timestamp: new Date().toISOString()
@@ -384,10 +450,15 @@ export function StreamItems({
           const conversationItem: ConversationItem = {
             id: item.id,
             type: "assistant",
-            content: item.content,
             timestamp: item.timestamp,
             isStreaming: item.isStreaming,
-            rawData: item.rawData
+            openai_output: {
+              id: item.id,
+              type: "message",
+              role: "assistant",
+              status: item.isStreaming ? "in-progress" : "completed",
+              content: [{ type: "output_text", text: item.content }]
+            }
           };
           return <ConversationMessage key={item.id} item={conversationItem} />;
         } 
@@ -397,14 +468,17 @@ export function StreamItems({
           const conversationItem: ConversationItem = {
             id: item.id,
             type: item.type === "tool-call" ? "tool-call" : "tool-list",
-            content: item.content,
             timestamp: item.timestamp,
-            toolName: item.toolName,
-            toolArguments: item.toolArguments,
-            toolOutput: typeof item.toolOutput === 'object' ? item.toolOutput : String(item.toolOutput || ''),
-            serverLabel: item.serverLabel,
-            status: item.status as "completed" | "failed" | "in-progress" | "pending" | "waiting-approval",
-            rawData: item.rawData
+            isStreaming: item.isStreaming,
+            openai_output: {
+              id: item.id,
+              type: item.type === "tool-call" ? "mcp_call" : "mcp_list_tools",
+              name: item.toolName,
+              arguments: item.toolArguments,
+              output: item.toolOutput,
+              server_label: item.serverLabel,
+              status: item.status
+            }
           };
           return <TaskCardTool key={item.id} item={conversationItem} onClick={onCardClick} />;
         }
@@ -414,20 +488,24 @@ export function StreamItems({
           const conversationItem: ConversationItem = {
             id: item.id,
             type: "mcp-approval-request",
-            content: item.content,
             timestamp: item.timestamp,
-            toolName: item.toolName,
-            toolArguments: item.toolArguments,
-            serverLabel: item.serverLabel,
-            status: item.status as "completed" | "failed" | "in-progress" | "pending" | "waiting-approval",
-            rawData: item.rawData
+            isStreaming: item.isStreaming,
+            openai_output: {
+              id: item.id,
+              type: "mcp_approval_request",
+              name: item.toolName,
+              arguments: item.toolArguments,
+              server_label: item.serverLabel,
+              status: item.status
+            }
           };
           return (
             <TaskCardMcp 
               key={item.id} 
               item={conversationItem} 
-              onApprove={() => onApproveRequest?.(item.itemId)}
-              onDeny={() => onDenyRequest?.(item.itemId)} 
+              onApprove={(approvalId) => onApproveRequest?.(approvalId)}
+              onDeny={(approvalId) => onDenyRequest?.(approvalId)}
+              onClick={onCardClick}
             />
           );
         }
@@ -437,27 +515,33 @@ export function StreamItems({
           const conversationItem: ConversationItem = {
             id: item.id,
             type: "web-search",
-            content: item.content,
             timestamp: item.timestamp,
-            toolArguments: item.toolArguments,
-            toolOutput: typeof item.toolOutput === 'object' ? item.toolOutput : String(item.toolOutput || ''),
-            status: item.status as "completed" | "failed" | "in-progress" | "pending" | "waiting-approval" | "searching",
-            rawData: item.rawData
+            isStreaming: item.isStreaming,
+            openai_output: {
+              id: item.id,
+              type: "web_search_call",
+              action: item.toolArguments,
+              output: item.toolOutput,
+              status: item.status
+            }
           };
           return <TaskCardWebSearch key={item.id} item={conversationItem} onClick={onCardClick} />;
         }
 
         if (item.type === "reasoning") {
-          // Reasoning card
-          const conversationItem: ConversationItem = {
-            id: item.id,
-            type: "reasoning",
-            content: item.content,
-            timestamp: item.timestamp,
-            status: item.status as "completed" | "failed" | "in-progress" | "pending" | "waiting-approval",
-            rawData: item.rawData
-          };
-          return <TaskCardReasoning key={item.id} item={conversationItem} onClick={onCardClick} />;
+          // Reasoning component
+          return (
+            <Reasoning 
+              key={item.id}
+              isStreaming={item.isStreaming || item.status === "in-progress"}
+              duration={item.duration || 0}
+            >
+              <ReasoningTrigger />
+              <ReasoningContent>
+                {item.content || "Agent is thinking..."}
+              </ReasoningContent>
+            </Reasoning>
+          );
         }
         
         return null;
