@@ -288,6 +288,7 @@ export class StreamingItemProcessor {
       const updatedItem = {
         ...streamItem,
         content: `Web search: ${item.action?.query || "Search completed"}`,
+        toolArguments: item.action,
         toolOutput: item.output || item.result,
         status: item.status || "completed",
         isStreaming: false,
