@@ -92,7 +92,7 @@ export function StreamingItemRenderer({
     // Web search card
     const conversationItem: ConversationItem = {
       id: item.id,
-      type: "web-search",
+      type: "web_search_call",
       timestamp: item.timestamp,
       isStreaming: item.isStreaming,
       openai_output: {

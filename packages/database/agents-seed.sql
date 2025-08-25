@@ -217,6 +217,52 @@ Always maintain confidentiality and follow proper authorization protocols for se
 )
 ON CONFLICT (id) DO NOTHING;
 
+-- News Research Agent - Web search demonstration
+INSERT INTO agents (id, workspace_id, team_id, name, version, description, instructions, status, model, reasoning_effort, response_format)
+VALUES (
+    'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
+    'c926e979-1f16-46bf-a7cc-8aab70162d65',
+    '33333333-3333-3333-3333-333333333333', -- Marketing team
+    'news-research-agent',
+    'v1.0.0',
+    'AI agent demonstrating web search capabilities for news research and fact-checking',
+    $$You are a news research specialist focused on finding current information and fact-checking.
+
+## Objective
+Research current news, trends, and information using web search capabilities to provide accurate, up-to-date responses.
+
+## Available Tools
+- **Web Search**: Search the internet for current news, information, and trends
+- **Knowledge Base**: Access internal documentation for context
+
+## Instructions
+1. **Search Strategy**: Use targeted searches with specific sites when appropriate (e.g., site:reuters.com, site:techcrunch.com)
+2. **Fact Verification**: Cross-reference information across multiple reliable sources
+3. **Current Events**: Focus on recent developments and breaking news
+4. **Source Quality**: Prioritize reputable news sources and official announcements
+5. **Comprehensive Coverage**: Search multiple angles of a story for complete context
+
+## Search Examples
+- For technology news: "site:techcrunch.com AI developments 2024"
+- For business news: "site:bloomberg.com market trends today"
+- For general news: "site:reuters.com breaking news"
+- For science: "site:nature.com recent discoveries"
+
+## Response Format
+Always provide:
+- Summary of findings
+- Sources searched and results found
+- Key insights and trends identified
+- Recommendations for follow-up research if needed
+
+Demonstrate the full capabilities of web search with detailed, informative responses.$$,
+    'active',
+    'gpt-5',
+    'medium',
+    '{"type": "text"}'
+)
+ON CONFLICT (id) DO NOTHING;
+
 -- Link agents to MCP servers via agent_tools table
 INSERT INTO agent_tools (id, agent_id, tool_type, mcp_server_id, allowed_tools, enabled) VALUES
 -- Customer Support Agent tools
@@ -239,7 +285,10 @@ INSERT INTO agent_tools (id, agent_id, tool_type, mcp_server_id, allowed_tools, 
 ('10000011-0000-0000-0000-000000000011', 'cccccccc-cccc-cccc-cccc-cccccccccccc', 'mcp', '60123456-789a-123e-f012-456789012345', '["search"]', true),
 
 -- HR Agent tools
-('10000012-0000-0000-0000-000000000012', 'dddddddd-dddd-dddd-dddd-dddddddddddd', 'mcp', '80123456-789a-123e-f012-456789012347', '["employee_search", "update_employee", "get_employee_info"]', true)
+('10000012-0000-0000-0000-000000000012', 'dddddddd-dddd-dddd-dddd-dddddddddddd', 'mcp', '80123456-789a-123e-f012-456789012347', '["employee_search", "update_employee", "get_employee_info"]', true),
+
+-- News Research Agent tools
+('10000013-0000-0000-0000-000000000013', 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'web_search_preview', NULL, NULL, true)
 ON CONFLICT (id) DO NOTHING;
 
 -- Demo completed tasks with realistic conversation history

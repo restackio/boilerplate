@@ -3,10 +3,10 @@ from datetime import UTC, datetime
 
 from pydantic import BaseModel, Field
 from restack_ai.function import NonRetryableError, function
-from sqlalchemy import select, delete
+from sqlalchemy import delete, select
 
 from src.database.connection import get_async_db
-from src.database.models import McpServer, AgentTool
+from src.database.models import AgentTool, McpServer
 
 
 # Pydantic models for approval structure
@@ -109,7 +109,7 @@ async def mcp_servers_read(
                     workspace_id=str(mcp_server.workspace_id),
                     server_label=mcp_server.server_label,
                     server_url=mcp_server.server_url,
-                    local=getattr(mcp_server, 'local', False),
+                    local=getattr(mcp_server, "local", False),
                     server_description=mcp_server.server_description,
                     headers=mcp_server.headers,
                     require_approval=McpRequireApproval.model_validate(
@@ -262,13 +262,13 @@ async def mcp_servers_delete(
                 raise NonRetryableError(  # noqa: TRY301
                     message=f"MCP server with id {function_input.mcp_server_id} not found"
                 )
-            
+
             # First delete all agent tools that reference this MCP server
             agent_tools_delete_query = delete(AgentTool).where(
                 AgentTool.mcp_server_id == uuid.UUID(function_input.mcp_server_id)
             )
             await db.execute(agent_tools_delete_query)
-            
+
             # Then delete the MCP server
             await db.delete(mcp_server)
             await db.commit()
