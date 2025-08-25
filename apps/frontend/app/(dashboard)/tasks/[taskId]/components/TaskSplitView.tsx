@@ -4,26 +4,7 @@ import { X } from "lucide-react";
 import { ConversationItem } from "../types";
 import { TaskDetailsTab } from "./TaskDetailsTab";
 import { Task } from "@/hooks/use-workspace-scoped-actions";
-
-// Helper function to get status icon
-const getStatusIcon = (status: string) => {
-  switch (status) {
-    case "completed":
-    case "success":
-      return <div className="w-2 h-2 bg-green-500 rounded-full" />;
-    case "failed":
-    case "error":
-      return <div className="w-2 h-2 bg-red-500 rounded-full" />;
-    case "in-progress":
-    case "pending":
-    case "waiting-approval":
-      return <div className="w-2 h-2 bg-yellow-500 rounded-full" />;
-    case "cancelled":
-      return <div className="w-2 h-2 bg-orange-500 rounded-full" />;
-    default:
-      return <div className="w-2 h-2 bg-gray-500 rounded-full" />;
-  }
-};
+import { StatusIcon } from "./base/ContentDisplay";
 
 interface TaskSplitViewProps {
   showSplitView: boolean;
@@ -93,7 +74,7 @@ export function TaskSplitView({
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Status</label>
                     <div className="flex items-center space-x-2">
-                      {getStatusIcon(selectedCard.openai_output?.status || 'unknown')}
+                      <StatusIcon status={selectedCard.openai_output?.status || 'unknown'} />
                       <span className="text-sm">{selectedCard.openai_output?.status || 'unknown'}</span>
                     </div>
                   </div>

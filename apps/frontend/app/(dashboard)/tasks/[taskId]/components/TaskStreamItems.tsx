@@ -1,70 +1,9 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { ConversationItem } from "../types";
-import { ConversationMessage } from "./ConversationMessage";
-import { TaskCardTool } from "./TaskCardTool";
-import { TaskCardMcp } from "./TaskCardMcp";
-import { TaskCardWebSearch } from "./TaskCardWebSearch";
-import { Reasoning, ReasoningTrigger, ReasoningContent } from "@workspace/ui/components/ai-elements/reasoning";
-
-interface Tool {
-  name: string;
-  [key: string]: unknown;
-}
-
-interface StreamResponse {
-  type: string;
-  sequence_number?: number;
-  delta?: string;
-  text?: string;
-  item_id?: string;
-  item?: {
-    id?: string;
-    type?: string;
-    name?: string;
-    arguments?: Record<string, unknown>;
-    output?: unknown;
-    result?: unknown;
-    tools?: Tool[];
-    content?: string;
-    summary?: string[];
-    status?: string;
-    action?: {
-      query?: string;
-      type?: string;
-    };
-    server_label?: string;
-    [key: string]: unknown;
-  };
-  [key: string]: unknown;
-}
-
-interface StreamingItem {
-  id: string;
-  itemId: string;
-  type: "text" | "tool-call" | "tool-list" | "mcp-approval" | "web-search" | "reasoning";
-  content: string;
-  isStreaming: boolean;
-  timestamp: string;
-  toolName?: string;
-  toolArguments?: Record<string, unknown>;
-  toolOutput?: unknown;
-  serverLabel?: string;
-  status?: string;
-  startTime?: number;
-  duration?: number;
-  rawData?: Record<string, unknown>;
-}
-
-interface StreamItemsProps {
-  agentResponses: StreamResponse[];
-  persistentItemIds: Set<string>;
-  taskAgentTaskId?: string | null;
-  onApproveRequest?: (itemId: string) => void;
-  onDenyRequest?: (itemId: string) => void;
-  onCardClick?: (item: ConversationItem) => void;
-}
+import { StreamResponse, StreamingItem, StreamItemsProps } from "./streaming/StreamingTypes";
+import { StreamingItemProcessor } from "./streaming/StreamingItemProcessor";
+import { StreamingItemRenderer } from "./streaming/StreamingItemRenderer";
 
 export function StreamItems({ 
   agentResponses, 
@@ -75,13 +14,13 @@ export function StreamItems({
   onCardClick
 }: StreamItemsProps) {
   const [streamingItems, setStreamingItems] = useState<StreamingItem[]>([]);
-  const streamingRefs = useRef(new Map<string, StreamingItem>());
+  const processorRef = useRef(new StreamingItemProcessor());
 
   // Clear when task changes
   useEffect(() => {
     if (taskAgentTaskId) {
       setStreamingItems([]);
-      streamingRefs.current.clear();
+      processorRef.current.clear();
     }
   }, [taskAgentTaskId]);
 
@@ -91,340 +30,54 @@ export function StreamItems({
       return;
     }
 
+    const processor = processorRef.current;
     let hasUpdates = false;
 
     // Sort by sequence number for correct order
     const sortedResponses = [...agentResponses].sort((a, b) => (a.sequence_number || 0) - (b.sequence_number || 0));
 
     sortedResponses.forEach((response: StreamResponse) => {
-      
       // Text streaming
-      if (response.type === "response.output_text.delta" && response.delta && response.item_id) {
-        const itemId = response.item_id;
-        
-        // Skip if already in persistent state
-        if (persistentItemIds.has(`msg_${itemId}`) || persistentItemIds.has(itemId)) {
-          return;
-        }
-
-        let streamItem = streamingRefs.current.get(itemId);
-        if (!streamItem) {
-          streamItem = {
-            id: `stream_${itemId}`,
-            itemId: itemId,
-            type: "text",
-            content: "",
-            isStreaming: true,
-            timestamp: new Date().toISOString(),
-            rawData: response
-          };
-          streamingRefs.current.set(itemId, streamItem);
-        }
-
-        // Create a new object to ensure React detects the change
-        const updatedItem = {
-          ...streamItem,
-          content: streamItem.content + (response.delta || ""),
-          timestamp: new Date().toISOString()
-        };
-        streamingRefs.current.set(itemId, updatedItem);
-        hasUpdates = true;
+      if (response.type === "response.output_text.delta") {
+        hasUpdates = processor.processTextDelta(response, persistentItemIds) || hasUpdates;
       }
-
+      
       // Reasoning summary text streaming
-      if (response.type === "response.reasoning_summary_text.delta" && response.delta && response.item_id) {
-        const itemId = response.item_id;
-        
-        // Skip if already in persistent state
-        if (persistentItemIds.has(`reasoning_${itemId}`) || persistentItemIds.has(itemId)) {
-          return;
-        }
-
-        let streamItem = streamingRefs.current.get(itemId);
-        if (!streamItem) {
-          streamItem = {
-            id: `stream_reasoning_${itemId}`,
-            itemId: itemId,
-            type: "reasoning",
-            content: "",
-            isStreaming: true,
-            timestamp: new Date().toISOString(),
-            status: "in-progress",
-            startTime: Date.now(),
-            rawData: response
-          };
-          streamingRefs.current.set(itemId, streamItem);
-        }
-
-        // Create a new object to ensure React detects the change
-        const updatedItem = {
-          ...streamItem,
-          content: streamItem.content + (response.delta || ""),
-          timestamp: new Date().toISOString()
-        };
-        streamingRefs.current.set(itemId, updatedItem);
-        hasUpdates = true;
+      if (response.type === "response.reasoning_summary_text.delta") {
+        hasUpdates = processor.processReasoningDelta(response, persistentItemIds) || hasUpdates;
       }
-
+      
       // Text completion
-      if (response.type === "response.output_text.done" && response.text && response.item_id) {
-        const itemId = response.item_id;
-        
-        if (persistentItemIds.has(`msg_${itemId}`) || persistentItemIds.has(itemId)) {
-          return;
-        }
-
-        const streamItem = streamingRefs.current.get(itemId);
-        if (streamItem) {
-                  // Create a new object to ensure React detects the change
-        const updatedItem = {
-          ...streamItem,
-          content: response.text || streamItem.content,
-          isStreaming: false,
-          timestamp: new Date().toISOString()
-        };
-          streamingRefs.current.set(itemId, updatedItem);
-          hasUpdates = true;
-        }
+      if (response.type === "response.output_text.done") {
+        hasUpdates = processor.processTextCompletion(response, persistentItemIds) || hasUpdates;
       }
-
+      
       // Reasoning summary text completion
-      if (response.type === "response.reasoning_summary_text.done" && response.text && response.item_id) {
-        const itemId = response.item_id;
-        
-        if (persistentItemIds.has(`reasoning_${itemId}`) || persistentItemIds.has(itemId)) {
-          return;
-        }
-
-        const streamItem = streamingRefs.current.get(itemId);
-        if (streamItem && streamItem.type === "reasoning") {
-          // Calculate duration if we have a start time
-          const duration = streamItem.startTime 
-            ? Math.round((Date.now() - streamItem.startTime) / 1000)
-            : 0;
-          
-          // Create a new object to ensure React detects the change
-          const updatedItem = {
-            ...streamItem,
-            content: response.text || streamItem.content,
-            isStreaming: false,
-            status: "completed",
-            duration: duration,
-            timestamp: new Date().toISOString()
-          };
-          streamingRefs.current.set(itemId, updatedItem);
-          hasUpdates = true;
-        }
+      if (response.type === "response.reasoning_summary_text.done") {
+        hasUpdates = processor.processReasoningCompletion(response, persistentItemIds) || hasUpdates;
       }
-
+      
       // Tool calls and other items
-      if (response.type === "response.output_item.added" && response.item) {
-        const item = response.item;
-        const itemId = item.id;
-
-        if (persistentItemIds.has(itemId)) {
-          return;
-        }
-
-        if (item.type === "mcp_call") {
-          const streamItem: StreamingItem = {
-            id: `stream_tool_${itemId}`,
-            itemId: itemId,
-            type: "tool-call",
-            content: `Tool call: ${item.name || "Unknown"}`,
-            isStreaming: true,
-            timestamp: new Date().toISOString(),
-            toolName: item.name,
-            toolArguments: item.arguments,
-            status: "in-progress",
-            rawData: response
-          };
-          streamingRefs.current.set(itemId, streamItem);
-          hasUpdates = true;
-        } else if (item.type === "mcp_list_tools") {
-          const streamItem: StreamingItem = {
-            id: `stream_tools_${itemId}`,
-            itemId: itemId,
-            type: "tool-list",
-            content: "Fetching available tools...",
-            isStreaming: true,
-            timestamp: new Date().toISOString(),
-            status: "in-progress",
-            rawData: response
-          };
-          streamingRefs.current.set(itemId, streamItem);
-          hasUpdates = true;
-        } else if (item.type === "mcp_approval_request") {
-          const streamItem: StreamingItem = {
-            id: `stream_approval_${itemId}`,
-            itemId: itemId,
-            type: "mcp-approval",
-            content: `Approval required for: ${item.name || "Unknown"}`,
-            isStreaming: false,
-            timestamp: new Date().toISOString(),
-            toolName: item.name,
-            toolArguments: item.arguments,
-            serverLabel: item.server_label,
-            status: "waiting-approval",
-            rawData: response
-          };
-          streamingRefs.current.set(itemId, streamItem);
-          hasUpdates = true;
-        } else if (item.type === "web_search_call") {
-          // Use the actual item_id for grouping, not a generated ID
-          const actualItemId = item.id || itemId;
-          const streamItem: StreamingItem = {
-            id: `stream_websearch_${actualItemId}`,
-            itemId: actualItemId,
-            type: "web-search",
-            content: `Web search: ${item.action?.query || "Searching..."}`,
-            isStreaming: true,
-            timestamp: new Date().toISOString(),
-            toolArguments: item.action,
-            status: item.status || "in-progress",
-            rawData: response
-          };
-          streamingRefs.current.set(actualItemId, streamItem);
-          hasUpdates = true;
-        } else if (item.type === "reasoning") {
-          const streamItem: StreamingItem = {
-            id: `stream_reasoning_${itemId}`,
-            itemId: itemId,
-            type: "reasoning",
-            content: item.content || "Agent is thinking...",
-            isStreaming: true,
-            timestamp: new Date().toISOString(),
-            status: "in-progress",
-            rawData: response
-          };
-          streamingRefs.current.set(itemId, streamItem);
-          hasUpdates = true;
-        }
+      if (response.type === "response.output_item.added") {
+        hasUpdates = processor.processItemAdded(response, persistentItemIds) || hasUpdates;
       }
-
+      
       // Completions
-      if (response.type === "response.output_item.done" && response.item) {
-        const item = response.item;
-        const itemId = item.id;
-
-        if (persistentItemIds.has(itemId)) {
-          return;
-        }
-
-        const streamItem = streamingRefs.current.get(itemId);
-        if (streamItem && item.type === "mcp_call") {
-          // Create a new object to ensure React detects the change
-          const updatedItem = {
-            ...streamItem,
-            content: `Tool call: ${item.name || "Unknown"}`,
-            toolOutput: item.output,
-            status: "completed",
-            isStreaming: false,
-            timestamp: new Date().toISOString()
-          };
-          streamingRefs.current.set(itemId, updatedItem);
-          hasUpdates = true;
-        } else if (streamItem && item.type === "mcp_list_tools" && item.tools) {
-          const toolNames = item.tools.map((tool: Tool) => tool.name).join(", ");
-          // Create a new object to ensure React detects the change
-          const updatedItem = {
-            ...streamItem,
-            content: `Available tools: ${toolNames}`,
-            status: "completed",
-            isStreaming: false,
-            timestamp: new Date().toISOString()
-          };
-          streamingRefs.current.set(itemId, updatedItem);
-          hasUpdates = true;
-        } else if (streamItem && item.type === "web_search_call") {
-          // Update web search with completion data
-          const updatedItem = {
-            ...streamItem,
-            content: `Web search: ${item.action?.query || "Search completed"}`,
-            toolOutput: item.output || item.result,
-            status: item.status || "completed",
-            isStreaming: false,
-            timestamp: new Date().toISOString()
-          };
-          streamingRefs.current.set(itemId, updatedItem);
-          hasUpdates = true;
-        } else if (streamItem && item.type === "reasoning") {
-          // Update reasoning with completion data
-          const updatedItem = {
-            ...streamItem,
-            content: item.content || "Thinking completed",
-            status: "completed",
-            isStreaming: false,
-            timestamp: new Date().toISOString()
-          };
-          streamingRefs.current.set(itemId, updatedItem);
-          hasUpdates = true;
-        }
+      if (response.type === "response.output_item.done") {
+        hasUpdates = processor.processItemCompletion(response, persistentItemIds) || hasUpdates;
       }
-
+      
       // Handle web search state changes
       if (response.type === "response.web_search_call.searching" || 
           response.type === "response.web_search_call.in_progress" ||
           response.type === "response.web_search_call.completed") {
-        const itemId = response.item_id;
-        if (itemId && !persistentItemIds.has(itemId)) {
-          let streamItem = streamingRefs.current.get(itemId);
-          
-          // If no existing item, create one for the state change
-          if (!streamItem) {
-            streamItem = {
-              id: `stream_websearch_${itemId}`,
-              itemId: itemId,
-              type: "web-search",
-              content: "Web search in progress...",
-              isStreaming: true,
-              timestamp: new Date().toISOString(),
-              status: "in-progress",
-              rawData: response
-            };
-            streamingRefs.current.set(itemId, streamItem);
-          }
-          
-          if (streamItem.type === "web-search") {
-            let status = "in-progress";
-            if (response.type === "response.web_search_call.searching") {
-              status = "searching";
-            } else if (response.type === "response.web_search_call.completed") {
-              status = "completed";
-            }
-            
-            const updatedItem = {
-              ...streamItem,
-              status: status,
-              isStreaming: status !== "completed",
-              timestamp: new Date().toISOString()
-            };
-            streamingRefs.current.set(itemId, updatedItem);
-            hasUpdates = true;
-          }
-        }
+        hasUpdates = processor.processWebSearchStateChange(response, persistentItemIds) || hasUpdates;
       }
     });
 
     // Update state and filter out items that are now in persistent state
     if (hasUpdates) {
-      const currentItems = Array.from(streamingRefs.current.values())
-        .filter(item => {
-          const isInPersistent = persistentItemIds.has(item.itemId) || 
-                                 persistentItemIds.has(`msg_${item.itemId}`) ||
-                                 persistentItemIds.has(`tool_${item.itemId}`) ||
-                                 persistentItemIds.has(`approval_${item.itemId}`) ||
-                                 persistentItemIds.has(`tools_${item.itemId}`) ||
-                                 persistentItemIds.has(`websearch_${item.itemId}`) ||
-                                 persistentItemIds.has(`reasoning_${item.itemId}`);
-          
-          if (isInPersistent) {
-            streamingRefs.current.delete(item.itemId);
-            return false;
-          }
-          return true;
-        })
-        .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+      const currentItems = processor.filterOutPersistentItems(persistentItemIds);
 
       console.log("Current streaming items:", currentItems.length, currentItems.map(i => ({ 
         type: i.type, 
@@ -444,108 +97,15 @@ export function StreamItems({
 
   return (
     <div className="space-y-4">
-      {streamingItems.map((item) => {
-        if (item.type === "text") {
-          // Simple text message - same style as persistent messages
-          const conversationItem: ConversationItem = {
-            id: item.id,
-            type: "assistant",
-            timestamp: item.timestamp,
-            isStreaming: item.isStreaming,
-            openai_output: {
-              id: item.id,
-              type: "message",
-              role: "assistant",
-              status: item.isStreaming ? "in-progress" : "completed",
-              content: [{ type: "output_text", text: item.content }]
-            }
-          };
-          return <ConversationMessage key={item.id} item={conversationItem} />;
-        } 
-        
-        if (item.type === "tool-call" || item.type === "tool-list") {
-          // Tool card - same style as persistent cards
-          const conversationItem: ConversationItem = {
-            id: item.id,
-            type: item.type === "tool-call" ? "tool-call" : "tool-list",
-            timestamp: item.timestamp,
-            isStreaming: item.isStreaming,
-            openai_output: {
-              id: item.id,
-              type: item.type === "tool-call" ? "mcp_call" : "mcp_list_tools",
-              name: item.toolName,
-              arguments: item.toolArguments,
-              output: item.toolOutput,
-              server_label: item.serverLabel,
-              status: item.status
-            }
-          };
-          return <TaskCardTool key={item.id} item={conversationItem} onClick={onCardClick} />;
-        }
-        
-        if (item.type === "mcp-approval") {
-          // Approval card - same style as persistent cards
-          const conversationItem: ConversationItem = {
-            id: item.id,
-            type: "mcp-approval-request",
-            timestamp: item.timestamp,
-            isStreaming: item.isStreaming,
-            openai_output: {
-              id: item.id,
-              type: "mcp_approval_request",
-              name: item.toolName,
-              arguments: item.toolArguments,
-              server_label: item.serverLabel,
-              status: item.status
-            }
-          };
-          return (
-            <TaskCardMcp 
-              key={item.id} 
-              item={conversationItem} 
-              onApprove={(approvalId) => onApproveRequest?.(approvalId)}
-              onDeny={(approvalId) => onDenyRequest?.(approvalId)}
-              onClick={onCardClick}
-            />
-          );
-        }
-
-        if (item.type === "web-search") {
-          // Web search card
-          const conversationItem: ConversationItem = {
-            id: item.id,
-            type: "web-search",
-            timestamp: item.timestamp,
-            isStreaming: item.isStreaming,
-            openai_output: {
-              id: item.id,
-              type: "web_search_call",
-              action: item.toolArguments,
-              output: item.toolOutput,
-              status: item.status
-            }
-          };
-          return <TaskCardWebSearch key={item.id} item={conversationItem} onClick={onCardClick} />;
-        }
-
-        if (item.type === "reasoning") {
-          // Reasoning component
-          return (
-            <Reasoning 
-              key={item.id}
-              isStreaming={item.isStreaming || item.status === "in-progress"}
-              duration={item.duration || 0}
-            >
-              <ReasoningTrigger />
-              <ReasoningContent>
-                {item.content || "Agent is thinking..."}
-              </ReasoningContent>
-            </Reasoning>
-          );
-        }
-        
-        return null;
-      })}
+      {streamingItems.map((item) => (
+        <StreamingItemRenderer
+          key={item.id}
+          item={item}
+          onApproveRequest={onApproveRequest}
+          onDenyRequest={onDenyRequest}
+          onCardClick={onCardClick}
+        />
+      ))}
     </div>
   );
 }
