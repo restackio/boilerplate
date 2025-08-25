@@ -219,7 +219,7 @@ class AgentTask:
                             "id": item_id,
                             "type": item_type,
                             "timestamp": None,
-                            "openai_output": output_item, 
+                            "openai_output": output_item,
                         }
 
                         duplicate_found = False

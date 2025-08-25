@@ -107,9 +107,9 @@ async def agent_tools_read_by_agent(  # noqa: C901
                     if ms:
                         # For local MCP servers, use MCP_URL environment variable instead of stored URL
                         server_url = ms.server_url
-                        if getattr(ms, 'local', False):
-                            server_url = os.getenv('MCP_URL')
-                        
+                        if getattr(ms, "local", False):
+                            server_url = os.getenv("MCP_URL")
+
                         tool_obj = {
                             "type": "mcp",
                             "server_label": ms.server_label,

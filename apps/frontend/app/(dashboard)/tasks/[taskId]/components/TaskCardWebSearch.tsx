@@ -3,10 +3,9 @@
 import { ConversationItem } from "../types";
 import { useConversationItem } from "../hooks/use-conversation-item";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@workspace/ui/components/ui/collapsible";
-import { ChevronDownIcon, Globe, CheckCircle, Clock } from "lucide-react";
+import { ChevronDownIcon, Globe } from "lucide-react";
 import { cn } from "@workspace/ui/lib/utils";
 import Link from "next/link";
-import { Button } from "@workspace/ui/components/ui/button";
 
 interface TaskCardWebSearchProps {
   item: ConversationItem;
@@ -14,14 +13,14 @@ interface TaskCardWebSearchProps {
 }
 
 export function TaskCardWebSearch({ item, onClick }: TaskCardWebSearchProps) {
-  const { status, isCompleted, toolOutput } = useConversationItem(item);
+  const { isCompleted, toolOutput } = useConversationItem(item);
 
   const isStreaming = item.isStreaming;
   
   const searchQuery = item.openai_output?.action?.query || 
                     item.openai_output?.action || 
                     (typeof item.openai_output?.action === 'object' ? 
-                      (item.openai_output.action as any)?.query : null);
+                      (item.openai_output.action as Record<string, unknown>)?.query : null);
   
   // Extract site-specific search details
   const extractSearchDetails = (query: string) => {
@@ -36,7 +35,7 @@ export function TaskCardWebSearch({ item, onClick }: TaskCardWebSearchProps) {
     };
   };
 
-  const searchDetails = searchQuery ? extractSearchDetails(searchQuery) : null;
+  const searchDetails = searchQuery && typeof searchQuery === 'string' ? extractSearchDetails(searchQuery) : null;
 
   const formatSearchResults = (results: unknown): { count: number; summary: string } => {
     if (typeof results === 'object' && results !== null) {
@@ -44,7 +43,7 @@ export function TaskCardWebSearch({ item, onClick }: TaskCardWebSearchProps) {
         return { count: results.length, summary: `Found ${results.length} results` };
       }
       if ('results' in results) {
-        const resultArray = (results as any).results;
+        const resultArray = (results as { results: unknown }).results;
         const count = Array.isArray(resultArray) ? resultArray.length : 0;
         return { count, summary: `Found ${count} results` };
       }
