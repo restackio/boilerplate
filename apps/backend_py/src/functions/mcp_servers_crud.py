@@ -3,10 +3,10 @@ from datetime import UTC, datetime
 
 from pydantic import BaseModel, Field
 from restack_ai.function import NonRetryableError, function
-from sqlalchemy import select
+from sqlalchemy import select, delete
 
 from src.database.connection import get_async_db
-from src.database.models import McpServer
+from src.database.models import McpServer, AgentTool
 
 
 # Pydantic models for approval structure
@@ -27,7 +27,8 @@ class McpRequireApproval(BaseModel):
 class McpServerCreateInput(BaseModel):
     workspace_id: str = Field(..., min_length=1)
     server_label: str = Field(..., min_length=1, max_length=255)
-    server_url: str = Field(..., min_length=1, max_length=500)
+    server_url: str | None = Field(None, max_length=500)
+    local: bool = Field(default=False)
     server_description: str | None = None
     headers: dict[str, str] | None = None
     require_approval: McpRequireApproval = Field(
@@ -41,8 +42,9 @@ class McpServerUpdateInput(BaseModel):
         None, min_length=1, max_length=255
     )
     server_url: str | None = Field(
-        None, min_length=1, max_length=500
+        None, max_length=500
     )
+    local: bool | None = None
     server_description: str | None = None
     headers: dict[str, str] | None = None
     require_approval: McpRequireApproval | None = None
@@ -61,7 +63,8 @@ class McpServerOutput(BaseModel):
     id: str
     workspace_id: str
     server_label: str
-    server_url: str
+    server_url: str | None
+    local: bool
     server_description: str | None
     headers: dict[str, str] | None
     require_approval: McpRequireApproval
@@ -106,6 +109,7 @@ async def mcp_servers_read(
                     workspace_id=str(mcp_server.workspace_id),
                     server_label=mcp_server.server_label,
                     server_url=mcp_server.server_url,
+                    local=getattr(mcp_server, 'local', False),
                     server_description=mcp_server.server_description,
                     headers=mcp_server.headers,
                     require_approval=McpRequireApproval.model_validate(
@@ -143,6 +147,7 @@ async def mcp_servers_create(
                 ),
                 server_label=mcp_server_data.server_label,
                 server_url=mcp_server_data.server_url,
+                local=mcp_server_data.local,
                 server_description=mcp_server_data.server_description,
                 headers=mcp_server_data.headers,
                 require_approval=mcp_server_data.require_approval.model_dump(),
@@ -155,6 +160,7 @@ async def mcp_servers_create(
                 workspace_id=str(mcp_server.workspace_id),
                 server_label=mcp_server.server_label,
                 server_url=mcp_server.server_url,
+                local=mcp_server.local,
                 server_description=mcp_server.server_description,
                 headers=mcp_server.headers,
                 require_approval=McpRequireApproval.model_validate(
@@ -217,6 +223,7 @@ async def mcp_servers_update(
                 workspace_id=str(mcp_server.workspace_id),
                 server_label=mcp_server.server_label,
                 server_url=mcp_server.server_url,
+                local=mcp_server.local,
                 server_description=mcp_server.server_description,
                 headers=mcp_server.headers,
                 require_approval=McpRequireApproval.model_validate(
@@ -255,6 +262,14 @@ async def mcp_servers_delete(
                 raise NonRetryableError(  # noqa: TRY301
                     message=f"MCP server with id {function_input.mcp_server_id} not found"
                 )
+            
+            # First delete all agent tools that reference this MCP server
+            agent_tools_delete_query = delete(AgentTool).where(
+                AgentTool.mcp_server_id == uuid.UUID(function_input.mcp_server_id)
+            )
+            await db.execute(agent_tools_delete_query)
+            
+            # Then delete the MCP server
             await db.delete(mcp_server)
             await db.commit()
             return McpServerDeleteOutput(success=True)
@@ -288,6 +303,7 @@ async def mcp_servers_get_by_id(
                 workspace_id=str(mcp_server.workspace_id),
                 server_label=mcp_server.server_label,
                 server_url=mcp_server.server_url,
+                local=mcp_server.local,
                 server_description=mcp_server.server_description,
                 headers=mcp_server.headers,
                 require_approval=McpRequireApproval.model_validate(

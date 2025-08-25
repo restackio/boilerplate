@@ -106,7 +106,8 @@ class McpServer(Base):
         nullable=False,
     )
     server_label = Column(String(255), nullable=False)
-    server_url = Column(String(500), nullable=False)
+    server_url = Column(String(500), nullable=True)
+    local = Column(Boolean, nullable=False, default=False)
     server_description = Column(Text)
     headers = Column(JSONB)
     require_approval = Column(

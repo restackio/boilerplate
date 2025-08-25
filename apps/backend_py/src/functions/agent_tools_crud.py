@@ -1,3 +1,4 @@
+import os
 import uuid
 
 from pydantic import BaseModel, Field
@@ -104,10 +105,15 @@ async def agent_tools_read_by_agent(  # noqa: C901
                 if r.tool_type == "mcp" and r.mcp_server_id:
                     ms = mcp_map.get(str(r.mcp_server_id))
                     if ms:
+                        # For local MCP servers, use MCP_URL environment variable instead of stored URL
+                        server_url = ms.server_url
+                        if getattr(ms, 'local', False):
+                            server_url = os.getenv('MCP_URL')
+                        
                         tool_obj = {
                             "type": "mcp",
                             "server_label": ms.server_label,
-                            "server_url": ms.server_url,
+                            "server_url": server_url,
                             "server_description": ms.server_description or "",
                             "headers": ms.headers or {},
                             "require_approval": ms.require_approval or {},

@@ -113,7 +113,8 @@ export async function getMcpServers(workspaceId: string) {
 export async function createMcpServer(mcpServerData: {
   workspace_id: string;
   server_label: string;
-  server_url: string;
+  server_url?: string;
+  local?: boolean;
   server_description?: string;
   headers?: Record<string, string>;
   require_approval?: {
@@ -136,6 +137,7 @@ export async function updateMcpServer(mcpServerData: {
   mcp_server_id: string;
   server_label?: string;
   server_url?: string;
+  local?: boolean;
   server_description?: string;
   headers?: Record<string, string>;
   require_approval?: {

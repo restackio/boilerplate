@@ -73,7 +73,8 @@ export interface McpServer {
   id: string;
   workspace_id: string;
   server_label: string;
-  server_url: string;
+  server_url?: string;
+  local: boolean;
   server_description?: string;
   headers?: Record<string, string>;
   require_approval: McpRequireApproval;
@@ -745,7 +746,8 @@ export function useWorkspaceScopedActions() {
 
   const createMcpServer = useCallback(async (data: {
     server_label: string;
-    server_url: string;
+    server_url?: string;
+    local?: boolean;
     server_description?: string;
     headers?: Record<string, string>;
     require_approval?: McpRequireApproval;
@@ -778,6 +780,7 @@ export function useWorkspaceScopedActions() {
   const updateMcpServer = useCallback(async (id: string, data: {
     server_label?: string;
     server_url?: string;
+    local?: boolean;
     server_description?: string;
     headers?: Record<string, string>;
     require_approval?: McpRequireApproval;
