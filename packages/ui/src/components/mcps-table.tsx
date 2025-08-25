@@ -31,7 +31,7 @@ import {
   Workflow,
   HelpCircle,
   Eye,
-  Trash2,
+  Edit,
   ExternalLink,
   Wrench,
 } from "lucide-react";
@@ -41,6 +41,7 @@ export interface MCP {
   id: string;
   name: string;
   server_url?: string;
+  local?: boolean;
   tools_count?: number;
   description: string;
   lastUpdated: string;
@@ -48,7 +49,7 @@ export interface MCP {
 
 interface MCPsTableProps {
   data: MCP[];
-  onDeleteMCP?: (mcpId: string) => void;
+  onEditMCP?: (mcpId: string) => void;
 }
 
 // Column configuration helper
@@ -82,7 +83,7 @@ export const visibilityOptions: Array<{
   { label: "Private", value: "private", icon: Lock },
 ];
 
-export function MCPsTable({ data, onDeleteMCP }: MCPsTableProps) {
+export function MCPsTable({ data, onEditMCP }: MCPsTableProps) {
 
   // Create data table filters instance
   const { columns, filters, actions, strategy, filteredData } =
@@ -139,7 +140,9 @@ export function MCPsTable({ data, onDeleteMCP }: MCPsTableProps) {
                         </div>
                         {/* Show server URL and tools info on mobile when columns are hidden */}
                         <div className="sm:hidden flex flex-col gap-1 mt-2 text-xs text-muted-foreground">
-                          {mcp.server_url && (
+                          {mcp.local ? (
+                            <Badge variant="secondary" className="text-xs w-fit">Local</Badge>
+                          ) : mcp.server_url && (
                             <div className="flex items-center gap-1 min-w-0">
                               <Globe className="h-3 w-3 flex-shrink-0" />
                               <span className="truncate">{mcp.server_url}</span>
@@ -154,7 +157,9 @@ export function MCPsTable({ data, onDeleteMCP }: MCPsTableProps) {
                     </Link>
                   </TableCell>
                   <TableCell className="hidden sm:table-cell">
-                    {mcp.server_url ? (
+                    {mcp.local ? (
+                      <Badge variant="secondary">Local</Badge>
+                    ) : mcp.server_url ? (
                       <div className="flex items-center gap-1 text-sm">
                         <Link href={mcp.server_url} target="_blank" className="truncate block max-w-full hover:underline">
                           {mcp.server_url}
@@ -175,7 +180,7 @@ export function MCPsTable({ data, onDeleteMCP }: MCPsTableProps) {
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-2">
-                      {mcp.server_url && (
+                      {!mcp.local && mcp.server_url && (
                         <Link href={mcp.server_url} target="_blank">
                           <Button
                             variant="outline"
@@ -192,10 +197,10 @@ export function MCPsTable({ data, onDeleteMCP }: MCPsTableProps) {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => onDeleteMCP?.(mcp.id)}
+                        onClick={() => onEditMCP?.(mcp.id)}
                       >
-                        <Trash2 className="h-4 w-4 sm:mr-2" />
-                        <span className="hidden sm:inline">Delete</span>
+                        <Edit className="h-4 w-4 sm:mr-2" />
+                        <span className="hidden sm:inline">Edit</span>
                       </Button>
                     </div>
                   </TableCell>

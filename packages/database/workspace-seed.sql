@@ -26,12 +26,13 @@ INSERT INTO teams (id, workspace_id, name, description, icon) VALUES
 ON CONFLICT (id) DO NOTHING;
 
 -- Insert MCP servers with granular approval settings
-INSERT INTO mcp_servers (id, workspace_id, server_label, server_url, server_description, headers, require_approval) VALUES
+INSERT INTO mcp_servers (id, workspace_id, server_label, server_url, local, server_description, headers, require_approval) VALUES
 (
     'c1d2e3f4-5678-9012-cdef-345678901234',
     'c926e979-1f16-46bf-a7cc-8aab70162d65',
     'deepwiki',
     'https://mcp.deepwiki.com/mcp',
+    FALSE,
     'DeepWiki MCP server for accessing and querying knowledge base',
     NULL,
     '{"never": {"tool_names": ["ask_question"]}, "always": {"tool_names": ["read_wiki_structure"]}}'
@@ -41,6 +42,7 @@ INSERT INTO mcp_servers (id, workspace_id, server_label, server_url, server_desc
     'c926e979-1f16-46bf-a7cc-8aab70162d65',
     'posthog',
     'https://mcp.posthog.com/mcp',
+    FALSE,
     'PostHog MCP server for insights management',
     '{"Authorization": "Bearer phx_3oQ1s81spruSq6WTw1Fs3ZDDOvgkpWvHw5NYWyApF2Vm2PN"}',
     '{"never": {"tool_names": ["insights-get-all"]}, "always": {"tool_names": ["insight-get"]}}'
@@ -50,6 +52,7 @@ INSERT INTO mcp_servers (id, workspace_id, server_label, server_url, server_desc
   'c926e979-1f16-46bf-a7cc-8aab70162d65',
   'intercom',
   'https://mcp.intercom.com/mcp',
+  FALSE,
   'Intercom MCP server for accessing and querying customer data',
   '{"Authorization": "Bearer dG9rOmY2ODliMmVjX2Y4NGZfNGE2NF9iNTdlX2UzYWRjYTI2NDgyOToxOjA="}',
   '{"never": {"tool_names": ["search", "get", "search_conversations", "get_conversation", "search_contacts" ]}, "always": {"tool_names": ["get_contact"]}}'
@@ -58,7 +61,8 @@ INSERT INTO mcp_servers (id, workspace_id, server_label, server_url, server_desc
   'f4567890-1234-5678-9abc-def012345678',
   'c926e979-1f16-46bf-a7cc-8aab70162d65',
   'zendesk-workflow',
-  'https://e5a93c19617c.ngrok-free.app/mcp',
+  NULL,
+  TRUE,
   'Zendesk Ticket Workflow MCP server for support ticket management',
   NULL,
   '{"never": {"tool_names": ["zendeskticketworkflow"]}, "always": {"tool_names": []}}'
@@ -67,7 +71,8 @@ INSERT INTO mcp_servers (id, workspace_id, server_label, server_url, server_desc
   '15678901-2345-6789-bcde-f01234567890',
   'c926e979-1f16-46bf-a7cc-8aab70162d65',
   'knowledge-base-workflow',
-  'https://e5a93c19617c.ngrok-free.app/mcp',
+  NULL,
+  TRUE,
   'Knowledge Base Workflow MCP server for documentation search and retrieval',
   NULL,
   '{"never": {"tool_names": ["knowledgebaseworkflow"]}, "always": {"tool_names": []}}'
@@ -76,7 +81,8 @@ INSERT INTO mcp_servers (id, workspace_id, server_label, server_url, server_desc
   '26789012-3456-789a-cdef-012345678901',
   'c926e979-1f16-46bf-a7cc-8aab70162d65',
   'pagerduty-workflow',
-  'https://e5a93c19617c.ngrok-free.app/mcp',
+  NULL,
+  TRUE,
   'PagerDuty Incident Workflow MCP server for incident management and monitoring',
   NULL,
   '{"never": {"tool_names": ["pagerdutyincidentworkflow"]}, "always": {"tool_names": []}}'
@@ -85,7 +91,8 @@ INSERT INTO mcp_servers (id, workspace_id, server_label, server_url, server_desc
   '37890123-4567-890b-cdef-123456789012',
   'c926e979-1f16-46bf-a7cc-8aab70162d65',
   'datadog-workflow',
-  'https://e5a93c19617c.ngrok-free.app/mcp',
+  NULL,
+  TRUE,
   'Datadog Logs Workflow MCP server for logs, metrics, and monitoring data',
   NULL,
   '{"never": {"tool_names": ["datadoglogsworkflow"]}, "always": {"tool_names": []}}'
@@ -94,7 +101,8 @@ INSERT INTO mcp_servers (id, workspace_id, server_label, server_url, server_desc
   '48901234-5678-901c-def0-234567890123',
   'c926e979-1f16-46bf-a7cc-8aab70162d65',
   'linear-workflow',
-  'https://e5a93c19617c.ngrok-free.app/mcp',
+  NULL,
+  TRUE,
   'Linear Issue Workflow MCP server for issue tracking and project management',
   NULL,
   '{"never": {"tool_names": ["linearissueworkflow"]}, "always": {"tool_names": []}}'
@@ -103,7 +111,8 @@ INSERT INTO mcp_servers (id, workspace_id, server_label, server_url, server_desc
   '59012345-6789-012d-ef01-345678901234',
   'c926e979-1f16-46bf-a7cc-8aab70162d65',
   'github-workflow',
-  'https://e5a93c19617c.ngrok-free.app/mcp',
+  NULL,
+  TRUE,
   'GitHub PR Workflow MCP server for repository management and pull requests',
   NULL,
   '{"never": {"tool_names": ["githubprworkflow"]}, "always": {"tool_names": []}}'
@@ -113,6 +122,7 @@ INSERT INTO mcp_servers (id, workspace_id, server_label, server_url, server_desc
   'c926e979-1f16-46bf-a7cc-8aab70162d65',
   'mintlify-docs',
   'https://docs.restack.io/mcp',
+  FALSE,
   'Mintlify MCP server for accessing Restack documentation and API references',
   NULL,
   '{"never": {"tool_names": ["search"]}, "always": {"tool_names": []}}'
@@ -122,6 +132,7 @@ INSERT INTO mcp_servers (id, workspace_id, server_label, server_url, server_desc
   'c926e979-1f16-46bf-a7cc-8aab70162d65',
   'sales-crm',
   'https://mcp.salesforce.com/mcp',
+  FALSE,
   'Salesforce CRM MCP server for lead and opportunity management',
   '{"Authorization": "Bearer sf_token_12345"}',
   '{"never": {"tool_names": ["create_lead", "update_opportunity"]}, "always": {"tool_names": ["get_lead_status"]}}'
@@ -131,6 +142,7 @@ INSERT INTO mcp_servers (id, workspace_id, server_label, server_url, server_desc
   'c926e979-1f16-46bf-a7cc-8aab70162d65',
   'hr-system',
   'https://mcp.bamboohr.com/mcp',
+  FALSE,
   'BambooHR MCP server for employee data and HR operations',
   '{"Authorization": "Bearer bamboo_api_key_67890"}',
   '{"never": {"tool_names": ["employee_search", "update_employee"]}, "always": {"tool_names": ["get_employee_info"]}}'

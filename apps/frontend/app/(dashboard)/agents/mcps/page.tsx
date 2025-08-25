@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { MCPsTable } from "@workspace/ui/components/mcps-table";
 import { PageHeader } from "@workspace/ui/components/page-header";
 import { Button } from "@workspace/ui/components/ui/button";
@@ -8,6 +8,8 @@ import { RefreshCw } from "lucide-react";
 import AgentsTabs from "../AgentsTabs";
 import { Plus } from "lucide-react";
 import { useWorkspaceScopedActions, McpServer } from "@/hooks/use-workspace-scoped-actions";
+import { AddMcpServerDialog } from "./components/AddMcpServerDialog";
+import { EditMcpServerDialog } from "./components/EditMcpServerDialog";
 
 // Map McpServer to MCP format for the table component
 const mapMcpServerToMCP = (mcpServer: McpServer) => ({
@@ -15,20 +17,35 @@ const mapMcpServerToMCP = (mcpServer: McpServer) => ({
   name: mcpServer.server_label,
   description: mcpServer.server_description || "No description available",
   server_url: mcpServer.server_url,
+  local: mcpServer.local,
   tools_count: mcpServer.require_approval.always.tool_names.length + mcpServer.require_approval.never.tool_names.length,
   lastUpdated: mcpServer.updated_at || mcpServer.created_at || "",
 });
 
 export default function MCPsPage() {
   const { mcpServers, mcpServersLoading, fetchMcpServers } = useWorkspaceScopedActions();
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedMcpServer, setSelectedMcpServer] = useState<McpServer | null>(null);
 
   useEffect(() => {
     fetchMcpServers();
   }, [fetchMcpServers]);
 
+  const handleEditMCP = (mcpId: string) => {
+    const mcpServer = mcpServers.find(mcp => mcp.id === mcpId);
+    if (mcpServer) {
+      setSelectedMcpServer(mcpServer);
+      setEditDialogOpen(true);
+    }
+  };
 
-  const handleDeleteMCP = (mcpId: string) => {
-    alert(`TODO: Implement MCP deletion: ${mcpId}`);
+  const handleAddMCP = () => {
+    setAddDialogOpen(true);
+  };
+
+  const handleDialogSuccess = () => {
+    fetchMcpServers(); // Refresh the list
   };
 
   const handleRefresh = () => {
@@ -51,7 +68,7 @@ export default function MCPsPage() {
         <RefreshCw className={`h-4 w-4 mr-1 ${mcpServersLoading.isLoading ? 'animate-spin' : ''}`} />
         Refresh
       </Button>
-      <Button size="sm" variant="ghost">
+      <Button size="sm" variant="ghost" onClick={handleAddMCP}>
         <Plus className="h-4 w-4 mr-1" />
         Add MCP Server
       </Button>
@@ -80,9 +97,23 @@ export default function MCPsPage() {
             </div>
           </div>
         ) : (
-          <MCPsTable data={mcpData} onDeleteMCP={handleDeleteMCP} />
+          <MCPsTable data={mcpData} onEditMCP={handleEditMCP} />
         )}
       </div>
+
+      {/* Dialogs */}
+      <AddMcpServerDialog
+        open={addDialogOpen}
+        onOpenChange={setAddDialogOpen}
+        onSuccess={handleDialogSuccess}
+      />
+      
+      <EditMcpServerDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        mcpServer={selectedMcpServer}
+        onSuccess={handleDialogSuccess}
+      />
     </div>
   );
 }

@@ -46,7 +46,12 @@ To have OpenAI be able to call local MCP servers, you need to use ngrok to expos
 ngrok http 11233
 ```
 
-replace the e5a93c19617c.ngrok-free.app with the ngrok url in the workspace-seed.sql
+add the ngrok url to the .env file as MCP_URL with suffix /mcp
+
+For example:
+
+MCP_URL=https://fb095f09f128.ngrok-free.app/mcp
+
 
 ### 5. Seed Database
 ```bash

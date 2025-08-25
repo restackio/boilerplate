@@ -48,12 +48,17 @@ CREATE TABLE IF NOT EXISTS mcp_servers (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     server_label VARCHAR(255) NOT NULL,
-    server_url VARCHAR(500) NOT NULL,
+    server_url VARCHAR(500),
+    local BOOLEAN NOT NULL DEFAULT FALSE,
     server_description TEXT,
     headers JSONB,
     require_approval JSONB DEFAULT '{"never": {"tool_names": []}, "always": {"tool_names": []}}',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_mcp_servers_url_or_local CHECK (
+        (local = TRUE AND server_url IS NULL) OR
+        (local = FALSE AND server_url IS NOT NULL)
+    )
 );
 
 -- Create agents table
