@@ -1,5 +1,5 @@
 {
-  "name": "@boilerplate/backend-py",
+  "name": "@boilerplate/backend",
   "version": "0.0.1",
   "private": true,
   "scripts": {

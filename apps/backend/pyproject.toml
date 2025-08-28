@@ -1,5 +1,5 @@
 [project]
-name = "backend-py"
+name = "backend"
 version = "0.0.1"
 description = "Python backend services for Restack AI application"
 authors = [{ name = "Restack Team", email = "service@restack.io" }]
