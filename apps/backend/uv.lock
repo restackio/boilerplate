@@ -130,7 +130,7 @@ wheels = [
 ]
 
 [[package]]
-name = "backend-py"
+name = "backend"
 version = "0.0.1"
 source = { editable = "." }
 dependencies = [

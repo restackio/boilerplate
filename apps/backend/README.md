@@ -36,14 +36,14 @@ python -m venv .venv && source .venv/bin/activate
 ```bash
 uv run dev
 # or with pnpm from the monorepo root:
-pnpm --filter backend-py dev
+pnpm --filter backend dev
 ```
 
 **Production mode** (runs Restack services):
 ```bash
 uv run start  
 # or with pnpm from the monorepo root:
-pnpm --filter backend-py start
+pnpm --filter backend start
 ```
 
 **Alternative setup with pip:**
