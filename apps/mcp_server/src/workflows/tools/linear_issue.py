@@ -43,13 +43,13 @@ class LinearIssueOutput(BaseModel):
     issue: dict[str, Any]
 
 
-@workflow.defn()
-class LinearIssueWorkflow:
-    """Workflow to create a Linear issue using AI."""
+@workflow.defn(description="Create a Linear issue")
+class LinearIssue:
+    """ to create a Linear issue."""
 
     @workflow.run
     async def run(self, workflow_input: LinearIssueInput) -> LinearIssueOutput:
-        log.info("LinearIssueWorkflow started", input=workflow_input)
+        log.info("LinearIssue started", input=workflow_input)
 
         try:
             # Use LLM to generate issue data based on input and schema
@@ -107,10 +107,10 @@ Return the complete JSON structure following the Linear API format."""
 
             issue_data = json.loads(response_text)
 
-            log.info("LinearIssueWorkflow completed", issue=issue_data)
+            log.info("LinearIssue completed", issue=issue_data)
             return LinearIssueOutput(issue=issue_data)
 
         except Exception as e:
-            error_message = f"Error during LinearIssueWorkflow: {e}"
+            error_message = f"Error during LinearIssue: {e}"
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e

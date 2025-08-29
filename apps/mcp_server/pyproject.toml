@@ -1,21 +1,28 @@
 [project]
-name = "webhook"
+name = "mcp_server"
 version = "0.0.1"
-description = "Dedicated webhook server for creating tasks from external events"
+description = "Python MCP server for Restack AI application"
 authors = [{ name = "Restack Team", email = "service@restack.io" }]
 requires-python = ">=3.12,<3.13"
 readme = "README.md"
 dependencies = [
     "pydantic[email]>=2.11.7",
+    "watchfiles>=1.1.0",
     "python-dotenv>=1.1.1",
+    "openai[aiohttp]>=1.99.5",
     "restack-ai>=0.0.110",
-    "fastapi>=0.104.0",
-    "uvicorn[standard]>=0.24.0",
+    "psycopg2-binary>=2.9.9",
+    "asyncpg>=0.29.0",
+    "sqlalchemy>=2.0.42",
+    "greenlet>=3.0.0",
+    "alembic>=1.13.0",
+    "bcrypt>=4.0.1",
 ]
 
 [project.scripts]
-dev = "src.server:dev"
-start = "src.server:start"
+dev = "src.services:dev_watch"
+start = "src.services:start"
+schedule = "schedule:run_schedule"
 
 [tool.hatch.build.targets.sdist]
 include = ["src"]

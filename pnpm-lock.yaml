@@ -29,8 +29,8 @@ importers:
   apps/frontend:
     dependencies:
       '@restackio/ai':
-        specifier: ^0.0.141
-        version: 0.0.141
+        specifier: ^0.0.145
+        version: 0.0.145
       '@restackio/react':
         specifier: ^0.10.15
         version: 0.10.15(@types/react@19.1.7)(react@19.1.0)
@@ -80,6 +80,8 @@ importers:
       typescript:
         specifier: ^5.7.3
         version: 5.8.3
+
+  apps/mcp_server: {}
 
   apps/webhook: {}
 
@@ -1271,8 +1273,8 @@ packages:
   '@radix-ui/rect@1.1.1':
     resolution: {integrity: sha512-HPwpGIzkl28mWyZqG52jiqDJ12waP11Pa1lGoiyUkIEuMLBP0oeK/C89esbXrxsky5we7dfd8U58nm0SgAWpVw==}
 
-  '@restackio/ai@0.0.141':
-    resolution: {integrity: sha512-1aOju9DSN889B9y9xw5hTHmDVfDE7iDi+FEkqzPuLvT5ZKqtzC9NGnt1E8sh4BLEuBfJT2PHTUT4Uiqt3MGXQA==}
+  '@restackio/ai@0.0.145':
+    resolution: {integrity: sha512-fkJJxa76Va4BRV1g/+gj6Fpncxdn4QjGo95r8JKhxd9dPEscRDI2khDK2EEeikr458fYNAdJwG+mRmuSOCx+eQ==}
     engines: {node: '>=20'}
 
   '@restackio/react@0.10.15':
@@ -5221,13 +5223,15 @@ snapshots:
 
   '@radix-ui/rect@1.1.1': {}
 
-  '@restackio/ai@0.0.141':
+  '@restackio/ai@0.0.145':
     dependencies:
       '@temporalio/activity': 1.12.1
       '@temporalio/client': 1.12.1
       '@temporalio/common': 1.12.1
       '@temporalio/worker': 1.12.1
       '@temporalio/workflow': 1.12.1
+      ms: 3.0.0-canary.1
+      supports-color: 8.1.1
       ws: 8.18.3
       zod: 3.25.57
     transitivePeerDependencies:

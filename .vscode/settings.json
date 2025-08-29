@@ -1,5 +1,5 @@
 {
   "python.analysis.extraPaths": [
-    "apps/webhook/src"
+    "apps/mcp_server/src"
   ]
 }

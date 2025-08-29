@@ -42,13 +42,13 @@ class PagerDutyIncidentOutput(BaseModel):
     incident: dict[str, Any]
 
 
-@workflow.defn()
-class PagerDutyIncidentWorkflow:
-    """Workflow to retrieve PagerDuty incident information using AI."""
+@workflow.defn(description="Retrieve PagerDuty incident information")
+class PagerDutyIncident:
+    """ to retrieve PagerDuty incident information."""
 
     @workflow.run
     async def run(self, workflow_input: PagerDutyIncidentInput) -> PagerDutyIncidentOutput:
-        log.info("PagerDutyIncidentWorkflow started", input=workflow_input)
+        log.info("PagerDutyIncident started", input=workflow_input)
 
         try:
             # Use LLM to generate incident data based on input and schema
@@ -101,10 +101,10 @@ Return the complete JSON structure following the PagerDuty API format."""
 
             incident_data = json.loads(response_text)
 
-            log.info("PagerDutyIncidentWorkflow completed", incident=incident_data)
+            log.info("PagerDutyIncident completed", incident=incident_data)
             return PagerDutyIncidentOutput(incident=incident_data)
 
         except Exception as e:
-            error_message = f"Error during PagerDutyIncidentWorkflow: {e}"
+            error_message = f"Error during PagerDutyIncident: {e}"
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e

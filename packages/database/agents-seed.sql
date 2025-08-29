@@ -9,28 +9,28 @@ VALUES (
     '11111111-1111-1111-1111-111111111111', -- Customer Support team
     'zendesk-support-orchestrator',
     'v1.0.0',
-    'Demo agent orchestrating Zendesk, PagerDuty, Datadog, Linear, and GitHub workflows',
-    $$Developer: # Support Ticket Workflow for Zendesk
+    'Demo agent orchestrating Zendesk, PagerDuty, Datadog, Linear, and GitHub',
+    $$Developer: # Support Ticket for Zendesk
 
 ## Objective
 Process incoming support tickets from Zendesk, classifying and managing each according to issue severity, and track all related actions and communications.
 
 ## Available Tools
-You have access to the following workflow tools that you MUST use for the corresponding actions:
-- **ZendeskTicketWorkflow**: Create, update, or query Zendesk tickets
-- **KnowledgeBaseWorkflow**: Search documentation and knowledge base for solutions
-- **PagerDutyIncidentWorkflow**: Check incidents and monitoring data from PagerDuty
-- **DatadogLogsWorkflow**: Query logs and metrics from Datadog for investigation
-- **LinearIssueWorkflow**: Create and manage Linear tickets for engineering tasks
-- **GitHubPRWorkflow**: Create GitHub issues and pull requests for code changes
+You have access to the following tools that you MUST use for the corresponding actions:
+- **ZendeskTicket**: Create, update, or query Zendesk tickets
+- **KnowledgeBase**: Search documentation and knowledge base for solutions
+- **PagerDutyIncident**: Check incidents and monitoring data from PagerDuty
+- **DatadogLogs**: Query logs and metrics from Datadog for investigation
+- **LinearIssue**: Create and manage Linear tickets for engineering tasks
+- **GitHubPR**: Create GitHub issues and pull requests for code changes
 
-## Workflow Checklist
+## Checklist
 Begin with a concise checklist (3–7 bullets) outlining your approach:
-- Review the Zendesk ticket for required information using ZendeskTicketWorkflow
+- Review the Zendesk ticket for required information using ZendeskTicket
 - Classify ticket as L1, L2, L3, or 'Incomplete Data'
-- For L1: use KnowledgeBaseWorkflow to consult documentation and draft a solution response
-- For L2: use PagerDutyIncidentWorkflow and DatadogLogsWorkflow to investigate; summarize findings and respond
-- For L3: notify user, use LinearIssueWorkflow to create ticket, and if code change needed, use GitHubPRWorkflow to open issue and PR, then follow up post-merge
+- For L1: use KnowledgeBase to consult documentation and draft a solution response
+- For L2: use PagerDutyIncident and DatadogLogs to investigate; summarize findings and respond
+- For L3: notify user, use LinearIssue to create ticket, and if code change needed, use GitHubPR to open issue and PR, then follow up post-merge
 - Document all actions, artifact references, and communications
 - Return structured output as specified
 
@@ -40,17 +40,17 @@ Begin with a concise checklist (3–7 bullets) outlining your approach:
    - **L2:** Requires deeper investigation with monitoring tools.
    - **L3:** Needs engineering intervention.
 2. **L1 Tickets:**
-   - Use KnowledgeBaseWorkflow to search documentation for possible solutions.
+   - Use KnowledgeBase to search documentation for possible solutions.
    - Draft a response for the user referencing any documentation or solutions used.
 3. **L2 Tickets:**
-   - Use PagerDutyIncidentWorkflow to check for related incidents.
-   - Use DatadogLogsWorkflow to investigate logs and metrics.
+   - Use PagerDutyIncident to check for related incidents.
+   - Use DatadogLogs to investigate logs and metrics.
    - Summarize findings.
    - Draft a user response outlining investigation results and next steps.
 4. **L3 Tickets:**
    - Notify the user that the engineering team will handle the issue.
-   - Use LinearIssueWorkflow to create a Linear ticket summarizing the problem and include the reference.
-   - If a code change is required, use GitHubPRWorkflow to create a GitHub issue and PR. Include references for both.
+   - Use LinearIssue to create a Linear ticket summarizing the problem and include the reference.
+   - If a code change is required, use GitHubPR to create a GitHub issue and PR. Include references for both.
    - After the PR is merged, send a follow-up response to the user about the resolution.
 5. **Error Handling:**
    - If any required data is missing from the ticket, note this in the output and flag the ticket as 'Incomplete Data'.
@@ -58,10 +58,10 @@ Begin with a concise checklist (3–7 bullets) outlining your approach:
    - Ensure all actions reference their related artifacts (documentation, tickets, issues, etc.) with unique IDs or URLs where applicable.
 
 ## Tool Usage Guidelines
-- **ALWAYS use the appropriate workflow tool** for each action - do not attempt to perform actions manually
+- **ALWAYS use the appropriate tool** for each action - do not attempt to perform actions manually
 - Call tools in the logical sequence needed to complete the ticket processing
 - If a tool call fails, try again with adjusted parameters or explain the limitation
-- Use multiple tools in parallel when gathering information (e.g., PagerDutyIncidentWorkflow and DatadogLogsWorkflow for L2 tickets)
+- Use multiple tools in parallel when gathering information (e.g., PagerDutyIncident and DatadogLogs for L2 tickets)
 
 ## Validation
 After processing each ticket, briefly validate that all actions match the ticket's classification and required references are included. If output is incomplete or a reference is missing, self-correct or explain in output.
@@ -266,12 +266,12 @@ ON CONFLICT (id) DO NOTHING;
 -- Link agents to MCP servers via agent_tools table
 INSERT INTO agent_tools (id, agent_id, tool_type, mcp_server_id, allowed_tools, enabled) VALUES
 -- Customer Support Agent tools
-('10000001-0000-0000-0000-000000000001', '77777777-7777-7777-7777-777777777777', 'mcp', 'f4567890-1234-5678-9abc-def012345678', '["zendeskticketworkflow"]', true),
-('10000002-0000-0000-0000-000000000002', '77777777-7777-7777-7777-777777777777', 'mcp', '15678901-2345-6789-bcde-f01234567890', '["knowledgebaseworkflow"]', true),
-('10000003-0000-0000-0000-000000000003', '77777777-7777-7777-7777-777777777777', 'mcp', '26789012-3456-789a-cdef-012345678901', '["pagerdutyincidentworkflow"]', true),
-('10000004-0000-0000-0000-000000000004', '77777777-7777-7777-7777-777777777777', 'mcp', '37890123-4567-890b-cdef-123456789012', '["datadoglogsworkflow"]', true),
-('10000005-0000-0000-0000-000000000005', '77777777-7777-7777-7777-777777777777', 'mcp', '48901234-5678-901c-def0-234567890123', '["linearissueworkflow"]', true),
-('10000006-0000-0000-0000-000000000006', '77777777-7777-7777-7777-777777777777', 'mcp', '59012345-6789-012d-ef01-345678901234', '["githubprworkflow"]', true),
+('10000001-0000-0000-0000-000000000001', '77777777-7777-7777-7777-777777777777', 'mcp', 'f4567890-1234-5678-9abc-def012345678', '["zendeskticket"]', true),
+('10000002-0000-0000-0000-000000000002', '77777777-7777-7777-7777-777777777777', 'mcp', '15678901-2345-6789-bcde-f01234567890', '["knowledgebase"]', true),
+('10000003-0000-0000-0000-000000000003', '77777777-7777-7777-7777-777777777777', 'mcp', '26789012-3456-789a-cdef-012345678901', '["pagerdutyincident"]', true),
+('10000004-0000-0000-0000-000000000004', '77777777-7777-7777-7777-777777777777', 'mcp', '37890123-4567-890b-cdef-123456789012', '["datadoglogs"]', true),
+('10000005-0000-0000-0000-000000000005', '77777777-7777-7777-7777-777777777777', 'mcp', '48901234-5678-901c-def0-234567890123', '["linearissue"]', true),
+('10000006-0000-0000-0000-000000000006', '77777777-7777-7777-7777-777777777777', 'mcp', '59012345-6789-012d-ef01-345678901234', '["githubpr"]', true),
 
 -- Sales Agent tools
 ('10000007-0000-0000-0000-000000000007', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'mcp', '70123456-789a-123e-f012-456789012346', '["create_lead", "update_opportunity", "get_lead_status"]', true),
@@ -336,8 +336,8 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
         "openai_output": {
           "id": "msg-003",
           "type": "mcp_call",
-          "name": "zendeskticketworkflow",
-          "server_label": "zendesk-workflow",
+          "name": "zendeskticket",
+          "server_label": "zendesk",
           "status": "completed",
           "arguments": {"query": "login authentication errors", "timeframe": "24h"},
           "output": "Found 3 related tickets in the past 24 hours with similar authentication errors"
@@ -350,8 +350,8 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
         "openai_output": {
           "id": "msg-004",
           "type": "mcp_call",
-          "name": "pagerdutyincidentworkflow",
-          "server_label": "pagerduty-workflow",
+          "name": "pagerdutyincident",
+          "server_label": "pagerduty",
           "status": "completed",
           "arguments": {"service": "authentication", "status": "open"},
           "output": "No active incidents found for authentication services"
@@ -364,8 +364,8 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
         "openai_output": {
           "id": "msg-005",
           "type": "mcp_call",
-          "name": "datadoglogsworkflow",
-          "server_label": "datadog-workflow",
+          "name": "datadoglogs",
+          "server_label": "datadog",
           "status": "completed",
           "arguments": {"user": "john.doe@example.com", "service": "authentication", "timeframe": "1h"},
           "output": "Found account lockout due to 5 failed login attempts in 10 minutes. Account status: LOCKED"
@@ -390,8 +390,8 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
         "openai_output": {
           "id": "msg-007",
           "type": "mcp_call",
-          "name": "zendeskticketworkflow",
-          "server_label": "zendesk-workflow",
+          "name": "zendeskticket",
+          "server_label": "zendesk",
           "status": "completed",
           "arguments": {"action": "create", "subject": "Login issue resolved", "status": "resolved"},
           "output": "Ticket #ZD-12345 created and marked as resolved"
@@ -437,8 +437,8 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
         "openai_output": {
           "id": "msg-103",
           "type": "mcp_approval_request",
-          "name": "datadoglogsworkflow",
-          "server_label": "datadog-workflow",
+          "name": "datadoglogs",
+          "server_label": "datadog",
           "status": "failed",
           "arguments": {"service": "payment", "log_level": "error", "timeframe": "1h"},
           "output": "Access denied - Security investigation requires manual approval from Security team",
@@ -458,8 +458,8 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
         "openai_output": {
           "id": "msg-105",
           "type": "mcp_call",
-          "name": "linearissueworkflow",
-          "server_label": "linear-workflow",
+          "name": "linearissue",
+          "server_label": "linear",
           "status": "completed",
           "arguments": {"priority": "high", "team": "security", "title": "Payment fraud investigation", "description": "Suspicious payment patterns detected"},
           "output": "High-priority security ticket LIN-SEC-789 created and assigned to Security team"
@@ -472,8 +472,8 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
         "openai_output": {
           "id": "msg-106",
           "type": "mcp_call",
-          "name": "pagerdutyincidentworkflow",
-          "server_label": "pagerduty-workflow",
+          "name": "pagerdutyincident",
+          "server_label": "pagerduty",
           "status": "completed",
           "arguments": {"category": "security", "status": "resolved", "timeframe": "7d"},
           "output": "Found similar incident PD-INC-456 from last week, marked as resolved - card testing attack"
@@ -492,8 +492,8 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
         "openai_output": {
           "id": "msg-108",
           "type": "mcp_call",
-          "name": "zendeskticketworkflow",
-          "server_label": "zendesk-workflow",
+          "name": "zendeskticket",
+          "server_label": "zendesk",
           "status": "completed",
           "arguments": {"action": "create", "subject": "Security escalation - Payment fraud", "priority": "high"},
           "output": "Security escalation ticket #ZD-SEC-123 created"
@@ -778,7 +778,7 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
       {
         "id": "msg-505",
         "type": "assistant",
-        "content": "🚀 **Automated Onboarding Workflow Design**\n\n**Pre-Boarding (Offer Acceptance → Start Date)**:\n1. **Equipment Provisioning** - Auto-order laptop, peripherals based on role\n2. **Account Creation** - Generate email, Slack, GitHub, AWS accounts\n3. **Access Provisioning** - Assign to appropriate teams and repositories\n4. **Welcome Package** - Send digital welcome kit with company info\n\n**Day 1 Automation**:\n1. **Slack Welcome** - Auto-add to team channels with introduction\n2. **Calendar Setup** - Schedule first-week meetings with team/manager\n3. **Task Assignment** - Create first-week learning tasks in project management\n4. **Buddy Assignment** - Pair with onboarding buddy from team\n\n**Week 1 Follow-up**:\n1. **Progress Tracking** - Automated check-ins on task completion\n2. **Feedback Collection** - Survey on onboarding experience\n3. **Manager Alerts** - Notify manager of any incomplete items\n\n**Key Improvements**:\n- **Reduced setup time**: 3 days → 4 hours\n- **Automated reminders**: For managers and IT team\n- **Self-service portal**: New hire can track progress\n- **Integration points**: HR system, IT provisioning, Slack, GitHub\n\n**Implementation Timeline**: 4-6 weeks\n**Expected Outcome**: 95% completion rate, improved new hire satisfaction",
+        "content": "🚀 **Automated Onboarding Design**\n\n**Pre-Boarding (Offer Acceptance → Start Date)**:\n1. **Equipment Provisioning** - Auto-order laptop, peripherals based on role\n2. **Account Creation** - Generate email, Slack, GitHub, AWS accounts\n3. **Access Provisioning** - Assign to appropriate teams and repositories\n4. **Welcome Package** - Send digital welcome kit with company info\n\n**Day 1 Automation**:\n1. **Slack Welcome** - Auto-add to team channels with introduction\n2. **Calendar Setup** - Schedule first-week meetings with team/manager\n3. **Task Assignment** - Create first-week learning tasks in project management\n4. **Buddy Assignment** - Pair with onboarding buddy from team\n\n**Week 1 Follow-up**:\n1. **Progress Tracking** - Automated check-ins on task completion\n2. **Feedback Collection** - Survey on onboarding experience\n3. **Manager Alerts** - Notify manager of any incomplete items\n\n**Key Improvements**:\n- **Reduced setup time**: 3 days → 4 hours\n- **Automated reminders**: For managers and IT team\n- **Self-service portal**: New hire can track progress\n- **Integration points**: HR system, IT provisioning, Slack, GitHub\n\n**Implementation Timeline**: 4-6 weeks\n**Expected Outcome**: 95% completion rate, improved new hire satisfaction",
         "timestamp": "2024-01-20T10:05:00Z"
       }
     ]'

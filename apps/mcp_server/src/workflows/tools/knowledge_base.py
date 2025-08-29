@@ -41,13 +41,13 @@ class KnowledgeBaseOutput(BaseModel):
     results: dict[str, Any]
 
 
-@workflow.defn()
-class KnowledgeBaseWorkflow:
-    """Workflow to search internal documentation using AI."""
+@workflow.defn(description="Search internal documentation")
+class KnowledgeBase:
+    """ to search internal documentation."""
 
     @workflow.run
     async def run(self, workflow_input: KnowledgeBaseInput) -> KnowledgeBaseOutput:
-        log.info("KnowledgeBaseWorkflow started", input=workflow_input)
+        log.info("KnowledgeBase started", input=workflow_input)
 
         try:
             # Use LLM to generate search results based on query and schema
@@ -100,10 +100,10 @@ Return realistic search results that would help with L1 support assessment."""
 
             search_results = json.loads(response_text)
 
-            log.info("KnowledgeBaseWorkflow completed", results=search_results)
+            log.info("KnowledgeBase completed", results=search_results)
             return KnowledgeBaseOutput(results=search_results)
 
         except Exception as e:
-            error_message = f"Error during KnowledgeBaseWorkflow: {e}"
+            error_message = f"Error during KnowledgeBase: {e}"
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e

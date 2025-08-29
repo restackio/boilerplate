@@ -46,13 +46,13 @@ class GitHubPROutput(BaseModel):
     pull_request: dict[str, Any]
 
 
-@workflow.defn()
-class GitHubPRWorkflow:
-    """Workflow to create a GitHub Pull Request using AI."""
+@workflow.defn(description="Create a GitHub Pull Request")
+class GitHubPR:
+    """ to create a GitHub Pull Request."""
 
     @workflow.run
     async def run(self, workflow_input: GitHubPRInput) -> GitHubPROutput:
-        log.info("GitHubPRWorkflow started", input=workflow_input)
+        log.info("GitHubPR started", input=workflow_input)
 
         try:
             # Use LLM to generate PR data based on input and schema
@@ -114,10 +114,10 @@ Return the complete JSON structure following the GitHub API format."""
 
             pr_data = json.loads(response_text)
 
-            log.info("GitHubPRWorkflow completed", pr=pr_data)
+            log.info("GitHubPR completed", pr=pr_data)
             return GitHubPROutput(pull_request=pr_data)
 
         except Exception as e:
-            error_message = f"Error during GitHubPRWorkflow: {e}"
+            error_message = f"Error during GitHubPR: {e}"
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e
