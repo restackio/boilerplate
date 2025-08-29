@@ -38,9 +38,9 @@ class ZendeskTicketOutput(BaseModel):
     """Output containing the generated Zendesk ticket JSON."""
     ticket: dict[str, Any]
 
-@workflow.defn()
+@workflow.defn(description="Generate a mocked Zendesk ticket")
 class ZendeskTicket:
-    """ to generate a mocked Zendesk ticket using AI."""
+    """ to generate a mocked Zendesk ticket."""
 
     @workflow.run
     async def run(self, workflow_input: ZendeskTicketInput) -> ZendeskTicketOutput:

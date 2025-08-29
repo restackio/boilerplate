@@ -394,7 +394,7 @@ requires-dist = [
     { name = "psycopg2-binary", specifier = ">=2.9.9" },
     { name = "pydantic", extras = ["email"], specifier = ">=2.11.7" },
     { name = "python-dotenv", specifier = ">=1.1.1" },
-    { name = "restack-ai", specifier = ">=0.0.109" },
+    { name = "restack-ai", specifier = ">=0.0.110" },
     { name = "sqlalchemy", specifier = ">=2.0.42" },
     { name = "watchfiles", specifier = ">=1.1.0" },
 ]
@@ -593,7 +593,7 @@ wheels = [
 
 [[package]]
 name = "restack-ai"
-version = "0.0.109"
+version = "0.0.110"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -606,9 +606,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "websockets" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/24/1a/517be40fd574b0b61011d1bb3bed03ff98a7f743e04b019e53f29d4f0cfd/restack_ai-0.0.109.tar.gz", hash = "sha256:fed22a67541f6b51220f4baf6d1d1c2ea0d0a6dbfc3aac20ebf063535ab173d9", size = 21779, upload-time = "2025-08-15T00:01:43.078Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/82/6f/f78ffb4f6636bb6b70d01a3fae179c417437a2f18681ca0bb7c000b76c6a/restack_ai-0.0.110.tar.gz", hash = "sha256:368178e0e0460869728f826c3f05db40844712ebaa81add23a2206bcb363f704", size = 22254, upload-time = "2025-08-29T20:29:57.474Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/9f/7a/8b24f92b635cf4553724288f1b728473700542301fe5a5ec22a9f0de1355/restack_ai-0.0.109-py3-none-any.whl", hash = "sha256:8065cf5b9b16d0d4ca635ae8cd86e4835cc9d89e7e21853a0e7f8713b61b126a", size = 27156, upload-time = "2025-08-15T00:01:41.705Z" },
+    { url = "https://files.pythonhosted.org/packages/74/52/df7328fac2839cf4a43731b2ffd9f2e6af00976f773f4c26df7fa8e26f6f/restack_ai-0.0.110-py3-none-any.whl", hash = "sha256:6cb699e4a8e44bd7c66f3707388b8487184d62d86821afe11a459f31a121e24b", size = 27691, upload-time = "2025-08-29T20:29:56.145Z" },
 ]
 
 [[package]]

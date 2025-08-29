@@ -46,9 +46,9 @@ class GitHubPROutput(BaseModel):
     pull_request: dict[str, Any]
 
 
-@workflow.defn()
+@workflow.defn(description="Create a GitHub Pull Request")
 class GitHubPR:
-    """ to create a GitHub Pull Request using AI."""
+    """ to create a GitHub Pull Request."""
 
     @workflow.run
     async def run(self, workflow_input: GitHubPRInput) -> GitHubPROutput:

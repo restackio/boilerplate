@@ -43,9 +43,9 @@ class LinearIssueOutput(BaseModel):
     issue: dict[str, Any]
 
 
-@workflow.defn()
+@workflow.defn(description="Create a Linear issue")
 class LinearIssue:
-    """ to create a Linear issue using AI."""
+    """ to create a Linear issue."""
 
     @workflow.run
     async def run(self, workflow_input: LinearIssueInput) -> LinearIssueOutput:

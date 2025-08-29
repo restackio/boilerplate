@@ -42,9 +42,9 @@ class DatadogLogsOutput(BaseModel):
     logs: dict[str, Any]
 
 
-@workflow.defn()
+@workflow.defn(description="Retrieve Datadog logs")
 class DatadogLogs:
-    """ to retrieve Datadog logs using AI."""
+    """ to retrieve Datadog logs."""
 
     @workflow.run
     async def run(self, workflow_input: DatadogLogsInput) -> DatadogLogsOutput:

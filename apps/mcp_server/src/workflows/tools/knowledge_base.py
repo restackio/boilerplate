@@ -41,9 +41,9 @@ class KnowledgeBaseOutput(BaseModel):
     results: dict[str, Any]
 
 
-@workflow.defn()
+@workflow.defn(description="Search internal documentation")
 class KnowledgeBase:
-    """ to search internal documentation using AI."""
+    """ to search internal documentation."""
 
     @workflow.run
     async def run(self, workflow_input: KnowledgeBaseInput) -> KnowledgeBaseOutput:

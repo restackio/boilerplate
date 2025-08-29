@@ -42,9 +42,9 @@ class PagerDutyIncidentOutput(BaseModel):
     incident: dict[str, Any]
 
 
-@workflow.defn()
+@workflow.defn(description="Retrieve PagerDuty incident information")
 class PagerDutyIncident:
-    """ to retrieve PagerDuty incident information using AI."""
+    """ to retrieve PagerDuty incident information."""
 
     @workflow.run
     async def run(self, workflow_input: PagerDutyIncidentInput) -> PagerDutyIncidentOutput:
