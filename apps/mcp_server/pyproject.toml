@@ -1,0 +1,51 @@
+[project]
+name = "mcp_server"
+version = "0.0.1"
+description = "Python MCP server for Restack AI application"
+authors = [{ name = "Restack Team", email = "service@restack.io" }]
+requires-python = ">=3.12,<3.13"
+readme = "README.md"
+dependencies = [
+    "pydantic[email]>=2.11.7",
+    "watchfiles>=1.1.0",
+    "python-dotenv>=1.1.1",
+    "openai[aiohttp]>=1.99.5",
+    "restack-ai>=0.0.109",
+    "psycopg2-binary>=2.9.9",
+    "asyncpg>=0.29.0",
+    "sqlalchemy>=2.0.42",
+    "greenlet>=3.0.0",
+    "alembic>=1.13.0",
+    "bcrypt>=4.0.1",
+]
+
+[project.scripts]
+dev = "src.services:dev_watch"
+start = "src.services:start"
+schedule = "schedule:run_schedule"
+
+[tool.hatch.build.targets.sdist]
+include = ["src"]
+
+[tool.hatch.build.targets.wheel]
+include = ["src"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 66
+
+[tool.ruff.lint]
+extend-select = ["ALL"]
+ignore = ["ANN401", "E501", "D100", "D101", "D102", "D103", "D107", "TRY002", "D213", "D203", "COM812", "D104", "INP001"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+docstring-code-format = true
+docstring-code-line-length = 66
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"

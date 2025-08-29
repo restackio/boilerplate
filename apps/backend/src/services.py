@@ -29,7 +29,6 @@ from src.functions.auth_crud import user_login, user_signup
 from src.functions.llm_prepare_response import (
     llm_prepare_response,
 )
-from src.functions.llm_response import llm_response
 from src.functions.llm_response_stream import llm_response_stream
 from src.functions.mcp_servers_crud import (
     mcp_servers_create,
@@ -142,15 +141,6 @@ from src.workflows.crud.workspaces_crud import (
     WorkspacesReadWorkflow,
     WorkspacesUpdateWorkflow,
 )
-from src.workflows.mcp.datadog_logs import DatadogLogsWorkflow
-from src.workflows.mcp.github_pr import GitHubPRWorkflow
-from src.workflows.mcp.knowledge_base import KnowledgeBaseWorkflow
-from src.workflows.mcp.linear_issue import LinearIssueWorkflow
-from src.workflows.mcp.pagerduty_incident import (
-    PagerDutyIncidentWorkflow,
-)
-from src.workflows.mcp.zendesk_ticket import ZendeskTicketWorkflow
-
 
 async def run_restack_service() -> None:
     """Run the Restack service."""
@@ -204,16 +194,9 @@ async def run_restack_service() -> None:
             AgentToolsCreateWorkflow,
             AgentToolsUpdateWorkflow,
             AgentToolsDeleteWorkflow,
-            ZendeskTicketWorkflow,
-            DatadogLogsWorkflow,
-            LinearIssueWorkflow,
-            GitHubPRWorkflow,
-            KnowledgeBaseWorkflow,
-            PagerDutyIncidentWorkflow,
         ],
         functions=[
             send_agent_event,
-            llm_response,
             llm_response_stream,
             llm_prepare_response,
             agents_read,

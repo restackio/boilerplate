@@ -39,12 +39,12 @@ class ZendeskTicketOutput(BaseModel):
     ticket: dict[str, Any]
 
 @workflow.defn()
-class ZendeskTicketWorkflow:
-    """Workflow to generate a mocked Zendesk ticket using AI."""
+class ZendeskTicket:
+    """ to generate a mocked Zendesk ticket using AI."""
 
     @workflow.run
     async def run(self, workflow_input: ZendeskTicketInput) -> ZendeskTicketOutput:
-        log.info("ZendeskTicketWorkflow started", input=workflow_input)
+        log.info("ZendeskTicket started", input=workflow_input)
 
         try:
             # Use LLM to generate a ticket based on user request and schema
@@ -95,10 +95,10 @@ Return the complete JSON structure following the Zendesk API format."""
 
             generated_ticket = json.loads(response_text)
 
-            log.info("ZendeskTicketWorkflow completed", ticket=generated_ticket)
+            log.info("ZendeskTicket completed", ticket=generated_ticket)
             return ZendeskTicketOutput(ticket=generated_ticket)
 
         except Exception as e:
-            error_message = f"Error during ZendeskTicketWorkflow: {e}"
+            error_message = f"Error during ZendeskTicket: {e}"
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e

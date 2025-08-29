@@ -43,12 +43,12 @@ class DatadogLogsOutput(BaseModel):
 
 
 @workflow.defn()
-class DatadogLogsWorkflow:
-    """Workflow to retrieve Datadog logs using AI."""
+class DatadogLogs:
+    """ to retrieve Datadog logs using AI."""
 
     @workflow.run
     async def run(self, workflow_input: DatadogLogsInput) -> DatadogLogsOutput:
-        log.info("DatadogLogsWorkflow started", input=workflow_input)
+        log.info("DatadogLogs started", input=workflow_input)
 
         try:
             # Use LLM to generate log data based on input and schema
@@ -104,10 +104,10 @@ Return relevant log entries that would help with L2 investigation."""
 
             logs_data = json.loads(response_text)
 
-            log.info("DatadogLogsWorkflow completed", logs=logs_data)
+            log.info("DatadogLogs completed", logs=logs_data)
             return DatadogLogsOutput(logs=logs_data)
 
         except Exception as e:
-            error_message = f"Error during DatadogLogsWorkflow: {e}"
+            error_message = f"Error during DatadogLogs: {e}"
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e
