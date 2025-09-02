@@ -24,13 +24,21 @@ export class StreamingItemProcessor {
   filterOutPersistentItems(persistentItemIds: Set<string>): StreamingItem[] {
     const currentItems = Array.from(this.streamingRefs.values())
       .filter(item => {
-        const isInPersistent = persistentItemIds.has(item.itemId) || 
-                              persistentItemIds.has(`msg_${item.itemId}`) ||
-                              persistentItemIds.has(`tool_${item.itemId}`) ||
-                              persistentItemIds.has(`approval_${item.itemId}`) ||
-                              persistentItemIds.has(`tools_${item.itemId}`) ||
-                              persistentItemIds.has(`websearch_${item.itemId}`) ||
-                              persistentItemIds.has(`reasoning_${item.itemId}`);
+        // Check various ID formats that might exist in persistent state
+        const possibleIds = [
+          item.itemId,
+          item.id,
+          `msg_${item.itemId}`,
+          `tool_${item.itemId}`,
+          `approval_${item.itemId}`,
+          `tools_${item.itemId}`,
+          `websearch_${item.itemId}`,
+          `reasoning_${item.itemId}`,
+          // Also check without prefixes in case the backend uses different formats
+          item.itemId.replace(/^(msg_|tool_|approval_|tools_|websearch_|reasoning_)/, '')
+        ];
+        
+        const isInPersistent = possibleIds.some(id => persistentItemIds.has(id));
         
         if (isInPersistent) {
           this.streamingRefs.delete(item.itemId);

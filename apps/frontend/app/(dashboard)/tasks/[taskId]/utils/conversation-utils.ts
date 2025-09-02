@@ -44,9 +44,12 @@ export const extractTextContent = (item: ConversationItem): string => {
     return output.summary
       .map(s => s.text)
       .join("\n\n");
+  } else if (output.role === "assistant" || output.role === "user") {
+    // For messages without content array, return empty string
+    return "";
   } else {
-    // Fallback for other types
-    return `${output.type}: ${output.name || output.id}`;
+    // For tool calls and other types, show a meaningful description
+    return getDisplayTitle(item);
   }
 };
 

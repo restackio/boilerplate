@@ -25,14 +25,14 @@ export function StreamingItemRenderer({
   onCardClick 
 }: StreamingItemRendererProps) {
   if (item.type === "text") {
-    // Simple text message - same style as persistent messages
+    // Simple text message - match persistent message format
     const conversationItem: ConversationItem = {
       id: item.id,
       type: "assistant",
       timestamp: item.timestamp,
       isStreaming: item.isStreaming,
       openai_output: {
-        id: item.id,
+        id: item.itemId,
         type: "message",
         role: "assistant",
         status: item.isStreaming ? "in-progress" : "completed",
@@ -42,72 +42,104 @@ export function StreamingItemRenderer({
     return <ConversationMessage item={conversationItem} />;
   } 
   
-  if (item.type === "tool-call" || item.type === "tool-list") {
-    // Tool card - same style as persistent cards
+  if (item.type === "tool-call") {
+    // MCP tool call - match persistent format
     const conversationItem: ConversationItem = {
       id: item.id,
-      type: item.type === "tool-call" ? "tool-call" : "tool-list",
+      type: "mcp_call",
       timestamp: item.timestamp,
       isStreaming: item.isStreaming,
       openai_output: {
-        id: item.id,
-        type: item.type === "tool-call" ? "mcp_call" : "mcp_list_tools",
+        id: item.itemId,
+        type: "mcp_call",
         name: item.toolName,
         arguments: item.toolArguments,
         output: item.toolOutput,
         server_label: item.serverLabel,
-        status: item.status
+        status: item.status || (item.isStreaming ? "in-progress" : "completed")
+      }
+    };
+    return <TaskCardTool item={conversationItem} onClick={onCardClick || (() => {})} />;
+  }
+  
+  if (item.type === "tool-list") {
+    // MCP tool list - match persistent format
+    const conversationItem: ConversationItem = {
+      id: item.id,
+      type: "mcp_list_tools",
+      timestamp: item.timestamp,
+      isStreaming: item.isStreaming,
+      openai_output: {
+        id: item.itemId,
+        type: "mcp_list_tools",
+        tools: (item.rawData?.item as any)?.tools || [],
+        server_label: item.serverLabel,
+        status: item.status || (item.isStreaming ? "in-progress" : "completed")
       }
     };
     return <TaskCardTool item={conversationItem} onClick={onCardClick || (() => {})} />;
   }
   
   if (item.type === "mcp-approval") {
-    // Approval card - same style as persistent cards
+    // MCP approval request - match persistent format
     const conversationItem: ConversationItem = {
       id: item.id,
-      type: "mcp-approval-request",
+      type: "mcp_approval_request",
       timestamp: item.timestamp,
       isStreaming: item.isStreaming,
       openai_output: {
-        id: item.id,
+        id: item.itemId,
         type: "mcp_approval_request",
         name: item.toolName,
         arguments: item.toolArguments,
         server_label: item.serverLabel,
-        status: item.status
+        status: item.status || "waiting-approval"
       }
     };
     return (
       <TaskCardMcp 
         item={conversationItem} 
-        onApprove={(approvalId) => onApproveRequest?.(approvalId)}
-        onDeny={(approvalId) => onDenyRequest?.(approvalId)}
+        onApprove={(approvalId) => onApproveRequest?.(item.itemId)}
+        onDeny={(approvalId) => onDenyRequest?.(item.itemId)}
         onClick={onCardClick}
       />
     );
   }
 
   if (item.type === "web-search") {
-    // Web search card
+    // Web search call - match persistent format
     const conversationItem: ConversationItem = {
       id: item.id,
       type: "web_search_call",
       timestamp: item.timestamp,
       isStreaming: item.isStreaming,
       openai_output: {
-        id: item.id,
+        id: item.itemId,
         type: "web_search_call",
         action: item.toolArguments,
         output: item.toolOutput,
-        status: item.status
+        result: item.toolOutput,
+        status: item.status || (item.isStreaming ? "in-progress" : "completed")
       }
     };
     return <TaskCardWebSearch item={conversationItem} onClick={onCardClick} />;
   }
 
   if (item.type === "reasoning") {
-    // Reasoning component
+    // Reasoning component - match persistent format
+    const conversationItem: ConversationItem = {
+      id: item.id,
+      type: "reasoning",
+      timestamp: item.timestamp,
+      isStreaming: item.isStreaming,
+      openai_output: {
+        id: item.itemId,
+        type: "reasoning",
+        status: item.status || (item.isStreaming ? "in-progress" : "completed"),
+        summary: item.content ? [{ type: "text", text: item.content }] : []
+      }
+    };
+    
     return (
       <Reasoning 
         isStreaming={item.isStreaming || item.status === "in-progress"}

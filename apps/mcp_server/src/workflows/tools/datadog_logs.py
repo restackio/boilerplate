@@ -94,6 +94,7 @@ Return relevant log entries that would help with L2 investigation."""
             )
 
             response_text = await workflow.step(
+                task_queue="mcp_server",
                 function=llm_response,
                 function_input=llm_input,
                 start_to_close_timeout=timedelta(seconds=30),

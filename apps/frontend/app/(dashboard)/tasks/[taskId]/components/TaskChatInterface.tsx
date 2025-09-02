@@ -74,7 +74,7 @@ export function TaskChatInterface({
                   >
                     <ReasoningTrigger />
                     <ReasoningContent>
-                      {item.openai_output.summary?.map(s => s.text).join("\n\n") || "Agent is thinking...\n\n"}
+                      {item.openai_output.summary?.map(s => s.text).join("\n\n") || "Agent is thinking..."}
                     </ReasoningContent>
                   </Reasoning>
                 ) : (
@@ -102,6 +102,7 @@ export function TaskChatInterface({
               onApproveRequest={onApproveRequest}
               onDenyRequest={onDenyRequest}
               onCardClick={onCardClick}
+              conversation={conversation}
             />
           </>
         )}

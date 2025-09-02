@@ -15,10 +15,7 @@ from restack_ai.function import (
     log,
 )
 
-from src.functions.llm_response_stream import (
-    LlmResponseInput,
-    Message,
-)
+from .openai_sdk_types import Message, LlmResponseInput, ToolParam
 
 
 class LlmPrepareResponseInput(BaseModel):
@@ -26,10 +23,8 @@ class LlmPrepareResponseInput(BaseModel):
     model: str | None = None
     messages: list[Message] | None = None
     mcp_servers: list[Mcp] | None = None
-    # Prefer OpenAI Responses API tool param types; allow dict for backward-compat inputs from DB/UI
-    tools: list[
-        FunctionToolParam | WebSearchToolParam | FileSearchToolParam | Mcp | dict[str, Any]
-    ] | None = None
+    # Use the ToolParam union type for cleaner typing
+    tools: list[ToolParam] | None = None
     previous_response_id: str | None = None
     # Reasoning/text controls
     reasoning_effort: Literal["minimal", "low", "medium", "high"] | None = None
@@ -37,16 +32,17 @@ class LlmPrepareResponseInput(BaseModel):
     # Additional controls referenced in implementation
     response_format: str | dict[str, Any] | None = None
     parallel_tool_calls: bool | None = None
-
     # Approval continuation payload (for paused responses)
     approval_response: dict[str, Any] | None = None
+    # Agent information for event extraction
+    agent_id: str | None = None
 
 @function.defn()
 async def llm_prepare_response(  # noqa: C901, PLR0912, PLR0915
     function_input: LlmPrepareResponseInput,
 ) -> LlmResponseInput:
     try:
-        log.info("llm_prepare_response started", function_input=function_input)
+        log.info("llm_prepare_response started", agent_id=function_input.agent_id, model=function_input.model)
 
         # Prepare input for the response
         input_data = []
@@ -105,9 +101,7 @@ async def llm_prepare_response(  # noqa: C901, PLR0912, PLR0915
 
 
         # Include tools per Responses API (unified array). Prefer typed params and normalize legacy dicts.
-        def _normalize_tool(  # noqa: PLR0911
-            raw_tool: FunctionToolParam | WebSearchToolParam | FileSearchToolParam | Mcp | dict[str, Any]
-        ) -> FunctionToolParam | WebSearchToolParam | FileSearchToolParam | Mcp | dict[str, Any]:
+        def _normalize_tool(raw_tool: ToolParam) -> ToolParam:
             # Already a typed tool param instance
             if not isinstance(raw_tool, dict):
                 return raw_tool
@@ -141,9 +135,7 @@ async def llm_prepare_response(  # noqa: C901, PLR0912, PLR0915
             return tool_dict
 
         if function_input.tools:
-            normalized_tools: list[
-                FunctionToolParam | WebSearchToolParam | FileSearchToolParam | Mcp | dict[str, Any]
-            ] = []
+            normalized_tools: list[ToolParam] = []
             for tool in function_input.tools:
                 try:
                     normalized_tools.append(_normalize_tool(tool))
@@ -162,7 +154,10 @@ async def llm_prepare_response(  # noqa: C901, PLR0912, PLR0915
         create_params = create_params_dict
 
         log.info("llm_prepare_response completed", create_params=create_params)
-        return LlmResponseInput(create_params=create_params)
+        return LlmResponseInput(
+            create_params=create_params,
+            agent_id=function_input.agent_id
+        )
     except Exception as e:
         error_message = f"llm_prepare_response failed: {e}"
         raise NonRetryableError(error_message) from e

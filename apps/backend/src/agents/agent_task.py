@@ -8,6 +8,7 @@ from restack_ai.agent import (
     import_functions,
     log,
     uuid,
+    agent_info
 )
 
 with import_functions():
@@ -44,6 +45,14 @@ class EndEvent(BaseModel):
     end: bool
 
 
+class SdkResponseEventData(BaseModel):
+    type: str
+    event: dict[str, Any]
+    sequence_number: int | None = None
+    timestamp: str | None = None
+    item_id: str | None = None
+
+
 class AgentTaskInput(BaseModel):
     title: str
     description: str
@@ -64,6 +73,7 @@ class AgentTask:
         self.last_response_id = (
             None  # Track response ID for conversation continuity
         )
+
         # Agent model configuration for GPT-5 features
         self.agent_model = None
         self.agent_reasoning_effort = None
@@ -107,6 +117,9 @@ class AgentTask:
                 continue
 
             item_id = item["id"]
+            
+            # Don't filter - we want to capture all streaming events for consistency
+            
             if item_id not in seen_ids:
                 seen_ids.add(item_id)
                 deduplicated_items.append(item)
@@ -118,6 +131,11 @@ class AgentTask:
         log.info(
             f"state_response returning {len(deduplicated_items)} items (removed {len(self.conversation_items) - len(deduplicated_items)} duplicates)"
         )
+        
+        # Debug logging to help identify the frontend issue
+        for item in deduplicated_items:
+            log.info(f"Returning item: id={item.get('id')}, type={item.get('type')}")
+        
         return deduplicated_items
 
     @agent.event
@@ -170,6 +188,7 @@ class AgentTask:
                 )
 
             try:
+                
                 # Step 1: prepare request for OpenAI (typed and fully normalized)
                 prepared: LlmResponseInput = await agent.step(
                     function=llm_prepare_response,
@@ -179,6 +198,7 @@ class AgentTask:
                         model=self.agent_model,
                         reasoning_effort=self.agent_reasoning_effort,
                         previous_response_id=self.last_response_id,
+                        agent_id=agent_info().workflow_id
                     ),
                     start_to_close_timeout=timedelta(seconds=60),
                 )
@@ -254,6 +274,8 @@ class AgentTask:
         else:
             return self.messages
 
+
+
     @agent.event
     async def mcp_approval(  # noqa: C901, PLR0912
         self, approval_event: McpApprovalEvent
@@ -284,11 +306,52 @@ class AgentTask:
         # Use last_response_id to continue the conversation after approval
         if not self.last_response_id:
             error_msg = f"Approval {approval_id} received before response context is available"
-            log.warning(f"{error_msg} - will retry")
+            log.error(error_msg)
             raise Exception(error_msg)
 
         response_id = self.last_response_id
         log.info(f"Processing approval {approval_id} using last_response_id: {response_id}")
+
+        # Find the most recent approval request that matches this approval
+        # Sometimes the approval_id from the frontend might not match the exact ID OpenAI expects
+        
+        # Debug: Log all approval requests in conversation items
+        approval_requests = [
+            {
+                "id": item.get("id"),
+                "type": item.get("type"),
+                "status": item.get("status"),
+                "openai_output_id": item.get("openai_output", {}).get("id"),
+                "openai_output_status": item.get("openai_output", {}).get("status"),
+            }
+            for item in self.conversation_items 
+            if item.get("type") == "mcp_approval_request"
+        ]
+        log.info(f"All approval requests in conversation: {approval_requests}")
+        
+        matching_approval = None
+        for item in reversed(self.conversation_items):  # Search from most recent
+            if item.get("type") == "mcp_approval_request":
+                # Check if this matches the approval we're processing
+                item_id = item.get("id")
+                openai_output_id = item.get("openai_output", {}).get("id")
+                item_status = item.get("status")
+                openai_output_status = item.get("openai_output", {}).get("status")
+                
+                log.info(f"Checking approval item: id={item_id}, openai_output_id={openai_output_id}, status={item_status}, openai_output_status={openai_output_status}")
+                
+                if item_id == approval_id or openai_output_id == approval_id:
+                    matching_approval = item
+                    log.info(f"Found matching approval request by ID match")
+                    break
+        
+        if matching_approval:
+            # Use the OpenAI output ID if available, otherwise use the item ID
+            actual_approval_id = matching_approval.get("openai_output", {}).get("id") or matching_approval.get("id")
+            log.info(f"Found matching approval request, using ID: {actual_approval_id}")
+        else:
+            actual_approval_id = approval_id
+            log.warning(f"No matching approval request found, using original ID: {approval_id}")
 
         try:
 
@@ -299,8 +362,9 @@ class AgentTask:
                 approval_response={
                     "type": "mcp_approval_response",
                     "approve": approval_event.approved,
-                    "approval_request_id": approval_id,
+                    "approval_request_id": actual_approval_id,
                 },
+                agent_id=agent_info().workflow_id,
             )
 
             # Prepare then execute the approval continuation as well
@@ -331,7 +395,7 @@ class AgentTask:
             for item in self.conversation_items:
                 if (
                     item.get("type") == "mcp_approval_request"
-                    and item.get("id") == approval_id
+                    and (item.get("id") == approval_id or item.get("openai_output", {}).get("id") == approval_id)
                 ):
                     # Update the status in the openai_output structure
                     if "openai_output" in item:
@@ -403,6 +467,53 @@ class AgentTask:
                 "approval_id": approval_id,
                 "approved": approval_event.approved,
                 "processed": True,
+            }
+
+    @agent.event
+    async def sdk_response_event(self, event_data: dict) -> dict:
+        """
+        Handle native OpenAI SDK ResponseStreamEvent objects.
+        Stores events extracted from parallel processing in agent state.
+        Preserves OpenAI's native format and IDs.
+        """
+        event_type = event_data.get("type", "unknown")
+        log.info(f"Received OpenAI SDK event: {event_type}")
+        
+        try:
+            # Use OpenAI's native ID if available, fallback to generating one
+            item_id = event_data.get("event_id") or event_data.get("id") or f"openai_event_{uuid()}"
+            
+            # Store the exact OpenAI event structure
+            conversation_item = {
+                "id": item_id,
+                "type": event_type,
+                "timestamp": event_data.get("created_at"),
+                "openai_event": event_data,  # Store the complete OpenAI event
+            }
+            
+            # Check for duplicates
+            duplicate_found = any(
+                item.get("id") == item_id for item in self.conversation_items
+            )
+            
+            if not duplicate_found:
+                self.conversation_items.append(conversation_item)
+                log.info(f"Added SDK event to conversation: {event_data.get('type')}")
+            else:
+                log.warning(f"Duplicate SDK event detected: {item_id}")
+            
+            return {
+                "item_id": item_id,
+                "type": event_data.get("type"),
+                "processed": True
+            }
+            
+        except Exception as e:
+            log.error(f"Error processing SDK event: {e}")
+            return {
+                "type": event_data.get("type"),
+                "processed": False,
+                "error": str(e)
             }
 
     @agent.event

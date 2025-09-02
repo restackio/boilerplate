@@ -59,6 +59,8 @@ export interface StreamItemsProps {
   onApproveRequest?: (itemId: string) => void;
   onDenyRequest?: (itemId: string) => void;
   onCardClick?: (item: ConversationItem) => void;
+  // Optional: SDK events from agent state for enhanced persistence
+  conversation?: ConversationItem[];
 }
 
 // Re-export from main types

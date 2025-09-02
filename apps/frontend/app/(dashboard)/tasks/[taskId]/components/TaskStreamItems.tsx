@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { StreamResponse, StreamingItem, StreamItemsProps } from "./streaming/StreamingTypes";
 import { StreamingItemProcessor } from "./streaming/StreamingItemProcessor";
 import { StreamingItemRenderer } from "./streaming/StreamingItemRenderer";
+import { SdkEventProcessor } from "./streaming/SdkEventProcessor";
 
 export function StreamItems({ 
   agentResponses, 
@@ -11,7 +12,8 @@ export function StreamItems({
   taskAgentTaskId,
   onApproveRequest,
   onDenyRequest,
-  onCardClick
+  onCardClick,
+  conversation = []
 }: StreamItemsProps) {
   const [streamingItems, setStreamingItems] = useState<StreamingItem[]>([]);
   const processorRef = useRef(new StreamingItemProcessor());
@@ -24,17 +26,19 @@ export function StreamItems({
     }
   }, [taskAgentTaskId]);
 
-  // Process streaming responses
+  // Process streaming responses and SDK events
   useEffect(() => {
-    if (!agentResponses || !Array.isArray(agentResponses) || !taskAgentTaskId) {
+    if (!taskAgentTaskId) {
       return;
     }
 
     const processor = processorRef.current;
     let hasUpdates = false;
 
-    // Sort by sequence number for correct order
-    const sortedResponses = [...agentResponses].sort((a, b) => (a.sequence_number || 0) - (b.sequence_number || 0));
+    // Process real-time streaming responses
+    if (agentResponses && Array.isArray(agentResponses)) {
+      // Sort by sequence number for correct order
+      const sortedResponses = [...agentResponses].sort((a, b) => (a.sequence_number || 0) - (b.sequence_number || 0));
 
     sortedResponses.forEach((response: StreamResponse) => {
       // Text streaming
@@ -74,6 +78,55 @@ export function StreamItems({
         hasUpdates = processor.processWebSearchStateChange(response, persistentItemIds) || hasUpdates;
       }
     });
+    }
+
+    // Process SDK events from agent state (for enhanced persistence)
+    if (conversation && conversation.length > 0) {
+      conversation.forEach(conversationItem => {
+        if (SdkEventProcessor.isSdkEvent(conversationItem) && 
+            SdkEventProcessor.shouldDisplayAsStreamingItem(conversationItem)) {
+          
+          // Convert SDK event to StreamResponse format
+          const streamResponse = SdkEventProcessor.convertSdkEventToStreamResponse(conversationItem);
+          
+          if (streamResponse && streamResponse.item_id) {
+            // Check multiple ID formats for persistent state
+            const itemId = streamResponse.item_id;
+            const possibleIds = [
+              itemId,
+              `msg_${itemId}`,
+              `tool_${itemId}`,
+              `approval_${itemId}`,
+              `tools_${itemId}`,
+              `websearch_${itemId}`,
+              `reasoning_${itemId}`,
+              conversationItem.id
+            ];
+            
+            // Skip if already in persistent state with any possible ID format
+            if (possibleIds.some(id => persistentItemIds.has(id))) {
+              return;
+            }
+
+            // Process as appropriate streaming item
+            if (streamResponse.type === "response.output_item.added") {
+              hasUpdates = processor.processItemAdded(streamResponse, persistentItemIds) || hasUpdates;
+            } else if (streamResponse.type === "response.output_item.done") {
+              hasUpdates = processor.processItemCompletion(streamResponse, persistentItemIds) || hasUpdates;
+            } else if (streamResponse.type === "response.output_text.done") {
+              hasUpdates = processor.processTextCompletion(streamResponse, persistentItemIds) || hasUpdates;
+            } else if (streamResponse.type === "response.reasoning_summary_text.done") {
+              hasUpdates = processor.processReasoningCompletion(streamResponse, persistentItemIds) || hasUpdates;
+            } else if (streamResponse.type?.startsWith("response.web_search_call.")) {
+              hasUpdates = processor.processWebSearchStateChange(streamResponse, persistentItemIds) || hasUpdates;
+            } else if (streamResponse.type?.startsWith("response.mcp_call.")) {
+              // Handle MCP call state changes
+              hasUpdates = processor.processItemCompletion(streamResponse, persistentItemIds) || hasUpdates;
+            }
+          }
+        }
+      });
+    }
 
     // Update state and filter out items that are now in persistent state
     if (hasUpdates) {
@@ -89,7 +142,7 @@ export function StreamItems({
       setStreamingItems(currentItems);
     }
 
-  }, [agentResponses, persistentItemIds, taskAgentTaskId]);
+  }, [agentResponses, persistentItemIds, taskAgentTaskId, conversation]);
 
   if (streamingItems.length === 0) {
     return null;

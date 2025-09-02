@@ -90,6 +90,7 @@ Return realistic search results that would help with L1 support assessment."""
             )
 
             response_text = await workflow.step(
+                task_queue="mcp_server",
                 function=llm_response,
                 function_input=llm_input,
                 start_to_close_timeout=timedelta(seconds=30),
