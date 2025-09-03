@@ -22,6 +22,14 @@ class TaskCreateInput(BaseModel):
     agent_name: str | None = None
     assigned_to_id: str | None = None
     agent_task_id: str | None = None
+    # Schedule-related fields
+    schedule_spec: dict | None = None
+    schedule_task_id: str | None = None
+    is_scheduled: bool = False
+    schedule_status: str | None = Field(
+        None, pattern="^(active|inactive|paused)$"
+    )
+    restack_schedule_id: str | None = None
 
 
 class TaskUpdateInput(BaseModel):
@@ -35,6 +43,14 @@ class TaskUpdateInput(BaseModel):
     assigned_to_id: str | None = Field(None, min_length=1)
     agent_task_id: str | None = None
     messages: list | None = None
+    # Schedule-related fields
+    schedule_spec: dict | None = None
+    schedule_task_id: str | None = None
+    is_scheduled: bool | None = None
+    schedule_status: str | None = Field(
+        None, pattern="^(active|inactive|paused)$"
+    )
+    restack_schedule_id: str | None = None
 
 
 class TaskGetByIdInput(BaseModel):
@@ -75,6 +91,12 @@ class TaskOutput(BaseModel):
     assigned_to_name: str | None
     agent_task_id: str | None
     messages: list | None = None
+    # Schedule-related fields
+    schedule_spec: dict | None = None
+    schedule_task_id: str | None = None
+    is_scheduled: bool = False
+    schedule_status: str | None = None
+    restack_schedule_id: str | None = None
     created_at: str | None
     updated_at: str | None
 
@@ -145,6 +167,14 @@ async def tasks_read(
                         if task.assigned_to_user
                         else "N/A",
                         agent_task_id=task.agent_task_id,
+                        # Schedule-related fields
+                        schedule_spec=task.schedule_spec,
+                        schedule_task_id=str(task.schedule_task_id)
+                        if task.schedule_task_id
+                        else None,
+                        is_scheduled=task.is_scheduled,
+                        schedule_status=task.schedule_status,
+                        restack_schedule_id=task.restack_schedule_id,
                         created_at=task.created_at.isoformat()
                         if task.created_at
                         else None,
@@ -181,6 +211,14 @@ async def tasks_create(
                 if task_data.assigned_to_id
                 else None,
                 agent_task_id=task_data.agent_task_id,
+                # Schedule-related fields
+                schedule_spec=task_data.schedule_spec,
+                schedule_task_id=uuid.UUID(task_data.schedule_task_id)
+                if task_data.schedule_task_id
+                else None,
+                is_scheduled=task_data.is_scheduled,
+                schedule_status=task_data.schedule_status,
+                restack_schedule_id=task_data.restack_schedule_id,
             )
 
             db.add(task)
@@ -258,8 +296,12 @@ async def tasks_update(
                         key == "assigned_to_id" and value
                     ):
                         setattr(task, key, uuid.UUID(value))
+                    elif key == "schedule_task_id" and value:
+                        setattr(task, key, uuid.UUID(value))
                     elif (key == "agent_task_id" and value) or (
                         key == "messages" and value is not None
+                    ) or (key == "schedule_spec" and value is not None) or (
+                        key in ["is_scheduled", "schedule_status", "restack_schedule_id"]
                     ):
                         setattr(task, key, value)
                     else:
@@ -450,6 +492,14 @@ async def tasks_get_by_status(
                         if task.assigned_to_user
                         else "N/A",
                         agent_task_id=task.agent_task_id,
+                        # Schedule-related fields
+                        schedule_spec=task.schedule_spec,
+                        schedule_task_id=str(task.schedule_task_id)
+                        if task.schedule_task_id
+                        else None,
+                        is_scheduled=task.is_scheduled,
+                        schedule_status=task.schedule_status,
+                        restack_schedule_id=task.restack_schedule_id,
                         created_at=task.created_at.isoformat()
                         if task.created_at
                         else None,

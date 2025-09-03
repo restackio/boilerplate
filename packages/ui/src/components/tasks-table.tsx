@@ -44,6 +44,12 @@ export interface Task {
   assigned_to_name: string;
   team_id?: string;
   team_name?: string;
+  // Schedule-related fields
+  schedule_spec?: any;
+  schedule_task_id?: string;
+  is_scheduled?: boolean;
+  schedule_status?: "active" | "inactive" | "paused";
+  restack_schedule_id?: string;
   created: string;
   updated: string;
 }
@@ -81,6 +87,20 @@ export const taskColumnsConfig = [
     .displayName("Team")
     .icon(Users)
     .build(),
+  dtf
+    .option()
+    .id("schedule")
+    .accessor((row: Task) => row.is_scheduled ? "Scheduled" : "Regular")
+    .displayName("Type")
+    .icon(Clock)
+    .build(),
+  dtf
+    .option()
+    .id("schedule_status")
+    .accessor((row: Task) => row.schedule_status || "N/A")
+    .displayName("Schedule Status")
+    .icon(Clock)
+    .build(),
 ] as const;
 
 // Level options
@@ -117,6 +137,20 @@ export const taskProblemSizeOptions = [
   { label: "Large", value: "Large", icon: AlertTriangle },
 ];
 
+// Schedule type options
+export const taskScheduleTypeOptions = [
+  { label: "Regular", value: "Regular", icon: ClipboardList },
+  { label: "Scheduled", value: "Scheduled", icon: Clock },
+];
+
+// Schedule status options
+export const taskScheduleStatusOptions = [
+  { label: "Active", value: "active", icon: Activity },
+  { label: "Inactive", value: "inactive", icon: Clock },
+  { label: "Paused", value: "paused", icon: AlertTriangle },
+  { label: "N/A", value: "N/A", icon: Activity },
+];
+
 // Helper function for status colors
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -135,6 +169,27 @@ const getStatusColor = (status: string) => {
   }
 };
 
+// Helper function for schedule type colors
+const getScheduleTypeColor = (isScheduled?: boolean) => {
+  return isScheduled 
+    ? "bg-purple-100 text-purple-800" 
+    : "bg-gray-100 text-gray-600";
+};
+
+// Helper function for schedule status colors
+const getScheduleStatusColor = (status?: string) => {
+  switch (status) {
+    case "active":
+      return "bg-green-100 text-green-800";
+    case "paused":
+      return "bg-yellow-100 text-yellow-800";
+    case "inactive":
+      return "bg-gray-100 text-gray-800";
+    default:
+      return "bg-gray-50 text-gray-500";
+  }
+};
+
 interface TasksTableProps {
   data: Task[];
   onViewTask?: (taskId: string) => void;
@@ -142,6 +197,7 @@ interface TasksTableProps {
   teams?: Array<{ label: string; value: string; icon: any }>;
   defaultFilters?: any[];
   dashboard?: boolean;
+  onScheduleUpdated?: () => void;
 }
 
 export function TasksTable({
@@ -151,6 +207,7 @@ export function TasksTable({
   teams = [],
   defaultFilters = [],
   dashboard = false,
+  onScheduleUpdated,
 }: TasksTableProps) {
   // Create data table filters instance
   const { columns, filters, actions, strategy, filteredData } =
@@ -197,6 +254,8 @@ export function TasksTable({
                 <TableHead>Status</TableHead>
                 <TableHead className="hidden sm:table-cell" >Agent</TableHead>
                 <TableHead className="hidden md:table-cell" >Team</TableHead>
+                <TableHead className="hidden lg:table-cell" >Type</TableHead>
+                <TableHead className="hidden xl:table-cell" >Schedule</TableHead>
                 {!dashboard && <TableHead className="hidden lg:table-cell" >Assigned to</TableHead>}
                 <TableHead className="hidden lg:table-cell" >Updated</TableHead>
                 {!dashboard && <TableHead >Actions</TableHead>}
@@ -246,6 +305,25 @@ export function TasksTable({
                     <Users className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                     <span className="text-sm truncate">{task.team_name || "No Team"}</span>
                   </div>
+                </TableCell>
+                <TableCell className="hidden lg:table-cell p-3">
+                  <Badge
+                    className={`${getScheduleTypeColor(task.is_scheduled)} border-0 w-fit text-xs`}
+                  >
+                    <Clock className="h-3 w-3 mr-1" />
+                    {task.is_scheduled ? "Scheduled" : "Regular"}
+                  </Badge>
+                </TableCell>
+                <TableCell className="hidden xl:table-cell p-3">
+                  {task.is_scheduled && task.schedule_status ? (
+                    <Badge
+                      className={`${getScheduleStatusColor(task.schedule_status)} border-0 w-fit text-xs`}
+                    >
+                      {task.schedule_status}
+                    </Badge>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">-</span>
+                  )}
                 </TableCell>
                 {!dashboard && <TableCell className="hidden lg:table-cell p-3">
                   <div className="flex items-center space-x-2">

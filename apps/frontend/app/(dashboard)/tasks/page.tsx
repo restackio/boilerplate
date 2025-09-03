@@ -46,6 +46,10 @@ export default function TasksPage() {
     status: "open" | "active" | "waiting" | "closed" | "completed";
     agent_id: string;
     assigned_to_id: string;
+    // Schedule-related fields
+    schedule_spec?: any;
+    is_scheduled?: boolean;
+    schedule_status?: string;
   }) => {
     const result = await createTask(taskData);
     return result;

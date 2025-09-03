@@ -45,6 +45,35 @@ export async function testServerAction() {
   return { success: true, message: "Server action working" };
 }
 
+// Helper function for executing workflows and getting results
+export async function executeWorkflow(workflowName: string, input: Record<string, any>) {
+  try {
+    const { workflowId, runId } = await runWorkflow({
+      workflowName,
+      input
+    });
+    
+    const result = await getWorkflowResult({
+      workflowId,
+      runId
+    });
+    
+    return {
+      success: true,
+      data: result,
+      workflowId,
+      runId
+    };
+  } catch (error) {
+    console.error("Workflow execution failed:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+      data: null
+    };
+  }
+}
+
 export async function getWorkflowResult({
   workflowId,
   runId

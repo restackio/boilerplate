@@ -345,6 +345,24 @@ class Task(Base):
     messages = Column(
         JSONB, nullable=True
     )  # Store conversation history for completed tasks
+    # Schedule-related columns
+    schedule_spec = Column(
+        JSONB, nullable=True
+    )  # Store the schedule specification (calendars, intervals, cron)
+    schedule_task_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("tasks.id", ondelete="SET NULL"),
+        nullable=True,
+    )  # Reference to the schedule task that created this task
+    is_scheduled = Column(
+        Boolean, nullable=False, default=False
+    )  # Whether this is a scheduled task
+    schedule_status = Column(
+        String(50), nullable=True, default="inactive"
+    )  # Schedule status: active, inactive, paused
+    restack_schedule_id = Column(
+        String(255), nullable=True
+    )  # Restack schedule ID for managing the schedule
     created_at = Column(
         DateTime,
         default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
@@ -371,6 +389,16 @@ class Task(Base):
             ),
             name="valid_task_status",
         ),
+        CheckConstraint(
+            schedule_status.in_(
+                [
+                    "active",
+                    "inactive",
+                    "paused",
+                ]
+            ),
+            name="valid_schedule_status",
+        ),
     )
 
     # Relationships
@@ -379,4 +407,11 @@ class Task(Base):
     agent = relationship("Agent", back_populates="tasks")
     assigned_to_user = relationship(
         "User", foreign_keys=[assigned_to_id]
+    )
+    # Self-referencing relationship for schedule tasks
+    schedule_task = relationship(
+        "Task", remote_side=[id], foreign_keys=[schedule_task_id]
+    )
+    scheduled_tasks = relationship(
+        "Task", back_populates="schedule_task", foreign_keys=[schedule_task_id]
     )

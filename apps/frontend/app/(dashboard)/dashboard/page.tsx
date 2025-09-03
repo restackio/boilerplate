@@ -19,6 +19,12 @@ function convertHookTaskToUITask(hookTask: HookTask): UITask {
     assigned_to_name: hookTask.assigned_to_name,
     team_id: hookTask.team_id,
     team_name: hookTask.team_name,
+    // Schedule-related fields
+    schedule_spec: hookTask.schedule_spec,
+    schedule_task_id: hookTask.schedule_task_id,
+    is_scheduled: hookTask.is_scheduled,
+    schedule_status: hookTask.schedule_status,
+    restack_schedule_id: hookTask.restack_schedule_id,
     created: hookTask.created_at || new Date().toISOString(),
     updated: hookTask.updated_at || new Date().toISOString(),
   };
@@ -41,6 +47,10 @@ export default function DashboardPage() {
     status: "open" | "active" | "waiting" | "closed" | "completed";
     agent_id: string;
     assigned_to_id: string;
+    // Schedule-related fields
+    schedule_spec?: any;
+    is_scheduled?: boolean;
+    schedule_status?: string;
   }) => {
     const result = await createTask(taskData);
     if (result.success) {
