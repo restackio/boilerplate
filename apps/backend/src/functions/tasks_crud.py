@@ -294,9 +294,7 @@ async def tasks_update(
                     # Handle UUID fields
                     if (key == "agent_id" and value) or (
                         key == "assigned_to_id" and value
-                    ):
-                        setattr(task, key, uuid.UUID(value))
-                    elif key == "schedule_task_id" and value:
+                    ) or (key == "schedule_task_id" and value):
                         setattr(task, key, uuid.UUID(value))
                     elif (key == "agent_task_id" and value) or (
                         key == "messages" and value is not None

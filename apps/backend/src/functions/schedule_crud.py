@@ -1,11 +1,16 @@
-import uuid
 import re
+import uuid
 from datetime import timedelta
-from typing import Dict, Any
+from typing import Any
 
 from pydantic import BaseModel, Field
 from restack_ai.function import NonRetryableError, function
-from restack_ai.restack import ScheduleSpec, ScheduleCalendarSpec, ScheduleIntervalSpec, ScheduleRange
+from restack_ai.restack import (
+    ScheduleCalendarSpec,
+    ScheduleIntervalSpec,
+    ScheduleRange,
+    ScheduleSpec,
+)
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
@@ -14,39 +19,60 @@ from src.database.connection import get_async_db
 from src.database.models import Task
 
 
+def _raise_task_not_found(task_id: str) -> None:
+    """Helper function to raise task not found error."""
+    raise NonRetryableError(message=f"Task with id {task_id} not found")
+
+
+def _raise_not_scheduled_task() -> None:
+    """Helper function to raise not scheduled task error."""
+    raise NonRetryableError(message="Task is not a scheduled task or missing schedule ID")
+
+
+def _raise_not_scheduled_error() -> None:
+    """Helper function to raise task not scheduled error."""
+    raise NonRetryableError(message="Task is not a scheduled task")
+
+
+def _raise_unknown_action(action: str) -> None:
+    """Helper function to raise unknown action error."""
+    raise NonRetryableError(message=f"Unknown action: {action}")
+
+
 def parse_interval_string(interval_str: str) -> timedelta:
-    """
-    Convert interval string like '5m', '1h', '2d' to timedelta object.
-    
+    """Convert interval string like '5m', '1h', '2d' to timedelta object.
+
     Supported formats:
     - s, sec, seconds: seconds
-    - m, min, minutes: minutes  
+    - m, min, minutes: minutes
     - h, hr, hours: hours
     - d, day, days: days
     """
     # Normalize the string
     interval_str = interval_str.strip().lower()
-    
+
     # Regular expression to parse number and unit
-    match = re.match(r'^(\d+(?:\.\d+)?)\s*(s|sec|seconds?|m|min|minutes?|h|hr|hours?|d|day|days?)$', interval_str)
-    
+    match = re.match(r"^(\d+(?:\.\d+)?)\s*(s|sec|seconds?|m|min|minutes?|h|hr|hours?|d|day|days?)$", interval_str)
+
     if not match:
-        raise ValueError(f"Invalid interval format: {interval_str}. Expected format like '5m', '1h', '2d'")
-    
+        msg = f"Invalid interval format: {interval_str}. Expected format like '5m', '1h', '2d'"
+        raise ValueError(msg)
+
     value = float(match.group(1))
     unit = match.group(2)
-    
+
     # Convert to timedelta
-    if unit in ('s', 'sec', 'second', 'seconds'):
+    if unit in ("s", "sec", "second", "seconds"):
         return timedelta(seconds=value)
-    elif unit in ('m', 'min', 'minute', 'minutes'):
+    if unit in ("m", "min", "minute", "minutes"):
         return timedelta(minutes=value)
-    elif unit in ('h', 'hr', 'hour', 'hours'):
+    if unit in ("h", "hr", "hour", "hours"):
         return timedelta(hours=value)
-    elif unit in ('d', 'day', 'days'):
+    if unit in ("d", "day", "days"):
         return timedelta(days=value)
-    else:
-        raise ValueError(f"Unsupported time unit: {unit}")
+
+    msg = f"Unsupported time unit: {unit}"
+    raise ValueError(msg)
 
 
 # Unified schedule specification models
@@ -68,7 +94,7 @@ class UnifiedScheduleSpec(BaseModel):
     intervals: list[ScheduleInterval] | None = None
     cron: str | None = None
     time_zone: str | None = Field(
-        default="UTC", 
+        default="UTC",
         description="IANA timezone name (e.g., 'America/New_York', 'Europe/London', 'UTC')"
     )
 
@@ -87,7 +113,7 @@ class UnifiedScheduleSpec(BaseModel):
                 ],
                 time_zone_name=self.time_zone
             )
-        elif self.intervals:
+        if self.intervals:
             return ScheduleSpec(
                 intervals=[
                     ScheduleIntervalSpec(every=parse_interval_string(interval.every))
@@ -95,45 +121,51 @@ class UnifiedScheduleSpec(BaseModel):
                 ],
                 time_zone_name=self.time_zone
             )
-        elif self.cron:
+        if self.cron:
             return ScheduleSpec(
                 cron_expressions=[self.cron],
                 time_zone_name=self.time_zone
             )
-        else:
-            raise ValueError("Schedule spec must have calendars, intervals, or cron")
+
+        msg = "Schedule spec must have calendars, intervals, or cron"
+        raise ValueError(msg)
 
     @classmethod
-    def from_frontend_format(cls, spec: Dict[str, Any]) -> "UnifiedScheduleSpec":
+    def from_frontend_format(cls, spec: dict[str, Any]) -> "UnifiedScheduleSpec":
         """Convert from frontend format to unified format."""
         # Extract timezone from spec, default to UTC
         time_zone = spec.get("timeZone", "UTC")
-        
-        if "calendars" in spec and spec["calendars"]:
-            calendars = [
+
+        calendars = spec.get("calendars")
+        if calendars:
+            calendar_list = [
                 ScheduleCalendar(
                     day_of_week=cal["dayOfWeek"],  # Frontend uses camelCase
                     hour=cal["hour"],
                     minute=cal.get("minute", 0)
                 )
-                for cal in spec["calendars"]
+                for cal in calendars
             ]
-            return cls(calendars=calendars, time_zone=time_zone)
-        elif "intervals" in spec and spec["intervals"]:
-            intervals = [
-                ScheduleInterval(every=interval["every"])
-                for interval in spec["intervals"]
-            ]
-            return cls(intervals=intervals, time_zone=time_zone)
-        elif "cron" in spec:
-            return cls(cron=spec["cron"], time_zone=time_zone)
-        else:
-            raise ValueError("Invalid schedule specification format")
+            return cls(calendars=calendar_list, time_zone=time_zone)
 
-    def to_frontend_format(self) -> Dict[str, Any]:
+        intervals = spec.get("intervals")
+        if intervals:
+            interval_list = [
+                ScheduleInterval(every=interval["every"])
+                for interval in intervals
+            ]
+            return cls(intervals=interval_list, time_zone=time_zone)
+
+        if "cron" in spec:
+            return cls(cron=spec["cron"], time_zone=time_zone)
+
+        msg = "Invalid schedule specification format"
+        raise ValueError(msg)
+
+    def to_frontend_format(self) -> dict[str, Any]:
         """Convert to frontend format."""
         base = {"timeZone": self.time_zone}
-        
+
         if self.calendars:
             base["calendars"] = [
                 {
@@ -150,7 +182,7 @@ class UnifiedScheduleSpec(BaseModel):
             ]
         elif self.cron:
             base["cron"] = self.cron
-            
+
         return base
 
 
@@ -200,9 +232,7 @@ async def schedule_create_workflow(
             task = result.scalar_one_or_none()
 
             if not task:
-                raise NonRetryableError(
-                    message=f"Task with id {schedule_input.task_id} not found"
-                )
+                _raise_task_not_found(schedule_input.task_id)
 
             # Use shared Restack client
 
@@ -266,14 +296,10 @@ async def schedule_update_workflow(
             task = result.scalar_one_or_none()
 
             if not task:
-                raise NonRetryableError(
-                    message=f"Task with id {schedule_input.task_id} not found"
-                )
+                _raise_task_not_found(schedule_input.task_id)
 
             if not task.is_scheduled or not task.restack_schedule_id:
-                raise NonRetryableError(
-                    message="Task is not a scheduled task or missing schedule ID"
-                )
+                _raise_not_scheduled_task()
 
             # Update task fields
             if schedule_input.schedule_spec:
@@ -311,21 +337,17 @@ async def schedule_control_workflow(
             task = result.scalar_one_or_none()
 
             if not task:
-                raise NonRetryableError(
-                    message=f"Task with id {control_input.task_id} not found"
-                )
+                _raise_task_not_found(control_input.task_id)
 
             if not task.is_scheduled:
-                raise NonRetryableError(
-                    message="Task is not a scheduled task"
-                )
+                _raise_not_scheduled_error()
 
             # Update schedule status based on action
             action = control_input.action
-            if action == "start" or action == "resume":
+            if action in ("start", "resume"):
                 task.schedule_status = "active"
                 message = f"Schedule {action}ed successfully"
-            elif action == "stop" or action == "pause":
+            elif action in ("stop", "pause"):
                 task.schedule_status = "paused"
                 message = f"Schedule {action}ped successfully"
             elif action == "delete":
@@ -335,9 +357,7 @@ async def schedule_control_workflow(
                 task.is_scheduled = False
                 message = "Schedule deleted successfully"
             else:
-                raise NonRetryableError(
-                    message=f"Unknown action: {action}"
-                )
+                _raise_unknown_action(action)
 
             await db.commit()
             await db.refresh(task)

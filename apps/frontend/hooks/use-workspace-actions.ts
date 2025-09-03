@@ -75,7 +75,7 @@ async function executeWorkflow<T>(
       // For delete responses (e.g., WorkspacesDeleteWorkflow returns { success: boolean })
       if ('success' in result) {
         return {
-          success: result.success,
+          success: Boolean(result.success),
           data: result.success as T,
         };
       }

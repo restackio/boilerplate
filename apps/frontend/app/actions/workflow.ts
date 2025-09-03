@@ -97,7 +97,7 @@ export async function getWorkflowResult({
     // Race between the actual result and the timeout
     const result = await Promise.race([resultPromise, timeoutPromise]);
     
-    const endTime = Date.now();
+    // const endTime = Date.now(); // Currently unused - could be used for timing
 
     return result;
   } catch (error) {
@@ -285,7 +285,7 @@ export async function deleteAgentMcpServer(agentMcpServerId: string) {
   });
 }
 
-export async function getAgentMcpServerById(agentMcpServerId: string) {
+export async function getAgentMcpServerById(_agentMcpServerId: string) {
   // This function is no longer needed as we use the unified agent_tools approach
   // If needed, individual tools can be queried through getAgentTools and filtered
   throw new Error("getAgentMcpServerById is deprecated - use getAgentTools and filter by tool_type='mcp'");

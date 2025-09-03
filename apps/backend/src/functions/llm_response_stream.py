@@ -47,14 +47,16 @@ class LlmResponseInput(BaseModel):
 
 class OpenAIStreamWrapper:
     """Wrapper that makes an async iterator appear as an OpenAI stream."""
-    
-    def __init__(self, async_iter: AsyncIterator[ResponseStreamEvent]):
+
+    def __init__(self, async_iter: AsyncIterator[ResponseStreamEvent]) -> None:
         self._async_iter = async_iter
-    
-    def __aiter__(self):
+
+    def __aiter__(self) -> "OpenAIStreamWrapper":
+        """Return self as async iterator."""
         return self
-    
-    async def __anext__(self):
+
+    async def __anext__(self) -> ResponseStreamEvent:
+        """Get next item from async iterator."""
         return await self._async_iter.__anext__()
 
 # Set the module to make it detectable as OpenAI
@@ -63,33 +65,33 @@ OpenAIStreamWrapper.__module__ = "openai.responses"
 
 class AsyncTee:
     """Split an async iterator into multiple independent iterators."""
-    
-    def __init__(self, async_iter: AsyncIterator[ResponseStreamEvent], n: int = 2):
+
+    def __init__(self, async_iter: AsyncIterator[ResponseStreamEvent], n: int = 2) -> None:
         self._async_iter = async_iter
         self._queues = [asyncio.Queue() for _ in range(n)]
         self._finished = False
         self._task = None
-        
-    async def _producer(self):
+
+    async def _producer(self) -> None:
         """Produce events to all queues."""
         try:
             async for item in self._async_iter:
                 for queue in self._queues:
                     await queue.put(item)
-        except Exception as e:
+        except (StopAsyncIteration, GeneratorExit, asyncio.CancelledError) as e:
             for queue in self._queues:
                 await queue.put(e)
         finally:
             for queue in self._queues:
                 await queue.put(StopAsyncIteration)
             self._finished = True
-    
+
     def get_iterator(self, index: int) -> AsyncIterator[ResponseStreamEvent]:
         """Get one of the split iterators."""
         if self._task is None:
             self._task = asyncio.create_task(self._producer())
-            
-        async def _consumer():
+
+        async def _consumer() -> AsyncIterator[ResponseStreamEvent]:
             while True:
                 item = await self._queues[index].get()
                 if item is StopAsyncIteration:
@@ -97,7 +99,7 @@ class AsyncTee:
                 if isinstance(item, Exception):
                     raise item
                 yield item
-        
+
         # Wrap the iterator to make it appear as an OpenAI stream
         return OpenAIStreamWrapper(_consumer())
 
@@ -105,9 +107,9 @@ class AsyncTee:
 async def send_non_delta_events_to_agent(stream: AsyncIterator[ResponseStreamEvent]) -> None:
     """Send only non-delta events to agent."""
     agent_id = function_info().workflow_id
-    
+
     async for event in stream:
-        if hasattr(event, "type") and not ".delta" in event.type:
+        if hasattr(event, "type") and ".delta" not in event.type:
 
             event_data = event.model_dump() if hasattr(event, "model_dump") else event.__dict__
             try:
@@ -153,22 +155,22 @@ async def llm_response_stream(
         tee = AsyncTee(response_stream, 2)
         websocket_stream = tee.get_iterator(0)
         agent_stream = tee.get_iterator(1)
-        
+
         # Process both streams in parallel
         websocket_task = asyncio.create_task(
             stream_to_websocket(api_address=api_address, data=websocket_stream)
         )
-        
+
         agent_task = asyncio.create_task(
             send_non_delta_events_to_agent(agent_stream)
         )
-        
+
         # Wait for both to complete
         try:
             await asyncio.gather(websocket_task, agent_task)
         except (OSError, ValueError, RuntimeError) as e:
             log.warning(f"Stream processing failed: {e}")
-            
+
         # Return minimal response - agent handles all metadata extraction
         response_data = {"response_id": None, "usage": None, "parsed_response": None}
 

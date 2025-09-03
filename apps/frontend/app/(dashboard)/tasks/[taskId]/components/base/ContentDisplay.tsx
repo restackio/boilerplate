@@ -39,7 +39,7 @@ export function CodeBlock({ content, maxHeight = "max-h-40", language = "json" }
 }
 
 interface ToolListProps {
-  tools: Array<{ name: string; description: string; [key: string]: any }>;
+  tools: Array<{ name: string; description?: string; [key: string]: any }>;
   maxVisible?: number;
 }
 
@@ -51,7 +51,7 @@ export function ToolList({ tools, maxVisible = 3 }: ToolListProps) {
     <div className="space-y-1">
       {visibleTools.map((tool, index) => (
         <div key={index} className="text-xs bg-neutral-100 dark:bg-neutral-800 p-2 rounded border">
-          <strong>{tool.name}</strong>: {tool.description}
+          <strong>{tool.name}</strong>{tool.description ? `: ${tool.description}` : ''}
         </div>
       ))}
       {remainingCount > 0 && (
@@ -106,7 +106,7 @@ interface StatusDisplayProps {
   isFailed: boolean;
 }
 
-export function StatusDisplay({ status, isCompleted, isFailed }: StatusDisplayProps) {
+export function StatusDisplay({ status: _status, isCompleted, isFailed }: StatusDisplayProps) {
   if (isCompleted) {
     return (
       <Button

@@ -1,12 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@workspace/ui/components/ui/card";
+// Card components not currently used in this component
 import { Badge } from "@workspace/ui/components/ui/badge";
 import { History } from "lucide-react";
 

@@ -44,8 +44,12 @@ export interface Task {
   assigned_to_name: string;
   team_id?: string;
   team_name?: string;
-  // Creation tracking
+  // Schedule-related fields
+  schedule_spec?: any; // Schedule specification for scheduled tasks
   schedule_task_id?: string; // If this task was created by a schedule, this points to the parent schedule
+  is_scheduled?: boolean; // Whether this task is scheduled
+  schedule_status?: string; // Status of the schedule
+  restack_schedule_id?: string; // Restack schedule identifier
   created_by_id?: string; // ID of user who created the task
   created_by_name?: string; // Name of user who created the task
   created: string;

@@ -38,9 +38,9 @@ from src.functions.mcp_servers_crud import (
     mcp_servers_update,
 )
 from src.functions.schedule_crud import (
+    schedule_control_workflow,
     schedule_create_workflow,
     schedule_update_workflow,
-    schedule_control_workflow,
 )
 from src.functions.send_agent_event import send_agent_event
 from src.functions.tasks_crud import (
@@ -97,11 +97,6 @@ from src.workflows.crud.agents_crud import (
     AgentsReadWorkflow,
     AgentsUpdateWorkflow,
 )
-from src.workflows.crud.schedule_crud import (
-    ScheduleCreateWorkflow,
-    ScheduleUpdateWorkflow,
-    ScheduleControlWorkflow,
-)
 from src.workflows.crud.auth_crud import (
     UserLoginWorkflow,
     UserSignupWorkflow,
@@ -112,6 +107,11 @@ from src.workflows.crud.mcp_servers_crud import (
     McpServersGetByIdWorkflow,
     McpServersReadWorkflow,
     McpServersUpdateWorkflow,
+)
+from src.workflows.crud.schedule_crud import (
+    ScheduleControlWorkflow,
+    ScheduleCreateWorkflow,
+    ScheduleUpdateWorkflow,
 )
 from src.workflows.crud.tasks_crud import (
     TasksCreateWorkflow,

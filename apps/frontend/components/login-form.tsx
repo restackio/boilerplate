@@ -7,7 +7,7 @@ import { Label } from "@workspace/ui/components/ui/label";
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { runWorkflow, getWorkflowResult } from "@/app/actions/workflow";
+import { executeWorkflow } from "@/app/actions/workflow";
 
 export function LoginForm({
   className,
@@ -26,22 +26,14 @@ export function LoginForm({
     setError("");
 
     try {
-      const result = await runWorkflow({
-        workflowName: "UserLoginWorkflow",
-        input: {
-          email,
-          password,
-        },
+      const workflowResult = await executeWorkflow("UserLoginWorkflow", {
+        email,
+        password,
       });
 
-      const workflowResult = await getWorkflowResult({
-        workflowId: result.workflowId,
-        runId: result.runId,
-      });
-
-      if (workflowResult && workflowResult.success && workflowResult.user) {
+      if (workflowResult && workflowResult.success && workflowResult.data) {
         // Store user info in localStorage
-        localStorage.setItem("currentUser", JSON.stringify(workflowResult.user));
+        localStorage.setItem("currentUser", JSON.stringify(workflowResult.data));
         router.push("/dashboard");
       } else {
         setError(workflowResult?.error || "Invalid email or password");

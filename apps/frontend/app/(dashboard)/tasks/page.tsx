@@ -153,7 +153,7 @@ export default function TasksPage() {
   // Check if we're showing newly created tasks
   const tasksParam = searchParams.get('tasks');
   const highlightParam = searchParams.get('highlight');
-  const createdParam = searchParams.get('created');
+  // const createdParam = searchParams.get('created'); // Currently unused
   const isShowingNewTasks = tasksParam && highlightParam === 'true';
 
   return (

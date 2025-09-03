@@ -15,7 +15,7 @@ interface DeleteAgentModalProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: () => Promise<void>;
-  agent: { id: string; name: string; version: string } | null;
+  agent: { id: string; name: string; version: string; version_count?: number } | null;
   isDeleting: boolean;
 }
 

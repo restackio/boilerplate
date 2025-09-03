@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@workspace/ui/components/ui/button";
 import { Badge } from "@workspace/ui/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/ui/card";
+// Removed unused Card components - using simpler layout structure
 import { PageHeader } from "@workspace/ui/components/page-header";
 import { ScheduleSetupModal } from "@/components/schedule-setup-modal";
 import { TasksTable } from "@workspace/ui/components/tasks-table";
@@ -17,8 +17,7 @@ import {
   Pause, 
   Square, 
   Trash2, 
-  Calendar,
-  Settings
+  Calendar
 } from "lucide-react";
 
 interface SchedulePageTask {

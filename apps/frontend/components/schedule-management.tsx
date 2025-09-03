@@ -2,20 +2,20 @@
 
 import { useState } from "react";
 import { Button } from "@workspace/ui/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@workspace/ui/components/ui/dialog";
+// Removed unused Dialog components
 import { Badge } from "@workspace/ui/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@workspace/ui/components/ui/dropdown-menu";
 import { 
   Clock, 
   Play, 
   Pause, 
-  Stop, 
+  Square as Stop, 
   Edit, 
   Trash2, 
   MoreVertical,
   Calendar,
   Activity,
-  AlertTriangle
+  // AlertTriangle
 } from "lucide-react";
 import { ScheduleSetupModal, ScheduleSpec } from "./schedule-setup-modal";
 import { executeWorkflow } from "@/app/actions/workflow";
@@ -254,6 +254,26 @@ export function ScheduleInfo({ task }: { task: ScheduleManagementProps['task'] }
   };
 
   const scheduleDetails = formatScheduleDetails(task.schedule_spec);
+  
+  // Handle case where scheduleDetails is a string
+  if (typeof scheduleDetails === 'string') {
+    return (
+      <div className="rounded-lg border p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Clock className="h-5 w-5 text-muted-foreground" />
+            <h3 className="font-medium">Schedule Configuration</h3>
+          </div>
+          <Badge variant="outline">None</Badge>
+        </div>
+        
+        <p className="text-sm text-muted-foreground">
+          {scheduleDetails}
+        </p>
+      </div>
+    );
+  }
+
   const Icon = scheduleDetails.icon;
 
   return (

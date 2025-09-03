@@ -9,7 +9,7 @@ import { Input } from "@workspace/ui/components/ui/input";
 import { Label } from "@workspace/ui/components/ui/label";
 import { Checkbox } from "@workspace/ui/components/ui/checkbox";
 import { Textarea } from "@workspace/ui/components/ui/textarea";
-import { Clock, Calendar, Code, Play } from "lucide-react";
+import { Clock, Calendar, Code } from "lucide-react";
 
 // Unified schedule specification that matches backend models
 export interface ScheduleCalendar {

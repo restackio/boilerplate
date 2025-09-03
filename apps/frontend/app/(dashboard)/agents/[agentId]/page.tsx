@@ -25,7 +25,6 @@ import {
   Settings,
   Workflow,
   History,
-  Wrench,
   Webhook,
   TestTube,
 } from "lucide-react";
@@ -33,7 +32,6 @@ import {
   AgentSetupTab, 
   AgentVersionsTab, 
   DeleteAgentModal,
-  AgentToolsManager,
   WebhookTab,
   TestAgentModal
 } from "./components";
