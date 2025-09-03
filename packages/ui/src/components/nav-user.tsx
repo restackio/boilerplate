@@ -142,11 +142,9 @@ export function NavUser({
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => {
-                      console.log("System theme onClick triggered");
                       handleThemeChange("system");
                     }}
                     onSelect={() => {
-                      console.log("System theme onSelect triggered");
                       handleThemeChange("system");
                     }}
                   >

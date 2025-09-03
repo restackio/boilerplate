@@ -40,7 +40,7 @@ class ZendeskTicketOutput(BaseModel):
 
 @workflow.defn(description="Generate a mocked Zendesk ticket")
 class ZendeskTicket:
-    """ to generate a mocked Zendesk ticket."""
+    """to generate a mocked Zendesk ticket."""
 
     @workflow.run
     async def run(self, workflow_input: ZendeskTicketInput) -> ZendeskTicketOutput:
@@ -85,6 +85,7 @@ Return the complete JSON structure following the Zendesk API format."""
             )
 
             response_text = await workflow.step(
+                task_queue="mcp_server",
                 function=llm_response,
                 function_input=llm_input,
                 start_to_close_timeout=timedelta(seconds=30),

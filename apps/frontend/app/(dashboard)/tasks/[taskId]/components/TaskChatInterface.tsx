@@ -2,17 +2,15 @@ import { useRef } from "react";
 import { Bot } from "lucide-react";
 import { ConversationItem } from "../types";
 import { ChatInput } from "./ChatInput";
+import { ConversationMessage } from "./ConversationMessage";
 import { TaskCardMcp } from "./TaskCardMcp";
 import { TaskCardTool } from "./TaskCardTool";
 import { TaskCardWebSearch } from "./TaskCardWebSearch";
 import { Reasoning, ReasoningTrigger, ReasoningContent } from "@workspace/ui/components/ai-elements/reasoning";
-import { ConversationMessage } from "./ConversationMessage";
-import { StreamItems } from "./TaskStreamItems";
+
 
 interface TaskChatInterfaceProps {
   conversation: ConversationItem[];
-  persistentItemIds: Set<string>;
-  agentResponses: any[];
   chatMessage: string;
   onChatMessageChange: (message: string) => void;
   onSendMessage: () => void;
@@ -22,13 +20,10 @@ interface TaskChatInterfaceProps {
   agentLoading: boolean;
   isThinking: boolean;
   showSplitView: boolean;
-  taskAgentTaskId?: string | null;
 }
 
 export function TaskChatInterface({
   conversation,
-  persistentItemIds,
-  agentResponses,
   chatMessage,
   onChatMessageChange,
   onSendMessage,
@@ -38,11 +33,8 @@ export function TaskChatInterface({
   agentLoading,
   isThinking,
   showSplitView,
-  taskAgentTaskId,
 }: TaskChatInterfaceProps) {
   const conversationEndRef = useRef<HTMLDivElement>(null);
-
-  console.log('conversation', conversation);
 
   return (
     <div className={`${showSplitView ? 'w-1/2' : 'w-full max-w-4xl mx-auto'} flex flex-col bg-background`}>
@@ -54,55 +46,14 @@ export function TaskChatInterface({
           </div>
         ) : (
           <>
+            {/* Render conversation items from RxJS store */}
             {conversation.map((item) => (
               <div key={item.id}>
-                {item.type === "mcp_call" || item.type === "mcp_list_tools" ? (
-                  <TaskCardTool item={item} onClick={onCardClick} />
-                ) : item.type === "mcp_approval_request" ? (
-                  <TaskCardMcp 
-                    item={item} 
-                    onApprove={(itemId) => onApproveRequest?.(itemId)} 
-                    onDeny={(itemId) => onDenyRequest?.(itemId)}
-                    onClick={onCardClick}
-                  />
-                ) : item.type === "web_search_call" ? (
-                  <TaskCardWebSearch item={item} onClick={onCardClick} />
-                ) : item.type === "reasoning" ? (
-                  <Reasoning 
-                    isStreaming={item.openai_output.status === "in-progress"}
-                    duration={0}
-                  >
-                    <ReasoningTrigger />
-                    <ReasoningContent>
-                      {item.openai_output.summary?.map(s => s.text).join("\n\n") || "Agent is thinking...\n\n"}
-                    </ReasoningContent>
-                  </Reasoning>
-                ) : (
-                  <ConversationMessage item={item} />
-                )}
+                {renderConversationItem(item, onApproveRequest, onDenyRequest, onCardClick)}
               </div>
             ))}
-            {conversation.length === 1 && conversation.length < 2 && agentResponses.length === 0 && (
-              <Reasoning 
-                isStreaming={false}
-                duration={0}
-              >
-                <ReasoningTrigger />
-                <ReasoningContent>
-                  Agent is thinking...
-                </ReasoningContent>
-              </Reasoning>
-            )}
             
-            {/* Stream Items */}
-            <StreamItems
-              agentResponses={agentResponses}
-              persistentItemIds={persistentItemIds}
-              taskAgentTaskId={taskAgentTaskId}
-              onApproveRequest={onApproveRequest}
-              onDenyRequest={onDenyRequest}
-              onCardClick={onCardClick}
-            />
+
           </>
         )}
         <div ref={conversationEndRef} />
@@ -118,4 +69,74 @@ export function TaskChatInterface({
       />
     </div>
   );
+}
+
+// Render conversation items based on their type
+function renderConversationItem(
+  item: ConversationItem,
+  onApproveRequest?: (itemId: string) => void,
+  onDenyRequest?: (itemId: string) => void,
+  onCardClick?: (item: ConversationItem) => void,
+) {
+  switch (item.type) {
+    case 'reasoning':
+      const reasoningText = item.openai_output?.summary?.map(s => s.text).join('\n\n') || '';
+      return (
+        <Reasoning 
+          key={item.id}
+          isStreaming={item.isStreaming || item.openai_output?.status === 'in-progress'}
+          duration={0}
+        >
+          <ReasoningTrigger />
+          <ReasoningContent>
+            {reasoningText || "Agent is thinking..."}
+          </ReasoningContent>
+        </Reasoning>
+      );
+        
+    case 'mcp_approval_request':
+      return (
+        <TaskCardMcp 
+          key={item.id}
+          item={item}
+          onApprove={() => onApproveRequest?.(item.openai_output?.id || item.id)}
+          onDeny={() => onDenyRequest?.(item.openai_output?.id || item.id)}
+          onClick={onCardClick}
+        />
+      );
+        
+    case 'mcp_list_tools':
+      return (
+        <TaskCardTool 
+          key={item.id}
+          item={item} 
+          onClick={onCardClick || (() => {})}
+        />
+      );
+        
+    case 'mcp_call':
+      // Render as TaskCardTool to show the execution result
+      return (
+        <TaskCardTool 
+          key={item.id}
+          item={item} 
+          onClick={onCardClick || (() => {})}
+        />
+      );
+
+    case 'web_search_call':
+      return (
+        <TaskCardWebSearch 
+          key={item.id}
+          item={item} 
+          onClick={onCardClick}
+        />
+      );
+        
+    case 'assistant':
+      return <ConversationMessage key={item.id} item={item} />;
+      
+    default:
+      return <ConversationMessage key={item.id} item={item} />;
+  }
 } 

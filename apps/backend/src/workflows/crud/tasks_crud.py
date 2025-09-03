@@ -70,19 +70,28 @@ class TasksCreateWorkflow:
         log.info("TasksCreateWorkflow started")
         try:
             # Resolve agent_name to agent_id if needed
-            if workflow_input.agent_name and not workflow_input.agent_id:
-                log.info(f"Resolving agent name: {workflow_input.agent_name}")
+            if (
+                workflow_input.agent_name
+                and not workflow_input.agent_id
+            ):
+                log.info(
+                    f"Resolving agent name: {workflow_input.agent_name}"
+                )
                 agent_resolve_result = await workflow.step(
                     function=agents_resolve_by_name,
                     function_input=AgentResolveInput(
                         workspace_id=workflow_input.workspace_id,
-                        agent_name=workflow_input.agent_name
+                        agent_name=workflow_input.agent_name,
                     ),
                     start_to_close_timeout=timedelta(seconds=10),
                 )
                 # Update workflow_input to use the resolved agent_id
-                workflow_input.agent_id = agent_resolve_result.agent_id
-                log.info(f"Resolved agent name to ID: {agent_resolve_result.agent_id}")
+                workflow_input.agent_id = (
+                    agent_resolve_result.agent_id
+                )
+                log.info(
+                    f"Resolved agent name to ID: {agent_resolve_result.agent_id}"
+                )
 
             result = await workflow.step(
                 function=tasks_create,
@@ -98,7 +107,8 @@ class TasksCreateWorkflow:
                     description=result.task.description or "",
                     status=result.task.status,
                     agent_id=result.task.agent_id,
-                    assigned_to_id=result.task.assigned_to_id or None,
+                    assigned_to_id=result.task.assigned_to_id
+                    or None,
                 ),
                 parent_close_policy=ParentClosePolicy.ABANDON,
             )

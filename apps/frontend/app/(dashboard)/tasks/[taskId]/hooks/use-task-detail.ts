@@ -3,7 +3,8 @@ import { useParams, useRouter } from "next/navigation";
 import { useWorkspaceScopedActions, Task } from "@/hooks/use-workspace-scoped-actions";
 import { useAgentState } from "@/hooks/use-agent-state";
 import { ConversationItem } from "../types";
-import { useTaskState } from "./use-task-state";
+// Remove unused import
+import { useRxjsConversation } from "./use-rxjs-conversation";
 
 export function useTaskDetail() {
   const params = useParams();
@@ -27,13 +28,14 @@ export function useTaskDetail() {
   const { responseState, agentResponses, loading: agentLoading, sendMessageToAgent } = useAgentState({
     taskId,
     agentTaskId: task?.agent_task_id || undefined,
-    onStateChange: (newState) => {
-      console.log("Agent state changed:", newState);
+    onStateChange: () => {
+      // Agent state changed - no logging needed in production
     },
   });
 
-  const { conversation, persistentItemIds, addUserMessage, addThinkingMessage, updateConversationItemStatus } = useTaskState({
+  const { conversation, addUserMessage, updateConversationItemStatus } = useRxjsConversation({
     responseState: responseState,
+    agentResponses: agentResponses,
     taskAgentTaskId: task?.agent_task_id,
     persistedMessages: task?.messages,
   });
@@ -41,34 +43,23 @@ export function useTaskDetail() {
   useEffect(() => {
     const fetchTask = async () => {
       if (!taskId) {
-        console.log("No taskId provided");
         return;
       }
-      
-      console.log("🔄 [TaskDetailPage] Starting to fetch task:", taskId);
-      const startTime = Date.now();
       
       setIsLoading(true);
       setError(null);
       
       try {
         const result = await getTaskById(taskId);
-        console.log("Task fetch result:", result);
         
         if (result.success && result.data) {
           setTask(result.data);
-          const endTime = Date.now();
-          console.log(`✅ [TaskDetailPage] Task loaded successfully in ${endTime - startTime}ms:`, result.data);
         } else {
           setError(result.error || "Failed to load task");
-          const endTime = Date.now();
-          console.log(`❌ [TaskDetailPage] Failed to load task after ${endTime - startTime}ms:`, result);
         }
       } catch (err) {
         console.error("Error fetching task:", err);
         setError("Failed to load task");
-        const endTime = Date.now();
-        console.log(`❌ [TaskDetailPage] Error loading task after ${endTime - startTime}ms:`, err);
       } finally {
         setIsLoading(false);
       }
@@ -138,8 +129,6 @@ export function useTaskDetail() {
       setIsThinking(true);
       
       addUserMessage(chatMessage);
-      
-      addThinkingMessage();
 
       setChatMessage("");
 
@@ -158,9 +147,7 @@ export function useTaskDetail() {
         item.type === "mcp_approval_request" ||
         item.type === "web_search_call" ||
         item.type === "assistant" ||
-        item.type === "reasoning" ||
-        item.type === "tool-call" || // legacy support
-        item.type === "tool-list") { // legacy support
+        item.type === "reasoning") {
       // If split view is already open and same card is clicked, close it
       if (showSplitView && selectedCard?.id === item.id) {
         setShowSplitView(false);
@@ -192,9 +179,7 @@ export function useTaskDetail() {
     selectedCard,
     isThinking,
     conversation,
-    persistentItemIds,
     agentLoading,
-    agentResponses,
     setShowDeleteModal,
     setChatMessage,
     setActiveTab,

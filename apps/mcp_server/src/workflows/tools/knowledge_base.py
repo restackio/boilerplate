@@ -43,7 +43,7 @@ class KnowledgeBaseOutput(BaseModel):
 
 @workflow.defn(description="Search internal documentation")
 class KnowledgeBase:
-    """ to search internal documentation."""
+    """to search internal documentation."""
 
     @workflow.run
     async def run(self, workflow_input: KnowledgeBaseInput) -> KnowledgeBaseOutput:
@@ -90,6 +90,7 @@ Return realistic search results that would help with L1 support assessment."""
             )
 
             response_text = await workflow.step(
+                task_queue="mcp_server",
                 function=llm_response,
                 function_input=llm_input,
                 start_to_close_timeout=timedelta(seconds=30),

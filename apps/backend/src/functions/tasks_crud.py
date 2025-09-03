@@ -1,5 +1,4 @@
 import uuid
-from datetime import UTC, datetime
 
 from pydantic import BaseModel, Field
 from restack_ai.function import NonRetryableError, function
@@ -139,7 +138,9 @@ async def tasks_read(
                         agent_name=task.agent.name
                         if task.agent
                         else "N/A",
-                        assigned_to_id=str(task.assigned_to_id) if task.assigned_to_id else None,
+                        assigned_to_id=str(task.assigned_to_id)
+                        if task.assigned_to_id
+                        else None,
                         assigned_to_name=task.assigned_to_user.name
                         if task.assigned_to_user
                         else "N/A",
@@ -176,7 +177,9 @@ async def tasks_create(
                 description=task_data.description,
                 status=task_data.status,
                 agent_id=uuid.UUID(task_data.agent_id),
-                assigned_to_id=uuid.UUID(task_data.assigned_to_id) if task_data.assigned_to_id else None,
+                assigned_to_id=uuid.UUID(task_data.assigned_to_id)
+                if task_data.assigned_to_id
+                else None,
                 agent_task_id=task_data.agent_task_id,
             )
 
@@ -203,7 +206,9 @@ async def tasks_create(
                 agent_name=task.agent.name
                 if task.agent
                 else "N/A",
-                assigned_to_id=str(task.assigned_to_id) if task.assigned_to_id else None,
+                assigned_to_id=str(task.assigned_to_id)
+                if task.assigned_to_id
+                else None,
                 assigned_to_name=task.assigned_to_user.name
                 if task.assigned_to_user
                 else None,
@@ -253,12 +258,14 @@ async def tasks_update(
                         key == "assigned_to_id" and value
                     ):
                         setattr(task, key, uuid.UUID(value))
-                    elif (key == "agent_task_id" and value) or (key == "messages" and value is not None):
+                    elif (key == "agent_task_id" and value) or (
+                        key == "messages" and value is not None
+                    ):
                         setattr(task, key, value)
                     else:
                         setattr(task, key, value)
 
-            task.updated_at = datetime.now(tz=UTC).replace(tzinfo=None)
+
             await db.commit()
             await db.refresh(task)
 
@@ -281,7 +288,9 @@ async def tasks_update(
                 agent_name=task.agent.name
                 if task.agent
                 else "N/A",
-                assigned_to_id=str(task.assigned_to_id) if task.assigned_to_id else None,
+                assigned_to_id=str(task.assigned_to_id)
+                if task.assigned_to_id
+                else None,
                 assigned_to_name=task.assigned_to_user.name
                 if task.assigned_to_user
                 else None,
@@ -347,7 +356,9 @@ async def tasks_get_by_id(
                     selectinload(Task.assigned_to_user),
                     selectinload(Task.team),
                 )
-                .where(Task.id == uuid.UUID(function_input.task_id))
+                .where(
+                    Task.id == uuid.UUID(function_input.task_id)
+                )
             )
             result = await db.execute(task_query)
             task = result.scalar_one_or_none()
@@ -370,7 +381,9 @@ async def tasks_get_by_id(
                 agent_name=task.agent.name
                 if task.agent
                 else "N/A",
-                assigned_to_id=str(task.assigned_to_id) if task.assigned_to_id else None,
+                assigned_to_id=str(task.assigned_to_id)
+                if task.assigned_to_id
+                else None,
                 assigned_to_name=task.assigned_to_user.name
                 if task.assigned_to_user
                 else None,
@@ -430,7 +443,9 @@ async def tasks_get_by_status(
                         agent_name=task.agent.name
                         if task.agent
                         else "N/A",
-                        assigned_to_id=str(task.assigned_to_id) if task.assigned_to_id else None,
+                        assigned_to_id=str(task.assigned_to_id)
+                        if task.assigned_to_id
+                        else None,
                         assigned_to_name=task.assigned_to_user.name
                         if task.assigned_to_user
                         else "N/A",
@@ -466,7 +481,9 @@ async def tasks_update_agent_task_id(
                     selectinload(Task.assigned_to_user),
                     selectinload(Task.team),
                 )
-                .where(Task.id == uuid.UUID(function_input.task_id))
+                .where(
+                    Task.id == uuid.UUID(function_input.task_id)
+                )
             )
             result = await db.execute(task_query)
             task = result.scalar_one_or_none()
@@ -477,7 +494,7 @@ async def tasks_update_agent_task_id(
                 )
             # Update the agent_task_id
             task.agent_task_id = function_input.agent_task_id
-            task.updated_at = datetime.now(tz=UTC).replace(tzinfo=None)
+
 
             await db.commit()
             await db.refresh(task)
@@ -496,7 +513,9 @@ async def tasks_update_agent_task_id(
                 agent_name=task.agent.name
                 if task.agent
                 else "N/A",
-                assigned_to_id=str(task.assigned_to_id) if task.assigned_to_id else None,
+                assigned_to_id=str(task.assigned_to_id)
+                if task.assigned_to_id
+                else None,
                 assigned_to_name=task.assigned_to_user.name
                 if task.assigned_to_user
                 else None,

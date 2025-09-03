@@ -45,7 +45,7 @@ class LinearIssueOutput(BaseModel):
 
 @workflow.defn(description="Create a Linear issue")
 class LinearIssue:
-    """ to create a Linear issue."""
+    """to create a Linear issue."""
 
     @workflow.run
     async def run(self, workflow_input: LinearIssueInput) -> LinearIssueOutput:
@@ -97,6 +97,7 @@ Return the complete JSON structure following the Linear API format."""
             )
 
             response_text = await workflow.step(
+                task_queue="mcp_server",
                 function=llm_response,
                 function_input=llm_input,
                 start_to_close_timeout=timedelta(seconds=30),

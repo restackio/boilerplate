@@ -1,5 +1,4 @@
 import uuid
-from datetime import UTC, datetime
 
 from pydantic import BaseModel, Field
 from restack_ai.function import NonRetryableError, function
@@ -67,9 +66,14 @@ async def teams_read(
     """Read all teams from database for a specific workspace."""
     async for db in get_async_db():
         try:
-            teams_query = select(Team).where(
-                Team.workspace_id == uuid.UUID(function_input.workspace_id)
-            ).order_by(Team.name.asc())
+            teams_query = (
+                select(Team)
+                .where(
+                    Team.workspace_id
+                    == uuid.UUID(function_input.workspace_id)
+                )
+                .order_by(Team.name.asc())
+            )
             result = await db.execute(teams_query)
             teams = result.scalars().all()
 
@@ -162,8 +166,6 @@ async def teams_update(
             for key, value in update_data.items():
                 if hasattr(team, key):
                     setattr(team, key, value)
-
-            team.updated_at = datetime.now(tz=UTC).replace(tzinfo=None)
             await db.commit()
             await db.refresh(team)
 

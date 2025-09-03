@@ -1,5 +1,4 @@
 import uuid
-from datetime import UTC, datetime
 
 from pydantic import BaseModel, Field
 from restack_ai.function import NonRetryableError, function
@@ -48,7 +47,8 @@ async def workspaces_read(
     async for db in get_async_db():
         # Filter workspaces by user permissions
         user_workspaces_query = select(UserWorkspace).where(
-            UserWorkspace.user_id == uuid.UUID(function_input.user_id)
+            UserWorkspace.user_id
+            == uuid.UUID(function_input.user_id)
         )
         user_workspaces_result = await db.execute(
             user_workspaces_query
@@ -133,8 +133,6 @@ async def workspaces_update(
         for key, value in update_data.items():
             if hasattr(workspace, key):
                 setattr(workspace, key, value)
-
-        workspace.updated_at = datetime.now(tz=UTC).replace(tzinfo=None)
         await db.commit()
         await db.refresh(workspace)
 

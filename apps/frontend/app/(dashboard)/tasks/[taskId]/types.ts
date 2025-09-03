@@ -11,7 +11,27 @@ export interface ConversationItem {
     content?: Array<{ type: string; text: string; [key: string]: any }>;
     summary?: Array<{ type: string; text: string; [key: string]: any }>;
     name?: string;
+    arguments?: Record<string, unknown>;
+    output?: unknown;
+    result?: unknown;
+    tools?: Array<{ name: string; [key: string]: unknown }>;
+    action?: {
+      query?: string;
+      type?: string;
+      [key: string]: unknown;
+    };
+    server_label?: string;
     [key: string]: any; // Allow any other OpenAI fields
+  };
+  // For SDK events from agent state
+  openai_event?: {
+    sequence_number?: number;
+    created_at?: string;
+    item_id?: string;
+    output_index?: number;
+    item?: any;
+    text?: string;
+    [key: string]: any;
   };
   isStreaming?: boolean;
 } 

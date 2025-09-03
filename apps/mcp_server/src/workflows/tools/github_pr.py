@@ -48,7 +48,7 @@ class GitHubPROutput(BaseModel):
 
 @workflow.defn(description="Create a GitHub Pull Request")
 class GitHubPR:
-    """ to create a GitHub Pull Request."""
+    """to create a GitHub Pull Request."""
 
     @workflow.run
     async def run(self, workflow_input: GitHubPRInput) -> GitHubPROutput:
@@ -104,6 +104,7 @@ Return the complete JSON structure following the GitHub API format."""
             )
 
             response_text = await workflow.step(
+                task_queue="mcp_server",
                 function=llm_response,
                 function_input=llm_input,
                 start_to_close_timeout=timedelta(seconds=30),

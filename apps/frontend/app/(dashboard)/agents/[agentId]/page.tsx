@@ -115,7 +115,6 @@ export default function AgentEditPage() {
 
       const result = await createAgent(newAgentData);
       if (result.success) {
-        console.log("New agent version created successfully");
         const newAgent: any = result.data;
         // Clone tools from current agent to new version
         try {
@@ -139,7 +138,6 @@ export default function AgentEditPage() {
                 return createAgentTool(payload);
               })
             );
-            console.log(`Cloned ${tools.length} tools to new version ${newAgent.id}`);
           }
         } catch (e) {
           console.error("Failed to clone tools to new version", e);
@@ -181,7 +179,6 @@ export default function AgentEditPage() {
       const result = await updateAgent(agentId, updateData);
       if (result.success) {
         setAgent({ ...agent, status: newStatus });
-        console.log(`Agent status updated to ${newStatus}`);
       } else {
         console.error("Failed to update agent status:", result.error);
       }
@@ -199,7 +196,6 @@ export default function AgentEditPage() {
     try {
       const result = await deleteAgent(agentId);
       if (result.success) {
-        console.log("Agent deleted successfully");
         // Redirect to agents list
         router.push("/agents");
       } else {

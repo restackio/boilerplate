@@ -1,5 +1,5 @@
 {
   "python.analysis.extraPaths": [
-    "apps/mcp_server/src"
+    "apps/backend/src"
   ]
 }

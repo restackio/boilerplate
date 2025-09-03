@@ -42,7 +42,6 @@ export function TestAgentModal({ isOpen, onClose, agent }: TestAgentModalProps) 
         assigned_to_id: currentUser?.id || "",
       };
 
-      console.log(`🔄 [TestAgentModal] Creating test task for agent ${agent.name} ${agent.version}:`, taskData);
       const result = await createTask(taskData);
 
       if (result.success && result.data) {

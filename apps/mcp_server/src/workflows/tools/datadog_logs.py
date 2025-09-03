@@ -44,7 +44,7 @@ class DatadogLogsOutput(BaseModel):
 
 @workflow.defn(description="Retrieve Datadog logs")
 class DatadogLogs:
-    """ to retrieve Datadog logs."""
+    """to retrieve Datadog logs."""
 
     @workflow.run
     async def run(self, workflow_input: DatadogLogsInput) -> DatadogLogsOutput:
@@ -94,6 +94,7 @@ Return relevant log entries that would help with L2 investigation."""
             )
 
             response_text = await workflow.step(
+                task_queue="mcp_server",
                 function=llm_response,
                 function_input=llm_input,
                 start_to_close_timeout=timedelta(seconds=30),

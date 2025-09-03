@@ -20,15 +20,11 @@ export async function startAgent({
       },
     };
 
-    console.log("event", event);
-
     const runId = await client.scheduleAgent({
       agentName: "AgentTask", // Assuming this is the agent name
       agentId: agentId,
       event,
     });
-
-    console.log("runId", runId);
 
     return {
       success: true,
@@ -67,11 +63,7 @@ export async function sendAgentEvent({
       }
     };
 
-    console.log("Sending agent event with payload:", JSON.stringify(eventPayload, null, 2));
-
     const result = await client.sendAgentEvent(eventPayload);
-
-    console.log("sendAgentEvent result", result);
 
     const typedResult = result as any;
     return {

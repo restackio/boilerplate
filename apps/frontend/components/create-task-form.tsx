@@ -119,7 +119,6 @@ export function CreateTaskForm({
       return;
     }
 
-    console.log(`🔄 [CreateTaskForm] Starting task creation for ${agentIdsToUse.length} agent(s)...`);
     const startTime = Date.now();
 
     try {
@@ -147,13 +146,11 @@ export function CreateTaskForm({
             : baseTaskData.title,
         };
         
-        console.log(`🔄 [CreateTaskForm] Creating task ${i + 1}/${agentIdsToUse.length} for agent ${agent?.name} ${agent?.version}:`, taskData);
         const onSubmitStartTime = Date.now();
         
         const result = await onSubmit(taskData);
         
         const onSubmitEndTime = Date.now();
-        console.log(`✅ [CreateTaskForm] Task ${i + 1} completed in ${onSubmitEndTime - onSubmitStartTime}ms`);
         
         results.push(result);
         

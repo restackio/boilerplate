@@ -1,14 +1,11 @@
 import asyncio
 import logging
-import webbrowser
 from pathlib import Path
 
 from watchfiles import run_process
 
 from src.client import client
-
 from src.functions.llm_response import llm_response
-
 from src.workflows.tools.datadog_logs import DatadogLogs
 from src.workflows.tools.github_pr import GitHubPR
 from src.workflows.tools.knowledge_base import KnowledgeBase
