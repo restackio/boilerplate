@@ -37,6 +37,11 @@ from src.functions.mcp_servers_crud import (
     mcp_servers_read,
     mcp_servers_update,
 )
+from src.functions.schedule_crud import (
+    schedule_control_workflow,
+    schedule_create_workflow,
+    schedule_update_workflow,
+)
 from src.functions.send_agent_event import send_agent_event
 from src.functions.tasks_crud import (
     tasks_create,
@@ -102,6 +107,11 @@ from src.workflows.crud.mcp_servers_crud import (
     McpServersGetByIdWorkflow,
     McpServersReadWorkflow,
     McpServersUpdateWorkflow,
+)
+from src.workflows.crud.schedule_crud import (
+    ScheduleControlWorkflow,
+    ScheduleCreateWorkflow,
+    ScheduleUpdateWorkflow,
 )
 from src.workflows.crud.tasks_crud import (
     TasksCreateWorkflow,
@@ -195,6 +205,9 @@ async def run_restack_service() -> None:
             AgentToolsCreateWorkflow,
             AgentToolsUpdateWorkflow,
             AgentToolsDeleteWorkflow,
+            ScheduleCreateWorkflow,
+            ScheduleUpdateWorkflow,
+            ScheduleControlWorkflow,
         ],
         functions=[
             send_agent_event,
@@ -214,6 +227,9 @@ async def run_restack_service() -> None:
             tasks_delete,
             tasks_get_by_id,
             tasks_update_agent_task_id,
+            schedule_create_workflow,
+            schedule_update_workflow,
+            schedule_control_workflow,
             workspaces_read,
             workspaces_create,
             workspaces_update,

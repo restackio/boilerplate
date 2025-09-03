@@ -45,6 +45,35 @@ export async function testServerAction() {
   return { success: true, message: "Server action working" };
 }
 
+// Helper function for executing workflows and getting results
+export async function executeWorkflow(workflowName: string, input: Record<string, any>) {
+  try {
+    const { workflowId, runId } = await runWorkflow({
+      workflowName,
+      input
+    });
+    
+    const result = await getWorkflowResult({
+      workflowId,
+      runId
+    });
+    
+    return {
+      success: true,
+      data: result,
+      workflowId,
+      runId
+    };
+  } catch (error) {
+    console.error("Workflow execution failed:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+      data: null
+    };
+  }
+}
+
 export async function getWorkflowResult({
   workflowId,
   runId
@@ -68,7 +97,7 @@ export async function getWorkflowResult({
     // Race between the actual result and the timeout
     const result = await Promise.race([resultPromise, timeoutPromise]);
     
-    const endTime = Date.now();
+    // const endTime = Date.now(); // Currently unused - could be used for timing
 
     return result;
   } catch (error) {
@@ -256,7 +285,7 @@ export async function deleteAgentMcpServer(agentMcpServerId: string) {
   });
 }
 
-export async function getAgentMcpServerById(agentMcpServerId: string) {
+export async function getAgentMcpServerById(_agentMcpServerId: string) {
   // This function is no longer needed as we use the unified agent_tools approach
   // If needed, individual tools can be queried through getAgentTools and filtered
   throw new Error("getAgentMcpServerById is deprecated - use getAgentTools and filter by tool_type='mcp'");

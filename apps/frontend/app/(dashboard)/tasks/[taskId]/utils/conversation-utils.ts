@@ -151,11 +151,11 @@ export const getStatusColor = (status: string): string => {
       return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300";
     case "closed":
     case "cancelled":
-      return "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-300";
+      return "bg-neutral-100 text-neutral-800 dark:bg-neutral-900/20 dark:text-neutral-300";
     case "open":
       return "bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-300";
     default:
-      return "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-300";
+      return "bg-neutral-100 text-neutral-800 dark:bg-neutral-900/20 dark:text-neutral-300";
   }
 };
 
@@ -174,6 +174,6 @@ export const getStatusIconClass = (status: string): string => {
     case "cancelled":
       return "w-2 h-2 bg-orange-500 rounded-full";
     default:
-      return "w-2 h-2 bg-gray-500 rounded-full";
+      return "w-2 h-2 bg-neutral-500 rounded-full";
   }
 };

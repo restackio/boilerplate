@@ -7,7 +7,7 @@ import { Input } from "@workspace/ui/components/ui/input";
 import { Label } from "@workspace/ui/components/ui/label";
 import { Textarea } from "@workspace/ui/components/ui/textarea";
 import { Switch } from "@workspace/ui/components/ui/switch";
-import { Plus, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
 
 interface AddMcpServerDialogProps {

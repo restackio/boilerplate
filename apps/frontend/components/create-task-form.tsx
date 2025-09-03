@@ -6,11 +6,13 @@ import { Textarea } from "@workspace/ui/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@workspace/ui/components/ui/select";
 import { Checkbox } from "@workspace/ui/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "@workspace/ui/components/ui/dropdown-menu";
-import { ArrowUp, ChevronDown, Settings } from "lucide-react";
+import { ArrowUp, ChevronDown, Settings, Clock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
 import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 import { Agent } from "@/hooks/use-workspace-scoped-actions";
+import { ScheduleSetupModal, ScheduleSpec } from "./schedule-setup-modal";
+import { executeWorkflow } from "@/app/actions/workflow";
 
 interface CreateTaskFormProps {
   onSubmit: (taskData: {
@@ -19,6 +21,10 @@ interface CreateTaskFormProps {
     status: "open" | "active" | "waiting" | "closed" | "completed";
     agent_id: string;
     assigned_to_id: string;
+    // Schedule-related fields
+    schedule_spec?: any;
+    is_scheduled?: boolean;
+    schedule_status?: string;
   }) => Promise<{ success: boolean; data?: { id: string; title: string; description: string }; error?: string }>;
   onTaskCreated?: (taskData: { id: string; title: string; description: string }) => void;
   placeholder?: string;
@@ -200,6 +206,61 @@ export function CreateTaskForm({
     }
   };
 
+  const handleScheduleSubmit = async (scheduleSpec: ScheduleSpec) => {
+    if (!taskDescription.trim()) {
+      alert("Please enter a task description");
+      return;
+    }
+    if (!selectedAgentId) {
+      alert("Please select an agent");
+      return;
+    }
+
+    try {
+      const baseTaskData = {
+        title: taskDescription.substring(0, 50) + (taskDescription.length > 50 ? "..." : ""),
+        description: taskDescription,
+        status: "open" as const,
+        assigned_to_id: currentUser?.id || "",
+        agent_id: selectedAgentId,
+        // Schedule-related fields
+        schedule_spec: scheduleSpec,
+        is_scheduled: true,
+        schedule_status: "inactive", // Will be set to active when the schedule is created
+      };
+
+      // First create the task
+      const taskResult = await onSubmit(baseTaskData);
+      
+      if (taskResult.success && taskResult.data) {
+        // Then create the schedule using the task ID
+        const scheduleResult = await executeWorkflow("ScheduleCreateWorkflow", {
+          task_id: taskResult.data.id,
+          schedule_spec: scheduleSpec,
+        });
+
+        if (scheduleResult.success) {
+          // Clear form
+          setTaskDescription("");
+          setSelectedAgentId("");
+          setSelectedVersionIds([]);
+          setAllAgentVersions([]);
+          setShowVersionSelector(false);
+          
+          // Navigate to the created schedule page
+          router.push(`/tasks/schedules/${taskResult.data.id}`);
+        } else {
+          alert("Task created but failed to create schedule. Please try again.");
+        }
+      } else {
+        alert("Failed to create task. Please try again.");
+      }
+    } catch (error) {
+      console.error("Failed to create scheduled task:", error);
+      alert("Failed to create scheduled task. Please try again.");
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex space-x-2">
@@ -232,7 +293,7 @@ export function CreateTaskForm({
                 <>
                   <div className="border-t my-1"></div>
                   <div 
-                    className="flex items-center px-2 py-1.5 text-sm cursor-pointer hover:bg-gray-100 rounded-sm"
+                    className="flex items-center px-2 py-1.5 text-sm cursor-pointer hover:bg-neutral-100 rounded-sm"
                     onClick={() => router.push('/agents')}
                   >
                     <Settings className="h-4 w-4 mr-2" />
@@ -275,7 +336,7 @@ export function CreateTaskForm({
                     <button
                       type="button"
                       onClick={handleClearAllVersions}
-                      className="text-xs text-gray-600 hover:text-gray-800"
+                      className="text-xs text-neutral-600 hover:text-neutral-800"
                     >
                       Clear
                     </button>
@@ -284,7 +345,7 @@ export function CreateTaskForm({
                 <DropdownMenuSeparator />
                 <div className="p-2 space-y-2 max-h-64 overflow-y-auto">
                   {allAgentVersions.map((version) => (
-                    <div key={version.id} className="flex items-center space-x-2 px-2 py-1 hover:bg-gray-50 rounded">
+                    <div key={version.id} className="flex items-center space-x-2 px-2 py-1 hover:bg-neutral-50 rounded">
                       <Checkbox
                         id={`dropdown-${version.id}`}
                         checked={selectedVersionIds.includes(version.id)}
@@ -298,7 +359,7 @@ export function CreateTaskForm({
                         <span className={`text-xs px-2 py-1 rounded ${
                           version.status === 'active' 
                             ? 'bg-green-100 text-green-800' 
-                            : 'bg-gray-100 text-gray-600'
+                            : 'bg-neutral-100 text-neutral-600'
                         }`}>
                           {version.status}
                         </span>
@@ -310,7 +371,7 @@ export function CreateTaskForm({
                   <>
                     <DropdownMenuSeparator />
                     <div className="p-2">
-                      <p className="text-xs text-gray-600">
+                      <p className="text-xs text-neutral-600">
                         Will create {selectedVersionIds.length} tasks
                       </p>
                     </div>
@@ -321,6 +382,23 @@ export function CreateTaskForm({
           </div>
         )}
 
+        {/* Schedule Task Button */}
+        <ScheduleSetupModal
+          trigger={
+            <Button 
+              variant="outline"
+              disabled={!taskDescription.trim() || !selectedAgentId || selectedVersionIds.length > 1}
+              className="flex items-center space-x-2 whitespace-nowrap"
+            >
+              <Clock className="h-4 w-4" />
+              <span>Schedule</span>
+            </Button>
+          }
+          onScheduleSubmit={handleScheduleSubmit}
+          title="Schedule task"
+          submitLabel="Create schedule"
+        />
+
         {/* Create Task Button */}
         <Button 
           onClick={handleSubmit}
@@ -330,6 +408,7 @@ export function CreateTaskForm({
           <ArrowUp className="h-4 w-4" />
           <span>{showVersionSelector && selectedVersionIds.length > 1 ? 'Create tasks' : buttonText}</span>
         </Button>
+
       </div>
     </div>
   );

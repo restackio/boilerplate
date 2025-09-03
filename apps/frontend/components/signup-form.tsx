@@ -7,7 +7,7 @@ import { Label } from "@workspace/ui/components/ui/label";
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { runWorkflow, getWorkflowResult } from "@/app/actions/workflow";
+import { executeWorkflow } from "@/app/actions/workflow";
 
 export function SignupForm({
   className,
@@ -42,19 +42,11 @@ export function SignupForm({
 
     try {
       // Create a temporary workspace for the user (they'll create their own later)
-      const workspaceResult = await runWorkflow({
-        workflowName: "WorkspacesCreateWorkflow",
-        input: {
-          name: "My Workspace",
-        },
+      const workspaceData = await executeWorkflow("WorkspacesCreateWorkflow", {
+        name: "My Workspace",
       });
 
-      const workspaceData = await getWorkflowResult({
-        workflowId: workspaceResult.workflowId,
-        runId: workspaceResult.runId,
-      });
-
-      if (!workspaceData?.success || !workspaceData.data) {
+      if (!workspaceData.success || !workspaceData.data) {
         setError("Failed to create initial workspace");
         setIsLoading(false);
         return;
@@ -63,24 +55,16 @@ export function SignupForm({
       const workspace = workspaceData.data;
 
       // Create the user with the temporary workspace
-      const result = await runWorkflow({
-        workflowName: "UserSignupWorkflow",
-        input: {
-          workspace_id: workspace.id,
-          name,
-          email,
-          password,
-        },
+      const workflowResult = await executeWorkflow("UserSignupWorkflow", {
+        workspace_id: workspace.id,
+        name,
+        email,
+        password,
       });
 
-      const workflowResult = await getWorkflowResult({
-        workflowId: result.workflowId,
-        runId: result.runId,
-      });
-
-      if (workflowResult && workflowResult.success && workflowResult.user) {
+      if (workflowResult && workflowResult.success && workflowResult.data) {
         // Store user info in localStorage
-        localStorage.setItem("currentUser", JSON.stringify(workflowResult.user));
+        localStorage.setItem("currentUser", JSON.stringify(workflowResult.data));
         // Redirect to workspace creation page
         router.push("/workspace/create");
       } else {

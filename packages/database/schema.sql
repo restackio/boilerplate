@@ -126,6 +126,12 @@ CREATE TABLE IF NOT EXISTS tasks (
     assigned_to_id UUID REFERENCES users(id) ON DELETE CASCADE,
     agent_task_id VARCHAR(255),
     messages JSONB,
+    -- Schedule-related columns
+    schedule_spec JSONB, -- Store the schedule specification (calendars, intervals, cron)
+    schedule_task_id UUID REFERENCES tasks(id) ON DELETE SET NULL, -- Reference to the schedule task that created this task
+    is_scheduled BOOLEAN NOT NULL DEFAULT FALSE, -- Whether this is a scheduled task
+    schedule_status VARCHAR(50) DEFAULT 'inactive' CHECK (schedule_status IN ('active', 'inactive', 'paused')), -- Schedule status
+    restack_schedule_id VARCHAR(255), -- Restack schedule ID for managing the schedule
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -156,6 +162,10 @@ CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
 CREATE INDEX IF NOT EXISTS idx_tasks_agent_id ON tasks(agent_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_assigned_to_id ON tasks(assigned_to_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_agent_task_id ON tasks(agent_task_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_schedule_task_id ON tasks(schedule_task_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_is_scheduled ON tasks(is_scheduled);
+CREATE INDEX IF NOT EXISTS idx_tasks_schedule_status ON tasks(schedule_status);
+CREATE INDEX IF NOT EXISTS idx_tasks_restack_schedule_id ON tasks(restack_schedule_id);
 
 -- Performance-critical composite indexes for common query patterns
 CREATE INDEX IF NOT EXISTS idx_agents_workspace_status_created ON agents(workspace_id, status, created_at DESC);
@@ -169,6 +179,7 @@ CREATE INDEX IF NOT EXISTS idx_mcp_servers_workspace_label ON mcp_servers(worksp
 -- Partial indexes for active records (more efficient for common queries)
 CREATE INDEX IF NOT EXISTS idx_agents_active_workspace ON agents(workspace_id, created_at DESC) WHERE status = 'active';
 CREATE INDEX IF NOT EXISTS idx_tasks_open_workspace ON tasks(workspace_id, created_at DESC) WHERE status IN ('open', 'active');
+CREATE INDEX IF NOT EXISTS idx_tasks_scheduled_workspace ON tasks(workspace_id, is_scheduled, schedule_status, created_at DESC) WHERE is_scheduled = true;
 CREATE INDEX IF NOT EXISTS idx_agent_tools_enabled ON agent_tools(agent_id, tool_type) WHERE enabled = true;
 
 -- Covering indexes for read-heavy operations

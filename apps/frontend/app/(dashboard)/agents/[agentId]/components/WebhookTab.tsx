@@ -5,7 +5,7 @@ import { Button } from "@workspace/ui/components/ui/button";
 import { Textarea } from "@workspace/ui/components/ui/textarea";
 import { Input } from "@workspace/ui/components/ui/input";
 import { Label } from "@workspace/ui/components/ui/label";
-import { Copy, ExternalLink, Webhook, Server, Code } from "lucide-react";
+import { Copy } from "lucide-react";
 
 interface Agent {
   id?: string;

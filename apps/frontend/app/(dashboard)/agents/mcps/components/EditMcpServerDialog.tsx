@@ -8,7 +8,7 @@ import { Label } from "@workspace/ui/components/ui/label";
 import { Textarea } from "@workspace/ui/components/ui/textarea";
 import { Switch } from "@workspace/ui/components/ui/switch";
 import { Separator } from "@workspace/ui/components/ui/separator";
-import { Edit, Loader2, Trash2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useWorkspaceScopedActions, McpServer } from "@/hooks/use-workspace-scoped-actions";
 
 interface EditMcpServerDialogProps {

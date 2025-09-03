@@ -46,6 +46,15 @@ export interface Task {
   team_name?: string;
   agent_task_id?: string; 
   messages?: any[];
+  // Schedule-related fields
+  schedule_spec?: any;
+  schedule_task_id?: string;
+  is_scheduled?: boolean;
+  schedule_status?: "active" | "inactive" | "paused";
+  restack_schedule_id?: string;
+  // Creation tracking
+  created_by_id?: string; // ID of user who created the task
+  created_by_name?: string; // Name of user who created the task
   created_at?: string;
   updated_at?: string;
 }

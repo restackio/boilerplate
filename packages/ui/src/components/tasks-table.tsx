@@ -44,6 +44,14 @@ export interface Task {
   assigned_to_name: string;
   team_id?: string;
   team_name?: string;
+  // Schedule-related fields
+  schedule_spec?: any; // Schedule specification for scheduled tasks
+  schedule_task_id?: string; // If this task was created by a schedule, this points to the parent schedule
+  is_scheduled?: boolean; // Whether this task is scheduled
+  schedule_status?: string; // Status of the schedule
+  restack_schedule_id?: string; // Restack schedule identifier
+  created_by_id?: string; // ID of user who created the task
+  created_by_name?: string; // Name of user who created the task
   created: string;
   updated: string;
 }
@@ -81,6 +89,14 @@ export const taskColumnsConfig = [
     .displayName("Team")
     .icon(Users)
     .build(),
+  dtf
+    .option()
+    .id("created_by")
+    .accessor((row: Task) => row.schedule_task_id ? "Schedule" : (row.created_by_name || "User"))
+    .displayName("Created by")
+    .icon(User)
+    .build(),
+
 ] as const;
 
 // Level options
@@ -110,12 +126,13 @@ export const taskAgentOptions = [
   { label: "Intercom Support Agent", value: "intercom-support", icon: Bot },
 ];
 
-// Problem size options
-export const taskProblemSizeOptions = [
-  { label: "Small", value: "Small", icon: CheckSquare },
-  { label: "Medium", value: "Medium", icon: Clock },
-  { label: "Large", value: "Large", icon: AlertTriangle },
+// Created by options
+export const taskCreatedByOptions = [
+  { label: "Schedule", value: "Schedule", icon: Clock },
+  { label: "User", value: "User", icon: User },
 ];
+
+
 
 // Helper function for status colors
 const getStatusColor = (status: string) => {
@@ -127,13 +144,15 @@ const getStatusColor = (status: string) => {
     case "waiting":
       return "bg-yellow-100 text-yellow-800";
     case "closed":
-      return "bg-gray-100 text-gray-800";
+      return "bg-neutral-100 text-neutral-800";
     case "open":
       return "bg-orange-100 text-orange-800";
     default:
-      return "bg-gray-100 text-gray-800";
+      return "bg-neutral-100 text-neutral-800";
   }
 };
+
+
 
 interface TasksTableProps {
   data: Task[];
@@ -163,6 +182,7 @@ export function TasksTable({
         status: taskStatusOptions,
         agent: taskAgentOptions,
         team: teams,
+        created_by: taskCreatedByOptions,
       },
     });
 
@@ -197,6 +217,7 @@ export function TasksTable({
                 <TableHead>Status</TableHead>
                 <TableHead className="hidden sm:table-cell" >Agent</TableHead>
                 <TableHead className="hidden md:table-cell" >Team</TableHead>
+                <TableHead className="hidden lg:table-cell" >Created by</TableHead>
                 {!dashboard && <TableHead className="hidden lg:table-cell" >Assigned to</TableHead>}
                 <TableHead className="hidden lg:table-cell" >Updated</TableHead>
                 {!dashboard && <TableHead >Actions</TableHead>}
@@ -246,6 +267,22 @@ export function TasksTable({
                     <Users className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                     <span className="text-sm truncate">{task.team_name || "No Team"}</span>
                   </div>
+                </TableCell>
+                <TableCell className="hidden lg:table-cell p-3">
+                  {task.schedule_task_id ? (
+                    <Link 
+                      href={`/tasks/schedules/${task.schedule_task_id}`}
+                      className="flex items-center space-x-2 hover:underline"
+                    >
+                      <Clock className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <span className="text-sm">Schedule</span>
+                    </Link>
+                  ) : (
+                    <div className="flex items-center space-x-2">
+                      <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <span className="text-sm truncate">{task.created_by_name || "User"}</span>
+                    </div>
+                  )}
                 </TableCell>
                 {!dashboard && <TableCell className="hidden lg:table-cell p-3">
                   <div className="flex items-center space-x-2">

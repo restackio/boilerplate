@@ -55,7 +55,7 @@ const formatInstructionsWithMCPs = (text: string) => {
       return (
         <span
           key={index}
-          className="font-bold text-black bg-gray-100 px-1 rounded"
+          className="font-bold text-black bg-neutral-100 px-1 rounded"
         >
           {part}
         </span>
@@ -177,7 +177,7 @@ export function AgentSetupTab({ agent, onSave, isSaving, workspaceId, onChange }
             {nameError && (
               <p className="text-sm text-red-500">{nameError}</p>
             )}
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-neutral-500">
               Use lowercase letters, numbers, hyphens, and underscores only
             </p>
           </div>

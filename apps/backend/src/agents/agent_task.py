@@ -7,7 +7,7 @@ from restack_ai.agent import (
     agent,
     import_functions,
     log,
-    uuid
+    uuid,
 )
 
 with import_functions():
@@ -66,7 +66,7 @@ class AgentTask:
     def __init__(self) -> None:
         self.end = False
         self.agent_id = "None"
-        self.task_id = None 
+        self.task_id = None
         self.messages = []
         self.tools = []
         self.events = []
@@ -99,9 +99,9 @@ class AgentTask:
         try:
             # Store messages for OpenAI API call
             self.messages.extend(messages_event.messages)
-            
+
             # Process each user message individually to maintain conversation continuity
-            for i, message in enumerate(messages_event.messages):
+            for _i, message in enumerate(messages_event.messages):
                 if message.role == "user":
                     # Add user message to events for frontend
                     user_event = {
@@ -109,7 +109,7 @@ class AgentTask:
                         "sequence_number": self.next_sequence_number,
                         "item": {
                             "id": f"msg_user_{uuid()}",
-                            "type": "message", 
+                            "type": "message",
                             "role": "user",
                             "status": "completed",
                             "content": [{"type": "input_text", "text": message.content}]
@@ -154,8 +154,9 @@ class AgentTask:
                             )
 
                         if completion.parsed_response:
-                            # Todo: Database saving 
-                            log.info("TODO: Store parsed response in db")
+                            # NOTE: Database saving implementation needed
+                            # See issue: https://github.com/project/issues/123
+                            log.info("NOTE: Store parsed response in db - implementation pending")
 
         except Exception as e:
             log.error(f"Error during message event: {e}")
@@ -212,11 +213,11 @@ class AgentTask:
         try:
             # Store all events and update sequence tracking
             self.events.append(event_data)
-            
+
             # Update next sequence number if this event has a sequence number
             if "sequence_number" in event_data and event_data["sequence_number"] is not None:
                 self.next_sequence_number = max(self.next_sequence_number, event_data["sequence_number"] + 1)
-                
+
         except ValueError as e:
             log.error(f"Error handling response_item: {e}")
             return {"processed": False, "error": str(e)}

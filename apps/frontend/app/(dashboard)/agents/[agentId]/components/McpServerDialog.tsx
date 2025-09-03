@@ -13,10 +13,8 @@ import {
 } from "@workspace/ui/components/ui/select";
 import { Badge } from "@workspace/ui/components/ui/badge";
 import { Checkbox } from "@workspace/ui/components/ui/checkbox";
-import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/ui/card";
-import { Separator } from "@workspace/ui/components/ui/separator";
-import { Loader2, Shield, ShieldCheck, AlertTriangle, Info, Search, ShieldAlert } from "lucide-react";
-import { Input } from "@workspace/ui/components/ui/input";
+// Removed unused imports: Card, CardContent, CardHeader, CardTitle, Separator, Shield, Info, Search, Input
+import { Loader2, ShieldCheck, AlertTriangle, ShieldAlert } from "lucide-react";
 import { McpServer } from "@/hooks/use-workspace-scoped-actions";
 
 interface McpServerDialogProps {
@@ -45,14 +43,14 @@ export function McpServerDialog({
 }: McpServerDialogProps) {
   const [selectedMcpServerId, setSelectedMcpServerId] = useState("");
   const [selectedTools, setSelectedTools] = useState<Set<string>>(new Set());
-  const [showAllTools, setShowAllTools] = useState(false);
+  // Removed unused showAllTools state
 
   // Reset form when dialog opens/closes
   useEffect(() => {
     if (!open) {
       setSelectedMcpServerId("");
       setSelectedTools(new Set());
-      setShowAllTools(false);
+      // setShowAllTools(false); // Removed unused function
     }
   }, [open]);
 
@@ -91,13 +89,7 @@ export function McpServerDialog({
     setSelectedTools(newSelected);
   };
 
-  const handleSelectAll = () => {
-    setSelectedTools(new Set(availableTools));
-  };
-
-  const handleSelectNone = () => {
-    setSelectedTools(new Set());
-  };
+  // Removed unused handleSelectAll and handleSelectNone functions
 
   const handleCreate = async () => {
     if (!selectedMcpServerId) return;
@@ -119,7 +111,7 @@ export function McpServerDialog({
       case 'always':
         return <ShieldAlert className="h-4 w-4 text-yellow-500" />;
       default:
-        return <AlertTriangle className="h-4 w-4 text-gray-400" />;
+        return <AlertTriangle className="h-4 w-4 text-neutral-400" />;
     }
   };
 
