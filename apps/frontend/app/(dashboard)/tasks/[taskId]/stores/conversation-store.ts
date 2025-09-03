@@ -1,0 +1,191 @@
+import { BehaviorSubject, combineLatest, Observable } from 'rxjs';
+import { map, distinctUntilChanged, shareReplay } from 'rxjs/operators';
+import { ConversationItem } from '../types';
+
+export interface StreamEvent {
+  type: string;
+  item?: any;
+  item_id?: string;
+  sequence_number: number;
+  text?: string;
+  delta?: any;
+  [key: string]: any;
+}
+
+export interface ConversationState {
+  stateItems: ConversationItem[];
+  streamEvents: StreamEvent[];
+  mergedConversation: ConversationItem[];
+  isLoading: boolean;
+}
+
+export class ConversationStore {
+  private stateItemsSubject = new BehaviorSubject<ConversationItem[]>([]);
+  private streamEventsSubject = new BehaviorSubject<StreamEvent[]>([]);
+  private isLoadingSubject = new BehaviorSubject<boolean>(false);
+  
+  // Simple streaming state for active items
+  private streamingItems = new Map<string, Partial<ConversationItem>>();
+  private processedEvents = new Set<string>();
+
+  public stateItems$: Observable<ConversationItem[]> = this.stateItemsSubject.asObservable();
+  public streamEvents$: Observable<StreamEvent[]> = this.streamEventsSubject.asObservable();
+  public isLoading$: Observable<boolean> = this.isLoadingSubject.asObservable();
+  public state$: Observable<ConversationState>;
+
+  constructor() {
+    this.state$ = combineLatest([
+      this.stateItems$.pipe(distinctUntilChanged()),
+      this.streamEvents$.pipe(distinctUntilChanged()),
+      this.isLoading$.pipe(distinctUntilChanged())
+    ]).pipe(
+      map(([stateItems, streamEvents, isLoading]) => {
+        const mergedConversation = this.mergeConversation(stateItems, streamEvents);
+        return {
+          stateItems,
+          streamEvents,
+          mergedConversation,
+          isLoading
+        };
+      }),
+      shareReplay(1)
+    );
+  }
+
+  public updateStateItems(items: ConversationItem[]) {
+    this.stateItemsSubject.next(items);
+  }
+
+  public updateStreamEvents(events: StreamEvent[]) {
+    this.streamEventsSubject.next(events);
+  }
+
+  public updateIsLoading(loading: boolean) {
+    this.isLoadingSubject.next(loading);
+  }
+
+  public clearStreamingState() {
+    this.streamingItems.clear();
+    this.processedEvents.clear();
+  }
+
+  private mergeConversation(stateItems: ConversationItem[], streamEvents: StreamEvent[]): ConversationItem[] {
+    // Get existing item IDs to avoid duplicates
+    const existingIds = new Set(stateItems.map(item => item.id));
+    
+    // Process stream events to create/update streaming items
+    const sortedEvents = [...streamEvents].sort((a, b) => a.sequence_number - b.sequence_number);
+    
+    for (const event of sortedEvents) {
+      this.processEvent(event, existingIds);
+    }
+    
+    // Convert streaming items to conversation items
+    const streamingConversationItems: ConversationItem[] = [];
+    for (const [itemId, streamItem] of this.streamingItems) {
+      if (!existingIds.has(itemId) && streamItem.id) {
+        streamingConversationItems.push(streamItem as ConversationItem);
+      }
+    }
+    
+    // Merge and sort all items by sequence number
+    const allItems = [...stateItems, ...streamingConversationItems];
+    return allItems.sort((a, b) => 
+      (a.openai_event?.sequence_number ?? 0) - (b.openai_event?.sequence_number ?? 0)
+    );
+  }
+
+  private processEvent(event: StreamEvent, existingIds: Set<string>): void {
+    if (!event.item_id) return;
+    
+    const eventKey = `${event.type}:${event.item_id}:${event.sequence_number}`;
+    if (this.processedEvents.has(eventKey)) return;
+    this.processedEvents.add(eventKey);
+    
+    const itemId = event.item_id;
+    
+    // Skip if item exists in persistent state
+    if (existingIds.has(itemId)) return;
+    
+    // Get or create streaming item
+    let streamItem = this.streamingItems.get(itemId);
+    if (!streamItem) {
+      streamItem = {
+        id: itemId,
+        type: this.getItemType(event),
+        timestamp: new Date().toISOString(),
+        isStreaming: true,
+        openai_output: {
+          id: itemId,
+          type: this.getItemType(event),
+          status: "in-progress",
+          content: [],
+          summary: []
+        },
+        openai_event: {
+          sequence_number: event.sequence_number,
+          item_id: itemId
+        }
+      };
+      this.streamingItems.set(itemId, streamItem);
+    }
+    
+    // Update content based on event type
+    this.updateStreamItem(streamItem, event);
+  }
+
+  private getItemType(event: StreamEvent): string {
+    if (event.type.includes('reasoning')) return 'reasoning';
+    if (event.type.includes('web_search')) return 'web_search_call';
+    if (event.type.includes('mcp')) return 'mcp_call';
+    if (event.type.includes('tool')) return 'tool_call';
+    return 'assistant';
+  }
+
+  private updateStreamItem(streamItem: Partial<ConversationItem>, event: StreamEvent): void {
+    if (!streamItem.openai_output) return;
+    
+    // Handle text content
+    if (event.delta && (event.type.includes('text') || event.type.includes('reasoning'))) {
+      const isReasoning = event.type.includes('reasoning');
+      const contentArray = isReasoning ? streamItem.openai_output.summary : streamItem.openai_output.content;
+      
+      if (!contentArray || contentArray.length === 0) {
+        const newContent = { type: "text", text: event.delta };
+        if (isReasoning) {
+          streamItem.openai_output.summary = [newContent];
+        } else {
+          streamItem.openai_output.content = [newContent];
+        }
+      } else {
+        contentArray[0].text = (contentArray[0].text || "") + event.delta;
+      }
+    }
+    
+    // Handle completion
+    if (event.text && event.type.includes('done')) {
+      const isReasoning = event.type.includes('reasoning');
+      const contentArray = isReasoning ? streamItem.openai_output.summary : streamItem.openai_output.content;
+      
+      if (contentArray && contentArray.length > 0) {
+        contentArray[0].text = event.text;
+      }
+      
+      streamItem.isStreaming = false;
+      streamItem.openai_output.status = "completed";
+    }
+    
+    // Handle item additions/completions
+    if (event.item) {
+      streamItem.openai_output = { ...streamItem.openai_output, ...event.item };
+      if (event.type.includes('done')) {
+        streamItem.isStreaming = false;
+        streamItem.openai_output.status = "completed";
+      }
+    }
+    
+    streamItem.timestamp = new Date().toISOString();
+  }
+}
+
+export const conversationStore = new ConversationStore();

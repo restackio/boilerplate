@@ -40,7 +40,7 @@ class ZendeskTicketOutput(BaseModel):
 
 @workflow.defn(description="Generate a mocked Zendesk ticket")
 class ZendeskTicket:
-    """ to generate a mocked Zendesk ticket."""
+    """to generate a mocked Zendesk ticket."""
 
     @workflow.run
     async def run(self, workflow_input: ZendeskTicketInput) -> ZendeskTicketOutput:

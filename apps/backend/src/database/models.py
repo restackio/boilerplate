@@ -22,11 +22,16 @@ class Workspace(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True)
     name = Column(String(255), nullable=False)
-    created_at = Column(DateTime, default=lambda: datetime.now(tz=UTC).replace(tzinfo=None))
+    created_at = Column(
+        DateTime,
+        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+    )
     updated_at = Column(
         DateTime,
         default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
-        onupdate=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+        onupdate=lambda: datetime.now(tz=UTC).replace(
+            tzinfo=None
+        ),
     )
 
     # Relationships
@@ -54,7 +59,10 @@ class UserWorkspace(Base):
         nullable=False,
     )
     role = Column(String(50), nullable=False, default="member")
-    created_at = Column(DateTime, default=lambda: datetime.now(tz=UTC).replace(tzinfo=None))
+    created_at = Column(
+        DateTime,
+        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+    )
 
     # Constraints
     __table_args__ = (
@@ -83,11 +91,16 @@ class Team(Base):
     name = Column(String(255), nullable=False)
     description = Column(Text)
     icon = Column(String(50), default="Building")
-    created_at = Column(DateTime, default=lambda: datetime.now(tz=UTC).replace(tzinfo=None))
+    created_at = Column(
+        DateTime,
+        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+    )
     updated_at = Column(
         DateTime,
         default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
-        onupdate=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+        onupdate=lambda: datetime.now(tz=UTC).replace(
+            tzinfo=None
+        ),
     )
 
     # Relationships
@@ -118,18 +131,22 @@ class McpServer(Base):
             "always": {"tool_names": []},
         },
     )
-    created_at = Column(DateTime, default=lambda: datetime.now(tz=UTC).replace(tzinfo=None))
+    created_at = Column(
+        DateTime,
+        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+    )
     updated_at = Column(
         DateTime,
         default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
-        onupdate=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+        onupdate=lambda: datetime.now(tz=UTC).replace(
+            tzinfo=None
+        ),
     )
 
     # Relationships
     workspace = relationship(
         "Workspace", back_populates="mcp_servers"
     )
-
 
 
 class User(Base):
@@ -140,11 +157,16 @@ class User(Base):
     email = Column(String(255), nullable=False, unique=True)
     password_hash = Column(String(255), nullable=False)
     avatar_url = Column(Text)
-    created_at = Column(DateTime, default=lambda: datetime.now(tz=UTC).replace(tzinfo=None))
+    created_at = Column(
+        DateTime,
+        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+    )
     updated_at = Column(
         DateTime,
         default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
-        onupdate=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+        onupdate=lambda: datetime.now(tz=UTC).replace(
+            tzinfo=None
+        ),
     )
 
     # Relationships
@@ -167,7 +189,9 @@ class Agent(Base):
         ForeignKey("teams.id", ondelete="SET NULL"),
         nullable=True,
     )
-    name = Column(String(255), nullable=False)  # Must be slug format: lowercase, numbers, hyphens, underscores only
+    name = Column(
+        String(255), nullable=False
+    )  # Must be slug format: lowercase, numbers, hyphens, underscores only
     version = Column(String(50), nullable=False, default="v1.0")
     description = Column(Text)
     instructions = Column(Text, nullable=True)
@@ -181,14 +205,23 @@ class Agent(Base):
     )
     # New GPT-5 model configuration fields
     model = Column(String(100), nullable=False, default="gpt-5")
-    reasoning_effort = Column(String(20), nullable=False, default="medium")
-    response_format = Column(JSONB, nullable=False, default={"type": "text"})
+    reasoning_effort = Column(
+        String(20), nullable=False, default="medium"
+    )
+    response_format = Column(
+        JSONB, nullable=False, default={"type": "text"}
+    )
 
-    created_at = Column(DateTime, default=lambda: datetime.now(tz=UTC).replace(tzinfo=None))
+    created_at = Column(
+        DateTime,
+        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+    )
     updated_at = Column(
         DateTime,
         default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
-        onupdate=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+        onupdate=lambda: datetime.now(tz=UTC).replace(
+            tzinfo=None
+        ),
     )
 
     # Constraints
@@ -198,14 +231,22 @@ class Agent(Base):
             name="valid_status",
         ),
         CheckConstraint(
-            model.in_([
-                "gpt-5", "gpt-5-mini", "gpt-5-nano",
-                "gpt-5-2025-08-07", "gpt-5-mini-2025-08-07", "gpt-5-nano-2025-08-07",
-            ]),
+            model.in_(
+                [
+                    "gpt-5",
+                    "gpt-5-mini",
+                    "gpt-5-nano",
+                    "gpt-5-2025-08-07",
+                    "gpt-5-mini-2025-08-07",
+                    "gpt-5-nano-2025-08-07",
+                ]
+            ),
             name="valid_model",
         ),
         CheckConstraint(
-            reasoning_effort.in_(["minimal", "low", "medium", "high"]),
+            reasoning_effort.in_(
+                ["minimal", "low", "medium", "high"]
+            ),
             name="valid_reasoning_effort",
         ),
         # Note: Unique constraint for root agent names is handled by partial index in schema.sql
@@ -218,10 +259,6 @@ class Agent(Base):
     parent_agent = relationship(
         "Agent", remote_side=[id], backref="child_agents"
     )
-
-
-
-
 
 
 class AgentTool(Base):
@@ -237,21 +274,31 @@ class AgentTool(Base):
         String(32), nullable=False
     )  # file_search, web_search_preview, mcp, code_interpreter, image_generation, local_shell
     mcp_server_id = Column(
-        UUID(as_uuid=True), ForeignKey("mcp_servers.id", ondelete="CASCADE")
+        UUID(as_uuid=True),
+        ForeignKey("mcp_servers.id", ondelete="CASCADE"),
     )
     config = Column(JSONB)
     allowed_tools = Column(JSONB)
     execution_order = Column(Integer)
     enabled = Column(Boolean, nullable=False, default=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(tz=UTC).replace(tzinfo=None))
+    created_at = Column(
+        DateTime,
+        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+    )
 
     # Constraints
     __table_args__ = (
         CheckConstraint(
-            tool_type.in_([
-                "file_search", "web_search_preview", "mcp",
-                "code_interpreter", "image_generation", "local_shell"
-            ]),
+            tool_type.in_(
+                [
+                    "file_search",
+                    "web_search_preview",
+                    "mcp",
+                    "code_interpreter",
+                    "image_generation",
+                    "local_shell",
+                ]
+            ),
             name="valid_tool_type",
         ),
         CheckConstraint(
@@ -263,6 +310,7 @@ class AgentTool(Base):
     # Relationships
     agent = relationship("Agent", backref="agent_tools")
     mcp_server = relationship("McpServer", backref="agent_tools")
+
 
 class Task(Base):
     __tablename__ = "tasks"
@@ -294,12 +342,19 @@ class Task(Base):
     agent_task_id = Column(
         String(255), nullable=True
     )  # Restack agent task ID for state management
-    messages = Column(JSONB, nullable=True)  # Store conversation history for completed tasks
-    created_at = Column(DateTime, default=lambda: datetime.now(tz=UTC).replace(tzinfo=None))
+    messages = Column(
+        JSONB, nullable=True
+    )  # Store conversation history for completed tasks
+    created_at = Column(
+        DateTime,
+        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+    )
     updated_at = Column(
         DateTime,
         default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
-        onupdate=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+        onupdate=lambda: datetime.now(tz=UTC).replace(
+            tzinfo=None
+        ),
     )
 
     # Constraints

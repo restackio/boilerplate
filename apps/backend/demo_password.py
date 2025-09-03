@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Demo script to generate password hash."""
+
 import os
 import sys
 from pathlib import Path

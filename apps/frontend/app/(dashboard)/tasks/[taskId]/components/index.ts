@@ -17,12 +17,8 @@ export { TaskCardTool } from "./TaskCardTool";
 export { TaskCardMcp } from "./TaskCardMcp";
 export { TaskCardWebSearch } from "./TaskCardWebSearch";
 
-// Streaming components
-export { StreamItems as TaskStreamItems } from "./TaskStreamItems";
+
 
 // Base components
 export * from "./base";
-
-// Streaming utilities
-export * from "./streaming";
  

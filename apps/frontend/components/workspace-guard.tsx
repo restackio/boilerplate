@@ -12,7 +12,6 @@ export function WorkspaceGuard({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Simple logic: if there's an error, redirect to login
     if (loading.error) {
-      console.log("🚫 Workspace error, redirecting to login:", loading.error);
       router.push("/login");
     }
   }, [loading.error, router]);

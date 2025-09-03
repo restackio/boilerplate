@@ -12,6 +12,7 @@ import {
   TaskSplitView,
   DeleteTaskModal,
 } from "./components";
+// Back to original interface
 
 export default function TaskDetailPage() {
   const {
@@ -27,9 +28,7 @@ export default function TaskDetailPage() {
     selectedCard,
     isThinking,
     conversation,
-    persistentItemIds,
     agentLoading,
-    agentResponses,
     setShowDeleteModal,
     setChatMessage,
     setActiveTab,
@@ -44,7 +43,6 @@ export default function TaskDetailPage() {
 
   const handleApproveRequest = async (itemId: string) => {
     if (!task?.agent_task_id) {
-      console.error("No agent task ID available for approval");
       return;
     }
 
@@ -59,7 +57,6 @@ export default function TaskDetailPage() {
       });
 
       if (!result.success) {
-        console.error("Failed to approve MCP request:", result.error);
         // Revert the optimistic update on failure
         updateConversationItemStatus(itemId, "waiting-approval");
       }
@@ -72,7 +69,6 @@ export default function TaskDetailPage() {
 
   const handleDenyRequest = async (itemId: string) => {
     if (!task?.agent_task_id) {
-      console.error("No agent task ID available for denial");
       return;
     }
 
@@ -80,7 +76,6 @@ export default function TaskDetailPage() {
       // Optimistically update the UI
       updateConversationItemStatus(itemId, "failed");
 
-      console.log("Denying MCP request:", itemId);
       const result = await sendMcpApproval({
         agentId: task.agent_task_id,
         approvalId: itemId,
@@ -88,7 +83,6 @@ export default function TaskDetailPage() {
       });
 
       if (!result.success) {
-        console.error("Failed to deny MCP request:", result.error);
         // Revert the optimistic update on failure
         updateConversationItemStatus(itemId, "waiting-approval");
       }
@@ -124,8 +118,6 @@ export default function TaskDetailPage() {
       <div className={`flex ${showSplitView ? 'h-[calc(100vh-80px)]' : ''}`}>
         <TaskChatInterface
           conversation={conversation}
-          persistentItemIds={persistentItemIds}
-          agentResponses={agentResponses || []}
           chatMessage={chatMessage}
           onChatMessageChange={setChatMessage}
           onSendMessage={handleSendMessage}
@@ -135,7 +127,6 @@ export default function TaskDetailPage() {
           agentLoading={agentLoading}
           isThinking={isThinking}
           showSplitView={showSplitView}
-          taskAgentTaskId={task?.agent_task_id}
         />
 
         <TaskSplitView

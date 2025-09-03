@@ -32,14 +32,12 @@ async_engine = create_async_engine(
     echo=False,
     pool_pre_ping=True,
     pool_size=20,
-    max_overflow=10
+    max_overflow=10,
 )
 
 # Create async session factory
 AsyncSessionLocal = async_sessionmaker(
-    async_engine,
-    class_=AsyncSession,
-    expire_on_commit=False
+    async_engine, class_=AsyncSession, expire_on_commit=False
 )
 
 

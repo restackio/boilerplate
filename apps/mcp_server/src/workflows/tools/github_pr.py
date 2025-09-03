@@ -48,7 +48,7 @@ class GitHubPROutput(BaseModel):
 
 @workflow.defn(description="Create a GitHub Pull Request")
 class GitHubPR:
-    """ to create a GitHub Pull Request."""
+    """to create a GitHub Pull Request."""
 
     @workflow.run
     async def run(self, workflow_input: GitHubPRInput) -> GitHubPROutput:

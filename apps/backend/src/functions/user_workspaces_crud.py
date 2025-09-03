@@ -193,7 +193,8 @@ async def user_workspaces_create(
                     message=f"User with id {function_input.user_id} not found"
                 )
             workspace_query = select(Workspace).where(
-                Workspace.id == uuid.UUID(function_input.workspace_id)
+                Workspace.id
+                == uuid.UUID(function_input.workspace_id)
             )
             workspace_result = await db.execute(workspace_query)
             workspace = workspace_result.scalar_one_or_none()
@@ -204,7 +205,8 @@ async def user_workspaces_create(
                 )
             # Check if relationship already exists
             existing_query = select(UserWorkspace).where(
-                UserWorkspace.user_id == uuid.UUID(function_input.user_id),
+                UserWorkspace.user_id
+                == uuid.UUID(function_input.user_id),
                 UserWorkspace.workspace_id
                 == uuid.UUID(function_input.workspace_id),
             )
@@ -218,7 +220,9 @@ async def user_workspaces_create(
             user_workspace = UserWorkspace(
                 id=uuid.uuid4(),
                 user_id=uuid.UUID(function_input.user_id),
-                workspace_id=uuid.UUID(function_input.workspace_id),
+                workspace_id=uuid.UUID(
+                    function_input.workspace_id
+                ),
                 role=function_input.role,
             )
             db.add(user_workspace)
@@ -318,7 +322,8 @@ async def user_workspaces_delete(
     async for db in get_async_db():
         try:
             user_workspace_query = select(UserWorkspace).where(
-                UserWorkspace.user_id == uuid.UUID(function_input.user_id),
+                UserWorkspace.user_id
+                == uuid.UUID(function_input.user_id),
                 UserWorkspace.workspace_id
                 == uuid.UUID(function_input.workspace_id),
             )

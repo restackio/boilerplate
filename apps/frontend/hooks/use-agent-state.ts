@@ -50,17 +50,12 @@ export function useAgentState({ taskId, agentTaskId, runId, onStateChange }: Use
       onMessage: (data: any) => {
         // Only process messages if we have a valid agentTaskId
         if (!agentTaskId) return;
-        
-        console.log("🔄 Raw subscription data received:", data);
-        console.log("🔄 Data type:", typeof data, "is array:", Array.isArray(data));
+      
         
         // Always replace the state with the latest data, don't accumulate
         if (Array.isArray(data)) {
-          // If it's an array, use the full conversation array
-          console.log("🔄 Using full conversation array:", data);
           setCurrentResponseState(data);
         } else {
-          console.log("🔄 Using data directly:", data);
           setCurrentResponseState(data);
         }
       },
@@ -85,12 +80,6 @@ export function useAgentState({ taskId, agentTaskId, runId, onStateChange }: Use
       onMessage: (data: any) => {
         // Only process messages if we have a valid agentTaskId
         if (!agentTaskId) return;
-        
-        console.log("subscribeAgentResponses onMessage received:", data);
-        console.log("Raw response data type:", typeof data);
-        console.log("Raw response data:", data);
-        console.log("Response data keys:", Object.keys(data));
-        console.log("Response data structure:", JSON.stringify(data, null, 2));
       },
       onError: (error: any) => {
         // Only process errors if we have a valid agentTaskId
@@ -101,10 +90,6 @@ export function useAgentState({ taskId, agentTaskId, runId, onStateChange }: Use
       },
     },
   });
-
-  console.log("subscribeResponseState hook result:", responseState);
-  console.log("subscribeAgentResponses hook result:", agentResponses);
-  console.log("agentTaskId:", agentTaskId, "runId:", runId);
 
   // Send message to agent using server action
   const sendMessageToAgent = useCallback(async (message: string) => {
@@ -169,19 +154,11 @@ export function useAgentState({ taskId, agentTaskId, runId, onStateChange }: Use
 
   // Use the manually managed state that replaces rather than accumulates
   const cleanResponseState = useMemo(() => {
-    console.log("✅ Using replaced state:", { 
-      hasAgentTaskId: !!agentTaskId, 
-      currentStateType: typeof currentResponseState,
-      isArray: Array.isArray(currentResponseState),
-      length: Array.isArray(currentResponseState) ? currentResponseState.length : 'N/A'
-    });
     
     if (!agentTaskId || !currentResponseState) {
-      console.log("✅ Returning null - no agentTaskId or currentResponseState");
       return null;
     }
     
-    console.log("✅ Returning clean state directly:", currentResponseState);
     return currentResponseState;
   }, [currentResponseState, agentTaskId]);
 

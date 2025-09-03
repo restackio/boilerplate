@@ -124,11 +124,11 @@ export function useWorkspaceActions(currentUser?: User | null, currentWorkspaceI
       if (result.success && result.data) {
         setWorkspaces(result.data);
       } else {
-        console.error("❌ Failed to fetch workspaces:", result.error);
+        console.error("Failed to fetch workspaces:", result.error);
         throw new Error(result.error || "Failed to fetch workspaces");
       }
     } catch (error) {
-      console.error("❌ Exception fetching workspaces:", error);
+      console.error("Exception fetching workspaces:", error);
       throw error;
     }
   }, [currentUser]);

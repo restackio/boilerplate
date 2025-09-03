@@ -142,6 +142,7 @@ from src.workflows.crud.workspaces_crud import (
     WorkspacesUpdateWorkflow,
 )
 
+
 async def run_restack_service() -> None:
     """Run the Restack service."""
     await client.start_service(
@@ -242,7 +243,6 @@ async def run_restack_service() -> None:
             mcp_servers_update,
             mcp_servers_delete,
             mcp_servers_get_by_id,
-
             # Agent tools functions
             agent_tools_read_by_agent,
             agent_tools_read_records_by_agent,
@@ -259,7 +259,9 @@ async def main() -> None:
     await init_async_db()
     logging.info("Database initialized")
 
-    logging.info("Starting Restack services on default port (5233)")
+    logging.info(
+        "Starting Restack services on default port (5233)"
+    )
     await run_restack_service()
 
 
@@ -267,24 +269,29 @@ def start() -> None:
     """Start Restack services (production mode)."""
     logging.basicConfig(
         level=logging.INFO,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
 
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        logging.info("Services interrupted by user. Exiting gracefully.")
+        logging.info(
+            "Services interrupted by user. Exiting gracefully."
+        )
 
 
 def dev_watch() -> None:
     """Development mode with file watching and auto-restart."""
     logging.basicConfig(
         level=logging.INFO,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
 
     watch_path = Path.cwd()
-    logging.info("Watching %s and its subdirectories for changes...", watch_path)
+    logging.info(
+        "Watching %s and its subdirectories for changes...",
+        watch_path,
+    )
     webbrowser.open("http://localhost:5233")
     run_process(watch_path, recursive=True, target=start)
 

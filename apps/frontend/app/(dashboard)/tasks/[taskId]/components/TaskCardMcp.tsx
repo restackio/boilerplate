@@ -74,7 +74,16 @@ export function TaskCardMcp({ item, onApprove, onDeny, onClick }: TaskCardMcpPro
       {toolArguments && (
         <ContentSection label="Arguments">
           <CodeBlock 
-            content={typeof toolArguments === 'string' ? JSON.parse(toolArguments) : toolArguments}
+            content={typeof toolArguments === 'string' 
+              ? (() => {
+                  try {
+                    return JSON.parse(toolArguments);
+                  } catch {
+                    return toolArguments;
+                  }
+                })()
+              : toolArguments
+            }
           />
         </ContentSection>
       )}

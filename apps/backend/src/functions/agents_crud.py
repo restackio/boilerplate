@@ -1,5 +1,5 @@
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime
 
 from pydantic import BaseModel, Field
 from restack_ai.function import NonRetryableError, function
@@ -18,7 +18,12 @@ class AgentMcpRelationshipInput(BaseModel):
 
 class AgentCreateInput(BaseModel):
     workspace_id: str = Field(..., min_length=1)
-    name: str = Field(..., min_length=1, max_length=255, pattern=r"^[a-z0-9-_]+$")
+    name: str = Field(
+        ...,
+        min_length=1,
+        max_length=255,
+        pattern=r"^[a-z0-9-_]+$",
+    )
     version: str = Field(default="v1.0", max_length=50)
     description: str | None = None
     instructions: str | None = None
@@ -29,11 +34,10 @@ class AgentCreateInput(BaseModel):
     # New GPT-5 model configuration fields
     model: str = Field(
         default="gpt-5",
-        pattern=r"^(gpt-5|gpt-5-mini|gpt-5-nano|gpt-5-2025-08-07|gpt-5-mini-2025-08-07|gpt-5-nano-2025-08-07|gpt-4\.1|gpt-4\.1-mini|gpt-4\.1-nano|gpt-4o|gpt-4o-mini)$"
+        pattern=r"^(gpt-5|gpt-5-mini|gpt-5-nano|gpt-5-2025-08-07|gpt-5-mini-2025-08-07|gpt-5-nano-2025-08-07|gpt-4\.1|gpt-4\.1-mini|gpt-4\.1-nano|gpt-4o|gpt-4o-mini)$",
     )
     reasoning_effort: str = Field(
-        default="medium",
-        pattern="^(minimal|low|medium|high)$"
+        default="medium", pattern="^(minimal|low|medium|high)$"
     )
     response_format: dict | None = Field(default={"type": "text"})
 
@@ -47,7 +51,12 @@ class AgentCreateInput(BaseModel):
 
 class AgentUpdateInput(BaseModel):
     agent_id: str = Field(..., min_length=1)
-    name: str | None = Field(None, min_length=1, max_length=255, pattern=r"^[a-z0-9-_]+$")
+    name: str | None = Field(
+        None,
+        min_length=1,
+        max_length=255,
+        pattern=r"^[a-z0-9-_]+$",
+    )
     version: str | None = Field(None, max_length=50)
     description: str | None = None
     instructions: str | None = Field(None, min_length=1)
@@ -58,14 +67,12 @@ class AgentUpdateInput(BaseModel):
     # New GPT-5 model configuration fields
     model: str | None = Field(
         None,
-        pattern=r"^(gpt-5|gpt-5-mini|gpt-5-nano|gpt-5-2025-08-07|gpt-5-mini-2025-08-07|gpt-5-nano-2025-08-07|gpt-4\.1|gpt-4\.1-mini|gpt-4\.1-nano|gpt-4o|gpt-4o-mini)$"
+        pattern=r"^(gpt-5|gpt-5-mini|gpt-5-nano|gpt-5-2025-08-07|gpt-5-mini-2025-08-07|gpt-5-nano-2025-08-07|gpt-4\.1|gpt-4\.1-mini|gpt-4\.1-nano|gpt-4o|gpt-4o-mini)$",
     )
     reasoning_effort: str | None = Field(
-        None,
-        pattern="^(minimal|low|medium|high)$"
+        None, pattern="^(minimal|low|medium|high)$"
     )
     response_format: dict | None = None
-
 
 
 class AgentIdInput(BaseModel):
@@ -174,9 +181,10 @@ def get_latest_agent_versions(
                     else None,
                     # New GPT-5 model configuration fields
                     model=latest_agent.model or "gpt-5",
-                    reasoning_effort=latest_agent.reasoning_effort or "medium",
-                    response_format=latest_agent.response_format or {"type": "text"},
-
+                    reasoning_effort=latest_agent.reasoning_effort
+                    or "medium",
+                    response_format=latest_agent.response_format
+                    or {"type": "text"},
                     created_at=latest_agent.created_at.isoformat()
                     if latest_agent.created_at
                     else None,
@@ -283,9 +291,10 @@ async def agents_read(
                         else None,
                         # New GPT-5 model configuration fields
                         model=agent.model or "gpt-5",
-                        reasoning_effort=agent.reasoning_effort or "medium",
-                        response_format=agent.response_format or {"type": "text"},
-
+                        reasoning_effort=agent.reasoning_effort
+                        or "medium",
+                        response_format=agent.response_format
+                        or {"type": "text"},
                         created_at=agent.created_at.isoformat()
                         if agent.created_at
                         else None,
@@ -337,7 +346,6 @@ async def agents_create(
                 model=agent_data.model,
                 reasoning_effort=agent_data.reasoning_effort,
                 response_format=agent_data.response_format,
-
             )
             db.add(agent)
             await db.commit()
@@ -346,6 +354,7 @@ async def agents_create(
             # Create MCP server relationships if provided
             if agent_data.mcp_relationships:
                 from src.database.models import AgentTool
+
                 for mcp_rel in agent_data.mcp_relationships:
                     agent_tool = AgentTool(
                         id=uuid.uuid4(),
@@ -374,8 +383,10 @@ async def agents_create(
                 else None,
                 # New GPT-5 model configuration fields
                 model=agent.model or "gpt-5",
-                reasoning_effort=agent.reasoning_effort or "medium",
-                response_format=agent.response_format or {"type": "text"},
+                reasoning_effort=agent.reasoning_effort
+                or "medium",
+                response_format=agent.response_format
+                or {"type": "text"},
                 created_at=agent.created_at.isoformat()
                 if agent.created_at
                 else None,
@@ -427,8 +438,6 @@ async def agents_update(
             for key, value in update_data.items():
                 if hasattr(agent, key):
                     setattr(agent, key, value)
-
-            agent.updated_at = datetime.now(tz=UTC).replace(tzinfo=None)
             await db.commit()
             await db.refresh(agent)
             result = AgentOutput(
@@ -444,8 +453,10 @@ async def agents_update(
                 else None,
                 # New GPT-5 model configuration fields
                 model=agent.model or "gpt-5",
-                reasoning_effort=agent.reasoning_effort or "medium",
-                response_format=agent.response_format or {"type": "text"},
+                reasoning_effort=agent.reasoning_effort
+                or "medium",
+                response_format=agent.response_format
+                or {"type": "text"},
                 created_at=agent.created_at.isoformat()
                 if agent.created_at
                 else None,
@@ -529,8 +540,12 @@ async def agents_get_by_id(
     async for db in get_async_db():
         try:
             # Get the specific agent by ID
-            agent_query = select(Agent).options(selectinload(Agent.team)).where(
-                Agent.id == uuid.UUID(function_input.agent_id)
+            agent_query = (
+                select(Agent)
+                .options(selectinload(Agent.team))
+                .where(
+                    Agent.id == uuid.UUID(function_input.agent_id)
+                )
             )
             result = await db.execute(agent_query)
             agent = result.scalar_one_or_none()
@@ -545,9 +560,7 @@ async def agents_get_by_id(
                 team_id=str(agent.team_id)
                 if agent.team_id
                 else None,
-                team_name=agent.team.name
-                if agent.team
-                else None,
+                team_name=agent.team.name if agent.team else None,
                 name=agent.name,
                 version=agent.version,
                 description=agent.description,
@@ -558,8 +571,10 @@ async def agents_get_by_id(
                 else None,
                 # New GPT-5 model configuration fields
                 model=agent.model or "gpt-5",
-                reasoning_effort=agent.reasoning_effort or "medium",
-                response_format=agent.response_format or {"type": "text"},
+                reasoning_effort=agent.reasoning_effort
+                or "medium",
+                response_format=agent.response_format
+                or {"type": "text"},
                 created_at=agent.created_at.isoformat()
                 if agent.created_at
                 else None,
@@ -655,9 +670,10 @@ async def agents_get_by_status(
                         else None,
                         # New GPT-5 model configuration fields
                         model=agent.model or "gpt-5",
-                        reasoning_effort=agent.reasoning_effort or "medium",
-                        response_format=agent.response_format or {"type": "text"},
-
+                        reasoning_effort=agent.reasoning_effort
+                        or "medium",
+                        response_format=agent.response_format
+                        or {"type": "text"},
                         created_at=agent.created_at.isoformat()
                         if agent.created_at
                         else None,
@@ -715,9 +731,10 @@ async def agents_get_versions(
                         else None,
                         # New GPT-5 model configuration fields
                         model=agent.model or "gpt-5",
-                        reasoning_effort=agent.reasoning_effort or "medium",
-                        response_format=agent.response_format or {"type": "text"},
-
+                        reasoning_effort=agent.reasoning_effort
+                        or "medium",
+                        response_format=agent.response_format
+                        or {"type": "text"},
                         created_at=agent.created_at.isoformat()
                         if agent.created_at
                         else None,
@@ -736,7 +753,9 @@ async def agents_get_versions(
 
 class AgentResolveInput(BaseModel):
     workspace_id: str = Field(..., min_length=1)
-    agent_name: str = Field(..., min_length=1, pattern=r"^[a-z0-9-_]+$")
+    agent_name: str = Field(
+        ..., min_length=1, pattern=r"^[a-z0-9-_]+$"
+    )
 
 
 class AgentResolveOutput(BaseModel):
@@ -765,8 +784,9 @@ async def agents_resolve_by_name(
                 )
                 .where(
                     and_(
-                        Agent.workspace_id == uuid.UUID(function_input.workspace_id),
-                        Agent.name == function_input.agent_name
+                        Agent.workspace_id
+                        == uuid.UUID(function_input.workspace_id),
+                        Agent.name == function_input.agent_name,
                     )
                 )
                 .group_by(
@@ -791,9 +811,10 @@ async def agents_resolve_by_name(
                 )
                 .where(
                     and_(
-                        Agent.workspace_id == uuid.UUID(function_input.workspace_id),
+                        Agent.workspace_id
+                        == uuid.UUID(function_input.workspace_id),
                         Agent.name == function_input.agent_name,
-                        Agent.status == "active"
+                        Agent.status == "active",
                     )
                 )
             )

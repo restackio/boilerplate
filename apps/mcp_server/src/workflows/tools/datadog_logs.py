@@ -44,7 +44,7 @@ class DatadogLogsOutput(BaseModel):
 
 @workflow.defn(description="Retrieve Datadog logs")
 class DatadogLogs:
-    """ to retrieve Datadog logs."""
+    """to retrieve Datadog logs."""
 
     @workflow.run
     async def run(self, workflow_input: DatadogLogsInput) -> DatadogLogsOutput:

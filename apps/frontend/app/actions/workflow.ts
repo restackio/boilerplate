@@ -8,39 +8,23 @@ export async function runWorkflow({
   workflowName: string,
   input: Record<string, unknown>,
 }) : Promise<{ workflowId: string; runId: string }> {
-  console.log(`🔄 [runWorkflow] Starting to schedule workflow ${workflowName}`);
   const startTime = Date.now();
   
   if (!workflowName || !input) {
     throw new Error("Workflow name and input are required");
   }
 
-  const workflowId = `${Date.now()}-${workflowName.toString()}`;
-  console.log(`🔄 [runWorkflow] Generated workflow ID: ${workflowId}`);
+  const workflowId = `${crypto.randomUUID()}-${workflowName.toString()}`;
 
   try {
-    console.log(`🔄 [runWorkflow] About to call client.scheduleWorkflow with:`, {
-      workflowName,
-      workflowId,
-      input,
-      taskQueue: "restack",
-    });
     
-    const scheduleStartTime = Date.now();
     const runId = await client.scheduleWorkflow({
       workflowName,
       workflowId,
       input,
       taskQueue: "restack",
     });
-    const scheduleEndTime = Date.now();
-    
-    console.log(`✅ [runWorkflow] client.scheduleWorkflow completed in ${scheduleEndTime - scheduleStartTime}ms`);
-    console.log(`✅ [runWorkflow] Run ID: ${runId}`);
-    
-    const endTime = Date.now();
-    console.log(`✅ [runWorkflow] Scheduled workflow in ${endTime - startTime}ms`);
-    
+
     return {
       workflowId,
       runId
@@ -68,7 +52,6 @@ export async function getWorkflowResult({
   workflowId: string,
   runId: string
 }) : Promise<unknown> {
-  console.log(`🔄 [getWorkflowResult] Starting to get result for workflow ${workflowId}, run ${runId}`);
   const startTime = Date.now();
   
   // Add a timeout promise
@@ -86,9 +69,7 @@ export async function getWorkflowResult({
     const result = await Promise.race([resultPromise, timeoutPromise]);
     
     const endTime = Date.now();
-    console.log(`✅ [getWorkflowResult] Completed in ${endTime - startTime}ms`);
-    console.log(`✅ [getWorkflowResult] Result:`, result);
-    
+
     return result;
   } catch (error) {
     const endTime = Date.now();

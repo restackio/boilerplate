@@ -44,7 +44,7 @@ class PagerDutyIncidentOutput(BaseModel):
 
 @workflow.defn(description="Retrieve PagerDuty incident information")
 class PagerDutyIncident:
-    """ to retrieve PagerDuty incident information."""
+    """to retrieve PagerDuty incident information."""
 
     @workflow.run
     async def run(self, workflow_input: PagerDutyIncidentInput) -> PagerDutyIncidentOutput:

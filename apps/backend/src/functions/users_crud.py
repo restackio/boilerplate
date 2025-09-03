@@ -1,5 +1,4 @@
 import uuid
-from datetime import UTC, datetime
 
 from pydantic import BaseModel, EmailStr, Field
 from restack_ai.function import NonRetryableError, function
@@ -150,8 +149,6 @@ async def users_update(
             for key, value in update_data.items():
                 if hasattr(user, key):
                     setattr(user, key, value)
-
-            user.updated_at = datetime.now(tz=UTC).replace(tzinfo=None)
             await db.commit()
             await db.refresh(user)
 

@@ -61,12 +61,16 @@ export const extractServerLabel = (item: ConversationItem): string => {
   return item.openai_output?.server_label || "";
 };
 
-export const extractToolArguments = (item: ConversationItem): Record<string, unknown> | undefined => {
+export const extractToolArguments = (item: ConversationItem): Record<string, unknown> | string | undefined => {
+  // For MCP approval requests, arguments come as a JSON string
+  if (item.type === 'mcp_approval_request' && typeof item.openai_output?.arguments === 'string') {
+    return item.openai_output.arguments;
+  }
   return item.openai_output?.arguments;
 };
 
 export const extractToolOutput = (item: ConversationItem): unknown => {
-  return item.openai_output?.output;
+  return item.openai_output?.output || item.openai_output?.result;
 };
 
 // Type checking utilities
@@ -96,13 +100,11 @@ export const isReasoning = (item: ConversationItem): boolean => {
 
 // Formatting utilities
 export const formatTimestamp = (timestamp: string | null): string => {
-  if (!timestamp) return "";
-  return new Date(timestamp).toLocaleTimeString();
+  return timestamp ? new Date(timestamp).toLocaleTimeString() : "";
 };
 
 export const formatFullTimestamp = (timestamp: string | null): string => {
-  if (!timestamp) return "Unknown";
-  return new Date(timestamp).toLocaleString();
+  return timestamp ? new Date(timestamp).toLocaleString() : "Unknown";
 };
 
 // ID utilities for approval actions

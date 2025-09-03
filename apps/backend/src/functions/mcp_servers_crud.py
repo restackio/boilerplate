@@ -1,5 +1,4 @@
 import uuid
-from datetime import UTC, datetime
 
 from pydantic import BaseModel, Field
 from restack_ai.function import NonRetryableError, function
@@ -41,9 +40,7 @@ class McpServerUpdateInput(BaseModel):
     server_label: str | None = Field(
         None, min_length=1, max_length=255
     )
-    server_url: str | None = Field(
-        None, max_length=500
-    )
+    server_url: str | None = Field(None, max_length=500)
     local: bool | None = None
     server_description: str | None = None
     headers: dict[str, str] | None = None
@@ -96,10 +93,14 @@ async def mcp_servers_read(
     """Read all MCP servers from database for a specific workspace."""
     async for db in get_async_db():
         try:
-            mcp_servers_query = select(McpServer).where(
-                McpServer.workspace_id
-                == uuid.UUID(function_input.workspace_id)
-            ).order_by(McpServer.server_label.asc())
+            mcp_servers_query = (
+                select(McpServer)
+                .where(
+                    McpServer.workspace_id
+                    == uuid.UUID(function_input.workspace_id)
+                )
+                .order_by(McpServer.server_label.asc())
+            )
             result = await db.execute(mcp_servers_query)
             mcp_servers = result.scalars().all()
 
@@ -190,7 +191,8 @@ async def mcp_servers_update(
     async for db in get_async_db():
         try:
             mcp_server_query = select(McpServer).where(
-                McpServer.id == uuid.UUID(function_input.mcp_server_id)
+                McpServer.id
+                == uuid.UUID(function_input.mcp_server_id)
             )
             result = await db.execute(mcp_server_query)
             mcp_server = result.scalar_one_or_none()
@@ -215,7 +217,7 @@ async def mcp_servers_update(
                     else:
                         setattr(mcp_server, key, value)
 
-            mcp_server.updated_at = datetime.now(tz=UTC).replace(tzinfo=None)
+
             await db.commit()
             await db.refresh(mcp_server)
             result = McpServerOutput(
@@ -253,7 +255,8 @@ async def mcp_servers_delete(
     async for db in get_async_db():
         try:
             mcp_server_query = select(McpServer).where(
-                McpServer.id == uuid.UUID(function_input.mcp_server_id)
+                McpServer.id
+                == uuid.UUID(function_input.mcp_server_id)
             )
             result = await db.execute(mcp_server_query)
             mcp_server = result.scalar_one_or_none()
@@ -265,7 +268,8 @@ async def mcp_servers_delete(
 
             # First delete all agent tools that reference this MCP server
             agent_tools_delete_query = delete(AgentTool).where(
-                AgentTool.mcp_server_id == uuid.UUID(function_input.mcp_server_id)
+                AgentTool.mcp_server_id
+                == uuid.UUID(function_input.mcp_server_id)
             )
             await db.execute(agent_tools_delete_query)
 
@@ -289,7 +293,8 @@ async def mcp_servers_get_by_id(
     async for db in get_async_db():
         try:
             mcp_server_query = select(McpServer).where(
-                McpServer.id == uuid.UUID(function_input.mcp_server_id)
+                McpServer.id
+                == uuid.UUID(function_input.mcp_server_id)
             )
             result = await db.execute(mcp_server_query)
             mcp_server = result.scalar_one_or_none()
