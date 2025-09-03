@@ -206,7 +206,7 @@ export function AgentLifecycle({
       case "pending":
         return "bg-yellow-100 text-yellow-800";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "bg-neutral-100 text-neutral-800";
     }
   };
 
@@ -219,7 +219,7 @@ export function AgentLifecycle({
       case "info":
         return "bg-blue-100 text-blue-800";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "bg-neutral-100 text-neutral-800";
     }
   };
 
@@ -230,7 +230,7 @@ export function AgentLifecycle({
       case "down":
         return <TrendingUp className="h-4 w-4 text-red-600 rotate-180" />;
       default:
-        return <TrendingUp className="h-4 w-4 text-gray-600" />;
+        return <TrendingUp className="h-4 w-4 text-neutral-600" />;
     }
   };
 
@@ -282,7 +282,7 @@ export function AgentLifecycle({
                         ? "bg-green-100 text-green-600"
                         : item.status === "in-progress"
                           ? "bg-blue-100 text-blue-600"
-                          : "bg-gray-100 text-gray-400"
+                          : "bg-neutral-100 text-neutral-400"
                     }`}
                   >
                     <IconComponent className="h-6 w-6" />
@@ -371,7 +371,7 @@ export function AgentLifecycle({
                         </Badge>
                         <div
                           className={`w-3 h-3 rounded-full ${
-                            guardrail.enabled ? "bg-green-500" : "bg-gray-300"
+                            guardrail.enabled ? "bg-green-500" : "bg-neutral-300"
                           }`}
                         />
                       </div>
@@ -615,7 +615,7 @@ export function AgentLifecycle({
                               className={`h-4 w-4 ${
                                 i < audit.rating
                                   ? "fill-yellow-400 text-yellow-400"
-                                  : "text-gray-300"
+                                  : "text-neutral-300"
                               }`}
                             />
                           ))}

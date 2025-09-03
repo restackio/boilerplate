@@ -114,7 +114,7 @@ export function CreateAgentModal({ onAgentCreated }: CreateAgentModalProps) {
             {nameError && (
               <p className="text-sm text-red-500">{nameError}</p>
             )}
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-neutral-500">
               Use lowercase letters, numbers, hyphens, and underscores only
             </p>
           </div>

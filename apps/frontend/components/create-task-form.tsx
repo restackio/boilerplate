@@ -247,8 +247,8 @@ export function CreateTaskForm({
           setAllAgentVersions([]);
           setShowVersionSelector(false);
           
-          // Navigate to tasks with a filter for scheduled tasks
-          router.push("/tasks?filter=scheduled");
+          // Navigate to the created schedule page
+          router.push(`/tasks/schedules/${taskResult.data.id}`);
         } else {
           alert("Task created but failed to create schedule. Please try again.");
         }
@@ -293,7 +293,7 @@ export function CreateTaskForm({
                 <>
                   <div className="border-t my-1"></div>
                   <div 
-                    className="flex items-center px-2 py-1.5 text-sm cursor-pointer hover:bg-gray-100 rounded-sm"
+                    className="flex items-center px-2 py-1.5 text-sm cursor-pointer hover:bg-neutral-100 rounded-sm"
                     onClick={() => router.push('/agents')}
                   >
                     <Settings className="h-4 w-4 mr-2" />
@@ -336,7 +336,7 @@ export function CreateTaskForm({
                     <button
                       type="button"
                       onClick={handleClearAllVersions}
-                      className="text-xs text-gray-600 hover:text-gray-800"
+                      className="text-xs text-neutral-600 hover:text-neutral-800"
                     >
                       Clear
                     </button>
@@ -345,7 +345,7 @@ export function CreateTaskForm({
                 <DropdownMenuSeparator />
                 <div className="p-2 space-y-2 max-h-64 overflow-y-auto">
                   {allAgentVersions.map((version) => (
-                    <div key={version.id} className="flex items-center space-x-2 px-2 py-1 hover:bg-gray-50 rounded">
+                    <div key={version.id} className="flex items-center space-x-2 px-2 py-1 hover:bg-neutral-50 rounded">
                       <Checkbox
                         id={`dropdown-${version.id}`}
                         checked={selectedVersionIds.includes(version.id)}
@@ -359,7 +359,7 @@ export function CreateTaskForm({
                         <span className={`text-xs px-2 py-1 rounded ${
                           version.status === 'active' 
                             ? 'bg-green-100 text-green-800' 
-                            : 'bg-gray-100 text-gray-600'
+                            : 'bg-neutral-100 text-neutral-600'
                         }`}>
                           {version.status}
                         </span>
@@ -371,7 +371,7 @@ export function CreateTaskForm({
                   <>
                     <DropdownMenuSeparator />
                     <div className="p-2">
-                      <p className="text-xs text-gray-600">
+                      <p className="text-xs text-neutral-600">
                         Will create {selectedVersionIds.length} tasks
                       </p>
                     </div>
@@ -395,8 +395,8 @@ export function CreateTaskForm({
             </Button>
           }
           onScheduleSubmit={handleScheduleSubmit}
-          title="Schedule Task"
-          submitLabel="Create Schedule"
+          title="Schedule task"
+          submitLabel="Create schedule"
         />
 
         {/* Create Task Button */}

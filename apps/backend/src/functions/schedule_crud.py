@@ -5,7 +5,7 @@ from typing import Dict, Any
 
 from pydantic import BaseModel, Field
 from restack_ai.function import NonRetryableError, function
-from restack_ai.restack import ScheduleSpec, ScheduleCalendarSpec, ScheduleIntervalSpec
+from restack_ai.restack import ScheduleSpec, ScheduleCalendarSpec, ScheduleIntervalSpec, ScheduleRange
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
@@ -67,35 +67,48 @@ class UnifiedScheduleSpec(BaseModel):
     calendars: list[ScheduleCalendar] | None = None
     intervals: list[ScheduleInterval] | None = None
     cron: str | None = None
+    time_zone: str | None = Field(
+        default="UTC", 
+        description="IANA timezone name (e.g., 'America/New_York', 'Europe/London', 'UTC')"
+    )
 
     def to_restack_format(self) -> ScheduleSpec:
-        """Convert to Restack ScheduleSpec format."""
+        """Convert to Restack ScheduleSpec format with proper ScheduleRange objects."""
         if self.calendars:
             return ScheduleSpec(
                 calendars=[
                     ScheduleCalendarSpec(
-                        day_of_week=cal.day_of_week,
-                        hour=cal.hour,
-                        minute=cal.minute
+                        # Use ScheduleRange for each time component
+                        day_of_week=[ScheduleRange(start=int(cal.day_of_week), end=int(cal.day_of_week), step=1)],
+                        hour=[ScheduleRange(start=cal.hour, end=cal.hour, step=1)],
+                        minute=[ScheduleRange(start=cal.minute, end=cal.minute, step=1)],
                     )
                     for cal in self.calendars
-                ]
+                ],
+                time_zone_name=self.time_zone
             )
         elif self.intervals:
             return ScheduleSpec(
                 intervals=[
                     ScheduleIntervalSpec(every=parse_interval_string(interval.every))
                     for interval in self.intervals
-                ]
+                ],
+                time_zone_name=self.time_zone
             )
         elif self.cron:
-            return ScheduleSpec(cron_expressions=[self.cron])
+            return ScheduleSpec(
+                cron_expressions=[self.cron],
+                time_zone_name=self.time_zone
+            )
         else:
             raise ValueError("Schedule spec must have calendars, intervals, or cron")
 
     @classmethod
     def from_frontend_format(cls, spec: Dict[str, Any]) -> "UnifiedScheduleSpec":
         """Convert from frontend format to unified format."""
+        # Extract timezone from spec, default to UTC
+        time_zone = spec.get("timeZone", "UTC")
+        
         if "calendars" in spec and spec["calendars"]:
             calendars = [
                 ScheduleCalendar(
@@ -105,42 +118,40 @@ class UnifiedScheduleSpec(BaseModel):
                 )
                 for cal in spec["calendars"]
             ]
-            return cls(calendars=calendars)
+            return cls(calendars=calendars, time_zone=time_zone)
         elif "intervals" in spec and spec["intervals"]:
             intervals = [
                 ScheduleInterval(every=interval["every"])
                 for interval in spec["intervals"]
             ]
-            return cls(intervals=intervals)
+            return cls(intervals=intervals, time_zone=time_zone)
         elif "cron" in spec:
-            return cls(cron=spec["cron"])
+            return cls(cron=spec["cron"], time_zone=time_zone)
         else:
             raise ValueError("Invalid schedule specification format")
 
     def to_frontend_format(self) -> Dict[str, Any]:
         """Convert to frontend format."""
+        base = {"timeZone": self.time_zone}
+        
         if self.calendars:
-            return {
-                "calendars": [
-                    {
-                        "dayOfWeek": cal.day_of_week,  # Frontend expects camelCase
-                        "hour": cal.hour,
-                        "minute": cal.minute
-                    }
-                    for cal in self.calendars
-                ]
-            }
+            base["calendars"] = [
+                {
+                    "dayOfWeek": cal.day_of_week,  # Frontend expects camelCase
+                    "hour": cal.hour,
+                    "minute": cal.minute
+                }
+                for cal in self.calendars
+            ]
         elif self.intervals:
-            return {
-                "intervals": [
-                    {"every": interval.every}
-                    for interval in self.intervals
-                ]
-            }
+            base["intervals"] = [
+                {"every": interval.every}
+                for interval in self.intervals
+            ]
         elif self.cron:
-            return {"cron": self.cron}
-        else:
-            return {}
+            base["cron"] = self.cron
+            
+        return base
 
 
 # Pydantic models for schedule operations

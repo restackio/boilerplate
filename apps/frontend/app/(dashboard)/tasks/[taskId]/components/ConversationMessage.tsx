@@ -17,7 +17,7 @@ export function ConversationMessage({ item }: ConversationMessageProps) {
         <div
           className={
             isUser
-              ? "p-3 rounded-lg bg-gray-100 dark:bg-gray-800"
+              ? "p-3 rounded-lg bg-neutral-100 dark:bg-neutral-800"
               : isReasoningType
                 ? "bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800"
                 : "bg-transparent"

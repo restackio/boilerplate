@@ -119,7 +119,7 @@ export function McpServerDialog({
       case 'always':
         return <ShieldAlert className="h-4 w-4 text-yellow-500" />;
       default:
-        return <AlertTriangle className="h-4 w-4 text-gray-400" />;
+        return <AlertTriangle className="h-4 w-4 text-neutral-400" />;
     }
   };
 

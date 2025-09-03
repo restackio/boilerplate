@@ -9,6 +9,7 @@ import { Plus, RefreshCw, Users } from "lucide-react";
 import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
 import { CreateTaskForm } from "@/components/create-task-form";
 import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
+import TasksTabs from "./TasksTabs";
 
 export default function TasksPage() {
   const router = useRouter();
@@ -62,11 +63,13 @@ export default function TasksPage() {
 
   // Transform and filter tasks data
   const tasksData = useMemo(() => {
-    const transformedTasks = tasks.map((task) => ({
-      ...task,
-      created: task.created_at || new Date().toISOString(),
-      updated: task.updated_at || new Date().toISOString(),
-    }));
+    const transformedTasks = tasks
+      .filter(task => !task.schedule_spec) // Exclude tasks with schedule_spec - those belong in /schedules
+      .map((task) => ({
+        ...task,
+        created: task.created_at || new Date().toISOString(),
+        updated: task.updated_at || new Date().toISOString(),
+      }));
 
     // Filter by specific task IDs if provided in URL params
     const tasksParam = searchParams.get('tasks');
@@ -154,9 +157,10 @@ export default function TasksPage() {
   const isShowingNewTasks = tasksParam && highlightParam === 'true';
 
   return (
-    <div className="flex-1 min-w-0">
+    <div className="flex-1">
       <PageHeader breadcrumbs={breadcrumbs} actions={actions} />
-      <div className="p-4 space-y-4 min-w-0 overflow-hidden">
+      <TasksTabs />
+      <div className="p-4 space-y-4">{/* Following agents pattern with proper spacing */}
         {/* Show notification for newly created tasks */}
         {isShowingNewTasks && (
           <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-md">

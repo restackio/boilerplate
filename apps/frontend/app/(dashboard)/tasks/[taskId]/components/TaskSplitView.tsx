@@ -84,7 +84,7 @@ export function TaskSplitView({
                 {selectedCard.openai_output?.content && (
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Content</label>
-                    <div className="text-sm bg-gray-50 dark:bg-gray-800 p-2 rounded mt-1 whitespace-pre-wrap break-words">
+                    <div className="text-sm bg-neutral-50 dark:bg-neutral-800 p-2 rounded mt-1 whitespace-pre-wrap break-words">
                       {Array.isArray(selectedCard.openai_output.content) 
                         ? selectedCard.openai_output.content.map(c => c.text).join('\n')
                         : String(selectedCard.openai_output.content)}
@@ -132,7 +132,7 @@ export function TaskSplitView({
                     <label className="text-sm font-medium text-muted-foreground">Available Tools ({selectedCard.openai_output.tools.length})</label>
                     <div className="space-y-2 mt-1 max-h-32 overflow-auto">
                       {selectedCard.openai_output.tools.slice(0, 5).map((tool: any, index: number) => (
-                        <div key={index} className="text-xs bg-gray-100 dark:bg-gray-800 p-2 rounded border">
+                        <div key={index} className="text-xs bg-neutral-100 dark:bg-neutral-800 p-2 rounded border">
                           <strong>{tool.name}</strong>: {tool.description}
                         </div>
                       ))}
@@ -175,7 +175,7 @@ export function TaskSplitView({
                     <summary className="cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground">
                       Debug
                     </summary>
-                    <pre className="text-xs overflow-auto max-h-64 bg-gray-100 dark:bg-gray-800 p-2 rounded mt-2 whitespace-pre-wrap break-words max-w-full">
+                    <pre className="text-xs overflow-auto max-h-64 bg-neutral-100 dark:bg-neutral-800 p-2 rounded mt-2 whitespace-pre-wrap break-words max-w-full">
                       {JSON.stringify(selectedCard.openai_output, null, 2)}
                     </pre>
                   </details>

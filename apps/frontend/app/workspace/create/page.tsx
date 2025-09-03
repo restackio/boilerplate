@@ -27,7 +27,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { runWorkflow, getWorkflowResult } from "@/app/actions/workflow";
+import { executeWorkflow } from "@/app/actions/workflow";
 
 export default function CreateWorkspacePage() {
   const [currentStep, setCurrentStep] = useState(1);
@@ -96,19 +96,11 @@ export default function CreateWorkspacePage() {
 
     try {
       // Create the workspace
-      const workspaceResult = await runWorkflow({
-        workflowName: "WorkspacesCreateWorkflow",
-        input: {
-          name: formData.companyName,
-        },
+      const workspaceData = await executeWorkflow("WorkspacesCreateWorkflow", {
+        name: formData.companyName,
       });
 
-      const workspaceData = await getWorkflowResult({
-        workflowId: workspaceResult.workflowId,
-        runId: workspaceResult.runId,
-      });
-
-      if (!workspaceData?.success || !workspaceData.data) {
+      if (!workspaceData.success || !workspaceData.data) {
         setError("Failed to create workspace");
         setIsLoading(false);
         return;
@@ -125,21 +117,13 @@ export default function CreateWorkspacePage() {
       const userData = JSON.parse(storedUser);
 
       // Add user to the new workspace
-      const userWorkspaceResult = await runWorkflow({
-        workflowName: "UserWorkspacesCreateWorkflow",
-        input: {
-          user_id: userData.id,
-          workspace_id: workspaceData.data.id,
-          role: "owner",
-        },
+      const userWorkspaceData = await executeWorkflow("UserWorkspacesCreateWorkflow", {
+        user_id: userData.id,
+        workspace_id: workspaceData.data.id,
+        role: "owner",
       });
 
-      const userWorkspaceData = await getWorkflowResult({
-        workflowId: userWorkspaceResult.workflowId,
-        runId: userWorkspaceResult.runId,
-      });
-
-      if (!userWorkspaceData?.success) {
+      if (!userWorkspaceData.success) {
         setError("Failed to add user to workspace");
         setIsLoading(false);
         return;
@@ -204,7 +188,7 @@ export default function CreateWorkspacePage() {
         {/* Header */}
         <div className="text-center mb-12">
           <h2 className="text-3xl font-bold text-neutral-900 dark:text-neutral-100 mb-4">
-            Create Your Workspace
+            New workspace
           </h2>
           <p className="text-lg text-neutral-600 dark:text-neutral-400 max-w-2xl mx-auto">
             Let&apos;s set up your agent orchestration workspace

@@ -46,9 +46,9 @@ export function ScheduleManagement({ task, onScheduleUpdated }: ScheduleManageme
       case "paused":
         return "bg-yellow-100 text-yellow-800";
       case "inactive":
-        return "bg-gray-100 text-gray-800";
+        return "bg-neutral-100 text-neutral-800";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "bg-neutral-100 text-neutral-800";
     }
   };
 

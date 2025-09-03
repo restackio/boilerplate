@@ -46,7 +46,7 @@ export function ConversationCard({
 
   return (
     <Card 
-      className={`w-full border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer ${
+      className={`w-full border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors cursor-pointer ${
         isProcessing ? "opacity-75 pointer-events-none" : ""
       } ${className}`}
       onClick={handleClick}

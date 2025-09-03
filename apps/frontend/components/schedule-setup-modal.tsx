@@ -26,6 +26,7 @@ export interface ScheduleSpec {
   calendars?: ScheduleCalendar[];
   intervals?: ScheduleInterval[];
   cron?: string;
+  timeZone?: string; // IANA timezone name (e.g., 'America/New_York', 'Europe/London', 'UTC')
 }
 
 interface ScheduleSetupModalProps {
@@ -57,12 +58,55 @@ const PRESET_INTERVALS = [
   { value: "24h", label: "Every day" },
 ];
 
+const getTimezoneOptions = () => {
+  const userTimezone = (() => {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone;
+    } catch {
+      return "UTC";
+    }
+  })();
+
+  const commonTimezones = [
+    { value: "UTC", label: "UTC (Coordinated Universal Time)" },
+    { value: "America/New_York", label: "Eastern Time (US & Canada)" },
+    { value: "America/Chicago", label: "Central Time (US & Canada)" },
+    { value: "America/Denver", label: "Mountain Time (US & Canada)" },
+    { value: "America/Los_Angeles", label: "Pacific Time (US & Canada)" },
+    { value: "Europe/London", label: "London (GMT/BST)" },
+    { value: "Europe/Paris", label: "Paris (CET/CEST)" },
+    { value: "Europe/Berlin", label: "Berlin (CET/CEST)" },
+    { value: "Asia/Tokyo", label: "Tokyo (JST)" },
+    { value: "Asia/Shanghai", label: "Shanghai (CST)" },
+    { value: "Asia/Kolkata", label: "Mumbai (IST)" },
+    { value: "Australia/Sydney", label: "Sydney (AEST/AEDT)" },
+  ];
+
+  // Check if user's timezone is already in the list
+  const userTimezoneExists = commonTimezones.some(tz => tz.value === userTimezone);
+  
+  // If user timezone is not in common list, add it at the top
+  if (!userTimezoneExists && userTimezone !== "UTC") {
+    return [
+      { value: userTimezone, label: `${userTimezone} (Current)` },
+      ...commonTimezones
+    ];
+  }
+
+  // If user timezone is in the list, mark it as current
+  return commonTimezones.map(tz => 
+    tz.value === userTimezone 
+      ? { ...tz, label: `${tz.label} (Current)` }
+      : tz
+  );
+};
+
 export function ScheduleSetupModal({
   trigger,
   onScheduleSubmit,
   initialSchedule,
-  title = "Schedule Task",
-  submitLabel = "Create Schedule",
+  title = "Schedule",
+  submitLabel = "Create schedule",
 }: ScheduleSetupModalProps) {
   const [open, setOpen] = useState(false);
   const [scheduleType, setScheduleType] = useState<"calendar" | "interval" | "cron">("calendar");
@@ -87,6 +131,18 @@ export function ScheduleSetupModal({
   // Cron state
   const [cronExpression, setCronExpression] = useState<string>(
     initialSchedule?.cron ?? "0 9 * * 1-5"
+  );
+  // Automatically detect user's timezone as default
+  const getUserTimezone = () => {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone;
+    } catch {
+      return "UTC"; // Fallback if detection fails
+    }
+  };
+
+  const [selectedTimezone, setSelectedTimezone] = useState<string>(
+    initialSchedule?.timeZone ?? getUserTimezone()
   );
 
   const handleDayToggle = (day: string) => {
@@ -114,6 +170,7 @@ export function ScheduleSetupModal({
               hour: selectedHour,
               minute: selectedMinute, // Always set, defaults to 0
             })),
+            timeZone: selectedTimezone,
           };
           break;
 
@@ -126,6 +183,7 @@ export function ScheduleSetupModal({
           }
           scheduleSpec = {
             intervals: [{ every: intervalValue.trim() }],
+            timeZone: selectedTimezone,
           };
           break;
 
@@ -136,6 +194,7 @@ export function ScheduleSetupModal({
           }
           scheduleSpec = {
             cron: cronExpression.trim(),
+            timeZone: selectedTimezone,
           };
           break;
       }
@@ -158,10 +217,11 @@ export function ScheduleSetupModal({
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Clock className="h-5 w-5" />
             {title}
           </DialogTitle>
         </DialogHeader>
+
+
 
         <Tabs value={scheduleType} onValueChange={(value) => setScheduleType(value as typeof scheduleType)}>
           <TabsList className="grid w-full grid-cols-3">
@@ -237,7 +297,7 @@ export function ScheduleSetupModal({
                 </div>
               </div>
 
-              <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-md">
+              <div className="text-sm text-neutral-600 bg-neutral-100 p-3 rounded-md">
                 <p className="font-medium">Example:</p>
                 <p>
                   Will run {selectedDays.length === 0 ? "on selected days" : `on ${selectedDays.map(d => DAYS_OF_WEEK.find(day => day.value === d)?.label).join(", ")}`} at {selectedHour.toString().padStart(2, "0")}:{selectedMinute.toString().padStart(2, "0")}
@@ -276,13 +336,13 @@ export function ScheduleSetupModal({
                   value={intervalValue}
                   onChange={(e) => setIntervalValue(e.target.value)}
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-neutral-500 mt-1">
                   Format: number + unit (s=seconds, m=minutes, h=hours, d=days)<br/>
                   Examples: 30s, 5m, 1h, 2d, 1.5h
                 </p>
               </div>
 
-              <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-md">
+              <div className="text-sm text-neutral-600 bg-neutral-100 p-3 rounded-md">
                 <p className="font-medium">Example:</p>
                 <p>Will run every {intervalValue}</p>
               </div>
@@ -304,7 +364,7 @@ export function ScheduleSetupModal({
                 />
               </div>
 
-              <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-md">
+              <div className="text-sm text-neutral-600 bg-neutral-100 p-3 rounded-md">
                 <p className="font-medium">Format:</p>
                 <pre className="text-xs mt-1">minute hour day_of_month month day_of_week</pre>
                 <p className="mt-2 font-medium">Examples:</p>
@@ -318,6 +378,28 @@ export function ScheduleSetupModal({
           </TabsContent>
         </Tabs>
 
+                {/* Timezone Selection - Common to all schedule types */}
+                <div className="space-y-2">
+          <Label htmlFor="timezone" className="text-sm font-medium">
+            Timezone
+          </Label>
+          <Select value={selectedTimezone} onValueChange={setSelectedTimezone}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {getTimezoneOptions().map((tz) => (
+                <SelectItem key={tz.value} value={tz.value}>
+                  {tz.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-neutral-500">
+            All schedule times will be in the selected timezone
+          </p>
+        </div>
+
         <div className="flex justify-end space-x-2 pt-4">
           <Button variant="outline" onClick={() => setOpen(false)}>
             Cancel
@@ -325,7 +407,6 @@ export function ScheduleSetupModal({
           <Button onClick={handleSubmit} disabled={isSubmitting}>
             {isSubmitting ? "Creating..." : (
               <>
-                <Play className="h-4 w-4 mr-2" />
                 {submitLabel}
               </>
             )}

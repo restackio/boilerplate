@@ -32,7 +32,7 @@ export function CodeBlock({ content, maxHeight = "max-h-40", language = "json" }
     : JSON.stringify(content, null, 2);
 
   return (
-    <pre className={`text-xs bg-gray-100 dark:bg-gray-800 p-2 rounded border overflow-x-auto ${maxHeight}`}>
+    <pre className={`text-xs bg-neutral-100 dark:bg-neutral-800 p-2 rounded border overflow-x-auto ${maxHeight}`}>
       {displayContent}
     </pre>
   );
@@ -50,7 +50,7 @@ export function ToolList({ tools, maxVisible = 3 }: ToolListProps) {
   return (
     <div className="space-y-1">
       {visibleTools.map((tool, index) => (
-        <div key={index} className="text-xs bg-gray-100 dark:bg-gray-800 p-2 rounded border">
+        <div key={index} className="text-xs bg-neutral-100 dark:bg-neutral-800 p-2 rounded border">
           <strong>{tool.name}</strong>: {tool.description}
         </div>
       ))}

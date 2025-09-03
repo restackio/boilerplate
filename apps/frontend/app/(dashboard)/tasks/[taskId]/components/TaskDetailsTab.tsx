@@ -74,11 +74,11 @@ export function TaskDetailsTab({ task, onUpdateTask, isLoading = false }: TaskDe
       case "waiting":
         return "bg-yellow-100 text-yellow-800";
       case "closed":
-        return "bg-gray-100 text-gray-800";
+        return "bg-neutral-100 text-neutral-800";
       case "open":
         return "bg-orange-100 text-orange-800";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "bg-neutral-100 text-neutral-800";
     }
   };
 
