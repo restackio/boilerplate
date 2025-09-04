@@ -3,20 +3,11 @@ import { Subscription } from 'rxjs';
 import { ConversationItem, OpenAIEvent } from '../types';
 import { conversationStore, StreamEvent } from '../stores/conversation-store';
 
-interface PersistedMessage {
-  id: string;
-  type: string;
-  timestamp?: string;
-  openai_output?: unknown;
-  openai_event?: unknown;
-  [key: string]: unknown;
-}
-
 interface UseRxjsConversationProps {
   responseState?: { events: OpenAIEvent[]; [key: string]: unknown } | false;
   agentResponses?: { events?: OpenAIEvent[]; [key: string]: unknown }[];
   taskAgentTaskId?: string | null;
-  persistedMessages?: PersistedMessage[];
+  persistedMessages?: unknown[];
 }
 
 /**
@@ -51,12 +42,8 @@ export function useRxjsConversation({
           id: msg.id,
           type: msg.type,
           timestamp: msg.timestamp || new Date().toISOString(),
-          openai_output: msg.openai_output ? msg.openai_output as ConversationItem['openai_output'] : {
-            id: msg.id,
-            type: msg.type,
-            ...msg
-          },
-          openai_event: msg.openai_event as OpenAIEvent || { type: '', sequence_number: 0 },
+          openai_output: msg.openai_output || msg,
+          openai_event: msg.openai_event || { sequence_number: 0 },
           isStreaming: false,
         }));
       
@@ -214,15 +201,13 @@ export function useRxjsConversation({
 
     // Convert to simple StreamEvent format
     const streamEvents: StreamEvent[] = agentResponses
-      .flatMap(response => response.events || [])
-      .map(event => ({
-        type: event.type || '',
-        sequence_number: event.sequence_number || 0,
-        item_id: event.item_id,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        delta: (event as any).delta,
-        text: event.text,
-        item: event.item,
+      .map(response => ({
+        type: response.type,
+        sequence_number: response.sequence_number || 0,
+        item_id: response.item_id,
+        delta: response.delta,
+        text: response.text,
+        item: response.item,
       }));
 
     conversationStore.updateStreamEvents(streamEvents);
