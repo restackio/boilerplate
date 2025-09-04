@@ -3,12 +3,10 @@
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@workspace/ui/components/ui/dialog";
 import { Button } from "@workspace/ui/components/ui/button";
-import { Input } from "@workspace/ui/components/ui/input";
-import { Label } from "@workspace/ui/components/ui/label";
-import { Textarea } from "@workspace/ui/components/ui/textarea";
-import { Switch } from "@workspace/ui/components/ui/switch";
 import { Loader2 } from "lucide-react";
 import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
+import { McpServerForm, McpServerFormData, ToolListState } from "./shared/McpServerForm";
+import { validateMcpServerForm, parseHeaders } from "./shared/mcpServerValidation";
 
 interface AddMcpServerDialogProps {
   open: boolean;
@@ -16,18 +14,10 @@ interface AddMcpServerDialogProps {
   onSuccess?: () => void;
 }
 
-interface FormData {
-  server_label: string;
-  server_url: string;
-  local: boolean;
-  server_description: string;
-  headers: Record<string, string>;
-}
-
 export function AddMcpServerDialog({ open, onOpenChange, onSuccess }: AddMcpServerDialogProps) {
   const { createMcpServer } = useWorkspaceScopedActions();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formData, setFormData] = useState<FormData>({
+  const [formData, setFormData] = useState<McpServerFormData>({
     server_label: "",
     server_url: "",
     local: false,
@@ -35,42 +25,29 @@ export function AddMcpServerDialog({ open, onOpenChange, onSuccess }: AddMcpServ
     headers: {}
   });
   const [headerInput, setHeaderInput] = useState("");
+  const [toolList, setToolList] = useState<ToolListState>({
+    isListing: false,
+    listedTools: [],
+    error: null,
+    hasListed: false,
+    approvalSettings: { never: [], always: [] }
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     try {
-      // Parse headers from JSON string if provided
-      let parsedHeaders = {};
-      if (headerInput.trim()) {
-        try {
-          parsedHeaders = JSON.parse(headerInput);
-        } catch (error) {
-          alert("Invalid JSON format for headers");
-          setIsSubmitting(false);
-          return;
-        }
-      }
-
       // Validate form
-      if (!formData.server_label.trim()) {
-        alert("Server label is required");
+      const validation = validateMcpServerForm(formData, headerInput);
+      if (!validation.isValid) {
+        alert(validation.error);
         setIsSubmitting(false);
         return;
       }
 
-      if (!formData.local && !formData.server_url.trim()) {
-        alert("Server URL is required for remote servers");
-        setIsSubmitting(false);
-        return;
-      }
-
-      if (formData.local && formData.server_url.trim()) {
-        alert("Server URL should be empty for local servers");
-        setIsSubmitting(false);
-        return;
-      }
+      // Parse headers
+      const parsedHeaders = parseHeaders(headerInput);
 
       const result = await createMcpServer({
         server_label: formData.server_label,
@@ -79,23 +56,15 @@ export function AddMcpServerDialog({ open, onOpenChange, onSuccess }: AddMcpServ
         server_description: formData.server_description || undefined,
         headers: Object.keys(parsedHeaders).length > 0 ? parsedHeaders : undefined,
         require_approval: {
-          never: { tool_names: [] },
-          always: { tool_names: [] }
+          never: { tool_names: toolList.approvalSettings.never },
+          always: { tool_names: toolList.approvalSettings.always }
         }
       });
 
       if (result?.success) {
         onSuccess?.();
         onOpenChange(false);
-        // Reset form
-        setFormData({
-          server_label: "",
-          server_url: "",
-          local: false,
-          server_description: "",
-          headers: {}
-        });
-        setHeaderInput("");
+        resetForm();
       } else {
         alert(result?.error || "Failed to create MCP server");
       }
@@ -107,12 +76,22 @@ export function AddMcpServerDialog({ open, onOpenChange, onSuccess }: AddMcpServ
     }
   };
 
-  const handleLocalToggle = (checked: boolean) => {
-    setFormData(prev => ({
-      ...prev,
-      local: checked,
-      server_url: checked ? "" : prev.server_url
-    }));
+  const resetForm = () => {
+    setFormData({
+      server_label: "",
+      server_url: "",
+      local: false,
+      server_description: "",
+      headers: {}
+    });
+    setHeaderInput("");
+    setToolList({
+      isListing: false,
+      listedTools: [],
+      error: null,
+      hasListed: false,
+      approvalSettings: { never: [], always: [] }
+    });
   };
 
   return (
@@ -120,74 +99,20 @@ export function AddMcpServerDialog({ open, onOpenChange, onSuccess }: AddMcpServ
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            Add
+            Add MCP Server
           </DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="server_label">Name</Label>
-            <Input
-              id="server_label"
-              value={formData.server_label}
-              onChange={(e) => setFormData(prev => ({ ...prev, server_label: e.target.value }))}
-              placeholder="e.g., github-workflow"
-              required
-            />
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <Switch
-              id="local"
-              checked={formData.local}
-              onCheckedChange={handleLocalToggle}
-            />
-            <Label htmlFor="local">Local MCP Server</Label>
-          </div>
-
-          {!formData.local && (
-            <div>
-              <Label htmlFor="server_url">URL</Label>
-              <Input
-                id="server_url"
-                value={formData.server_url}
-                onChange={(e) => setFormData(prev => ({ ...prev, server_url: e.target.value }))}
-                placeholder="https://example.com/mcp"
-                required={!formData.local}
-              />
-            </div>
-          )}
-
-          {formData.local && (
-            <div className="text-sm text-muted-foreground bg-blue-50 p-3 rounded-md">
-              <strong>Local Server:</strong> This server will use the MCP_URL environment variable for connection.
-            </div>
-          )}
-
-          <div>
-            <Label htmlFor="server_description">Description</Label>
-            <Textarea
-              id="server_description"
-              value={formData.server_description}
-              onChange={(e) => setFormData(prev => ({ ...prev, server_description: e.target.value }))}
-              placeholder="Optional description of the MCP server"
-              rows={3}
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="headers">Headers (JSON format)</Label>
-            <Textarea
-              id="headers"
-              value={headerInput}
-              onChange={(e) => setHeaderInput(e.target.value)}
-              placeholder='{"Authorization": "Bearer token"}'
-              rows={3}
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-              Optional headers as JSON object
-            </p>
-          </div>
+          <McpServerForm
+            formData={formData}
+            onFormDataChange={setFormData}
+            headerInput={headerInput}
+            onHeaderInputChange={setHeaderInput}
+            toolList={toolList}
+            onToolListChange={setToolList}
+            isSubmitting={isSubmitting}
+          />
 
           <div className="flex justify-end gap-2 pt-4">
             <Button

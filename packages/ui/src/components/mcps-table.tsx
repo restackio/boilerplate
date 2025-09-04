@@ -180,20 +180,6 @@ export function MCPsTable({ data, onEditMCP }: MCPsTableProps) {
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-2">
-                      {!mcp.local && mcp.server_url && (
-                        <Link href={mcp.server_url} target="_blank">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            asChild
-                          >
-                            <span>
-                              <ExternalLink className="h-4 w-4 sm:mr-2" />
-                              <span className="hidden sm:inline">Visit</span>
-                            </span>
-                          </Button>
-                        </Link>
-                      )}
                       <Button
                         variant="outline"
                         size="sm"

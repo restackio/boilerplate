@@ -258,7 +258,8 @@ class AgentTask:
         tools_result = await agent.step(
             function=agent_tools_read_by_agent,
             function_input=AgentToolsGetByAgentInput(
-                agent_id=self.agent_id
+                agent_id=self.agent_id,
+                convert_approval_to_string=True
             ),
             start_to_close_timeout=timedelta(seconds=30),
         )

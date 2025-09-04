@@ -37,6 +37,11 @@ from src.functions.mcp_servers_crud import (
     mcp_servers_read,
     mcp_servers_update,
 )
+from src.functions.mcp_tools_refresh import (
+    mcp_session_init,
+    mcp_tools_list,
+    mcp_tools_list_direct,
+)
 from src.functions.restack_engine import (
     restack_engine_api_schedule,
 )
@@ -111,6 +116,7 @@ from src.workflows.crud.mcp_servers_crud import (
     McpServersGetByIdWorkflow,
     McpServersReadWorkflow,
     McpServersUpdateWorkflow,
+    McpToolsListWorkflow,
 )
 from src.workflows.crud.schedule_crud import (
     ScheduleControlWorkflow,
@@ -205,6 +211,7 @@ async def run_restack_service() -> None:
             McpServersUpdateWorkflow,
             McpServersDeleteWorkflow,
             McpServersGetByIdWorkflow,
+            McpToolsListWorkflow,
             AgentToolsReadByAgentWorkflow,
             AgentToolsReadRecordsByAgentWorkflow,
             AgentToolsCreateWorkflow,
@@ -267,6 +274,10 @@ async def run_restack_service() -> None:
             mcp_servers_update,
             mcp_servers_delete,
             mcp_servers_get_by_id,
+            # MCP tools functions
+            mcp_session_init,
+            mcp_tools_list,
+            mcp_tools_list_direct,
             # Agent tools functions
             agent_tools_read_by_agent,
             agent_tools_read_records_by_agent,

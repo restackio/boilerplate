@@ -5,9 +5,13 @@ from pathlib import Path
 from watchfiles import run_process
 
 from src.client import client
+from src.functions.generate_random_data import (
+    generate_random_data,
+)
 from src.functions.llm_response import llm_response
 from src.workflows.tools.datadog_logs import DatadogLogs
 from src.workflows.tools.github_pr import GitHubPR
+from src.workflows.tools.hello_world import HelloWorld
 from src.workflows.tools.knowledge_base import KnowledgeBase
 from src.workflows.tools.linear_issue import LinearIssue
 from src.workflows.tools.pagerduty_incident import (
@@ -27,9 +31,11 @@ async def run_restack_service() -> None:
             GitHubPR,
             KnowledgeBase,
             PagerDutyIncident,
+            HelloWorld,
         ],
         functions=[
             llm_response,
+            generate_random_data,
         ],
     )
 
