@@ -4,12 +4,18 @@ import { ConversationItem } from '../types';
 
 export interface StreamEvent {
   type: string;
-  item?: any;
+  item?: {
+    id: string;
+    type: string;
+    role?: string;
+    content?: unknown[];
+    [key: string]: unknown;
+  };
   item_id?: string;
   sequence_number: number;
   text?: string;
-  delta?: any;
-  [key: string]: any;
+  delta?: unknown;
+  [key: string]: unknown;
 }
 
 export interface ConversationState {

@@ -76,7 +76,7 @@ function renderConversationItem(
   onCardClick?: (item: ConversationItem) => void,
 ) {
   switch (item.type) {
-    case 'reasoning':
+    case 'reasoning': {
       const reasoningText = item.openai_output?.summary?.map(s => s.text).join('\n\n') || '';
       return (
         <Reasoning 
@@ -90,6 +90,7 @@ function renderConversationItem(
           </ReasoningContent>
         </Reasoning>
       );
+    }
         
     case 'mcp_approval_request':
       return (
@@ -133,7 +134,7 @@ function renderConversationItem(
     case 'assistant':
       return <ConversationMessage key={item.id} item={item} />;
       
-    case 'response_status':
+    case 'response_status': {
       const responseStatus = item.openai_event?.response?.status || item.openai_event?.type?.split('.').pop();
       return (
         <div key={item.id} className="flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground">
@@ -145,6 +146,7 @@ function renderConversationItem(
           </span>
         </div>
       );
+    }
       
     default:
       return <ConversationMessage key={item.id} item={item} />;

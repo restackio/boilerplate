@@ -7,6 +7,10 @@ import { ConversationItem } from "../types";
 
 // Status-related utilities
 export const getItemStatus = (item: ConversationItem): string => {
+  // For MCP approval requests without status, they're waiting for approval
+  if (item.type === "mcp_approval_request" && !item.openai_output?.status) {
+    return "waiting-approval";
+  }
   return item.openai_output?.status || "unknown";
 };
 
@@ -124,9 +128,10 @@ export const getDisplayTitle = (item: ConversationItem): string => {
       return `List tools${serverLabel ? ` (${serverLabel})` : ""}`;
     case "mcp_approval_request":
       return `Approval required: ${toolName}${serverLabel ? ` (${serverLabel})` : ""}`;
-    case "web_search_call":
+    case "web_search_call": {
       const query = item.openai_output?.action?.query;
       return `Web Search: ${query || "Searching..."}`;
+    }
     case "reasoning":
       return "Agent Reasoning";
     default:

@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Subscription } from 'rxjs';
-import { ConversationItem } from '../types';
+import { ConversationItem, OpenAIEvent } from '../types';
 import { conversationStore, StreamEvent } from '../stores/conversation-store';
 
 interface UseRxjsConversationProps {
-  responseState?: any;
-  agentResponses?: any[];
+  responseState?: { events: OpenAIEvent[]; [key: string]: unknown } | false;
+  agentResponses?: { events?: OpenAIEvent[]; [key: string]: unknown }[];
   taskAgentTaskId?: string | null;
-  persistedMessages?: any[];
+  persistedMessages?: unknown[];
 }
 
 /**
@@ -61,28 +61,50 @@ export function useRxjsConversation({
     const aiResponses: ConversationItem[] = [];
     const loadingIndicators: ConversationItem[] = [];
     
-    // Step 1: Collect user messages in chronological order
-    responseState.events.forEach((event: any) => {
-      if (event.type === 'response.output_item.done' && 
-          event.item?.type === 'message' && 
-          event.item?.role === 'user') {
-        userMessages.push({
-          id: event.item.id,
-          type: event.item.type,
-          timestamp: event.timestamp || new Date().toISOString(),
-          openai_output: event.item,
-          openai_event: event,
-          isStreaming: false,
-        });
+    // Step 1: Collect user messages and approval requests in chronological order
+    responseState.events.forEach((event: OpenAIEvent) => {
+      if (event.type === 'response.output_item.done' && event.item) {
+        if (event.item.type === 'message' && event.item.role === 'user') {
+          // User messages
+          userMessages.push({
+            id: event.item.id,
+            type: event.item.type,
+            timestamp: event.timestamp || new Date().toISOString(),
+            openai_output: event.item,
+            openai_event: event,
+            isStreaming: false,
+          });
+        } else if (event.item.type === 'mcp_approval_request') {
+          // MCP approval requests - only show if not fulfilled
+          const approvalId = event.item.id;
+          
+          // Check if this approval has been fulfilled by looking for MCP calls
+          const isFulfilled = responseState.events.some((e: OpenAIEvent) => 
+            e.type === 'response.output_item.done' && 
+            e.item?.type === 'mcp_call' && 
+            (e.item as { approval_request_id?: string }).approval_request_id === approvalId
+          );
+          
+          if (!isFulfilled) {
+            aiResponses.push({
+              id: event.item.id,
+              type: event.item.type,
+              timestamp: event.timestamp || new Date().toISOString(),
+              openai_output: event.item,
+              openai_event: event,
+              isStreaming: false,
+            });
+          }
+        }
       }
     });
     
     // Step 2: Collect response.created events for loading indicators
     responseState.events
-      .filter((event: any) => event.type === 'response.created')
-      .forEach((event: any) => {
+      .filter((event: OpenAIEvent) => event.type === 'response.created')
+      .forEach((event: OpenAIEvent) => {
         loadingIndicators.push({
-          id: `${event.response.id}_created`,
+          id: `${event.response?.id}_created`,
           type: 'response_status',
           timestamp: event.timestamp || new Date().toISOString(),
           openai_output: null,
@@ -93,19 +115,34 @@ export function useRxjsConversation({
     
     // Step 3: Collect AI responses from completed responses (in chronological order)
     responseState.events
-      .filter((event: any) => event.type === 'response.completed')
-      .forEach((event: any) => {
-        (event.response?.output || []).forEach((outputItem: any) => {
+      .filter((event: OpenAIEvent) => event.type === 'response.completed')
+      .forEach((event: OpenAIEvent) => {
+        (event.response?.output || []).forEach((outputItem: unknown) => {
+          const item = outputItem as { id: string; type: string; [key: string]: unknown };
           aiResponses.push({
-            id: outputItem.id,
-            type: outputItem.type,
+            id: item.id,
+            type: item.type,
             timestamp: event.timestamp || new Date().toISOString(),
-            openai_output: outputItem,
+            openai_output: item,
             openai_event: event,
             isStreaming: false,
           });
         });
       });
+
+    // Step 4: Collect completed MCP calls (these replace approval requests)
+    responseState.events.forEach((event: OpenAIEvent) => {
+      if (event.type === 'response.output_item.done' && event.item?.type === 'mcp_call') {
+        aiResponses.push({
+          id: event.item.id,
+          type: event.item.type,
+          timestamp: event.timestamp || new Date().toISOString(),
+          openai_output: event.item,
+          openai_event: event,
+          isStreaming: false,
+        });
+      }
+    });
     
     // Step 4: Interleave user messages with loading indicators and AI responses
     const items: ConversationItem[] = [];
@@ -130,9 +167,6 @@ export function useRxjsConversation({
         loadingGroups.set(responseId, item);
       }
     });
-    
-    // Convert to arrays
-    const aiGroups = Array.from(responseGroups.values());
     
     // Interleave: user message → loading indicator → AI response group (or just loading if incomplete)
     for (let i = 0; i < userMessages.length; i++) {
