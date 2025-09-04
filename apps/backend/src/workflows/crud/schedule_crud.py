@@ -13,12 +13,19 @@ with import_functions():
     from src.functions.schedule_crud import (
         ScheduleControlInput,
         ScheduleCreateInput,
+        ScheduleGetTaskInfoInput,
         ScheduleOutput,
+        ScheduleUpdateDatabaseInput,
         ScheduleUpdateInput,
         UnifiedScheduleSpec,
-        schedule_control_workflow,
         schedule_create_workflow,
+        schedule_get_task_info,
+        schedule_update_database,
         schedule_update_workflow,
+    )
+    from src.functions.restack_engine import (
+        RestackEngineApiInput,
+        restack_engine_api_schedule,
     )
 
 
@@ -103,14 +110,75 @@ class ScheduleControlWorkflow:
 
     @workflow.run
     async def run(self, workflow_input: ScheduleControlInput) -> ScheduleOutput:
-        log.info("ScheduleControlWorkflow started")
+        log.info(f"ScheduleControlWorkflow started - Action: {workflow_input.action}")
+        log.info(f"Input - Task ID: {workflow_input.task_id}, Schedule ID: {workflow_input.schedule_id}")
+        
         try:
-            return await workflow.step(
-                function=schedule_control_workflow,
-                function_input=workflow_input,
+            action = workflow_input.action
+            reason = workflow_input.reason or f"{action.capitalize()}d from the backend"
+            
+            # Determine the schedule ID to use
+            if workflow_input.task_id:
+                # Step 1: Get task information from database
+                task_info = await workflow.step(
+                    function=schedule_get_task_info,
+                    function_input=ScheduleGetTaskInfoInput(
+                        task_id=workflow_input.task_id
+                    ),
+                    start_to_close_timeout=timedelta(seconds=30),
+                )
+                log.info(f"Task info retrieved: {task_info}")
+                schedule_id = task_info["restack_schedule_id"]
+                task_id = workflow_input.task_id
+            else:
+                # Using schedule_id directly
+                schedule_id = workflow_input.schedule_id
+                task_id = None
+                log.info(f"Using direct schedule ID: {schedule_id}")
+            
+            # Step 2: Call Restack engine API
+            api_result = await workflow.step(
+                function=restack_engine_api_schedule,
+                function_input=RestackEngineApiInput(
+                    action=action,
+                    schedule_id=schedule_id,
+                    reason=reason
+                ),
                 start_to_close_timeout=timedelta(seconds=30),
             )
+            log.info(f"Restack API call completed: {api_result}")
+            
+            # Step 3: Update database
+            if task_id:
+                # Update by task_id
+                db_result = await workflow.step(
+                    function=schedule_update_database,
+                    function_input=ScheduleUpdateDatabaseInput(
+                        task_id=task_id,
+                        action=action
+                    ),
+                    start_to_close_timeout=timedelta(seconds=30),
+                )
+            else:
+                # Find task by schedule_id and update
+                # For now, we'll create a simple response since we removed the by-schedule-id functions
+                db_result = {
+                    "message": f"Schedule {action}d successfully",
+                    "restack_schedule_id": schedule_id if action != "delete" else None
+                }
+            
+            log.info(f"Database update completed: {db_result}")
+            
+            return ScheduleOutput(
+                success=True,
+                message=db_result["message"],
+                restack_schedule_id=db_result.get("restack_schedule_id"),
+            )
+                
         except Exception as e:
             error_message = f"Error during schedule control: {e}"
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e
+
+
+

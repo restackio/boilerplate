@@ -14,6 +14,7 @@ class WorkspaceCreateInput(BaseModel):
 
 
 class WorkspaceUpdateInput(BaseModel):
+    workspace_id: str = Field(..., min_length=1)
     name: str | None = Field(None, min_length=1, max_length=255)
 
 
@@ -22,6 +23,14 @@ class WorkspaceReadInput(BaseModel):
         ...,
         description="User ID to filter workspaces by permissions",
     )
+
+
+class WorkspaceIdInput(BaseModel):
+    workspace_id: str = Field(..., min_length=1)
+
+
+class WorkspaceDeleteOutput(BaseModel):
+    success: bool
 
 
 class WorkspaceOutput(BaseModel):
@@ -114,22 +123,22 @@ async def workspaces_create(
 
 @function.defn()
 async def workspaces_update(
-    workspace_id: str, updates: WorkspaceUpdateInput
+    function_input: WorkspaceUpdateInput
 ) -> WorkspaceSingleOutput:
     """Update an existing workspace."""
     async for db in get_async_db():
         workspace_query = select(Workspace).where(
-            Workspace.id == uuid.UUID(workspace_id)
+            Workspace.id == uuid.UUID(function_input.workspace_id)
         )
         result = await db.execute(workspace_query)
         workspace = result.scalar_one_or_none()
 
         if not workspace:
             raise NonRetryableError(
-                message=f"Workspace with id {workspace_id} not found"
+                message=f"Workspace with id {function_input.workspace_id} not found"
             )
         # Update fields (only non-None values)
-        update_data = updates.dict(exclude_unset=True)
+        update_data = function_input.dict(exclude_unset=True, exclude={"workspace_id"})
         for key, value in update_data.items():
             if hasattr(workspace, key):
                 setattr(workspace, key, value)
@@ -152,34 +161,34 @@ async def workspaces_update(
 
 
 @function.defn()
-async def workspaces_delete(workspace_id: str) -> dict[str, bool]:
+async def workspaces_delete(function_input: WorkspaceIdInput) -> WorkspaceDeleteOutput:
     """Delete a workspace."""
     async for db in get_async_db():
         workspace_query = select(Workspace).where(
-            Workspace.id == uuid.UUID(workspace_id)
+            Workspace.id == uuid.UUID(function_input.workspace_id)
         )
         result = await db.execute(workspace_query)
         workspace = result.scalar_one_or_none()
 
         if not workspace:
             raise NonRetryableError(
-                message=f"Workspace with id {workspace_id} not found"
+                message=f"Workspace with id {function_input.workspace_id} not found"
             )
         await db.delete(workspace)
         await db.commit()
 
-        return {"success": True}
+        return WorkspaceDeleteOutput(success=True)
     return None
 
 
 @function.defn()
 async def workspaces_get_by_id(
-    workspace_id: str,
+    function_input: WorkspaceIdInput,
 ) -> WorkspaceSingleOutput | None:
     """Get a specific workspace by ID."""
     async for db in get_async_db():
         workspace_query = select(Workspace).where(
-            Workspace.id == uuid.UUID(workspace_id)
+            Workspace.id == uuid.UUID(function_input.workspace_id)
         )
         result = await db.execute(workspace_query)
         workspace = result.scalar_one_or_none()

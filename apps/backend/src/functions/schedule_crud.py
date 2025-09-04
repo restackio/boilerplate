@@ -201,14 +201,31 @@ class ScheduleUpdateInput(BaseModel):
 
 
 class ScheduleControlInput(BaseModel):
+    task_id: str | None = Field(None, min_length=1, description="Task ID from database")
+    schedule_id: str | None = Field(None, min_length=1, description="Restack schedule ID")
+    action: str = Field(..., pattern="^(pause|resume|delete)$")
+    reason: str | None = Field(None, description="Reason for the action")
+    
+    def model_post_init(self, __context) -> None:
+        """Validate that either task_id or schedule_id is provided."""
+        if not self.task_id and not self.schedule_id:
+            raise ValueError("Either task_id or schedule_id must be provided")
+        if self.task_id and self.schedule_id:
+            raise ValueError("Only one of task_id or schedule_id should be provided")
+
+class ScheduleUpdateDatabaseInput(BaseModel):
+    """Input model for schedule database update operations."""
     task_id: str = Field(..., min_length=1)
-    action: str = Field(..., pattern="^(start|stop|pause|resume|delete)$")
+    action: str = Field(..., pattern="^(pause|resume|delete)$")
 
 
 class ScheduleOutput(BaseModel):
     success: bool
     message: str | None = None
     restack_schedule_id: str | None = None
+
+
+
 
 
 @function.defn()
@@ -324,32 +341,76 @@ async def schedule_update_workflow(
     return None
 
 
+class ScheduleGetTaskInfoInput(BaseModel):
+    """Input model for getting task information."""
+    task_id: str = Field(..., min_length=1)
+
+
 @function.defn()
-async def schedule_control_workflow(
-    control_input: ScheduleControlInput,
-) -> ScheduleOutput:
-    """Control a scheduled workflow (start, stop, pause, resume, delete)."""
+async def schedule_get_task_info(
+    input_data: ScheduleGetTaskInfoInput,
+) -> dict[str, Any]:
+    """Get task information from database."""
+    task_id = input_data.task_id
     async for db in get_async_db():
         try:
             # Get the task details
-            task_query = select(Task).where(Task.id == uuid.UUID(control_input.task_id))
+            task_query = select(Task).where(Task.id == uuid.UUID(task_id))
             result = await db.execute(task_query)
             task = result.scalar_one_or_none()
 
             if not task:
-                _raise_task_not_found(control_input.task_id)
+                _raise_task_not_found(task_id)
 
             if not task.is_scheduled:
                 _raise_not_scheduled_error()
 
-            # Update schedule status based on action
-            action = control_input.action
-            if action in ("start", "resume"):
+            print(f"Retrieved task info - ID: {task.id}, Title: {task.title}")
+            print(f"Restack Schedule ID: {task.restack_schedule_id}")
+            print(f"Current Status: {task.schedule_status}")
+
+            return {
+                "task_id": str(task.id),
+                "title": task.title,
+                "restack_schedule_id": task.restack_schedule_id,
+                "current_status": task.schedule_status,
+                "is_scheduled": task.is_scheduled,
+            }
+
+        except Exception as e:
+            raise NonRetryableError(
+                message=f"Failed to get task info: {e!s}"
+            ) from e
+    return None
+
+
+@function.defn()
+async def schedule_update_database(
+    input_data: ScheduleUpdateDatabaseInput,
+) -> dict[str, Any]:
+    """Update database after successful API call."""
+    task_id = input_data.task_id
+    action = input_data.action
+    
+    async for db in get_async_db():
+        try:
+            # Get the task again
+            task_query = select(Task).where(Task.id == uuid.UUID(task_id))
+            result = await db.execute(task_query)
+            task = result.scalar_one_or_none()
+
+            if not task:
+                _raise_task_not_found(task_id)
+
+            print(f"Updating database for task {task_id} with action {action}")
+
+            # Update database based on action
+            if action == "resume":
                 task.schedule_status = "active"
-                message = f"Schedule {action}ed successfully"
-            elif action in ("stop", "pause"):
+                message = "Schedule resumed successfully"
+            elif action == "pause":
                 task.schedule_status = "paused"
-                message = f"Schedule {action}ped successfully"
+                message = "Schedule paused successfully"
             elif action == "delete":
                 task.schedule_status = "inactive"
                 task.restack_schedule_id = None
@@ -362,15 +423,21 @@ async def schedule_control_workflow(
             await db.commit()
             await db.refresh(task)
 
-            return ScheduleOutput(
-                success=True,
-                message=message,
-                restack_schedule_id=task.restack_schedule_id,
-            )
+            print(f"Database updated successfully - New status: {task.schedule_status}")
+
+            return {
+                "task_id": str(task.id),
+                "new_status": task.schedule_status,
+                "message": message,
+                "restack_schedule_id": task.restack_schedule_id,
+            }
 
         except Exception as e:
             await db.rollback()
             raise NonRetryableError(
-                message=f"Failed to {control_input.action} schedule: {e!s}"
+                message=f"Failed to update database: {e!s}"
             ) from e
     return None
+
+
+
