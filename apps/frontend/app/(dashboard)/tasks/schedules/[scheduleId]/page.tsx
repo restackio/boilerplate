@@ -262,20 +262,11 @@ export default function SchedulePage() {
           variant="ghost" 
           size="sm" 
           disabled={updating}
-          onClick={() => handleScheduleControl("start")}
+          onClick={() => handleScheduleControl("resume")}
         >
           <Play className="h-4 w-4" />
         </Button>
       )}
-
-      <Button 
-        variant="ghost" 
-        size="sm" 
-        disabled={updating}
-        onClick={() => handleScheduleControl("stop")}
-      >
-        <Square className="h-4 w-4" />
-      </Button>
 
       <Button 
         variant="ghost" 

@@ -17,9 +17,26 @@ class UserCreateInput(BaseModel):
 
 
 class UserUpdateInput(BaseModel):
+    user_id: str = Field(..., min_length=1)
     name: str | None = Field(None, min_length=1, max_length=255)
     email: EmailStr | None = None
     avatar_url: str | None = None
+
+
+class UserIdInput(BaseModel):
+    user_id: str = Field(..., min_length=1)
+
+
+class UserEmailInput(BaseModel):
+    email: str = Field(..., min_length=1)
+
+
+class UserWorkspaceIdInput(BaseModel):
+    workspace_id: str = Field(..., min_length=1)
+
+
+class UserDeleteOutput(BaseModel):
+    success: bool
 
 
 class UserOutput(BaseModel):
@@ -41,7 +58,7 @@ class UserListOutput(BaseModel):
 
 
 @function.defn()
-async def users_read() -> UserListOutput:
+async def users_read(function_input: dict | None = None) -> UserListOutput:
     """Read all users."""
     async for db in get_async_db():
         try:
@@ -129,23 +146,23 @@ async def users_create(
 
 @function.defn()
 async def users_update(
-    user_id: str, updates: UserUpdateInput
+    function_input: UserUpdateInput
 ) -> UserSingleOutput:
     """Update an existing user."""
     async for db in get_async_db():
         try:
             user_query = select(User).where(
-                User.id == uuid.UUID(user_id)
+                User.id == uuid.UUID(function_input.user_id)
             )
             result = await db.execute(user_query)
             user = result.scalar_one_or_none()
 
             if not user:
                 raise NonRetryableError(  # noqa: TRY301
-                    message=f"User with id {user_id} not found"
+                    message=f"User with id {function_input.user_id} not found"
                 )
             # Update fields (only non-None values)
-            update_data = updates.dict(exclude_unset=True)
+            update_data = function_input.dict(exclude_unset=True, exclude={"user_id"})
             for key, value in update_data.items():
                 if hasattr(user, key):
                     setattr(user, key, value)
@@ -176,19 +193,19 @@ async def users_update(
 
 
 @function.defn()
-async def users_delete(user_id: str) -> dict[str, bool]:
+async def users_delete(function_input: UserIdInput) -> UserDeleteOutput:
     """Delete a user."""
     async for db in get_async_db():
         try:
             user_query = select(User).where(
-                User.id == uuid.UUID(user_id)
+                User.id == uuid.UUID(function_input.user_id)
             )
             result = await db.execute(user_query)
             user = result.scalar_one_or_none()
 
             if not user:
                 raise NonRetryableError(  # noqa: TRY301
-                    message=f"User with id {user_id} not found"
+                    message=f"User with id {function_input.user_id} not found"
                 )
             await db.delete(user)
             await db.commit()
@@ -198,19 +215,19 @@ async def users_delete(user_id: str) -> dict[str, bool]:
                 message=f"Failed to delete user: {e!s}"
             ) from e
         else:
-            return {"success": True}
+            return UserDeleteOutput(success=True)
     return None
 
 
 @function.defn()
 async def users_get_by_id(
-    user_id: str,
+    function_input: UserIdInput,
 ) -> UserSingleOutput | None:
     """Get a specific user by ID."""
     async for db in get_async_db():
         try:
             user_query = select(User).where(
-                User.id == uuid.UUID(user_id)
+                User.id == uuid.UUID(function_input.user_id)
             )
             result = await db.execute(user_query)
             user = result.scalar_one_or_none()
@@ -242,12 +259,12 @@ async def users_get_by_id(
 
 @function.defn()
 async def users_get_by_email(
-    email: str,
+    function_input: UserEmailInput,
 ) -> UserSingleOutput | None:
     """Get a specific user by email."""
     async for db in get_async_db():
         try:
-            user_query = select(User).where(User.email == email)
+            user_query = select(User).where(User.email == function_input.email)
             result = await db.execute(user_query)
             user = result.scalar_one_or_none()
 
@@ -278,13 +295,13 @@ async def users_get_by_email(
 
 @function.defn()
 async def users_get_by_workspace(
-    workspace_id: str,
+    function_input: UserWorkspaceIdInput,
 ) -> UserListOutput:
     """Get all users in a workspace."""
     async for db in get_async_db():
         try:
             users_query = select(User).where(
-                User.workspace_id == uuid.UUID(workspace_id)
+                User.workspace_id == uuid.UUID(function_input.workspace_id)
             )
             result = await db.execute(users_query)
             users = result.scalars().all()

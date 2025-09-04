@@ -31,12 +31,21 @@ export function LoginForm({
         password,
       });
 
-      if (workflowResult && workflowResult.success && workflowResult.data) {
+      console.log("Login workflow result:", workflowResult);
+
+      if (workflowResult && workflowResult.success && workflowResult.data && workflowResult.data.user) {
         // Store user info in localStorage
-        localStorage.setItem("currentUser", JSON.stringify(workflowResult.data));
+        localStorage.setItem("currentUser", JSON.stringify(workflowResult.data.user));
         router.push("/dashboard");
       } else {
-        setError(workflowResult?.error || "Invalid email or password");
+        console.log("Login failed - checking conditions:", {
+          hasWorkflowResult: !!workflowResult,
+          workflowSuccess: workflowResult?.success,
+          hasData: !!workflowResult?.data,
+          hasUser: !!workflowResult?.data?.user,
+          error: workflowResult?.error || workflowResult?.data?.error
+        });
+        setError(workflowResult?.error || workflowResult?.data?.error || "Invalid email or password");
       }
     } catch (error) {
       void error; // Suppress unused warning

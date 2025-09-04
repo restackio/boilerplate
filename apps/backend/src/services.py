@@ -37,10 +37,12 @@ from src.functions.mcp_servers_crud import (
     mcp_servers_read,
     mcp_servers_update,
 )
+from src.functions.restack_engine import restack_engine_api_schedule
 from src.functions.schedule_crud import (
-    schedule_control_workflow,
     schedule_create_workflow,
     schedule_update_workflow,
+    schedule_get_task_info,
+    schedule_update_database,
 )
 from src.functions.send_agent_event import send_agent_event
 from src.functions.tasks_crud import (
@@ -229,7 +231,9 @@ async def run_restack_service() -> None:
             tasks_update_agent_task_id,
             schedule_create_workflow,
             schedule_update_workflow,
-            schedule_control_workflow,
+            schedule_get_task_info,
+            schedule_update_database,
+            restack_engine_api_schedule,
             workspaces_read,
             workspaces_create,
             workspaces_update,
