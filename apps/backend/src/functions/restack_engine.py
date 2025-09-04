@@ -8,9 +8,10 @@ from restack_ai.function import NonRetryableError, function
 
 class RestackEngineApiInput(BaseModel):
     """Input model for Restack engine API calls."""
-    action: str = Field(..., pattern="^(pause|resume|delete)$")
+    action: str = Field(..., pattern="^(pause|resume|delete|edit)$")
     schedule_id: str = Field(..., min_length=1)
     reason: str = Field(..., min_length=1)
+    schedule_spec: dict | None = Field(None, description="Schedule specification for edit action")
 
 
 @function.defn()
@@ -42,23 +43,17 @@ async def restack_engine_api_schedule(
         "reason": reason
     }
     
-    # Log the request for debugging
-    print(f"Making Restack API call:")
-    print(f"  URL: {url}")
-    print(f"  Headers: {headers}")
-    print(f"  Payload: {payload}")
+    # Add schedule spec for edit action
+    if action == "edit" and input_data.schedule_spec:
+        payload["scheduleSpec"] = input_data.schedule_spec
+    
     
     async with httpx.AsyncClient() as client_http:
         try:
             response = await client_http.post(url, json=payload, headers=headers)
             
-            # Log the response for debugging
-            print(f"Restack API Response Status: {response.status_code}")
-            print(f"Restack API Response Headers: {response.headers}")
-            
             if response.status_code >= 400:
                 response_text = response.text
-                print(f"Restack API Error Response: {response_text}")
                 
                 # Provide more specific error messages based on common issues
                 if response.status_code == 500 and "Failed to pause schedule" in response_text:
@@ -85,7 +80,6 @@ async def restack_engine_api_schedule(
             except:
                 response_data = {"message": response.text}
             
-            print(f"Restack API call successful for action: {action}")
             return {
                 "action": action,
                 "schedule_id": schedule_id,

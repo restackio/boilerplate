@@ -113,6 +113,7 @@ from src.workflows.crud.mcp_servers_crud import (
 from src.workflows.crud.schedule_crud import (
     ScheduleControlWorkflow,
     ScheduleCreateWorkflow,
+    ScheduleEditWorkflow,
     ScheduleUpdateWorkflow,
 )
 from src.workflows.crud.tasks_crud import (
@@ -209,6 +210,7 @@ async def run_restack_service() -> None:
             AgentToolsDeleteWorkflow,
             ScheduleCreateWorkflow,
             ScheduleUpdateWorkflow,
+            ScheduleEditWorkflow,
             ScheduleControlWorkflow,
         ],
         functions=[

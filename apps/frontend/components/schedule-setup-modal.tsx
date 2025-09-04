@@ -35,6 +35,7 @@ interface ScheduleSetupModalProps {
   initialSchedule?: ScheduleSpec;
   title?: string;
   submitLabel?: string;
+  isEditing?: boolean;
 }
 
 const DAYS_OF_WEEK = [
@@ -105,12 +106,21 @@ export function ScheduleSetupModal({
   trigger,
   onScheduleSubmit,
   initialSchedule,
-  title = "Schedule",
-  submitLabel = "Create schedule",
+  title,
+  submitLabel,
+  isEditing = false,
 }: ScheduleSetupModalProps) {
   const [open, setOpen] = useState(false);
-  const [scheduleType, setScheduleType] = useState<"calendar" | "interval" | "cron">("calendar");
+  const [scheduleType, setScheduleType] = useState<"calendar" | "interval" | "cron">(
+    initialSchedule?.calendars ? "calendar" : 
+    initialSchedule?.intervals ? "interval" : 
+    initialSchedule?.cron ? "cron" : "calendar"
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Determine default title and submit label based on editing mode
+  const modalTitle = title || (isEditing ? "Edit schedule" : "Create schedule");
+  const modalSubmitLabel = submitLabel || (isEditing ? "Update" : "Create");
 
   // Calendar state
   const [selectedDays, setSelectedDays] = useState<string[]>(
@@ -217,7 +227,7 @@ export function ScheduleSetupModal({
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            {title}
+            {modalTitle}
           </DialogTitle>
         </DialogHeader>
 
@@ -405,11 +415,7 @@ export function ScheduleSetupModal({
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={isSubmitting}>
-            {isSubmitting ? "Creating..." : (
-              <>
-                {submitLabel}
-              </>
-            )}
+            {isSubmitting ? (isEditing ? "Updating..." : "Creating...") : modalSubmitLabel}
           </Button>
         </div>
       </DialogContent>

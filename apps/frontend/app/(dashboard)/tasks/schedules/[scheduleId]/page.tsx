@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@workspace/ui/components/ui/button";
 import { Badge } from "@workspace/ui/components/ui/badge";
-// Removed unused Card components - using simpler layout structure
 import { PageHeader } from "@workspace/ui/components/page-header";
 import { ScheduleSetupModal } from "@/components/schedule-setup-modal";
 import { TasksTable } from "@workspace/ui/components/tasks-table";
@@ -110,7 +109,8 @@ export default function SchedulePage() {
 
     setUpdating(true);
     try {
-      const result = await executeWorkflow("ScheduleUpdateWorkflow", {
+      // Use the new ScheduleEditWorkflow to update both Temporal and database
+      const result = await executeWorkflow("ScheduleEditWorkflow", {
         task_id: scheduleTask.id,
         schedule_spec: newScheduleSpec,
       });
@@ -123,7 +123,7 @@ export default function SchedulePage() {
       }
     } catch (error) {
       console.error("Error updating schedule:", error);
-      alert("Failed to update schedule");
+      alert(`Failed to update schedule: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setUpdating(false);
     }
@@ -238,35 +238,6 @@ export default function SchedulePage() {
 
   const actions = (
     <div className="flex gap-2">
-      <ScheduleSetupModal
-        trigger={
-          <Button variant="ghost" size="sm" disabled={updating}>
-            <Edit className="h-4 w-4" />
-          </Button>
-        }
-        initialSchedule={scheduleTask.schedule_spec}
-        onScheduleSubmit={handleScheduleUpdate}
-      />
-
-      {scheduleTask.schedule_status === "active" ? (
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          disabled={updating}
-          onClick={() => handleScheduleControl("pause")}
-        >
-          <Pause className="h-4 w-4" />
-        </Button>
-      ) : (
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          disabled={updating}
-          onClick={() => handleScheduleControl("resume")}
-        >
-          <Play className="h-4 w-4" />
-        </Button>
-      )}
 
       <Button 
         variant="ghost" 
@@ -280,6 +251,42 @@ export default function SchedulePage() {
       >
         <Trash2 className="h-4 w-4" />
       </Button>
+
+      {scheduleTask.schedule_status === "active" ? (
+        <Button 
+          variant="outline" 
+          size="sm" 
+          disabled={updating}
+          onClick={() => handleScheduleControl("pause")}
+        >
+          <Pause className="h-4 w-4" />
+          Resume
+        </Button>
+      ) : (
+        <Button 
+          variant="outline" 
+          size="sm" 
+          disabled={updating}
+          onClick={() => handleScheduleControl("resume")}
+        >
+          <Play className="h-4 w-4" />
+          Resume
+        </Button>
+      )}
+
+      <ScheduleSetupModal
+        trigger={
+          <Button variant="default"
+          size="sm" disabled={updating}>
+            <Edit className="h-4 w-4 mr-1" />
+            Edit
+          </Button>
+        }
+        initialSchedule={scheduleTask.schedule_spec}
+        onScheduleSubmit={handleScheduleUpdate}
+        isEditing={true}
+      />
+
     </div>
   );
 
