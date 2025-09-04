@@ -7,8 +7,14 @@ import { ConversationItem } from "../types";
 
 // Status-related utilities
 export const getItemStatus = (item: ConversationItem): string => {
-  // For MCP approval requests without status, they're waiting for approval
-  if (item.type === "mcp_approval_request" && !item.openai_output?.status) {
+  // For MCP approval requests, check if they have a status first
+  if (item.type === "mcp_approval_request") {
+    // If there's an explicit status, use it
+    if (item.openai_output?.status) {
+      return item.openai_output.status;
+    }
+    // If no status, assume it's waiting for approval
+    // Note: Auto-approved tools should have their status updated by the backend
     return "waiting-approval";
   }
   return item.openai_output?.status || "unknown";

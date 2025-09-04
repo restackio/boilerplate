@@ -190,6 +190,22 @@ export async function getMcpServerById(mcpServerId: string) {
   });
 }
 
+
+export async function listMcpServerTools(serverUrl: string, headers?: Record<string, string>) {
+  const { workflowId, runId } = await runWorkflow({
+    workflowName: "McpToolsListWorkflow",
+    input: { 
+      server_url: serverUrl,
+      headers: headers || null 
+    }
+  });
+  
+  return await getWorkflowResult({
+    workflowId,
+    runId
+  });
+}
+
 // Agent-MCP Server Workflows (now handled via agent_tools)
 export async function getAgentMcpServers(agentId: string) {
   // MCP servers are now managed through the unified agent_tools table

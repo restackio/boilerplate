@@ -223,7 +223,12 @@ export function useRxjsConversation({
   const updateConversationItemStatus = (itemId: string, status: string) => {
     const updatedItems = conversation.map(item => 
       item.id === itemId 
-        ? { ...item, openai_output: { ...item.openai_output, status } }
+        ? { 
+            ...item, 
+            openai_output: item.openai_output 
+              ? { ...item.openai_output, status }
+              : { id: itemId, type: item.type, status }
+          }
         : item
     );
     conversationStore.updateStateItems(updatedItems.filter(item => !item.isStreaming));

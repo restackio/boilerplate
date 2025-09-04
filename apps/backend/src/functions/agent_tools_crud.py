@@ -23,8 +23,49 @@ def _raise_agent_tool_not_found_error(agent_tool_id: str) -> None:
     )
 
 
+def _convert_approval_config(require_approval: dict, allowed_tools: list[str], convert_to_string: bool = True) -> str | dict:
+    """Convert our internal approval configuration to OpenAI's expected string format.
+
+    Args:
+        require_approval: Our internal config like {"never": {"tool_names": ["tool1"]}, "always": {"tool_names": []}}
+        allowed_tools: List of tools allowed for this agent
+        convert_to_string: If True, converts to string format; if False, returns original object format
+
+    Returns:
+        String format ("never", "always", "auto") if convert_to_string=True, 
+        or original object format if convert_to_string=False
+    """
+    if not convert_to_string:
+        # Return original object format for testing/debugging
+        return require_approval or {}
+    
+    if not require_approval:
+        return "auto"
+
+    never_tools = require_approval.get("never", {}).get("tool_names", [])
+    always_tools = require_approval.get("always", {}).get("tool_names", [])
+
+    # If no allowed_tools specified, check all tools in the config
+    tools_to_check = allowed_tools if allowed_tools else (never_tools + always_tools)
+
+    if not tools_to_check:
+        return "auto"
+
+    # If any allowed tool requires approval, set to "always"
+    if any(tool in always_tools for tool in tools_to_check):
+        return "always"
+
+    # If all allowed tools are in never list, set to "never"
+    if all(tool in never_tools for tool in tools_to_check):
+        return "never"
+
+    # Mixed or undefined tools default to "auto"
+    return "auto"
+
+
 class AgentToolsGetByAgentInput(BaseModel):
     agent_id: str = Field(..., min_length=1)
+    convert_approval_to_string: bool = Field(default=True, description="Convert approval config to string format for OpenAI")
 
 
 class AgentToolsOutput(BaseModel):
@@ -131,6 +172,12 @@ async def agent_tools_read_by_agent(  # noqa: C901
                         if getattr(ms, "local", False):
                             server_url = os.getenv("MCP_URL")
 
+                        # Convert our internal approval format to OpenAI's expected format
+                        require_approval = _convert_approval_config(
+                            ms.require_approval or {},
+                            r.allowed_tools or [],
+                            convert_to_string=function_input.convert_approval_to_string
+                        )
                         tool_obj = {
                             "type": "mcp",
                             "server_label": ms.server_label,
@@ -138,8 +185,7 @@ async def agent_tools_read_by_agent(  # noqa: C901
                             "server_description": ms.server_description
                             or "",
                             "headers": ms.headers or {},
-                            "require_approval": ms.require_approval
-                            or {},
+                            "require_approval": require_approval,
                         }
                         if r.allowed_tools:
                             tool_obj["allowed_tools"] = (

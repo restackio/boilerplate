@@ -97,7 +97,10 @@ export default function MCPsPage() {
             </div>
           </div>
         ) : (
-          <MCPsTable data={mcpData} onEditMCP={handleEditMCP} />
+          <MCPsTable 
+            data={mcpData} 
+            onEditMCP={handleEditMCP} 
+          />
         )}
       </div>
 

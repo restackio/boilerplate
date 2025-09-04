@@ -56,7 +56,7 @@ export interface ConversationItem {
     content?: OpenAIContent[];
     summary?: OpenAISummary[];
     name?: string;
-    arguments?: Record<string, unknown>;
+    arguments?: Record<string, unknown> | string;
     output?: unknown;
     result?: unknown;
     tools?: Array<{ name: string; [key: string]: unknown }>;
@@ -66,6 +66,7 @@ export interface ConversationItem {
       [key: string]: unknown;
     };
     server_label?: string;
+    approval_request_id?: string;
     [key: string]: unknown; // Allow any other OpenAI fields
   } | null;
   // For SDK events from agent state

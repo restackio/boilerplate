@@ -3,13 +3,11 @@
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@workspace/ui/components/ui/dialog";
 import { Button } from "@workspace/ui/components/ui/button";
-import { Input } from "@workspace/ui/components/ui/input";
-import { Label } from "@workspace/ui/components/ui/label";
-import { Textarea } from "@workspace/ui/components/ui/textarea";
-import { Switch } from "@workspace/ui/components/ui/switch";
 import { Separator } from "@workspace/ui/components/ui/separator";
 import { Loader2 } from "lucide-react";
 import { useWorkspaceScopedActions, McpServer } from "@/hooks/use-workspace-scoped-actions";
+import { McpServerForm, McpServerFormData, ToolListState } from "./shared/McpServerForm";
+import { validateMcpServerForm, parseHeaders } from "./shared/mcpServerValidation";
 
 interface EditMcpServerDialogProps {
   open: boolean;
@@ -18,19 +16,11 @@ interface EditMcpServerDialogProps {
   onSuccess?: () => void;
 }
 
-interface FormData {
-  server_label: string;
-  server_url: string;
-  local: boolean;
-  server_description: string;
-  headers: Record<string, string>;
-}
-
 export function EditMcpServerDialog({ open, onOpenChange, mcpServer, onSuccess }: EditMcpServerDialogProps) {
   const { updateMcpServer, deleteMcpServer } = useWorkspaceScopedActions();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [formData, setFormData] = useState<FormData>({
+  const [formData, setFormData] = useState<McpServerFormData>({
     server_label: "",
     server_url: "",
     local: false,
@@ -38,6 +28,13 @@ export function EditMcpServerDialog({ open, onOpenChange, mcpServer, onSuccess }
     headers: {}
   });
   const [headerInput, setHeaderInput] = useState("");
+  const [toolList, setToolList] = useState<ToolListState>({
+    isListing: false,
+    listedTools: [],
+    error: null,
+    hasListed: false,
+    approvalSettings: { never: [], always: [] }
+  });
 
   // Initialize form data when mcpServer changes
   useEffect(() => {
@@ -50,6 +47,32 @@ export function EditMcpServerDialog({ open, onOpenChange, mcpServer, onSuccess }
         headers: mcpServer.headers || {}
       });
       setHeaderInput(mcpServer.headers ? JSON.stringify(mcpServer.headers, null, 2) : "");
+      
+      // Show existing tools from the server
+      const existingTools = [
+        ...(mcpServer.require_approval?.never?.tool_names || []),
+        ...(mcpServer.require_approval?.always?.tool_names || [])
+      ];
+      if (existingTools.length > 0) {
+        setToolList({
+          isListing: false,
+          listedTools: existingTools,
+          error: null,
+          hasListed: true,
+          approvalSettings: {
+            never: mcpServer.require_approval?.never?.tool_names || [],
+            always: mcpServer.require_approval?.always?.tool_names || []
+          }
+        });
+      } else {
+        setToolList({
+          isListing: false,
+          listedTools: [],
+          error: null,
+          hasListed: false,
+          approvalSettings: { never: [], always: [] }
+        });
+      }
     }
   }, [mcpServer]);
 
@@ -60,36 +83,28 @@ export function EditMcpServerDialog({ open, onOpenChange, mcpServer, onSuccess }
     setIsSubmitting(true);
 
     try {
-      // Parse headers from JSON string if provided
-      let parsedHeaders = {};
-      if (headerInput.trim()) {
-        try {
-          parsedHeaders = JSON.parse(headerInput);
-        } catch (error) {
-          alert("Invalid JSON format for headers");
-          setIsSubmitting(false);
-          return;
-        }
-      }
-
       // Validate form
-      if (!formData.server_label.trim()) {
-        alert("Server label is required");
+      const validation = validateMcpServerForm(formData, headerInput);
+      if (!validation.isValid) {
+        alert(validation.error);
         setIsSubmitting(false);
         return;
       }
 
-      if (!formData.local && !formData.server_url.trim()) {
-        alert("Server URL is required for remote servers");
-        setIsSubmitting(false);
-        return;
-      }
+      // Parse headers
+      const parsedHeaders = parseHeaders(headerInput);
 
-      if (formData.local && formData.server_url.trim()) {
-        alert("Server URL should be empty for local servers");
-        setIsSubmitting(false);
-        return;
-      }
+      // Merge discovered tools with existing approval settings
+      const currentApproval = mcpServer.require_approval || {
+        never: { tool_names: [] },
+        always: { tool_names: [] }
+      };
+      
+      // Use the approval settings from the interactive selector
+      const updatedApproval = {
+        never: { tool_names: toolList.approvalSettings.never },
+        always: { tool_names: toolList.approvalSettings.always }
+      };
 
       const result = await updateMcpServer(mcpServer.id, {
         server_label: formData.server_label,
@@ -97,7 +112,7 @@ export function EditMcpServerDialog({ open, onOpenChange, mcpServer, onSuccess }
         local: formData.local,
         server_description: formData.server_description || undefined,
         headers: Object.keys(parsedHeaders).length > 0 ? parsedHeaders : undefined,
-        require_approval: mcpServer.require_approval // Keep existing approval settings
+        require_approval: updatedApproval
       });
 
       if (result?.success) {
@@ -142,13 +157,6 @@ export function EditMcpServerDialog({ open, onOpenChange, mcpServer, onSuccess }
     }
   };
 
-  const handleLocalToggle = (checked: boolean) => {
-    setFormData(prev => ({
-      ...prev,
-      local: checked,
-      server_url: checked ? "" : prev.server_url
-    }));
-  };
 
   if (!mcpServer) return null;
 
@@ -162,69 +170,16 @@ export function EditMcpServerDialog({ open, onOpenChange, mcpServer, onSuccess }
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="server_label">Server Label *</Label>
-            <Input
-              id="server_label"
-              value={formData.server_label}
-              onChange={(e) => setFormData(prev => ({ ...prev, server_label: e.target.value }))}
-              placeholder="e.g., github-workflow"
-              required
-            />
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <Switch
-              id="local"
-              checked={formData.local}
-              onCheckedChange={handleLocalToggle}
-            />
-            <Label htmlFor="local">Local MCP Server</Label>
-          </div>
-
-          {!formData.local && (
-            <div>
-              <Label htmlFor="server_url">Server URL *</Label>
-              <Input
-                id="server_url"
-                value={formData.server_url}
-                onChange={(e) => setFormData(prev => ({ ...prev, server_url: e.target.value }))}
-                placeholder="https://example.com/mcp"
-                required={!formData.local}
-              />
-            </div>
-          )}
-
-          {formData.local && (
-            <div className="text-sm text-muted-foreground bg-blue-50 p-3 rounded-md">
-              <strong>Local Server:</strong> This server will use the MCP_URL environment variable for connection.
-            </div>
-          )}
-
-          <div>
-            <Label htmlFor="server_description">Description</Label>
-            <Textarea
-              id="server_description"
-              value={formData.server_description}
-              onChange={(e) => setFormData(prev => ({ ...prev, server_description: e.target.value }))}
-              placeholder="Optional description of the MCP server"
-              rows={3}
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="headers">Headers (JSON format)</Label>
-            <Textarea
-              id="headers"
-              value={headerInput}
-              onChange={(e) => setHeaderInput(e.target.value)}
-              placeholder='{"Authorization": "Bearer token"}'
-              rows={3}
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-              Optional headers as JSON object
-            </p>
-          </div>
+          <McpServerForm
+            formData={formData}
+            onFormDataChange={setFormData}
+            headerInput={headerInput}
+            onHeaderInputChange={setHeaderInput}
+            toolList={toolList}
+            onToolListChange={setToolList}
+            isSubmitting={isSubmitting}
+            isDeleting={isDeleting}
+          />
 
           <Separator />
 
