@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Subscription } from 'rxjs';
-import { ConversationItem } from '../types';
-import { conversationStore, ConversationState, StreamEvent } from '../stores/conversation-store';
+import { ConversationItem, OpenAIEvent } from '../types';
+import { conversationStore, StreamEvent } from '../stores/conversation-store';
 
 interface UseRxjsConversationProps {
-  responseState?: any;
-  agentResponses?: any[];
+  responseState?: { events: OpenAIEvent[]; [key: string]: unknown } | false;
+  agentResponses?: { events?: OpenAIEvent[]; [key: string]: unknown }[];
   taskAgentTaskId?: string | null;
-  persistedMessages?: any[];
+  persistedMessages?: unknown[];
 }
 
 /**
@@ -33,6 +33,7 @@ export function useRxjsConversation({
 
   // Update state items from responseState
   useEffect(() => {
+    
     if (persistedMessages?.length && !responseState) {
       // Use persisted messages when no active responseState
       const items: ConversationItem[] = persistedMessages
@@ -50,23 +51,143 @@ export function useRxjsConversation({
       return;
     }
 
-    if (!responseState?.events || !taskAgentTaskId) {
+    if (!responseState || !responseState?.events || !taskAgentTaskId) {
       conversationStore.updateStateItems([]);
       return;
     }
 
-    // Convert completed events to conversation items
-    const items: ConversationItem[] = responseState.events
-      .filter((event: any) => event.type?.includes('output_item.done') && event.item?.id)
-      .sort((a: any, b: any) => (a.sequence_number || 0) - (b.sequence_number || 0))
-      .map((event: any) => ({
-        id: event.item.id,
-        type: event.item.type,
-        timestamp: event.timestamp || new Date().toISOString(),
-        openai_output: event.item,
-        openai_event: { ...event, sequence_number: event.sequence_number || 0 },
-        isStreaming: false,
-      }));
+    // Collect user messages, AI responses, and loading indicators separately, then interleave
+    const userMessages: ConversationItem[] = [];
+    const aiResponses: ConversationItem[] = [];
+    const loadingIndicators: ConversationItem[] = [];
+    
+    // Step 1: Collect user messages and approval requests in chronological order
+    responseState.events.forEach((event: OpenAIEvent) => {
+      if (event.type === 'response.output_item.done' && event.item) {
+        if (event.item.type === 'message' && event.item.role === 'user') {
+          // User messages
+          userMessages.push({
+            id: event.item.id,
+            type: event.item.type,
+            timestamp: event.timestamp || new Date().toISOString(),
+            openai_output: event.item,
+            openai_event: event,
+            isStreaming: false,
+          });
+        } else if (event.item.type === 'mcp_approval_request') {
+          // MCP approval requests - only show if not fulfilled
+          const approvalId = event.item.id;
+          
+          // Check if this approval has been fulfilled by looking for MCP calls
+          const isFulfilled = responseState.events.some((e: OpenAIEvent) => 
+            e.type === 'response.output_item.done' && 
+            e.item?.type === 'mcp_call' && 
+            (e.item as { approval_request_id?: string }).approval_request_id === approvalId
+          );
+          
+          if (!isFulfilled) {
+            aiResponses.push({
+              id: event.item.id,
+              type: event.item.type,
+              timestamp: event.timestamp || new Date().toISOString(),
+              openai_output: event.item,
+              openai_event: event,
+              isStreaming: false,
+            });
+          }
+        }
+      }
+    });
+    
+    // Step 2: Collect response.created events for loading indicators
+    responseState.events
+      .filter((event: OpenAIEvent) => event.type === 'response.created')
+      .forEach((event: OpenAIEvent) => {
+        loadingIndicators.push({
+          id: `${event.response?.id}_created`,
+          type: 'response_status',
+          timestamp: event.timestamp || new Date().toISOString(),
+          openai_output: null,
+          openai_event: event,
+          isStreaming: true,
+        });
+      });
+    
+    // Step 3: Collect AI responses from completed responses (in chronological order)
+    responseState.events
+      .filter((event: OpenAIEvent) => event.type === 'response.completed')
+      .forEach((event: OpenAIEvent) => {
+        (event.response?.output || []).forEach((outputItem: unknown) => {
+          const item = outputItem as { id: string; type: string; [key: string]: unknown };
+          aiResponses.push({
+            id: item.id,
+            type: item.type,
+            timestamp: event.timestamp || new Date().toISOString(),
+            openai_output: item,
+            openai_event: event,
+            isStreaming: false,
+          });
+        });
+      });
+
+    // Step 4: Collect completed MCP calls (these replace approval requests)
+    responseState.events.forEach((event: OpenAIEvent) => {
+      if (event.type === 'response.output_item.done' && event.item?.type === 'mcp_call') {
+        aiResponses.push({
+          id: event.item.id,
+          type: event.item.type,
+          timestamp: event.timestamp || new Date().toISOString(),
+          openai_output: event.item,
+          openai_event: event,
+          isStreaming: false,
+        });
+      }
+    });
+    
+    // Step 4: Interleave user messages with loading indicators and AI responses
+    const items: ConversationItem[] = [];
+    
+    // Group AI responses by response ID (each response has reasoning + message)
+    const responseGroups = new Map<string, ConversationItem[]>();
+    aiResponses.forEach(item => {
+      const responseId = item.openai_event?.response?.id;
+      if (responseId) {
+        if (!responseGroups.has(responseId)) {
+          responseGroups.set(responseId, []);
+        }
+        responseGroups.get(responseId)!.push(item);
+      }
+    });
+    
+    // Group loading indicators by response ID
+    const loadingGroups = new Map<string, ConversationItem>();
+    loadingIndicators.forEach(item => {
+      const responseId = item.openai_event?.response?.id;
+      if (responseId) {
+        loadingGroups.set(responseId, item);
+      }
+    });
+    
+    // Interleave: user message → loading indicator → AI response group (or just loading if incomplete)
+    for (let i = 0; i < userMessages.length; i++) {
+      // Add user message
+      items.push(userMessages[i]);
+      
+      // Try to find corresponding loading indicator and AI response
+      if (i < loadingIndicators.length) {
+        const loadingIndicator = loadingIndicators[i];
+        const responseId = loadingIndicator.openai_event?.response?.id;
+        
+        // Check if we have completed response for this loading indicator
+        if (responseId && responseGroups.has(responseId)) {
+          // Response completed - show the actual AI response group
+          items.push(...responseGroups.get(responseId)!);
+        } else {
+          // Response not completed yet - show loading indicator
+          items.push(loadingIndicator);
+        }
+      }
+    }
     
     conversationStore.updateStateItems(items);
   }, [responseState, taskAgentTaskId, persistedMessages]);
@@ -80,10 +201,9 @@ export function useRxjsConversation({
 
     // Convert to simple StreamEvent format
     const streamEvents: StreamEvent[] = agentResponses
-      .filter(response => response.sequence_number !== undefined)
       .map(response => ({
         type: response.type,
-        sequence_number: response.sequence_number,
+        sequence_number: response.sequence_number || 0,
         item_id: response.item_id,
         delta: response.delta,
         text: response.text,
@@ -100,26 +220,6 @@ export function useRxjsConversation({
     }
   }, [taskAgentTaskId]);
 
-  // Helper functions
-  const addUserMessage = (content: string) => {
-    const timestamp = new Date().toISOString();
-    const userMessage: ConversationItem = {
-      id: `user_${Date.now()}`,
-      type: "user",
-      timestamp,
-      openai_output: {
-        id: `user_${Date.now()}`,
-        type: "message",
-        role: "user",
-        status: "completed",
-        content: [{ type: "input_text", text: content }],
-      },
-      openai_event: { sequence_number: Date.now() }, // Simple sequence for user messages
-    };
-    
-    conversationStore.updateStateItems([...conversation.filter(item => item.type !== 'user' || item.id !== userMessage.id), userMessage]);
-  };
-
   const updateConversationItemStatus = (itemId: string, status: string) => {
     const updatedItems = conversation.map(item => 
       item.id === itemId 
@@ -131,7 +231,6 @@ export function useRxjsConversation({
 
   return {
     conversation,
-    addUserMessage,
     updateConversationItemStatus,
   };
 }

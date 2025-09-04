@@ -68,12 +68,22 @@ interface ApprovalActionsProps {
 }
 
 export function ApprovalActions({ onApprove, onDeny, isProcessing }: ApprovalActionsProps) {
+  const handleDeny = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onDeny();
+  };
+
+  const handleApprove = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onApprove();
+  };
+
   return (
     <div className="flex gap-2 pt-3">
       <Button
         size="sm"
         variant="secondary"
-        onClick={onDeny}
+        onClick={handleDeny}
         disabled={isProcessing}
       >
         {isProcessing ? (
@@ -86,7 +96,7 @@ export function ApprovalActions({ onApprove, onDeny, isProcessing }: ApprovalAct
       <Button
         size="sm"
         variant="default"
-        onClick={onApprove}
+        onClick={handleApprove}
         disabled={isProcessing}
       >
         {isProcessing ? (

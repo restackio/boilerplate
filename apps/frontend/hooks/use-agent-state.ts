@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo, useRef } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { subscribeAgentState, subscribeAgentResponses } from "@restackio/react";
 import { startAgent, sendAgentMessage, stopAgent } from "@/app/actions/agent";
 
@@ -37,20 +37,26 @@ interface UseAgentStateReturn {
 export function useAgentState({ taskId, agentTaskId, runId, onStateChange }: UseAgentStateProps): UseAgentStateReturn {
   const [error, setError] = useState<string | null>(null);
   const [currentResponseState, setCurrentResponseState] = useState<any>(null);
+  
+
 
   // Subscribe to response state for persistent response items with state replacement
   // Only subscribe if we have agentTaskId (runId is optional)
-  const responseState = subscribeAgentState({
+  const subscriptionParams = {
     apiAddress: process.env.NEXT_PUBLIC_RESTACK_ENGINE_API_ADDRESS || "http://localhost:9233",
     apiToken: process.env.NEXT_PUBLIC_RESTACK_ENGINE_API_KEY,
     agentId: agentTaskId || `task_agent_${taskId}`,
     runId: runId || "",
     stateName: "state_response",
+  };
+  
+  
+  subscribeAgentState({
+    ...subscriptionParams,
     options: {
       onMessage: (data: any) => {
         // Only process messages if we have a valid agentTaskId
         if (!agentTaskId) return;
-      
         
         // Always replace the state with the latest data, don't accumulate
         if (Array.isArray(data)) {
@@ -154,7 +160,6 @@ export function useAgentState({ taskId, agentTaskId, runId, onStateChange }: Use
 
   // Use the manually managed state that replaces rather than accumulates
   const cleanResponseState = useMemo(() => {
-    
     if (!agentTaskId || !currentResponseState) {
       return null;
     }

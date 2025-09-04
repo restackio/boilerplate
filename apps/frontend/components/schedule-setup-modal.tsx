@@ -184,7 +184,7 @@ export function ScheduleSetupModal({
           };
           break;
 
-        case "interval":
+        case "interval": {
           // Basic client-side validation for interval format
           const intervalPattern = /^\d+(?:\.\d+)?\s*(s|sec|seconds?|m|min|minutes?|h|hr|hours?|d|day|days?)$/i;
           if (!intervalPattern.test(intervalValue.trim())) {
@@ -196,6 +196,7 @@ export function ScheduleSetupModal({
             timeZone: selectedTimezone,
           };
           break;
+        }
 
         case "cron":
           if (!cronExpression.trim()) {

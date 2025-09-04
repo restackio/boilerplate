@@ -10,6 +10,10 @@ from restack_ai.workflow import (
 )
 
 with import_functions():
+    from src.functions.restack_engine import (
+        RestackEngineApiInput,
+        restack_engine_api_schedule,
+    )
     from src.functions.schedule_crud import (
         ScheduleControlInput,
         ScheduleCreateInput,
@@ -22,10 +26,6 @@ with import_functions():
         schedule_get_task_info,
         schedule_update_database,
         schedule_update_workflow,
-    )
-    from src.functions.restack_engine import (
-        RestackEngineApiInput,
-        restack_engine_api_schedule,
     )
 
 
@@ -129,38 +129,38 @@ class ScheduleEditWorkflow:
             log.info(f"Task info retrieved: {task_info}")
             schedule_id = task_info["restack_schedule_id"]
 
-            # Step 2: Convert frontend format to unified format 
+            # Step 2: Convert frontend format to unified format
             unified_spec = UnifiedScheduleSpec.from_frontend_format(workflow_input.schedule_spec)
-            
+
             # Step 3: Convert to the protobuf JSON format
             spec_dict = {}
-            
+
             # Add timezone with the correct protobuf field name
             if unified_spec.time_zone:
                 spec_dict["timezoneName"] = unified_spec.time_zone
-            
+
             # Handle intervals
             if unified_spec.intervals:
                 spec_dict["interval"] = []
                 for interval in unified_spec.intervals:
                     # Parse the interval string to get seconds for protobuf Duration format
                     interval_str = interval.every.lower()
-                    if interval_str.endswith('h'):
+                    if interval_str.endswith("h"):
                         seconds = int(interval_str[:-1]) * 3600
-                    elif interval_str.endswith('m'):
+                    elif interval_str.endswith("m"):
                         seconds = int(interval_str[:-1]) * 60
-                    elif interval_str.endswith('s'):
+                    elif interval_str.endswith("s"):
                         seconds = int(interval_str[:-1])
-                    elif interval_str.endswith('d'):
+                    elif interval_str.endswith("d"):
                         seconds = int(interval_str[:-1]) * 86400
                     else:
                         seconds = int(interval_str)
-                    
+
                     # Create protobuf IntervalSpec format
                     spec_dict["interval"].append({
                         "interval": f"{seconds}s"
                     })
-            
+
             # Handle calendars (structured calendar format)
             if unified_spec.calendars:
                 spec_dict["structuredCalendar"] = []
@@ -170,11 +170,11 @@ class ScheduleEditWorkflow:
                         "hour": [{"start": cal.hour, "end": cal.hour, "step": 1}],
                         "minute": [{"start": cal.minute, "end": cal.minute, "step": 1}]
                     })
-            
+
             # Handle cron expressions
             if unified_spec.cron:
                 spec_dict["cronString"] = [unified_spec.cron]
-            
+
             # Step 4: Call Restack engine API to edit the schedule spec
             api_result = await workflow.step(
                 function=restack_engine_api_schedule,
@@ -221,11 +221,11 @@ class ScheduleControlWorkflow:
     async def run(self, workflow_input: ScheduleControlInput) -> ScheduleOutput:
         log.info(f"ScheduleControlWorkflow started - Action: {workflow_input.action}")
         log.info(f"Input - Task ID: {workflow_input.task_id}, Schedule ID: {workflow_input.schedule_id}")
-        
+
         try:
             action = workflow_input.action
             reason = workflow_input.reason or f"{action.capitalize()}d from the backend"
-            
+
             # Determine the schedule ID to use
             if workflow_input.task_id:
                 # Step 1: Get task information from database
@@ -244,7 +244,7 @@ class ScheduleControlWorkflow:
                 schedule_id = workflow_input.schedule_id
                 task_id = None
                 log.info(f"Using direct schedule ID: {schedule_id}")
-            
+
             # Step 2: Call Restack engine API
             api_result = await workflow.step(
                 function=restack_engine_api_schedule,
@@ -256,7 +256,7 @@ class ScheduleControlWorkflow:
                 start_to_close_timeout=timedelta(seconds=30),
             )
             log.info(f"Restack API call completed: {api_result}")
-            
+
             # Step 3: Update database
             if task_id:
                 # Update by task_id
@@ -275,15 +275,15 @@ class ScheduleControlWorkflow:
                     "message": f"Schedule {action}d successfully",
                     "restack_schedule_id": schedule_id if action != "delete" else None
                 }
-            
+
             log.info(f"Database update completed: {db_result}")
-            
+
             return ScheduleOutput(
                 success=True,
                 message=db_result["message"],
                 restack_schedule_id=db_result.get("restack_schedule_id"),
             )
-                
+
         except Exception as e:
             error_message = f"Error during schedule control: {e}"
             log.error(error_message)

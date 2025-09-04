@@ -21,7 +21,6 @@ export function useTaskDetail() {
   const [activeTab, setActiveTab] = useState("details");
   const [showSplitView, setShowSplitView] = useState(false);
   const [selectedCard, setSelectedCard] = useState<ConversationItem | null>(null);
-  const [isThinking, setIsThinking] = useState(false);
 
   const { getTaskById, updateTask, deleteTask } = useWorkspaceScopedActions();
 
@@ -33,7 +32,7 @@ export function useTaskDetail() {
     },
   });
 
-  const { conversation, addUserMessage, updateConversationItemStatus } = useRxjsConversation({
+  const { conversation, updateConversationItemStatus } = useRxjsConversation({
     responseState: responseState,
     agentResponses: agentResponses,
     taskAgentTaskId: task?.agent_task_id,
@@ -126,18 +125,13 @@ export function useTaskDetail() {
     }
 
     try {
-      setIsThinking(true);
-      
-      addUserMessage(chatMessage);
-
+    
       setChatMessage("");
 
       await sendMessageToAgent(chatMessage);
       
     } catch (error) {
       console.error("Error sending message:", error);
-    } finally {
-      setIsThinking(false);
     }
   };
 
@@ -177,7 +171,6 @@ export function useTaskDetail() {
     activeTab,
     showSplitView,
     selectedCard,
-    isThinking,
     conversation,
     agentLoading,
     setShowDeleteModal,

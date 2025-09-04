@@ -4,12 +4,18 @@ import { ConversationItem } from '../types';
 
 export interface StreamEvent {
   type: string;
-  item?: any;
+  item?: {
+    id: string;
+    type: string;
+    role?: string;
+    content?: unknown[];
+    [key: string]: unknown;
+  };
   item_id?: string;
   sequence_number: number;
   text?: string;
-  delta?: any;
-  [key: string]: any;
+  delta?: unknown;
+  [key: string]: unknown;
 }
 
 export interface ConversationState {
@@ -74,9 +80,7 @@ export class ConversationStore {
     const existingIds = new Set(stateItems.map(item => item.id));
     
     // Process stream events to create/update streaming items
-    const sortedEvents = [...streamEvents].sort((a, b) => a.sequence_number - b.sequence_number);
-    
-    for (const event of sortedEvents) {
+    for (const event of streamEvents) {
       this.processEvent(event, existingIds);
     }
     
@@ -88,11 +92,9 @@ export class ConversationStore {
       }
     }
     
-    // Merge and sort all items by sequence number
+    // Merge all items (backend already provides proper ordering)
     const allItems = [...stateItems, ...streamingConversationItems];
-    return allItems.sort((a, b) => 
-      (a.openai_event?.sequence_number ?? 0) - (b.openai_event?.sequence_number ?? 0)
-    );
+    return allItems;
   }
 
   private processEvent(event: StreamEvent, existingIds: Set<string>): void {
