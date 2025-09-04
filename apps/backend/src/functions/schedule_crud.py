@@ -205,7 +205,7 @@ class ScheduleControlInput(BaseModel):
     schedule_id: str | None = Field(None, min_length=1, description="Restack schedule ID")
     action: str = Field(..., pattern="^(pause|resume|delete)$")
     reason: str | None = Field(None, description="Reason for the action")
-    
+
     def model_post_init(self, __context) -> None:
         """Validate that either task_id or schedule_id is provided."""
         if not self.task_id and not self.schedule_id:
@@ -388,7 +388,7 @@ async def schedule_update_database(
     """Update database after successful API call."""
     task_id = input_data.task_id
     action = input_data.action
-    
+
     async for db in get_async_db():
         try:
             # Get the task again

@@ -9,7 +9,6 @@ interface ChatInputProps {
   onMessageChange: (message: string) => void;
   onSendMessage: () => void;
   isLoading: boolean;
-  isThinking: boolean;
   isPollingForAgent: boolean;
 }
 
@@ -18,7 +17,6 @@ export function ChatInput({
   onMessageChange,
   onSendMessage,
   isLoading,
-  isThinking,
   isPollingForAgent
 }: ChatInputProps) {
   return (
@@ -27,7 +25,7 @@ export function ChatInput({
         <Textarea
           placeholder={
             isPollingForAgent ? "Waiting for agent to be ready..." :
-            isLoading || isThinking ? "Agent is processing..." : 
+            isLoading ? "Agent is processing..." : 
             "Request changes or ask a question"
           }
           value={message}
@@ -41,11 +39,11 @@ export function ChatInput({
               onSendMessage();
             }
           }}
-          disabled={isLoading || isThinking || isPollingForAgent}
+          disabled={isLoading || isPollingForAgent}
         />
         <Button 
           onClick={onSendMessage}
-          disabled={!message.trim() || isLoading || isThinking || isPollingForAgent}
+          disabled={!message.trim() || isLoading || isPollingForAgent}
           className="px-4"
         >
           <ArrowUp className="h-4 w-4" />

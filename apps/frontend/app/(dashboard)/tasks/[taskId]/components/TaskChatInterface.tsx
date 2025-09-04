@@ -18,7 +18,6 @@ interface TaskChatInterfaceProps {
   onApproveRequest?: (itemId: string) => void;
   onDenyRequest?: (itemId: string) => void;
   agentLoading: boolean;
-  isThinking: boolean;
   showSplitView: boolean;
 }
 
@@ -31,7 +30,6 @@ export function TaskChatInterface({
   onApproveRequest,
   onDenyRequest,
   agentLoading,
-  isThinking,
   showSplitView,
 }: TaskChatInterfaceProps) {
   const conversationEndRef = useRef<HTMLDivElement>(null);
@@ -64,7 +62,6 @@ export function TaskChatInterface({
         onMessageChange={onChatMessageChange}
         onSendMessage={onSendMessage}
         isLoading={agentLoading}
-        isThinking={isThinking}
         isPollingForAgent={false}
       />
     </div>
@@ -135,6 +132,19 @@ function renderConversationItem(
         
     case 'assistant':
       return <ConversationMessage key={item.id} item={item} />;
+      
+    case 'response_status':
+      const responseStatus = item.openai_event?.response?.status || item.openai_event?.type?.split('.').pop();
+      return (
+        <div key={item.id} className="flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground">
+          <span className={`${item.isStreaming ? 'animate-pulse' : ''}`}>
+            {responseStatus === 'created' && '...'}
+            {responseStatus === 'in_progress' && '...'}
+            {responseStatus === 'completed' && ''}
+            {item.openai_event?.type === 'response.created' && '...'}
+          </span>
+        </div>
+      );
       
     default:
       return <ConversationMessage key={item.id} item={item} />;

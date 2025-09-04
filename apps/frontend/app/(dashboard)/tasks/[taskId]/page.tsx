@@ -26,7 +26,6 @@ export default function TaskDetailPage() {
     activeTab,
     showSplitView,
     selectedCard,
-    isThinking,
     conversation,
     agentLoading,
     setShowDeleteModal,
@@ -125,7 +124,6 @@ export default function TaskDetailPage() {
           onApproveRequest={handleApproveRequest}
           onDenyRequest={handleDenyRequest}
           agentLoading={agentLoading}
-          isThinking={isThinking}
           showSplitView={showSplitView}
         />
 

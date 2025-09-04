@@ -71,7 +71,6 @@ class AgentTask:
         self.tools = []
         self.events = []
         self.last_response_id = None  # For conversation continuity
-        self.next_sequence_number = 0
 
         # Agent model configuration for GPT-5 features
         self.agent_model = None
@@ -106,7 +105,6 @@ class AgentTask:
                     # Add user message to events for frontend
                     user_event = {
                         "type": "response.output_item.done",
-                        "sequence_number": self.next_sequence_number,
                         "item": {
                             "id": f"msg_user_{uuid()}",
                             "type": "message",
@@ -116,7 +114,6 @@ class AgentTask:
                         }
                     }
                     self.events.append(user_event)
-                    self.next_sequence_number += 1
 
                     try:
                         # Step 1: prepare request for OpenAI (using current last_response_id for continuity)
@@ -144,19 +141,9 @@ class AgentTask:
                         )
                         raise NonRetryableError(error_message) from e
                     else:
-                        log.info(f"completion: {completion}")
-
-                        # Update response ID immediately for next message continuity
-                        if completion.response_id:
-                            self.last_response_id = completion.response_id
-                            log.info(
-                                f"Updated last_response_id: {self.last_response_id}"
-                            )
 
                         if completion.parsed_response:
-                            # NOTE: Database saving implementation needed
-                            # See issue: https://github.com/project/issues/123
-                            log.info("NOTE: Store parsed response in db - implementation pending")
+                            log.info("TODO: save in db")
 
         except Exception as e:
             log.error(f"Error during message event: {e}")
@@ -190,17 +177,10 @@ class AgentTask:
             function=llm_prepare_response,
             function_input=approval_input,
         )
-        completion = await agent.step(
+
+        await agent.step(
             function=llm_response_stream, function_input=prepared
         )
-
-        # Update response ID and parsed response for continuity
-        if completion.response_id:
-            self.last_response_id = completion.response_id
-
-        # Store parsed response
-        if completion.parsed_response:
-            self.responses.append(completion.parsed_response)
 
         return {
             "approval_id": approval_event.approval_id,
@@ -214,9 +194,11 @@ class AgentTask:
             # Store all events and update sequence tracking
             self.events.append(event_data)
 
-            # Update next sequence number if this event has a sequence number
-            if "sequence_number" in event_data and event_data["sequence_number"] is not None:
-                self.next_sequence_number = max(self.next_sequence_number, event_data["sequence_number"] + 1)
+            # Extract response_id from response.created event for conversation continuity
+            if event_data.get("type") == "response.created" and "response" in event_data:
+                response = event_data["response"]
+                if "id" in response:
+                    self.last_response_id = response["id"]
 
         except ValueError as e:
             log.error(f"Error handling response_item: {e}")
