@@ -365,9 +365,6 @@ async def schedule_get_task_info(
             if not task.is_scheduled:
                 _raise_not_scheduled_error()
 
-            print(f"Retrieved task info - ID: {task.id}, Title: {task.title}")
-            print(f"Restack Schedule ID: {task.restack_schedule_id}")
-            print(f"Current Status: {task.schedule_status}")
 
             return {
                 "task_id": str(task.id),
@@ -402,7 +399,6 @@ async def schedule_update_database(
             if not task:
                 _raise_task_not_found(task_id)
 
-            print(f"Updating database for task {task_id} with action {action}")
 
             # Update database based on action
             if action == "resume":
@@ -423,7 +419,6 @@ async def schedule_update_database(
             await db.commit()
             await db.refresh(task)
 
-            print(f"Database updated successfully - New status: {task.schedule_status}")
 
             return {
                 "task_id": str(task.id),

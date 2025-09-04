@@ -45,6 +45,12 @@ class FrontendScheduleUpdateInput(BaseModel):
     )
 
 
+class FrontendScheduleEditInput(BaseModel):
+    """Frontend input model for schedule spec editing."""
+    task_id: str = Field(..., min_length=1)
+    schedule_spec: dict[str, Any] = Field(..., description="New schedule specification")
+
+
 @workflow.defn()
 class ScheduleCreateWorkflow:
     """Workflow to create a scheduled task."""
@@ -100,6 +106,109 @@ class ScheduleUpdateWorkflow:
             )
         except Exception as e:
             error_message = f"Error during schedule update: {e}"
+            log.error(error_message)
+            raise NonRetryableError(message=error_message) from e
+
+
+@workflow.defn()
+class ScheduleEditWorkflow:
+    """Workflow to edit a schedule spec in Temporal and update the database."""
+
+    @workflow.run
+    async def run(self, workflow_input: FrontendScheduleEditInput) -> ScheduleOutput:
+        log.info("ScheduleEditWorkflow started")
+        try:
+            # Step 1: Get task information from database
+            task_info = await workflow.step(
+                function=schedule_get_task_info,
+                function_input=ScheduleGetTaskInfoInput(
+                    task_id=workflow_input.task_id
+                ),
+                start_to_close_timeout=timedelta(seconds=30),
+            )
+            log.info(f"Task info retrieved: {task_info}")
+            schedule_id = task_info["restack_schedule_id"]
+
+            # Step 2: Convert frontend format to unified format 
+            unified_spec = UnifiedScheduleSpec.from_frontend_format(workflow_input.schedule_spec)
+            
+            # Step 3: Convert to the protobuf JSON format
+            spec_dict = {}
+            
+            # Add timezone with the correct protobuf field name
+            if unified_spec.time_zone:
+                spec_dict["timezoneName"] = unified_spec.time_zone
+            
+            # Handle intervals
+            if unified_spec.intervals:
+                spec_dict["interval"] = []
+                for interval in unified_spec.intervals:
+                    # Parse the interval string to get seconds for protobuf Duration format
+                    interval_str = interval.every.lower()
+                    if interval_str.endswith('h'):
+                        seconds = int(interval_str[:-1]) * 3600
+                    elif interval_str.endswith('m'):
+                        seconds = int(interval_str[:-1]) * 60
+                    elif interval_str.endswith('s'):
+                        seconds = int(interval_str[:-1])
+                    elif interval_str.endswith('d'):
+                        seconds = int(interval_str[:-1]) * 86400
+                    else:
+                        seconds = int(interval_str)
+                    
+                    # Create protobuf IntervalSpec format
+                    spec_dict["interval"].append({
+                        "interval": f"{seconds}s"
+                    })
+            
+            # Handle calendars (structured calendar format)
+            if unified_spec.calendars:
+                spec_dict["structuredCalendar"] = []
+                for cal in unified_spec.calendars:
+                    spec_dict["structuredCalendar"].append({
+                        "dayOfWeek": [{"start": int(cal.day_of_week), "end": int(cal.day_of_week), "step": 1}],
+                        "hour": [{"start": cal.hour, "end": cal.hour, "step": 1}],
+                        "minute": [{"start": cal.minute, "end": cal.minute, "step": 1}]
+                    })
+            
+            # Handle cron expressions
+            if unified_spec.cron:
+                spec_dict["cronString"] = [unified_spec.cron]
+            
+            # Step 4: Call Restack engine API to edit the schedule spec
+            api_result = await workflow.step(
+                function=restack_engine_api_schedule,
+                function_input=RestackEngineApiInput(
+                    action="edit",
+                    schedule_id=schedule_id,
+                    reason="Schedule spec updated from the backend",
+                    schedule_spec=spec_dict
+                ),
+                start_to_close_timeout=timedelta(seconds=30),
+            )
+            log.info(f"Restack API call completed: {api_result}")
+
+            # Step 5: Update database with new schedule spec
+            backend_input = ScheduleUpdateInput(
+                task_id=workflow_input.task_id,
+                schedule_spec=unified_spec,
+            )
+
+            db_result = await workflow.step(
+                function=schedule_update_workflow,
+                function_input=backend_input,
+                start_to_close_timeout=timedelta(seconds=30),
+            )
+            log.info(f"Database update completed: {db_result}")
+
+            return ScheduleOutput(
+                success=True,
+                message="Schedule spec updated successfully",
+                restack_schedule_id=schedule_id,
+            )
+
+        except Exception as e:
+            error_message = f"Error during schedule edit: {e}"
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e
 
