@@ -23,7 +23,12 @@ def _raise_agent_tool_not_found_error(agent_tool_id: str) -> None:
     )
 
 
-def _convert_approval_config(require_approval: dict, allowed_tools: list[str], convert_to_string: bool = True) -> str | dict:
+def _convert_approval_config(
+    require_approval: dict,
+    allowed_tools: list[str],
+    *,
+    convert_to_string: bool = True,
+) -> str | dict:
     """Convert our internal approval configuration to OpenAI's expected string format.
 
     Args:
@@ -32,21 +37,28 @@ def _convert_approval_config(require_approval: dict, allowed_tools: list[str], c
         convert_to_string: If True, converts to string format; if False, returns original object format
 
     Returns:
-        String format ("never", "always", "auto") if convert_to_string=True, 
+        String format ("never", "always", "auto") if convert_to_string=True,
         or original object format if convert_to_string=False
     """
     if not convert_to_string:
         # Return original object format for testing/debugging
         return require_approval or {}
-    
     if not require_approval:
         return "auto"
 
-    never_tools = require_approval.get("never", {}).get("tool_names", [])
-    always_tools = require_approval.get("always", {}).get("tool_names", [])
+    never_tools = require_approval.get("never", {}).get(
+        "tool_names", []
+    )
+    always_tools = require_approval.get("always", {}).get(
+        "tool_names", []
+    )
 
     # If no allowed_tools specified, check all tools in the config
-    tools_to_check = allowed_tools if allowed_tools else (never_tools + always_tools)
+    tools_to_check = (
+        allowed_tools
+        if allowed_tools
+        else (never_tools + always_tools)
+    )
 
     if not tools_to_check:
         return "auto"
@@ -65,7 +77,10 @@ def _convert_approval_config(require_approval: dict, allowed_tools: list[str], c
 
 class AgentToolsGetByAgentInput(BaseModel):
     agent_id: str = Field(..., min_length=1)
-    convert_approval_to_string: bool = Field(default=True, description="Convert approval config to string format for OpenAI")
+    convert_approval_to_string: bool = Field(
+        default=True,
+        description="Convert approval config to string format for OpenAI",
+    )
 
 
 class AgentToolsOutput(BaseModel):
@@ -176,7 +191,7 @@ async def agent_tools_read_by_agent(  # noqa: C901
                         require_approval = _convert_approval_config(
                             ms.require_approval or {},
                             r.allowed_tools or [],
-                            convert_to_string=function_input.convert_approval_to_string
+                            convert_to_string=function_input.convert_approval_to_string,
                         )
                         tool_obj = {
                             "type": "mcp",
@@ -364,7 +379,9 @@ async def agent_tools_update(
             res = await db.execute(q)
             record = res.scalar_one_or_none()
             if not record:
-                _raise_agent_tool_not_found_error(function_input.agent_tool_id)
+                _raise_agent_tool_not_found_error(
+                    function_input.agent_tool_id
+                )
 
             update_data = function_input.dict(
                 exclude_unset=True, exclude={"agent_tool_id"}
@@ -436,7 +453,9 @@ async def agent_tools_delete(
             res = await db.execute(q)
             record = res.scalar_one_or_none()
             if not record:
-                _raise_agent_tool_not_found_error(function_input.agent_tool_id)
+                _raise_agent_tool_not_found_error(
+                    function_input.agent_tool_id
+                )
             await db.delete(record)
             await db.commit()
             return AgentToolDeleteOutput(success=True)

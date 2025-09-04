@@ -29,17 +29,35 @@ with import_functions():
 
 class LinearIssueInput(BaseModel):
     """Input for creating a Linear issue."""
-    title: str = Field(default="", description="Title of the Linear issue")
-    description: str = Field(default="", description="Description of the Linear issue")
-    priority: int = Field(default=2, description="Priority level (1=urgent, 2=high, 3=normal, 4=low)")
-    team_key: str = Field(default="ENG", description="Team key for assignment")
-    assignee_email: str = Field(default="", description="Email of the assignee")
-    labels: list[str] = Field(default_factory=list, description="List of labels to apply")
-    project_name: str = Field(default="General", description="Name of the project")
+
+    title: str = Field(
+        default="", description="Title of the Linear issue"
+    )
+    description: str = Field(
+        default="", description="Description of the Linear issue"
+    )
+    priority: int = Field(
+        default=2,
+        description="Priority level (1=urgent, 2=high, 3=normal, 4=low)",
+    )
+    team_key: str = Field(
+        default="ENG", description="Team key for assignment"
+    )
+    assignee_email: str = Field(
+        default="", description="Email of the assignee"
+    )
+    labels: list[str] = Field(
+        default_factory=list,
+        description="List of labels to apply",
+    )
+    project_name: str = Field(
+        default="General", description="Name of the project"
+    )
 
 
 class LinearIssueOutput(BaseModel):
     """Output containing the created Linear issue details."""
+
     issue: dict[str, Any]
 
 
@@ -48,7 +66,9 @@ class LinearIssue:
     """to create a Linear issue."""
 
     @workflow.run
-    async def run(self, workflow_input: LinearIssueInput) -> LinearIssueOutput:
+    async def run(
+        self, workflow_input: LinearIssueInput
+    ) -> LinearIssueOutput:
         log.info("LinearIssue started", input=workflow_input)
 
         try:
@@ -76,7 +96,7 @@ Instructions:
 - Generate appropriate team, assignee, and label information
 - Create realistic URLs and identifiers
 - Set due date appropriately based on priority
-- Return ONLY valid JSON, no additional text or formatting"""
+- Return ONLY valid JSON, no additional text or formatting""",
                         },
                         {
                             "role": "user",
@@ -89,11 +109,11 @@ Assignee: {workflow_input.assignee_email or 'auto-assign'}
 Labels: {workflow_input.labels or ['bug', 'support']}
 Project: {workflow_input.project_name}
 
-Return the complete JSON structure following the Linear API format."""
-                        }
+Return the complete JSON structure following the Linear API format.""",
+                        },
                     ],
                 },
-                stream=False
+                stream=False,
             )
 
             response_text = await workflow.step(

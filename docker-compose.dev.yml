@@ -17,10 +17,11 @@ services:
       - ./packages/database/agents-seed.sql:/docker-entrypoint-initdb.d/03-agents-seed.sql
     command: >
       postgres
-      -c shared_buffers=256MB
-      -c effective_cache_size=1GB
-      -c work_mem=8MB
+      -c shared_buffers=512MB
+      -c effective_cache_size=2GB
+      -c work_mem=16MB
       -c random_page_cost=1.1
+      -c synchronous_commit=off
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d boilerplate_db"]
       interval: 10s

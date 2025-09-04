@@ -1,9 +1,7 @@
 "use client";
 
-import { Badge } from "@workspace/ui/components/ui/badge";
 import { Button } from "@workspace/ui/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/ui/card";
-import { CheckCircle, AlertCircle, ShieldCheck, ShieldAlert } from "lucide-react";
+import { ShieldCheck, ShieldAlert } from "lucide-react";
 import { useMemo } from "react";
 
 export interface ToolApprovalSettings {
@@ -44,7 +42,7 @@ export function ToolApprovalSelector({
     const isCurrentlyAuto = currentSettings.never.includes(toolName);
     const isCurrentlyRequired = currentSettings.always.includes(toolName);
 
-    let newSettings = { ...currentSettings };
+    const newSettings = { ...currentSettings };
 
     if (setting === 'auto') {
       if (isCurrentlyAuto) {
@@ -84,7 +82,7 @@ export function ToolApprovalSelector({
       )}
 
           <div className="max-h-96 overflow-y-auto space-y-2">
-            {sortedTools.map(({ name: tool, type }) => {
+            {sortedTools.map(({ name: tool }) => {
               const isAuto = currentSettings.never.includes(tool);
               const isRequired = currentSettings.always.includes(tool);
               const isConfigured = isAuto || isRequired;

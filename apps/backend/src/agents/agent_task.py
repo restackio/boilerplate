@@ -30,7 +30,6 @@ with import_functions():
     )
 
 
-
 class MessagesEvent(BaseModel):
     messages: list[Message]
 
@@ -70,7 +69,9 @@ class AgentTask:
         self.messages = []
         self.tools = []
         self.events = []
-        self.last_response_id = None  # For conversation continuity
+        self.last_response_id = (
+            None  # For conversation continuity
+        )
 
         # Agent model configuration for GPT-5 features
         self.agent_model = None
@@ -81,11 +82,18 @@ class AgentTask:
     def state_response(self) -> dict[str, Any]:
         """Ultra-minimal state: just raw data, properly sorted."""
         # Just sort events by sequence number - no transformation
-        sorted_events = sorted(self.events, key=lambda e: e.get("sequence_number", 0))
+        sorted_events = sorted(
+            self.events, key=lambda e: e.get("sequence_number", 0)
+        )
 
         return {
             "events": sorted_events,
-            "messages": [msg.model_dump() if hasattr(msg, "model_dump") else msg for msg in self.messages],
+            "messages": [
+                msg.model_dump()
+                if hasattr(msg, "model_dump")
+                else msg
+                for msg in self.messages
+            ],
             "task_id": self.task_id,
             "agent_task_id": self.agent_id,
             "last_response_id": self.last_response_id,
@@ -110,8 +118,13 @@ class AgentTask:
                             "type": "message",
                             "role": "user",
                             "status": "completed",
-                            "content": [{"type": "input_text", "text": message.content}]
-                        }
+                            "content": [
+                                {
+                                    "type": "input_text",
+                                    "text": message.content,
+                                }
+                            ],
+                        },
                     }
                     self.events.append(user_event)
 
@@ -126,22 +139,25 @@ class AgentTask:
                                 reasoning_effort=self.agent_reasoning_effort,
                                 previous_response_id=self.last_response_id,
                             ),
-                            start_to_close_timeout=timedelta(seconds=60),
+                            start_to_close_timeout=timedelta(
+                                seconds=60
+                            ),
                         )
 
                         # Step 2: execute with streaming so both steps are visible in logs
                         completion = await agent.step(
                             function=llm_response_stream,
                             function_input=prepared,
-                            start_to_close_timeout=timedelta(seconds=120),
+                            start_to_close_timeout=timedelta(
+                                seconds=120
+                            ),
                         )
                     except Exception as e:
-                        error_message = (
-                            f"Error during llm_response_stream: {e}"
-                        )
-                        raise NonRetryableError(error_message) from e
+                        error_message = f"Error during llm_response_stream: {e}"
+                        raise NonRetryableError(
+                            error_message
+                        ) from e
                     else:
-
                         if completion.parsed_response:
                             log.info("TODO: save in db")
 
@@ -195,7 +211,10 @@ class AgentTask:
             self.events.append(event_data)
 
             # Extract response_id from response.created event for conversation continuity
-            if event_data.get("type") == "response.created" and "response" in event_data:
+            if (
+                event_data.get("type") == "response.created"
+                and "response" in event_data
+            ):
                 response = event_data["response"]
                 if "id" in response:
                     self.last_response_id = response["id"]
@@ -218,7 +237,9 @@ class AgentTask:
         self.task_id = agent_input.task_id
 
         # Load agent configuration and tools once at startup (deterministic)
-        log.info("Loading agent configuration and tools at startup")
+        log.info(
+            "Loading agent configuration and tools at startup"
+        )
 
         agent_result = await agent.step(
             function=agents_get_by_id,
@@ -226,14 +247,21 @@ class AgentTask:
             start_to_close_timeout=timedelta(seconds=30),
         )
 
-        log.info("AgentTask agents_get_by_id result", result=agent_result)
+        log.info(
+            "AgentTask agents_get_by_id result",
+            result=agent_result,
+        )
 
         # Set agent configuration (deterministic based on database state at startup)
         if agent_result.agent:
             agent_data = agent_result.agent
             self.agent_model = agent_data.model
-            self.agent_reasoning_effort = agent_data.reasoning_effort
-            self.agent_response_format = agent_data.response_format
+            self.agent_reasoning_effort = (
+                agent_data.reasoning_effort
+            )
+            self.agent_response_format = (
+                agent_data.response_format
+            )
 
             log.info(
                 f"Loaded agent configuration - Model: {self.agent_model}, "
@@ -241,7 +269,10 @@ class AgentTask:
             )
 
             # Add instructions to initial messages if they exist
-            if agent_data.instructions and agent_data.instructions.strip():
+            if (
+                agent_data.instructions
+                and agent_data.instructions.strip()
+            ):
                 self.messages.append(
                     Message(
                         role="developer",
@@ -259,7 +290,7 @@ class AgentTask:
             function=agent_tools_read_by_agent,
             function_input=AgentToolsGetByAgentInput(
                 agent_id=self.agent_id,
-                convert_approval_to_string=True
+                convert_approval_to_string=True,
             ),
             start_to_close_timeout=timedelta(seconds=30),
         )

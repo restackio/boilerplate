@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@workspace/ui/components/ui/button";
 import { Textarea } from "@workspace/ui/components/ui/textarea";
 import { Input } from "@workspace/ui/components/ui/input";
@@ -76,7 +76,7 @@ const InstructionsPreview = ({ instructions }: { instructions: string }) => {
   );
 };
 
-export function AgentSetupTab({ agent, onSave, isSaving, workspaceId, onChange }: AgentSetupTabProps) {
+export function AgentSetupTab({ agent, onChange }: AgentSetupTabProps) {
   // State for editing
   const [name, setName] = useState("");
   const [version, setVersion] = useState("");
@@ -91,7 +91,7 @@ export function AgentSetupTab({ agent, onSave, isSaving, workspaceId, onChange }
   const [previewMode, setPreviewMode] = useState(true);
   const [nameError, setNameError] = useState("");
 
-  const emitChange = (overrides: Partial<AgentData> = {}) => {
+  const emitChange = useCallback((overrides: Partial<AgentData> = {}) => {
     const payload: AgentData = {
       name,
       version,
@@ -103,7 +103,7 @@ export function AgentSetupTab({ agent, onSave, isSaving, workspaceId, onChange }
       ...overrides,
     } as AgentData;
     onChange?.(payload);
-  };
+  }, [name, version, description, instructions, model, reasoningEffort, onChange]);
 
   const validateAgentName = (name: string): boolean => {
     const slugPattern = /^[a-z0-9-_]+$/;
@@ -131,30 +131,19 @@ export function AgentSetupTab({ agent, onSave, isSaving, workspaceId, onChange }
       setReasoningEffort(agent.reasoning_effort || "medium");
 
       // Emit initial values upward so Save can use latest edits
-      emitChange({
+      const initialData = {
         name: agent.name || "",
         version: agent.version || "",
         description: agent.description || "",
         instructions: agent.instructions || "",
         model: agent.model || "gpt-5",
         reasoning_effort: agent.reasoning_effort || "medium",
-      });
+      };
+      onChange?.(initialData);
     }
-  }, [agent]);
+  }, [agent, onChange]);
 
-  const handleSave = async () => {
-    const agentData: AgentData = {
-      name,
-      version,
-      description,
-      instructions,
-      model,
-      reasoning_effort: reasoningEffort,
-    };
-    // Also notify parent about final state before save
-    emitChange(agentData);
-    await onSave(agentData);
-  };
+  // handleSave function removed as it's not used - parent handles saving directly
 
 
   return (
@@ -295,7 +284,9 @@ export function AgentSetupTab({ agent, onSave, isSaving, workspaceId, onChange }
                     <Select onValueChange={(id) => {
                       const t = PROMPT_TEMPLATES.find(x => x.id === id);
                       if (t) {
-                        setInstructions(prev => (prev ? prev + "\n\n" : "") + t.content);
+                        const newInstructions = instructions ? instructions + "\n\n" + t.content : t.content;
+                        setInstructions(newInstructions);
+                        emitChange({ instructions: newInstructions });
                       }
                     }}>
                       <SelectTrigger className="h-8 w-[240px]">

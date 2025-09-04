@@ -4,9 +4,8 @@ import { Input } from "@workspace/ui/components/ui/input";
 import { Label } from "@workspace/ui/components/ui/label";
 import { Textarea } from "@workspace/ui/components/ui/textarea";
 import { Switch } from "@workspace/ui/components/ui/switch";
-import { Badge } from "@workspace/ui/components/ui/badge";
 import { Button } from "@workspace/ui/components/ui/button";
-import { Loader2, CheckCircle, AlertCircle, Wrench } from "lucide-react";
+import { Loader2, AlertCircle, Wrench } from "lucide-react";
 import { listMcpServerTools } from "@/app/actions/workflow";
 import { ToolApprovalSelector, ToolApprovalSettings } from "./ToolApprovalSelector";
 
@@ -77,7 +76,7 @@ export function McpServerForm({
       if (headerInput.trim()) {
         try {
           parsedHeaders = JSON.parse(headerInput);
-        } catch (error) {
+        } catch {
           onToolListChange({
             ...toolList,
             isListing: false,
@@ -92,6 +91,7 @@ export function McpServerForm({
       const result = await listMcpServerTools(serverUrl, parsedHeaders);
 
       if (result && typeof result === "object") {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const data = result as any;
         if (data.success) {
           const discoveredTools = data.tools_discovered || [];

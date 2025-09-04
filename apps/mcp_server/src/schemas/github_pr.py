@@ -19,7 +19,7 @@ GITHUB_PR_CREATION_SCHEMA = {
         "url": "https://api.github.com/users/engineering-bot",
         "html_url": "https://github.com/engineering-bot",
         "type": "User",
-        "site_admin": False
+        "site_admin": False,
     },
     "labels": [
         {
@@ -29,7 +29,7 @@ GITHUB_PR_CREATION_SCHEMA = {
             "name": "bug",
             "description": "Something isn't working",
             "color": "d73a4a",
-            "default": True
+            "default": True,
         },
         {
             "id": 22222,
@@ -38,8 +38,8 @@ GITHUB_PR_CREATION_SCHEMA = {
             "name": "database",
             "description": "Database related changes",
             "color": "0366d6",
-            "default": False
-        }
+            "default": False,
+        },
     ],
     "milestone": {
         "url": "https://api.github.com/repos/company/repo/milestones/1",
@@ -54,14 +54,14 @@ GITHUB_PR_CREATION_SCHEMA = {
         "creator": {
             "login": "project-manager",
             "id": 54321,
-            "type": "User"
+            "type": "User",
         },
         "open_issues": 4,
         "closed_issues": 8,
         "created_at": "2024-01-01T00:00:00Z",
         "updated_at": "2024-01-15T10:30:00Z",
         "closed_at": None,
-        "due_on": "2024-03-31T23:59:59Z"
+        "due_on": "2024-03-31T23:59:59Z",
     },
     "active_lock_reason": None,
     "created_at": "2024-01-15T10:30:00Z",
@@ -72,21 +72,13 @@ GITHUB_PR_CREATION_SCHEMA = {
     "assignee": {
         "login": "jane-smith",
         "id": 67890,
-        "type": "User"
+        "type": "User",
     },
     "assignees": [
-        {
-            "login": "jane-smith",
-            "id": 67890,
-            "type": "User"
-        }
+        {"login": "jane-smith", "id": 67890, "type": "User"}
     ],
     "requested_reviewers": [
-        {
-            "login": "senior-dev",
-            "id": 98765,
-            "type": "User"
-        }
+        {"login": "senior-dev", "id": 98765, "type": "User"}
     ],
     "requested_teams": [
         {
@@ -98,7 +90,7 @@ GITHUB_PR_CREATION_SCHEMA = {
             "privacy": "closed",
             "permission": "admin",
             "url": "https://api.github.com/teams/1",
-            "html_url": "https://github.com/orgs/company/teams/engineering"
+            "html_url": "https://github.com/orgs/company/teams/engineering",
         }
     ],
     "head": {
@@ -108,7 +100,7 @@ GITHUB_PR_CREATION_SCHEMA = {
         "user": {
             "login": "company",
             "id": 11111,
-            "type": "Organization"
+            "type": "Organization",
         },
         "repo": {
             "id": 1296269,
@@ -119,9 +111,9 @@ GITHUB_PR_CREATION_SCHEMA = {
             "owner": {
                 "login": "company",
                 "id": 11111,
-                "type": "Organization"
-            }
-        }
+                "type": "Organization",
+            },
+        },
     },
     "base": {
         "label": "company:main",
@@ -130,15 +122,15 @@ GITHUB_PR_CREATION_SCHEMA = {
         "user": {
             "login": "company",
             "id": 11111,
-            "type": "Organization"
+            "type": "Organization",
         },
         "repo": {
             "id": 1296269,
             "node_id": "R_kgDOABCD1234567890",
             "name": "payment-service",
             "full_name": "company/payment-service",
-            "private": True
-        }
+            "private": True,
+        },
     },
     "_links": {
         "self": {
@@ -164,7 +156,7 @@ GITHUB_PR_CREATION_SCHEMA = {
         },
         "statuses": {
             "href": "https://api.github.com/repos/company/payment-service/statuses/6dcb09b5b57875f334f61aebed695e2e4193db5e"
-        }
+        },
     },
     "author_association": "OWNER",
     "auto_merge": None,
@@ -180,5 +172,5 @@ GITHUB_PR_CREATION_SCHEMA = {
     "commits": 1,
     "additions": 45,
     "deletions": 8,
-    "changed_files": 3
+    "changed_files": 3,
 }

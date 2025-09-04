@@ -46,6 +46,7 @@ export async function testServerAction() {
 }
 
 // Helper function for executing workflows and getting results
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function executeWorkflow(workflowName: string, input: Record<string, any>) {
   try {
     const { workflowId, runId } = await runWorkflow({
@@ -212,6 +213,7 @@ export async function getAgentMcpServers(agentId: string) {
   const tools = await getAgentTools(agentId);
   
   // Filter to only MCP type tools
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mcpTools = (tools as any)?.agent_tools?.filter((tool: any) => tool.tool_type === 'mcp') || [];
   return { agent_mcp_servers: mcpTools };
 }
@@ -301,7 +303,7 @@ export async function deleteAgentMcpServer(agentMcpServerId: string) {
   });
 }
 
-export async function getAgentMcpServerById(_agentMcpServerId: string) {
+export async function getAgentMcpServerById() {
   // This function is no longer needed as we use the unified agent_tools approach
   // If needed, individual tools can be queried through getAgentTools and filtered
   throw new Error("getAgentMcpServerById is deprecated - use getAgentTools and filter by tool_type='mcp'");

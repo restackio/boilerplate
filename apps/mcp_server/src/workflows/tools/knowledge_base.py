@@ -31,13 +31,22 @@ with import_functions():
 
 class KnowledgeBaseInput(BaseModel):
     """Input for searching internal documentation."""
-    query: str = Field(default="", description="Search query for documentation")
-    category: str = Field(default="", description="Category to filter by")
-    max_results: int = Field(default=10, description="Maximum number of results to return")
+
+    query: str = Field(
+        default="", description="Search query for documentation"
+    )
+    category: str = Field(
+        default="", description="Category to filter by"
+    )
+    max_results: int = Field(
+        default=10,
+        description="Maximum number of results to return",
+    )
 
 
 class KnowledgeBaseOutput(BaseModel):
     """Output containing search results from knowledge base."""
+
     results: dict[str, Any]
 
 
@@ -46,7 +55,9 @@ class KnowledgeBase:
     """to search internal documentation."""
 
     @workflow.run
-    async def run(self, workflow_input: KnowledgeBaseInput) -> KnowledgeBaseOutput:
+    async def run(
+        self, workflow_input: KnowledgeBaseInput
+    ) -> KnowledgeBaseOutput:
         log.info("KnowledgeBase started", input=workflow_input)
 
         try:
@@ -73,7 +84,7 @@ Instructions:
 - Include realistic URLs, tags, and timestamps
 - Generate {workflow_input.max_results} or fewer results
 - Filter by category if specified: {workflow_input.category or 'any category'}
-- Return ONLY valid JSON, no additional text or formatting"""
+- Return ONLY valid JSON, no additional text or formatting""",
                         },
                         {
                             "role": "user",
@@ -82,11 +93,11 @@ Query: {workflow_input.query or 'general documentation'}
 Category: {workflow_input.category or 'any'}
 Max Results: {workflow_input.max_results}
 
-Return realistic search results that would help with L1 support assessment."""
-                        }
+Return realistic search results that would help with L1 support assessment.""",
+                        },
                     ],
                 },
-                stream=False
+                stream=False,
             )
 
             response_text = await workflow.step(
@@ -101,7 +112,9 @@ Return realistic search results that would help with L1 support assessment."""
 
             search_results = json.loads(response_text)
 
-            log.info("KnowledgeBase completed", results=search_results)
+            log.info(
+                "KnowledgeBase completed", results=search_results
+            )
             return KnowledgeBaseOutput(results=search_results)
 
         except Exception as e:

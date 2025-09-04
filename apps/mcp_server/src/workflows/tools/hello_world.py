@@ -11,13 +11,23 @@ from restack_ai.workflow import (
 
 class HelloWorldInput(BaseModel):
     """Input for generating a hello world response."""
-    name: str = Field(default="World", description="Name to greet in the hello message")
-    min_number: int = Field(default=1, description="Minimum value for random number")
-    max_number: int = Field(default=1000, description="Maximum value for random number")
+
+    name: str = Field(
+        default="World",
+        description="Name to greet in the hello message",
+    )
+    min_number: int = Field(
+        default=1, description="Minimum value for random number"
+    )
+    max_number: int = Field(
+        default=1000,
+        description="Maximum value for random number",
+    )
 
 
 class HelloWorldOutput(BaseModel):
     """Output containing hello world message and random number."""
+
     message: str
     random_number: int
     timestamp: str
@@ -31,12 +41,16 @@ with import_functions():
     )
 
 
-@workflow.defn(description="Generate a hello world message with random number")
+@workflow.defn(
+    description="Generate a hello world message with random number"
+)
 class HelloWorld:
     """Simple hello world tool that returns a greeting with a random number."""
 
     @workflow.run
-    async def run(self, workflow_input: HelloWorldInput) -> HelloWorldOutput:
+    async def run(
+        self, workflow_input: HelloWorldInput
+    ) -> HelloWorldOutput:
         log.info("HelloWorld started", input=workflow_input)
 
         try:
@@ -46,7 +60,7 @@ class HelloWorld:
                 function=generate_random_data,
                 function_input=RandomDataInput(
                     min_number=workflow_input.min_number,
-                    max_number=workflow_input.max_number
+                    max_number=workflow_input.max_number,
                 ),
                 start_to_close_timeout=timedelta(seconds=10),
             )
@@ -57,7 +71,7 @@ class HelloWorld:
             return HelloWorldOutput(
                 message=greeting_message,
                 random_number=random_data.random_number,
-                timestamp=random_data.timestamp
+                timestamp=random_data.timestamp,
             )
 
         except Exception as e:

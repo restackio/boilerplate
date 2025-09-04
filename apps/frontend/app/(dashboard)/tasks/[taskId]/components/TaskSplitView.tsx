@@ -131,6 +131,7 @@ export function TaskSplitView({
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Available Tools ({selectedCard.openai_output.tools.length})</label>
                     <div className="space-y-2 mt-1 max-h-32 overflow-auto">
+                      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                       {selectedCard.openai_output.tools.slice(0, 5).map((tool: any, index: number) => (
                         <div key={index} className="text-xs bg-neutral-100 dark:bg-neutral-800 p-2 rounded border">
                           <strong>{tool.name}</strong>: {tool.description}

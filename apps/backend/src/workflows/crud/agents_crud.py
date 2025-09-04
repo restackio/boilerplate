@@ -12,6 +12,7 @@ with import_functions():
         AgentCreateInput,
         AgentDeleteOutput,
         AgentGetByStatusInput,
+        AgentGetByWorkspaceInput,
         AgentGetVersionsInput,
         AgentIdInput,
         AgentListOutput,
@@ -33,7 +34,9 @@ class AgentsReadWorkflow:
     """Workflow to read all agents."""
 
     @workflow.run
-    async def run(self, workflow_input: dict) -> AgentListOutput:
+    async def run(
+        self, workflow_input: AgentGetByWorkspaceInput
+    ) -> AgentListOutput:
         log.info("AgentsReadWorkflow started")
         try:
             return await workflow.step(

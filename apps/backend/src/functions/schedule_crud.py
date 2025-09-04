@@ -21,17 +21,23 @@ from src.database.models import Task
 
 def _raise_task_not_found(task_id: str) -> None:
     """Helper function to raise task not found error."""
-    raise NonRetryableError(message=f"Task with id {task_id} not found")
+    raise NonRetryableError(
+        message=f"Task with id {task_id} not found"
+    )
 
 
 def _raise_not_scheduled_task() -> None:
     """Helper function to raise not scheduled task error."""
-    raise NonRetryableError(message="Task is not a scheduled task or missing schedule ID")
+    raise NonRetryableError(
+        message="Task is not a scheduled task or missing schedule ID"
+    )
 
 
 def _raise_not_scheduled_error() -> None:
     """Helper function to raise task not scheduled error."""
-    raise NonRetryableError(message="Task is not a scheduled task")
+    raise NonRetryableError(
+        message="Task is not a scheduled task"
+    )
 
 
 def _raise_unknown_action(action: str) -> None:
@@ -52,7 +58,10 @@ def parse_interval_string(interval_str: str) -> timedelta:
     interval_str = interval_str.strip().lower()
 
     # Regular expression to parse number and unit
-    match = re.match(r"^(\d+(?:\.\d+)?)\s*(s|sec|seconds?|m|min|minutes?|h|hr|hours?|d|day|days?)$", interval_str)
+    match = re.match(
+        r"^(\d+(?:\.\d+)?)\s*(s|sec|seconds?|m|min|minutes?|h|hr|hours?|d|day|days?)$",
+        interval_str,
+    )
 
     if not match:
         msg = f"Invalid interval format: {interval_str}. Expected format like '5m', '1h', '2d'"
@@ -78,24 +87,41 @@ def parse_interval_string(interval_str: str) -> timedelta:
 # Unified schedule specification models
 class ScheduleCalendar(BaseModel):
     """Calendar-based schedule specification."""
-    day_of_week: str = Field(..., pattern="^[0-6]$", description="Day of week (0=Sunday, 6=Saturday)")
-    hour: int = Field(..., ge=0, le=23, description="Hour of day (0-23)")
-    minute: int = Field(default=0, ge=0, le=59, description="Minute of hour (0-59)")
+
+    day_of_week: str = Field(
+        ...,
+        pattern="^[0-6]$",
+        description="Day of week (0=Sunday, 6=Saturday)",
+    )
+    hour: int = Field(
+        ..., ge=0, le=23, description="Hour of day (0-23)"
+    )
+    minute: int = Field(
+        default=0,
+        ge=0,
+        le=59,
+        description="Minute of hour (0-59)",
+    )
 
 
 class ScheduleInterval(BaseModel):
     """Interval-based schedule specification."""
-    every: str = Field(..., description="Interval string (e.g., '5m', '1h', '2d')")
+
+    every: str = Field(
+        ...,
+        description="Interval string (e.g., '5m', '1h', '2d')",
+    )
 
 
 class UnifiedScheduleSpec(BaseModel):
     """Unified schedule specification that matches frontend, backend, and library formats."""
+
     calendars: list[ScheduleCalendar] | None = None
     intervals: list[ScheduleInterval] | None = None
     cron: str | None = None
     time_zone: str | None = Field(
         default="UTC",
-        description="IANA timezone name (e.g., 'America/New_York', 'Europe/London', 'UTC')"
+        description="IANA timezone name (e.g., 'America/New_York', 'Europe/London', 'UTC')",
     )
 
     def to_restack_format(self) -> ScheduleSpec:
@@ -105,33 +131,57 @@ class UnifiedScheduleSpec(BaseModel):
                 calendars=[
                     ScheduleCalendarSpec(
                         # Use ScheduleRange for each time component
-                        day_of_week=[ScheduleRange(start=int(cal.day_of_week), end=int(cal.day_of_week), step=1)],
-                        hour=[ScheduleRange(start=cal.hour, end=cal.hour, step=1)],
-                        minute=[ScheduleRange(start=cal.minute, end=cal.minute, step=1)],
+                        day_of_week=[
+                            ScheduleRange(
+                                start=int(cal.day_of_week),
+                                end=int(cal.day_of_week),
+                                step=1,
+                            )
+                        ],
+                        hour=[
+                            ScheduleRange(
+                                start=cal.hour,
+                                end=cal.hour,
+                                step=1,
+                            )
+                        ],
+                        minute=[
+                            ScheduleRange(
+                                start=cal.minute,
+                                end=cal.minute,
+                                step=1,
+                            )
+                        ],
                     )
                     for cal in self.calendars
                 ],
-                time_zone_name=self.time_zone
+                time_zone_name=self.time_zone,
             )
         if self.intervals:
             return ScheduleSpec(
                 intervals=[
-                    ScheduleIntervalSpec(every=parse_interval_string(interval.every))
+                    ScheduleIntervalSpec(
+                        every=parse_interval_string(
+                            interval.every
+                        )
+                    )
                     for interval in self.intervals
                 ],
-                time_zone_name=self.time_zone
+                time_zone_name=self.time_zone,
             )
         if self.cron:
             return ScheduleSpec(
                 cron_expressions=[self.cron],
-                time_zone_name=self.time_zone
+                time_zone_name=self.time_zone,
             )
 
         msg = "Schedule spec must have calendars, intervals, or cron"
         raise ValueError(msg)
 
     @classmethod
-    def from_frontend_format(cls, spec: dict[str, Any]) -> "UnifiedScheduleSpec":
+    def from_frontend_format(
+        cls, spec: dict[str, Any]
+    ) -> "UnifiedScheduleSpec":
         """Convert from frontend format to unified format."""
         # Extract timezone from spec, default to UTC
         time_zone = spec.get("timeZone", "UTC")
@@ -140,13 +190,17 @@ class UnifiedScheduleSpec(BaseModel):
         if calendars:
             calendar_list = [
                 ScheduleCalendar(
-                    day_of_week=cal["dayOfWeek"],  # Frontend uses camelCase
+                    day_of_week=cal[
+                        "dayOfWeek"
+                    ],  # Frontend uses camelCase
                     hour=cal["hour"],
-                    minute=cal.get("minute", 0)
+                    minute=cal.get("minute", 0),
                 )
                 for cal in calendars
             ]
-            return cls(calendars=calendar_list, time_zone=time_zone)
+            return cls(
+                calendars=calendar_list, time_zone=time_zone
+            )
 
         intervals = spec.get("intervals")
         if intervals:
@@ -154,7 +208,9 @@ class UnifiedScheduleSpec(BaseModel):
                 ScheduleInterval(every=interval["every"])
                 for interval in intervals
             ]
-            return cls(intervals=interval_list, time_zone=time_zone)
+            return cls(
+                intervals=interval_list, time_zone=time_zone
+            )
 
         if "cron" in spec:
             return cls(cron=spec["cron"], time_zone=time_zone)
@@ -171,7 +227,7 @@ class UnifiedScheduleSpec(BaseModel):
                 {
                     "dayOfWeek": cal.day_of_week,  # Frontend expects camelCase
                     "hour": cal.hour,
-                    "minute": cal.minute
+                    "minute": cal.minute,
                 }
                 for cal in self.calendars
             ]
@@ -189,7 +245,9 @@ class UnifiedScheduleSpec(BaseModel):
 # Pydantic models for schedule operations
 class ScheduleCreateInput(BaseModel):
     task_id: str = Field(..., min_length=1)
-    schedule_spec: UnifiedScheduleSpec = Field(..., description="Unified schedule specification")
+    schedule_spec: UnifiedScheduleSpec = Field(
+        ..., description="Unified schedule specification"
+    )
 
 
 class ScheduleUpdateInput(BaseModel):
@@ -201,20 +259,30 @@ class ScheduleUpdateInput(BaseModel):
 
 
 class ScheduleControlInput(BaseModel):
-    task_id: str | None = Field(None, min_length=1, description="Task ID from database")
-    schedule_id: str | None = Field(None, min_length=1, description="Restack schedule ID")
+    task_id: str | None = Field(
+        None, min_length=1, description="Task ID from database"
+    )
+    schedule_id: str | None = Field(
+        None, min_length=1, description="Restack schedule ID"
+    )
     action: str = Field(..., pattern="^(pause|resume|delete)$")
-    reason: str | None = Field(None, description="Reason for the action")
+    reason: str | None = Field(
+        None, description="Reason for the action"
+    )
 
-    def model_post_init(self, __context) -> None:
+    def model_post_init(self, __context: dict, /) -> None:
         """Validate that either task_id or schedule_id is provided."""
         if not self.task_id and not self.schedule_id:
-            raise ValueError("Either task_id or schedule_id must be provided")
+            msg = "Either task_id or schedule_id must be provided"
+            raise ValueError(msg)
         if self.task_id and self.schedule_id:
-            raise ValueError("Only one of task_id or schedule_id should be provided")
+            msg = "Only one of task_id or schedule_id should be provided"
+            raise ValueError(msg)
+
 
 class ScheduleUpdateDatabaseInput(BaseModel):
     """Input model for schedule database update operations."""
+
     task_id: str = Field(..., min_length=1)
     action: str = Field(..., pattern="^(pause|resume|delete)$")
 
@@ -223,9 +291,6 @@ class ScheduleOutput(BaseModel):
     success: bool
     message: str | None = None
     restack_schedule_id: str | None = None
-
-
-
 
 
 @function.defn()
@@ -243,7 +308,9 @@ async def schedule_create_workflow(
                     selectinload(Task.assigned_to_user),
                     selectinload(Task.workspace),
                 )
-                .where(Task.id == uuid.UUID(schedule_input.task_id))
+                .where(
+                    Task.id == uuid.UUID(schedule_input.task_id)
+                )
             )
             result = await db.execute(task_query)
             task = result.scalar_one_or_none()
@@ -260,13 +327,17 @@ async def schedule_create_workflow(
                 "description": task.description,
                 "status": "open",
                 "agent_id": str(task.agent_id),
-                "assigned_to_id": str(task.assigned_to_id) if task.assigned_to_id else None,
+                "assigned_to_id": str(task.assigned_to_id)
+                if task.assigned_to_id
+                else None,
                 "schedule_task_id": schedule_input.task_id,  # Reference to the original schedule task
                 "is_scheduled": False,  # These are the created tasks from the schedule
             }
 
             # Convert unified schedule spec to Restack format
-            schedule_config = schedule_input.schedule_spec.to_restack_format()
+            schedule_config = (
+                schedule_input.schedule_spec.to_restack_format()
+            )
 
             # Schedule the workflow with Restack
             run_id = await client.schedule_workflow(
@@ -278,7 +349,9 @@ async def schedule_create_workflow(
 
             # Update the original task to mark it as a schedule
             # Store in database using frontend format for consistency with UI
-            task.schedule_spec = schedule_input.schedule_spec.to_frontend_format()
+            task.schedule_spec = (
+                schedule_input.schedule_spec.to_frontend_format()
+            )
             task.is_scheduled = True
             task.schedule_status = "active"
             task.restack_schedule_id = run_id
@@ -308,21 +381,28 @@ async def schedule_update_workflow(
     async for db in get_async_db():
         try:
             # Get the task details
-            task_query = select(Task).where(Task.id == uuid.UUID(schedule_input.task_id))
+            task_query = select(Task).where(
+                Task.id == uuid.UUID(schedule_input.task_id)
+            )
             result = await db.execute(task_query)
             task = result.scalar_one_or_none()
 
             if not task:
                 _raise_task_not_found(schedule_input.task_id)
 
-            if not task.is_scheduled or not task.restack_schedule_id:
+            if (
+                not task.is_scheduled
+                or not task.restack_schedule_id
+            ):
                 _raise_not_scheduled_task()
 
             # Update task fields
             if schedule_input.schedule_spec:
                 task.schedule_spec = schedule_input.schedule_spec.to_frontend_format()
             if schedule_input.schedule_status:
-                task.schedule_status = schedule_input.schedule_status
+                task.schedule_status = (
+                    schedule_input.schedule_status
+                )
 
             await db.commit()
             await db.refresh(task)
@@ -343,6 +423,7 @@ async def schedule_update_workflow(
 
 class ScheduleGetTaskInfoInput(BaseModel):
     """Input model for getting task information."""
+
     task_id: str = Field(..., min_length=1)
 
 
@@ -355,7 +436,9 @@ async def schedule_get_task_info(
     async for db in get_async_db():
         try:
             # Get the task details
-            task_query = select(Task).where(Task.id == uuid.UUID(task_id))
+            task_query = select(Task).where(
+                Task.id == uuid.UUID(task_id)
+            )
             result = await db.execute(task_query)
             task = result.scalar_one_or_none()
 
@@ -364,7 +447,6 @@ async def schedule_get_task_info(
 
             if not task.is_scheduled:
                 _raise_not_scheduled_error()
-
 
             return {
                 "task_id": str(task.id),
@@ -392,13 +474,14 @@ async def schedule_update_database(
     async for db in get_async_db():
         try:
             # Get the task again
-            task_query = select(Task).where(Task.id == uuid.UUID(task_id))
+            task_query = select(Task).where(
+                Task.id == uuid.UUID(task_id)
+            )
             result = await db.execute(task_query)
             task = result.scalar_one_or_none()
 
             if not task:
                 _raise_task_not_found(task_id)
-
 
             # Update database based on action
             if action == "resume":
@@ -419,7 +502,6 @@ async def schedule_update_database(
             await db.commit()
             await db.refresh(task)
 
-
             return {
                 "task_id": str(task.id),
                 "new_status": task.schedule_status,
@@ -433,6 +515,3 @@ async def schedule_update_database(
                 message=f"Failed to update database: {e!s}"
             ) from e
     return None
-
-
-

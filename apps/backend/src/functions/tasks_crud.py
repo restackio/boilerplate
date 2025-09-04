@@ -169,7 +169,9 @@ async def tasks_read(
                         agent_task_id=task.agent_task_id,
                         # Schedule-related fields
                         schedule_spec=task.schedule_spec,
-                        schedule_task_id=str(task.schedule_task_id)
+                        schedule_task_id=str(
+                            task.schedule_task_id
+                        )
                         if task.schedule_task_id
                         else None,
                         is_scheduled=task.is_scheduled,
@@ -213,7 +215,9 @@ async def tasks_create(
                 agent_task_id=task_data.agent_task_id,
                 # Schedule-related fields
                 schedule_spec=task_data.schedule_spec,
-                schedule_task_id=uuid.UUID(task_data.schedule_task_id)
+                schedule_task_id=uuid.UUID(
+                    task_data.schedule_task_id
+                )
                 if task_data.schedule_task_id
                 else None,
                 is_scheduled=task_data.is_scheduled,
@@ -292,19 +296,34 @@ async def tasks_update(
             for key, value in update_data.items():
                 if hasattr(task, key):
                     # Handle UUID fields
-                    if (key == "agent_id" and value) or (
-                        key == "assigned_to_id" and value
-                    ) or (key == "schedule_task_id" and value):
+                    if (
+                        (key == "agent_id" and value)
+                        or (key == "assigned_to_id" and value)
+                        or (key == "schedule_task_id" and value)
+                    ):
                         setattr(task, key, uuid.UUID(value))
-                    elif (key == "agent_task_id" and value) or (
-                        key == "messages" and value is not None
-                    ) or (key == "schedule_spec" and value is not None) or (
-                        key in ["is_scheduled", "schedule_status", "restack_schedule_id"]
+                    elif (
+                        (key == "agent_task_id" and value)
+                        or (
+                            key == "messages"
+                            and value is not None
+                        )
+                        or (
+                            key == "schedule_spec"
+                            and value is not None
+                        )
+                        or (
+                            key
+                            in [
+                                "is_scheduled",
+                                "schedule_status",
+                                "restack_schedule_id",
+                            ]
+                        )
                     ):
                         setattr(task, key, value)
                     else:
                         setattr(task, key, value)
-
 
             await db.commit()
             await db.refresh(task)
@@ -492,7 +511,9 @@ async def tasks_get_by_status(
                         agent_task_id=task.agent_task_id,
                         # Schedule-related fields
                         schedule_spec=task.schedule_spec,
-                        schedule_task_id=str(task.schedule_task_id)
+                        schedule_task_id=str(
+                            task.schedule_task_id
+                        )
                         if task.schedule_task_id
                         else None,
                         is_scheduled=task.is_scheduled,
@@ -542,7 +563,6 @@ async def tasks_update_agent_task_id(
                 )
             # Update the agent_task_id
             task.agent_task_id = function_input.agent_task_id
-
 
             await db.commit()
             await db.refresh(task)

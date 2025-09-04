@@ -18,7 +18,7 @@ DATADOG_LOGS_SCHEMA = {
                     "env:production",
                     "service:payment",
                     "version:1.2.3",
-                    "error:timeout"
+                    "error:timeout",
                 ],
                 "attributes": {
                     "level": "ERROR",
@@ -28,9 +28,9 @@ DATADOG_LOGS_SCHEMA = {
                     "error_message": "Connection timeout",
                     "stack_trace": "DatabaseTimeoutException: Connection timeout\n\tat com.example.db.ConnectionPool.getConnection(ConnectionPool.java:45)",
                     "user_id": "user_12345",
-                    "request_id": "req_abcdef123456"
-                }
-            }
+                    "request_id": "req_abcdef123456",
+                },
+            },
         },
         {
             "id": "log_98765432109876543210",
@@ -46,7 +46,7 @@ DATADOG_LOGS_SCHEMA = {
                     "env:production",
                     "service:payment",
                     "version:1.2.3",
-                    "performance:slow"
+                    "performance:slow",
                 ],
                 "attributes": {
                     "level": "WARN",
@@ -55,10 +55,10 @@ DATADOG_LOGS_SCHEMA = {
                     "query_duration_ms": 2500,
                     "query": "SELECT * FROM transactions WHERE...",
                     "user_id": "user_67890",
-                    "request_id": "req_fedcba654321"
-                }
-            }
-        }
+                    "request_id": "req_fedcba654321",
+                },
+            },
+        },
     ],
     "meta": {
         "page": {
@@ -67,9 +67,9 @@ DATADOG_LOGS_SCHEMA = {
         "elapsed": 123,
         "request_id": "MWlFUjJVZWJBVFZ6ZUJDcEJ6b3JvQXxfanU0a0FJc0lhMjJOXy1BdGd2dnJR",
         "status": "done",
-        "warnings": []
+        "warnings": [],
     },
     "links": {
         "next": "https://api.datadoghq.com/api/v2/logs/events?filter[query]=service:payment-service&page[cursor]=eyJhZnRlciI6IkFRQUFBWE5wYmhOelJXeHNjMUJuZVM5U2FscUY"
-    }
+    },
 }

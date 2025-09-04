@@ -26,7 +26,7 @@ interface CodeBlockProps {
   language?: "json" | "text";
 }
 
-export function CodeBlock({ content, maxHeight = "max-h-40", language = "json" }: CodeBlockProps) {
+export function CodeBlock({ content, maxHeight = "max-h-40" }: CodeBlockProps) {
   const displayContent = typeof content === 'string' 
     ? content 
     : JSON.stringify(content, null, 2);
@@ -39,6 +39,7 @@ export function CodeBlock({ content, maxHeight = "max-h-40", language = "json" }
 }
 
 interface ToolListProps {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   tools: Array<{ name: string; description?: string; [key: string]: any }>;
   maxVisible?: number;
 }
@@ -116,7 +117,7 @@ interface StatusDisplayProps {
   isFailed: boolean;
 }
 
-export function StatusDisplay({ status: _status, isCompleted, isFailed }: StatusDisplayProps) {
+export function StatusDisplay({ isCompleted, isFailed }: StatusDisplayProps) {
   if (isCompleted) {
     return (
       <Button

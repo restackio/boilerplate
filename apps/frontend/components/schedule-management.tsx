@@ -26,6 +26,7 @@ interface ScheduleManagementProps {
     title: string;
     is_scheduled: boolean;
     schedule_status?: "active" | "inactive" | "paused";
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     schedule_spec?: any;
     restack_schedule_id?: string;
   };
@@ -65,6 +66,7 @@ export function ScheduleManagement({ task, onScheduleUpdated }: ScheduleManageme
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const formatScheduleSpec = (spec?: any) => {
     if (!spec) return "No schedule configured";
 
@@ -217,6 +219,7 @@ export function ScheduleInfo({ task }: { task: ScheduleManagementProps['task'] }
     return null;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const formatScheduleDetails = (spec?: any) => {
     if (!spec) return "No schedule configured";
 

@@ -20,7 +20,7 @@ PAGERDUTY_INCIDENT_SCHEMA = {
             "type": "service_reference",
             "summary": "Production Database",
             "self": "https://api.pagerduty.com/services/PSERVICE123",
-            "html_url": "https://myaccount.pagerduty.com/services/PSERVICE123"
+            "html_url": "https://myaccount.pagerduty.com/services/PSERVICE123",
         },
         "assignees": [
             {
@@ -28,7 +28,7 @@ PAGERDUTY_INCIDENT_SCHEMA = {
                 "type": "user_reference",
                 "summary": "Jane Doe",
                 "self": "https://api.pagerduty.com/users/PUSER456",
-                "html_url": "https://myaccount.pagerduty.com/users/PUSER456"
+                "html_url": "https://myaccount.pagerduty.com/users/PUSER456",
             }
         ],
         "escalation_policy": {
@@ -36,7 +36,7 @@ PAGERDUTY_INCIDENT_SCHEMA = {
             "type": "escalation_policy_reference",
             "summary": "Database Team Policy",
             "self": "https://api.pagerduty.com/escalation_policies/PEPOLICY789",
-            "html_url": "https://myaccount.pagerduty.com/escalation_policies/PEPOLICY789"
+            "html_url": "https://myaccount.pagerduty.com/escalation_policies/PEPOLICY789",
         },
         "teams": [
             {
@@ -44,7 +44,7 @@ PAGERDUTY_INCIDENT_SCHEMA = {
                 "type": "team_reference",
                 "summary": "Database Team",
                 "self": "https://api.pagerduty.com/teams/PTEAM101",
-                "html_url": "https://myaccount.pagerduty.com/teams/PTEAM101"
+                "html_url": "https://myaccount.pagerduty.com/teams/PTEAM101",
             }
         ],
         "priority": {
@@ -52,13 +52,13 @@ PAGERDUTY_INCIDENT_SCHEMA = {
             "type": "priority_reference",
             "summary": "P1 - Critical",
             "self": "https://api.pagerduty.com/priorities/PPRIORITY1",
-            "html_url": "https://myaccount.pagerduty.com/priorities/PPRIORITY1"
+            "html_url": "https://myaccount.pagerduty.com/priorities/PPRIORITY1",
         },
         "urgency": "high",
         "conference_bridge": {
             "conference_number": "+1-415-555-1212,,,,1234#",
-            "conference_url": "https://meet.example.com/incident-123456"
+            "conference_url": "https://meet.example.com/incident-123456",
         },
-        "resolve_reason": None
+        "resolve_reason": None,
     }
 }

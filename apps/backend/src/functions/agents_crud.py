@@ -90,6 +90,10 @@ class AgentGetVersionsInput(BaseModel):
 
 class AgentGetByWorkspaceInput(BaseModel):
     workspace_id: str = Field(..., min_length=1)
+    active_only: bool = Field(
+        default=False,
+        description="If true, return only active agents",
+    )
 
 
 # Pydantic models for output serialization
@@ -207,6 +211,14 @@ async def agents_read(
     async for db in get_async_db():
         try:
             # Subquery to get the latest created_at for each agent group in the workspace
+            subquery_conditions = [
+                Agent.workspace_id
+                == uuid.UUID(function_input.workspace_id)
+            ]
+            if function_input.active_only:
+                subquery_conditions.append(
+                    Agent.status == "active"
+                )
             latest_versions_subquery = (
                 select(
                     func.coalesce(
@@ -216,10 +228,7 @@ async def agents_read(
                         "latest_created_at"
                     ),
                 )
-                .where(
-                    Agent.workspace_id
-                    == uuid.UUID(function_input.workspace_id)
-                )
+                .where(and_(*subquery_conditions))
                 .group_by(
                     func.coalesce(Agent.parent_agent_id, Agent.id)
                 )
@@ -247,6 +256,11 @@ async def agents_read(
                 )
                 .order_by(Agent.name.asc())
             )
+            # Add active status filter if requested
+            if function_input.active_only:
+                latest_agents_query = latest_agents_query.where(
+                    Agent.status == "active"
+                )
 
             result = await db.execute(latest_agents_query)
             latest_agents = result.scalars().all()
@@ -314,6 +328,59 @@ async def agents_read(
     return None
 
 
+def _bump_version(current_version: str) -> str:
+    """Utility function to bump version number."""
+    import re
+
+    # Handle version formats like "v1.0", "v1.2.3", "1.0", etc.
+    version_match = re.match(
+        r"^(v?)(\d+)\.(\d+)(?:\.(\d+))?(.*)$", current_version
+    )
+
+    if not version_match:
+        # If version doesn't match expected format, default to incrementing
+        return "v1.1" if "v" in current_version else "1.1"
+
+    prefix, major, minor, patch, suffix = version_match.groups()
+    patch = patch or "0"
+    suffix = suffix or ""
+
+    # Increment minor version and reset patch to 0 if it exists
+    new_minor = int(minor) + 1
+    return (
+        f"{prefix}{major}.{new_minor}.0{suffix}"
+        if patch != "0"
+        else f"{prefix}{major}.{new_minor}{suffix}"
+    )
+
+
+def _find_latest_version(versions: list[str]) -> str:
+    """Utility function to find the highest version from a list of versions."""
+    import re
+
+    if not versions:
+        return "v1.0"
+
+    # Sort versions to find the latest
+    def version_key(version: str) -> tuple[int, int, int]:
+        match = re.match(
+            r"^(?:v?)(\d+)\.(\d+)(?:\.(\d+))?", version
+        )
+        if not match:
+            return (0, 0, 0)
+
+        major = int(match.group(1))
+        minor = int(match.group(2))
+        patch = int(match.group(3) or "0")
+
+        return (major, minor, patch)
+
+    sorted_versions = sorted(
+        versions, key=version_key, reverse=True
+    )
+    return sorted_versions[0]
+
+
 @function.defn()
 async def agents_create(
     agent_data: AgentCreateInput,
@@ -333,11 +400,48 @@ async def agents_create(
                         message="Invalid parent_agent_id format"
                     ) from e
 
+            # Auto-bump version if creating a new version of an existing agent
+            final_version = agent_data.version
+            if parent_agent_id:
+                # Fetch all versions of this agent family to determine the latest version
+                try:
+                    from sqlalchemy import or_, select
+
+                    # Query for all agents that are either:
+                    # 1. The parent agent itself (parent_agent_id is None and id matches)
+                    # 2. Children of the parent agent (parent_agent_id matches)
+                    version_query = select(Agent.version).where(
+                        or_(
+                            Agent.id == parent_agent_id,
+                            Agent.parent_agent_id
+                            == parent_agent_id,
+                        )
+                    )
+
+                    result = await db.execute(version_query)
+                    existing_versions = [
+                        row[0] for row in result.fetchall()
+                    ]
+
+                    if existing_versions:
+                        latest_version = _find_latest_version(
+                            existing_versions
+                        )
+                        final_version = _bump_version(
+                            latest_version
+                        )
+
+                except (ValueError, KeyError, AttributeError):
+                    # If version fetching fails, fall back to bumping the provided version
+                    final_version = _bump_version(
+                        agent_data.version
+                    )
+
             agent = Agent(
                 id=uuid.uuid4(),
                 workspace_id=uuid.UUID(agent_data.workspace_id),
                 name=agent_data.name,
-                version=agent_data.version,
+                version=final_version,
                 description=agent_data.description,
                 instructions=agent_data.instructions,
                 status=agent_data.status,

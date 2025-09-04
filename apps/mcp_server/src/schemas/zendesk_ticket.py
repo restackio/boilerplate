@@ -9,7 +9,7 @@ ZENDESK_TICKET_SCHEMA = {
         "created_at": "2009-07-20T22:55:29Z",
         "custom_fields": [
             {"id": 27642, "value": "745"},
-            {"id": 27648, "value": "yes"}
+            {"id": 27648, "value": "yes"},
         ],
         "custom_status_id": 123,
         "description": "The fire is very colorful.",
@@ -30,7 +30,7 @@ ZENDESK_TICKET_SCHEMA = {
         "satisfaction_rating": {
             "comment": "Great support!",
             "id": 1234,
-            "score": "good"
+            "score": "good",
         },
         "sharing_agreement_ids": [84432],
         "status": "open",
@@ -40,6 +40,6 @@ ZENDESK_TICKET_SCHEMA = {
         "type": "incident",
         "updated_at": "2011-05-05T10:38:52Z",
         "url": "https://company.zendesk.com/api/v2/tickets/35436.json",
-        "via": {"channel": "web"}
+        "via": {"channel": "web"},
     }
 }
