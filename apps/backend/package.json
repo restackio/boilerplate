@@ -7,7 +7,7 @@
     "start": "uv run start",
     "schedule": "uv run schedule",
     "install": "uv sync",
-    "build": "echo 'Python backend does not need build step'",
+    "build": "uv sync --frozen",
     "lint": "ruff check .",
     "lint:fix": "ruff check . --fix",
     "type-check": "echo 'Python backend does not need type checking'",

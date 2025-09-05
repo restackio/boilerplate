@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "uv run dev",
     "start": "uv run start",
+    "build": "uv sync --frozen",
     "lint": "uv run ruff check src",
     "lint:fix": "uv run ruff check --fix src",
     "format": "uv run ruff format src",

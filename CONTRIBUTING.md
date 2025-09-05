@@ -121,16 +121,17 @@ pnpm type-check     # Run TypeScript type checking
 pnpm check          # Run type checking and linting
 ```
 
-### Docker Development
+### Infrastructure Development
+
+For development, we use `docker-compose.dev.yml` to run infrastructure services (PostgreSQL and Restack Engine):
 
 ```bash
-pnpm docker:build   # Build Docker images
-pnpm docker:up      # Start services with Docker
-pnpm docker:down    # Stop Docker services
-pnpm docker:logs    # View Docker logs
-pnpm docker:restart # Restart Docker services
-pnpm docker:reset   # Reset Docker environment
-pnpm docker:ps      # Show Docker service status
+pnpm infra:start    # Start PostgreSQL and Restack Engine
+pnpm infra:stop     # Stop infrastructure services
+pnpm infra:restart  # Restart infrastructure services
+pnpm infra:logs     # View infrastructure logs
+pnpm infra:reset    # Reset database and restart services
+pnpm infra:ps       # Show running services
 ```
 
 ## 🏗️ Project Structure
@@ -239,8 +240,11 @@ pnpm start
 ### Docker Production Build
 
 ```bash
-# Build and run with Docker
-pnpm docker:reset
+# Build and run with Docker (production setup)
+pnpm docker:prod:reset
+
+# Or use turbo setup for simplest deployment
+pnpm docker:turbo:reset
 ```
 
 ## 📝 Code Style Guidelines
