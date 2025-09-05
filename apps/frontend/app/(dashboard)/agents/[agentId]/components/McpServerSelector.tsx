@@ -103,6 +103,7 @@ export function McpServerSelector({ agentId, workspaceId, onMcpServersChange }: 
     if (selectedMcpServerId) {
       const selectedServer = mcpServers.find(s => s.id === selectedMcpServerId);
       if (selectedServer?.require_approval) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const approval = selectedServer.require_approval as any;
         const neverTools = approval?.never?.tool_names || [];
         const alwaysTools = approval?.always?.tool_names || [];
@@ -124,7 +125,9 @@ export function McpServerSelector({ agentId, workspaceId, onMcpServersChange }: 
         allowed_tools: allowedTools.length > 0 ? allowedTools : undefined,
       });
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       if (result && (result as any).agent_tool) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const newAgentMcpServer = (result as any).agent_tool;
         const updatedAgentMcpServers = [...agentMcpServers, newAgentMcpServer];
         setAgentMcpServers(updatedAgentMcpServers);
@@ -222,9 +225,11 @@ export function McpServerSelector({ agentId, workspaceId, onMcpServersChange }: 
                           {mcpServer?.server_label || agentMcpServer.mcp_server_label}
                         </h4>
                         <Badge
+                          // eslint-disable-next-line @typescript-eslint/no-explicit-any
                           variant={(mcpServer?.require_approval as any)?.always ? "destructive" : "secondary"}
                           className="text-xs"
                         >
+                          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                           {(mcpServer?.require_approval as any)?.always ? "Approval Required" : "Auto"}
                         </Badge>
                       </div>
@@ -283,6 +288,7 @@ export function McpServerSelector({ agentId, workspaceId, onMcpServersChange }: 
                           <div className="flex items-center gap-2">
                             {mcp.server_label}
                             <Badge variant="outline" className="text-xs">
+                              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                               {(mcp.require_approval as any)?.always ? "Approval" : "Auto"}
                             </Badge>
                           </div>

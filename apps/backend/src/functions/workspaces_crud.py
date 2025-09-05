@@ -123,7 +123,7 @@ async def workspaces_create(
 
 @function.defn()
 async def workspaces_update(
-    function_input: WorkspaceUpdateInput
+    function_input: WorkspaceUpdateInput,
 ) -> WorkspaceSingleOutput:
     """Update an existing workspace."""
     async for db in get_async_db():
@@ -138,7 +138,9 @@ async def workspaces_update(
                 message=f"Workspace with id {function_input.workspace_id} not found"
             )
         # Update fields (only non-None values)
-        update_data = function_input.dict(exclude_unset=True, exclude={"workspace_id"})
+        update_data = function_input.dict(
+            exclude_unset=True, exclude={"workspace_id"}
+        )
         for key, value in update_data.items():
             if hasattr(workspace, key):
                 setattr(workspace, key, value)
@@ -161,7 +163,9 @@ async def workspaces_update(
 
 
 @function.defn()
-async def workspaces_delete(function_input: WorkspaceIdInput) -> WorkspaceDeleteOutput:
+async def workspaces_delete(
+    function_input: WorkspaceIdInput,
+) -> WorkspaceDeleteOutput:
     """Delete a workspace."""
     async for db in get_async_db():
         workspace_query = select(Workspace).where(

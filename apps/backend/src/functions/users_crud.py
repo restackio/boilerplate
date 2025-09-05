@@ -58,7 +58,9 @@ class UserListOutput(BaseModel):
 
 
 @function.defn()
-async def users_read(function_input: dict | None = None) -> UserListOutput:
+async def users_read(
+    function_input: dict | None = None,  # noqa: ARG001
+) -> UserListOutput:
     """Read all users."""
     async for db in get_async_db():
         try:
@@ -146,7 +148,7 @@ async def users_create(
 
 @function.defn()
 async def users_update(
-    function_input: UserUpdateInput
+    function_input: UserUpdateInput,
 ) -> UserSingleOutput:
     """Update an existing user."""
     async for db in get_async_db():
@@ -162,7 +164,9 @@ async def users_update(
                     message=f"User with id {function_input.user_id} not found"
                 )
             # Update fields (only non-None values)
-            update_data = function_input.dict(exclude_unset=True, exclude={"user_id"})
+            update_data = function_input.dict(
+                exclude_unset=True, exclude={"user_id"}
+            )
             for key, value in update_data.items():
                 if hasattr(user, key):
                     setattr(user, key, value)
@@ -193,7 +197,9 @@ async def users_update(
 
 
 @function.defn()
-async def users_delete(function_input: UserIdInput) -> UserDeleteOutput:
+async def users_delete(
+    function_input: UserIdInput,
+) -> UserDeleteOutput:
     """Delete a user."""
     async for db in get_async_db():
         try:
@@ -264,7 +270,9 @@ async def users_get_by_email(
     """Get a specific user by email."""
     async for db in get_async_db():
         try:
-            user_query = select(User).where(User.email == function_input.email)
+            user_query = select(User).where(
+                User.email == function_input.email
+            )
             result = await db.execute(user_query)
             user = result.scalar_one_or_none()
 
@@ -301,7 +309,8 @@ async def users_get_by_workspace(
     async for db in get_async_db():
         try:
             users_query = select(User).where(
-                User.workspace_id == uuid.UUID(function_input.workspace_id)
+                User.workspace_id
+                == uuid.UUID(function_input.workspace_id)
             )
             result = await db.execute(users_query)
             users = result.scalars().all()

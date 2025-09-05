@@ -49,24 +49,29 @@ def start() -> None:
     """Start MCP server (production mode)."""
     logging.basicConfig(
         level=logging.INFO,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
 
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        logging.info("Services interrupted by user. Exiting gracefully.")
+        logging.info(
+            "Services interrupted by user. Exiting gracefully."
+        )
 
 
 def dev_watch() -> None:
     """Development mode with file watching and auto-restart."""
     logging.basicConfig(
         level=logging.INFO,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
 
     watch_path = Path.cwd()
-    logging.info("Watching %s and its subdirectories for changes...", watch_path)
+    logging.info(
+        "Watching %s and its subdirectories for changes...",
+        watch_path,
+    )
     run_process(watch_path, recursive=True, target=start)
 
 

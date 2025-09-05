@@ -16,49 +16,49 @@ LINEAR_ISSUE_CREATION_SCHEMA = {
                 "state": {
                     "id": "state_12345",
                     "name": "Todo",
-                    "type": "backlog"
+                    "type": "backlog",
                 },
                 "team": {
                     "id": "team_67890",
                     "name": "Engineering",
-                    "key": "ENG"
+                    "key": "ENG",
                 },
                 "assignee": {
                     "id": "user_11111",
                     "name": "Jane Smith",
-                    "email": "jane.smith@company.com"
+                    "email": "jane.smith@company.com",
                 },
                 "creator": {
                     "id": "user_22222",
                     "name": "Support Bot",
-                    "email": "support-bot@company.com"
+                    "email": "support-bot@company.com",
                 },
                 "labels": [
                     {
                         "id": "label_1",
                         "name": "bug",
-                        "color": "#ff4444"
+                        "color": "#ff4444",
                     },
                     {
                         "id": "label_2",
                         "name": "critical",
-                        "color": "#ff0000"
+                        "color": "#ff0000",
                     },
                     {
                         "id": "label_3",
                         "name": "database",
-                        "color": "#0066cc"
-                    }
+                        "color": "#0066cc",
+                    },
                 ],
                 "project": {
                     "id": "project_33333",
-                    "name": "Q1 Infrastructure Improvements"
+                    "name": "Q1 Infrastructure Improvements",
                 },
                 "url": "https://linear.app/company/issue/ENG-123",
                 "createdAt": "2024-01-15T10:30:00.000Z",
                 "updatedAt": "2024-01-15T10:30:00.000Z",
-                "dueDate": "2024-01-22T23:59:59.000Z"
-            }
+                "dueDate": "2024-01-22T23:59:59.000Z",
+            },
         }
     }
 }

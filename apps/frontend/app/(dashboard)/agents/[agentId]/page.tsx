@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 import { useWorkspaceScopedActions, Agent } from "@/hooks/use-workspace-scoped-actions";
 import { Button } from "@workspace/ui/components/ui/button";
@@ -65,6 +65,11 @@ export default function AgentEditPage() {
   // Tab navigation state - default to setup
   const [activeTab, setActiveTab] = useState("setup");
 
+  // Memoize the onChange callback to prevent infinite re-renders
+  const handleDraftChange = useCallback((d: { name: string; version: string; description: string; instructions: string; model?: string; reasoning_effort?: string }) => {
+    setDraft(d);
+  }, []);
+
   // Fetch the agent by ID on component mount
   useEffect(() => {
     const fetchAgent = async () => {
@@ -98,29 +103,37 @@ export default function AgentEditPage() {
     try {
       // Create a new version of the agent
       const latest = { ...(draft || {}), ...agentData };
+      
+      const rootAgentId = agent.parent_agent_id || agentId;
+      
       const newAgentData = {
         workspace_id: workspaceId,
         name: latest.name,
-        version: latest.version,
+        version: latest.version, // Backend will auto-bump version when parent_agent_id is set
         description: latest.description,
         instructions: latest.instructions,
         // propagate model settings if present
         model: latest.model,
         reasoning_effort: latest.reasoning_effort,
         status: "inactive" as const, // New versions start as inactive
-        parent_agent_id: agentId, // Link to the current agent as parent
+        parent_agent_id: rootAgentId, // Link to the root agent as parent
       };
 
       const result = await createAgent(newAgentData);
       if (result.success) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const newAgent: any = result.data;
         // Clone tools from current agent to new version
         try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const toolsRes: any = await getAgentTools(agentId);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const tools: any[] = toolsRes?.agent_tools || [];
           if (newAgent?.id && Array.isArray(tools) && tools.length > 0) {
             await Promise.all(
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               tools.map((t: any) => {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const payload: any = {
                   agent_id: newAgent.id,
                   tool_type: t.tool_type,
@@ -383,7 +396,7 @@ export default function AgentEditPage() {
         {isTogglingStatus ? (
           <>
             <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent" />
-            {agent.status === "active" ? "Setting Inactive..." : "Setting Active..."}
+            {agent.status === "active" ? "Setting inactive..." : "Setting active..."}
           </>
         ) : agent.status === "active" ? (
           <>
@@ -489,7 +502,7 @@ export default function AgentEditPage() {
                     onSave={handleSave}
                     isSaving={isSaving}
                     workspaceId={workspaceId}
-                    onChange={(d) => setDraft(d)}
+                    onChange={handleDraftChange}
                   />
                 </TabsContent>
 

@@ -5,14 +5,13 @@ import { Button } from "@workspace/ui/components/ui/button";
 
 import { Badge } from "@workspace/ui/components/ui/badge";
 import { Skeleton } from "@workspace/ui/components/ui/skeleton";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { McpServerDialog } from "./McpServerDialog";
 import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
 import { 
   createAgentTool,
   deleteAgentTool,
   getAgentTools,
-  updateAgentTool,
 } from "@/app/actions/workflow";
 
 type ToolType = 'web_search_preview'|'mcp'|'code_interpreter'|'image_generation';
@@ -42,12 +41,12 @@ export function AgentToolsManager({ agentId }: Props) {
 
   // Dialog state
   const [mcpDialogOpen, setMcpDialogOpen] = useState(false);
-  const [newToolType, setNewToolType] = useState<ToolType | "">("");
 
   const hasType = (type: ToolType) => tools.some(t => t.tool_type === type && type !== 'mcp');
 
   const fetchTools = useCallback(async () => {
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const res: any = await getAgentTools(agentId);
       if (res && res.agent_tools) setTools(res.agent_tools);
     } catch (e) {
@@ -74,7 +73,6 @@ export function AgentToolsManager({ agentId }: Props) {
   }, [mcpServers, fetchMcpServers]);
 
   const onChooseType = async (v: ToolType) => {
-    setNewToolType(v);
     if (v === "mcp") {
       // Load MCP servers only when needed
       await loadMcpServersIfNeeded();
@@ -103,7 +101,6 @@ export function AgentToolsManager({ agentId }: Props) {
       setIsCreating(true);
       await createAgentTool(payload);
       await fetchTools();
-      setNewToolType("");
     } catch (e) {
       console.error("Failed to create tool", e);
     } finally {
@@ -122,7 +119,6 @@ export function AgentToolsManager({ agentId }: Props) {
       await createAgentTool(data);
       await fetchTools();
       setMcpDialogOpen(false);
-      setNewToolType("");
     } catch (e) {
       console.error("Failed to create MCP tool", e);
     } finally {

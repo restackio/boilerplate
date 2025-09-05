@@ -217,7 +217,6 @@ async def mcp_servers_update(
                     else:
                         setattr(mcp_server, key, value)
 
-
             await db.commit()
             await db.refresh(mcp_server)
             result = McpServerOutput(

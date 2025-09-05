@@ -29,21 +29,34 @@ with import_functions():
 
 class ZendeskTicketInput(BaseModel):
     """Input for generating a Zendesk ticket."""
-    user_request: str = Field(default="", description="User's support request")
-    priority: str = Field(default="normal", description="Priority level (low, normal, high, urgent)")
-    ticket_type: str = Field(default="incident", description="Type of ticket (incident, question, task)")
+
+    user_request: str = Field(
+        default="", description="User's support request"
+    )
+    priority: str = Field(
+        default="normal",
+        description="Priority level (low, normal, high, urgent)",
+    )
+    ticket_type: str = Field(
+        default="incident",
+        description="Type of ticket (incident, question, task)",
+    )
 
 
 class ZendeskTicketOutput(BaseModel):
     """Output containing the generated Zendesk ticket JSON."""
+
     ticket: dict[str, Any]
+
 
 @workflow.defn(description="Generate a mocked Zendesk ticket")
 class ZendeskTicket:
     """to generate a mocked Zendesk ticket."""
 
     @workflow.run
-    async def run(self, workflow_input: ZendeskTicketInput) -> ZendeskTicketOutput:
+    async def run(
+        self, workflow_input: ZendeskTicketInput
+    ) -> ZendeskTicketOutput:
         log.info("ZendeskTicket started", input=workflow_input)
 
         try:
@@ -68,7 +81,7 @@ Instructions:
 - Use appropriate IDs, timestamps, and other realistic data
 - Make sure the subject and description match the user's request
 - Set priority and type based on the input parameters
-- Return ONLY valid JSON, no additional text or formatting"""
+- Return ONLY valid JSON, no additional text or formatting""",
                         },
                         {
                             "role": "user",
@@ -77,11 +90,11 @@ User Request: {workflow_input.user_request or 'General support request'}
 Priority: {workflow_input.priority}
 Type: {workflow_input.ticket_type}
 
-Return the complete JSON structure following the Zendesk API format."""
-                        }
+Return the complete JSON structure following the Zendesk API format.""",
+                        },
                     ],
                 },
-                stream=False
+                stream=False,
             )
 
             response_text = await workflow.step(
@@ -96,7 +109,9 @@ Return the complete JSON structure following the Zendesk API format."""
 
             generated_ticket = json.loads(response_text)
 
-            log.info("ZendeskTicket completed", ticket=generated_ticket)
+            log.info(
+                "ZendeskTicket completed", ticket=generated_ticket
+            )
             return ZendeskTicketOutput(ticket=generated_ticket)
 
         except Exception as e:

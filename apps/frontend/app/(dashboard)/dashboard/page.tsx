@@ -48,6 +48,7 @@ export default function DashboardPage() {
     agent_id: string;
     assigned_to_id: string;
     // Schedule-related fields
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     schedule_spec?: any;
     is_scheduled?: boolean;
     schedule_status?: string;

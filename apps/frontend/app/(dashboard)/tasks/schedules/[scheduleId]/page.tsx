@@ -14,7 +14,6 @@ import {
   Edit, 
   Play, 
   Pause, 
-  Square, 
   Trash2, 
   Calendar
 } from "lucide-react";
@@ -30,6 +29,7 @@ interface SchedulePageTask {
   assigned_to_name: string;
   team_id?: string;
   team_name?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   schedule_spec?: any;
   schedule_task_id?: string;
   is_scheduled?: boolean;
@@ -104,6 +104,7 @@ export default function SchedulePage() {
     }
   }, [scheduleId, allTasks, tasksLoading.isLoading]);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleScheduleUpdate = async (newScheduleSpec: any) => {
     if (!scheduleTask) return;
 
@@ -153,6 +154,7 @@ export default function SchedulePage() {
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const formatScheduleDisplay = (scheduleSpec: any): string => {
     if (!scheduleSpec) return "No schedule";
 

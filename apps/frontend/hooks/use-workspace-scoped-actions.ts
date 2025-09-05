@@ -250,7 +250,7 @@ export function useWorkspaceScopedActions() {
   });
 
   // Agents actions
-  const fetchAgents = useCallback(async () => {
+  const fetchAgents = useCallback(async (options?: { activeOnly?: boolean }) => {
     if (!isReady || !currentWorkspaceId) {
       console.error("Cannot fetch agents: no valid workspace context");
       return { success: false, error: "No valid workspace context" };
@@ -260,7 +260,8 @@ export function useWorkspaceScopedActions() {
     let result;
     try {
       result = await executeWorkflow<Agent[]>("AgentsReadWorkflow", {
-        workspace_id: currentWorkspaceId
+        workspace_id: currentWorkspaceId,
+        active_only: options?.activeOnly || false
       });
       
       if (result.success && result.data) {
@@ -805,6 +806,41 @@ export function useWorkspaceScopedActions() {
     }
   }, [currentWorkspaceId, isReady]);
 
+  const refreshMcpTools = useCallback(async (mcpServerId: string) => {
+    if (!isReady || !currentWorkspaceId) {
+      console.error("Cannot refresh MCP tools: no valid workspace context");
+      return { success: false, error: "No valid workspace context" };
+    }
+
+    try {
+      const result = await runWorkflow({
+        workflowName: "McpToolsRefreshWorkflow", 
+        input: { mcp_server_id: mcpServerId }
+      });
+      return { success: true, data: result };
+    } catch (error) {
+      console.error("Failed to refresh MCP tools:", error);
+      return { success: false, error: "Failed to refresh MCP tools" };
+    }
+  }, [currentWorkspaceId, isReady]);
+
+  const refreshAllMcpTools = useCallback(async () => {
+    if (!isReady || !currentWorkspaceId) {
+      console.error("Cannot refresh all MCP tools: no valid workspace context");
+      return { success: false, error: "No valid workspace context" };
+    }
+
+    try {
+      const result = await runWorkflow({
+        workflowName: "McpToolsRefreshAllWorkflow",
+        input: { workspace_id: currentWorkspaceId }
+      });
+      return { success: true, data: result };
+    } catch (error) {
+      console.error("Failed to refresh all MCP tools:", error);
+      return { success: false, error: "Failed to refresh all MCP tools" };
+    }
+  }, [currentWorkspaceId, isReady]);
 
   return {
     currentWorkspaceId,
@@ -842,5 +878,7 @@ export function useWorkspaceScopedActions() {
     updateMcpServer,
     deleteMcpServer,
     getMcpServerById,
+    refreshMcpTools,
+    refreshAllMcpTools,
   };
 } 

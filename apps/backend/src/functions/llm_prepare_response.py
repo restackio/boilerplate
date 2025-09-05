@@ -22,7 +22,8 @@ async def llm_prepare_response(
     input_data = []
     if function_input.messages:
         input_data = [
-            {"role": msg.role, "content": msg.content} for msg in function_input.messages
+            {"role": msg.role, "content": msg.content}
+            for msg in function_input.messages
         ]
 
     # Create OpenAI parameters
@@ -49,6 +50,8 @@ async def llm_prepare_response(
         create_params["tools"] = function_input.tools
     if function_input.approval_response:
         # Add approval response as input instead of replacing the messages
-        create_params["input"] = [function_input.approval_response]
+        create_params["input"] = [
+            function_input.approval_response
+        ]
 
     return LlmResponseInput(create_params=create_params)

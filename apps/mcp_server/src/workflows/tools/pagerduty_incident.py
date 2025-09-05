@@ -31,24 +31,41 @@ with import_functions():
 
 class PagerDutyIncidentInput(BaseModel):
     """Input for retrieving PagerDuty incident information."""
-    incident_id: str = Field(default="", description="ID of the incident to retrieve")
-    service_name: str = Field(default="", description="Name of the service")
-    status: str = Field(default="triggered", description="Status of the incident")
-    urgency: str = Field(default="high", description="Urgency level of the incident")
+
+    incident_id: str = Field(
+        default="", description="ID of the incident to retrieve"
+    )
+    service_name: str = Field(
+        default="", description="Name of the service"
+    )
+    status: str = Field(
+        default="triggered", description="Status of the incident"
+    )
+    urgency: str = Field(
+        default="high",
+        description="Urgency level of the incident",
+    )
 
 
 class PagerDutyIncidentOutput(BaseModel):
     """Output containing PagerDuty incident details."""
+
     incident: dict[str, Any]
 
 
-@workflow.defn(description="Retrieve PagerDuty incident information")
+@workflow.defn(
+    description="Retrieve PagerDuty incident information"
+)
 class PagerDutyIncident:
     """to retrieve PagerDuty incident information."""
 
     @workflow.run
-    async def run(self, workflow_input: PagerDutyIncidentInput) -> PagerDutyIncidentOutput:
-        log.info("PagerDutyIncident started", input=workflow_input)
+    async def run(
+        self, workflow_input: PagerDutyIncidentInput
+    ) -> PagerDutyIncidentOutput:
+        log.info(
+            "PagerDutyIncident started", input=workflow_input
+        )
 
         try:
             # Use LLM to generate incident data based on input and schema
@@ -73,7 +90,7 @@ Instructions:
 - Make the incident details relevant to the service and status specified
 - Set urgency and status based on input parameters
 - Include realistic team assignments and escalation policies
-- Return ONLY valid JSON, no additional text or formatting"""
+- Return ONLY valid JSON, no additional text or formatting""",
                         },
                         {
                             "role": "user",
@@ -83,11 +100,11 @@ Service: {workflow_input.service_name or 'Production Service'}
 Status: {workflow_input.status}
 Urgency: {workflow_input.urgency}
 
-Return the complete JSON structure following the PagerDuty API format."""
-                        }
+Return the complete JSON structure following the PagerDuty API format.""",
+                        },
                     ],
                 },
-                stream=False
+                stream=False,
             )
 
             response_text = await workflow.step(
@@ -102,7 +119,10 @@ Return the complete JSON structure following the PagerDuty API format."""
 
             incident_data = json.loads(response_text)
 
-            log.info("PagerDutyIncident completed", incident=incident_data)
+            log.info(
+                "PagerDutyIncident completed",
+                incident=incident_data,
+            )
             return PagerDutyIncidentOutput(incident=incident_data)
 
         except Exception as e:

@@ -18,6 +18,7 @@ interface ScheduleOverview {
   id: string;
   title: string;
   description?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   schedule_spec?: any;
   schedule_status?: "active" | "inactive" | "paused";
   agent_name?: string;

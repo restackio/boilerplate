@@ -29,16 +29,31 @@ with import_functions():
 
 class DatadogLogsInput(BaseModel):
     """Input for retrieving Datadog logs."""
-    query: str = Field(default="", description="Search query for logs")
-    service: str = Field(default="", description="Service name to filter by")
-    status: str = Field(default="", description="Log status to filter by")
-    from_time: str = Field(default="", description="Start time for log search")
-    to_time: str = Field(default="", description="End time for log search")
-    limit: int = Field(default=50, description="Maximum number of log entries to return")
+
+    query: str = Field(
+        default="", description="Search query for logs"
+    )
+    service: str = Field(
+        default="", description="Service name to filter by"
+    )
+    status: str = Field(
+        default="", description="Log status to filter by"
+    )
+    from_time: str = Field(
+        default="", description="Start time for log search"
+    )
+    to_time: str = Field(
+        default="", description="End time for log search"
+    )
+    limit: int = Field(
+        default=50,
+        description="Maximum number of log entries to return",
+    )
 
 
 class DatadogLogsOutput(BaseModel):
     """Output containing Datadog logs search results."""
+
     logs: dict[str, Any]
 
 
@@ -47,7 +62,9 @@ class DatadogLogs:
     """to retrieve Datadog logs."""
 
     @workflow.run
-    async def run(self, workflow_input: DatadogLogsInput) -> DatadogLogsOutput:
+    async def run(
+        self, workflow_input: DatadogLogsInput
+    ) -> DatadogLogsOutput:
         log.info("DatadogLogs started", input=workflow_input)
 
         try:
@@ -75,7 +92,7 @@ Instructions:
 - Generate up to {workflow_input.limit} log entries
 - Filter by service if specified: {workflow_input.service or 'any service'}
 - Filter by status if specified: {workflow_input.status or 'any status'}
-- Return ONLY valid JSON, no additional text or formatting"""
+- Return ONLY valid JSON, no additional text or formatting""",
                         },
                         {
                             "role": "user",
@@ -86,11 +103,11 @@ Status: {workflow_input.status or 'any'}
 Time Range: {workflow_input.from_time or 'last hour'} to {workflow_input.to_time or 'now'}
 Limit: {workflow_input.limit}
 
-Return relevant log entries that would help with L2 investigation."""
-                        }
+Return relevant log entries that would help with L2 investigation.""",
+                        },
                     ],
                 },
-                stream=False
+                stream=False,
             )
 
             response_text = await workflow.step(

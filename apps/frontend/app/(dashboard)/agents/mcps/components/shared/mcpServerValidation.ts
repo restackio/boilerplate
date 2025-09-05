@@ -24,7 +24,7 @@ export function validateMcpServerForm(
   if (headerInput.trim()) {
     try {
       JSON.parse(headerInput);
-    } catch (error) {
+    } catch {
       return { isValid: false, error: "Invalid JSON format for headers" };
     }
   }

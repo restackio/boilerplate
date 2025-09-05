@@ -413,5 +413,7 @@ class Task(Base):
         "Task", remote_side=[id], foreign_keys=[schedule_task_id]
     )
     scheduled_tasks = relationship(
-        "Task", back_populates="schedule_task", foreign_keys=[schedule_task_id]
+        "Task",
+        back_populates="schedule_task",
+        foreign_keys=[schedule_task_id],
     )

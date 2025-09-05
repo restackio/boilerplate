@@ -65,6 +65,7 @@ export async function sendAgentEvent({
 
     const result = await client.sendAgentEvent(eventPayload);
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const typedResult = result as any;
     return {
       success: true,

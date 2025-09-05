@@ -125,6 +125,7 @@ export class ConversationStore {
           summary: []
         },
         openai_event: {
+          type: event.type,
           sequence_number: event.sequence_number,
           item_id: itemId
         }
@@ -153,14 +154,15 @@ export class ConversationStore {
       const contentArray = isReasoning ? streamItem.openai_output.summary : streamItem.openai_output.content;
       
       if (!contentArray || contentArray.length === 0) {
-        const newContent = { type: "text", text: event.delta };
+        const newContent = { type: "text", text: String(event.delta) };
         if (isReasoning) {
           streamItem.openai_output.summary = [newContent];
         } else {
           streamItem.openai_output.content = [newContent];
         }
       } else {
-        contentArray[0].text = (contentArray[0].text || "") + event.delta;
+        const currentText = String(contentArray[0].text || "");
+        contentArray[0].text = currentText + String(event.delta);
       }
     }
     
@@ -179,7 +181,24 @@ export class ConversationStore {
     
     // Handle item additions/completions
     if (event.item) {
-      streamItem.openai_output = { ...streamItem.openai_output, ...event.item };
+      // Ensure content and summary arrays have proper types
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const updatedItem: any = { ...event.item };
+      if (updatedItem.content && Array.isArray(updatedItem.content)) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        updatedItem.content = updatedItem.content.map((item: any) => ({
+          type: item?.type || "text",
+          text: String(item?.text || "")
+        }));
+      }
+      if (updatedItem.summary && Array.isArray(updatedItem.summary)) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        updatedItem.summary = updatedItem.summary.map((item: any) => ({
+          type: item?.type || "text", 
+          text: String(item?.text || "")
+        }));
+      }
+      streamItem.openai_output = { ...streamItem.openai_output, ...updatedItem };
       if (event.type.includes('done')) {
         streamItem.isStreaming = false;
         streamItem.openai_output.status = "completed";

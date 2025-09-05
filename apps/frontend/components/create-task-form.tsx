@@ -22,6 +22,7 @@ interface CreateTaskFormProps {
     agent_id: string;
     assigned_to_id: string;
     // Schedule-related fields
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     schedule_spec?: any;
     is_scheduled?: boolean;
     schedule_status?: string;
@@ -48,7 +49,7 @@ export function CreateTaskForm({
 
   // Fetch agents on component mount
   useEffect(() => {
-    fetchAgents();
+    fetchAgents({ activeOnly: true });
   }, [fetchAgents]);
 
   // Fetch all versions when an agent is selected
@@ -125,7 +126,7 @@ export function CreateTaskForm({
       return;
     }
 
-    const startTime = Date.now();
+    // const startTime = Date.now(); // Unused for now
 
     try {
       const baseTaskData = {
@@ -152,11 +153,7 @@ export function CreateTaskForm({
             : baseTaskData.title,
         };
         
-        const onSubmitStartTime = Date.now();
-        
         const result = await onSubmit(taskData);
-        
-        const onSubmitEndTime = Date.now();
         
         results.push(result);
         
@@ -179,10 +176,7 @@ export function CreateTaskForm({
         setShowVersionSelector(false);
       }
       
-      const totalTime = Date.now() - startTime;
-
       // Handle navigation for multiple tasks
-      const successCount = results.filter(r => r.success).length;
       if (agentIdsToUse.length > 1 && createdTaskIds.length > 0) {
         // For multiple tasks, redirect to /tasks with the created task IDs as query params
         const taskIdsParam = createdTaskIds.join(',');
