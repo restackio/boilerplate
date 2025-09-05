@@ -43,10 +43,10 @@ services:
       - "10233:10233"
       - "11233:11233"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5233/health"]
-      interval: 30s
+      test: ["CMD", "curl", "-f", "http://localhost:6233/api/engine/health"]
+      interval: 3s
       timeout: 10s
-      retries: 3
+      retries: 10
     networks:
       - boilerplate-network
 

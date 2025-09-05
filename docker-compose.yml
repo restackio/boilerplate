@@ -3,12 +3,14 @@ services:
   postgres:
     image: postgres:15-alpine
     container_name: boilerplate_db
+    env_file:
+      - .env
     environment:
-      POSTGRES_DB: boilerplate_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-boilerplate_db}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./packages/database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
@@ -36,32 +38,30 @@ services:
     container_name: restack
     ports:
       - "5233:5233"
-      - "7233:7233"
+      - "6233:6233"
       - "7233:7233"
       - "9233:9233"
       - "10233:10233"
       - "11233:11233"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5233/health"]
-      interval: 30s
+      test: ["CMD", "curl", "-f", "http://localhost:6233/api/engine/health"]
+      interval: 3s
       timeout: 10s
-      retries: 3
+      retries: 10
     networks:
       - boilerplate-network
 
-  # Backend Service - Using unified Dockerfile
+  # Backend Service
   backend:
     build:
-      context: .
+      context: ./apps/backend
       dockerfile: Dockerfile
-      target: final-python
-      args:
-        APP_NAME: backend
-        PORT: 80
     container_name: boilerplate_backend
+    env_file:
+      - .env
     environment:
-      - RESTACK_ENGINE_ADDRESS=host.docker.internal:7233
-      - RESTACK_ENGINE_API_ADDRESS=host.docker.internal:6233
+      - RESTACK_ENGINE_ADDRESS=${RESTACK_ENGINE_ADDRESS:-host.docker.internal:7233}
+      - RESTACK_ENGINE_API_ADDRESS=${RESTACK_ENGINE_API_ADDRESS:-host.docker.internal:6233}
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/boilerplate_db
     depends_on:
       postgres:
@@ -70,19 +70,17 @@ services:
       - boilerplate-network
     restart: unless-stopped
 
-  # MCP Server Service - Using unified Dockerfile
+  # MCP Server Service
   mcp_server:
     build:
-      context: .
+      context: ./apps/mcp_server
       dockerfile: Dockerfile
-      target: final-python
-      args:
-        APP_NAME: mcp_server
-        PORT: 80
     container_name: boilerplate_mcp_server
+    env_file:
+      - .env
     environment:
-      - RESTACK_ENGINE_ADDRESS=host.docker.internal:7233
-      - RESTACK_ENGINE_API_ADDRESS=host.docker.internal:6233
+      - RESTACK_ENGINE_ADDRESS=${RESTACK_ENGINE_ADDRESS:-host.docker.internal:7233}
+      - RESTACK_ENGINE_API_ADDRESS=${RESTACK_ENGINE_API_ADDRESS:-host.docker.internal:6233}
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/boilerplate_db
     depends_on:
       postgres:
@@ -91,21 +89,19 @@ services:
       - boilerplate-network
     restart: unless-stopped
 
-  # Webhook Service - Using unified Dockerfile
+  # Webhook Service
   webhook:
     build:
-      context: .
+      context: ./apps/webhook
       dockerfile: Dockerfile
-      target: final-python
-      args:
-        APP_NAME: webhook
-        PORT: 8000
     container_name: boilerplate_webhook
     ports:
       - "8000:8000"
+    env_file:
+      - .env
     environment:
-      - RESTACK_ENGINE_ADDRESS=host.docker.internal:7233
-      - RESTACK_ENGINE_API_ADDRESS=host.docker.internal:6233
+      - RESTACK_ENGINE_ADDRESS=${RESTACK_ENGINE_ADDRESS:-host.docker.internal:7233}
+      - RESTACK_ENGINE_API_ADDRESS=${RESTACK_ENGINE_API_ADDRESS:-host.docker.internal:6233}
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/boilerplate_db
     depends_on:
       postgres:
@@ -114,22 +110,20 @@ services:
       - boilerplate-network
     restart: unless-stopped
 
-  # Frontend Service - Using unified Dockerfile
+  # Frontend Service
   frontend:
     build:
       context: .
-      dockerfile: Dockerfile
-      target: final-node
-      args:
-        APP_SCOPE: boilerplate-frontend
-        PORT: 3000
+      dockerfile: ./apps/frontend/Dockerfile
     container_name: boilerplate_frontend
     ports:
       - "3000:3000"
+    env_file:
+      - .env
     environment:
-      - RESTACK_ENGINE_ADDRESS=host.docker.internal:7233
-      - RESTACK_ENGINE_API_ADDRESS=host.docker.internal:6233
-      - NODE_ENV=production
+      - RESTACK_ENGINE_ADDRESS=${RESTACK_ENGINE_ADDRESS:-host.docker.internal:7233}
+      - RESTACK_ENGINE_API_ADDRESS=${RESTACK_ENGINE_API_ADDRESS:-host.docker.internal:6233}
+      - NODE_ENV=${NODE_ENV:-production}
     depends_on:
       - backend
       - mcp_server

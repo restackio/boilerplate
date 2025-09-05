@@ -14,13 +14,13 @@ def start() -> None:
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
 
-    logging.info("Starting Webhook Server on http://127.0.0.1:8000")
+    logging.info("Starting Webhook Server on http://0.0.0.0:8000")
 
     app = create_webhook_app()
 
     uvicorn.run(
         app,
-        host="127.0.0.1",
+        host="0.0.0.0",
         port=8000,
         log_level="info",
         access_log=True,

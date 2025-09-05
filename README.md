@@ -32,8 +32,6 @@ This will start:
 
 The backend and MCP server run internally and communicate through the Docker network.
 
-> **Note**: The default `pnpm docker:reset` uses the development setup. For the turbo approach, use `pnpm docker:turbo:reset`.
-
 ### 2. Set up Environment (Optional)
 
 For advanced features, copy and configure environment variables:
@@ -65,65 +63,32 @@ Open your browser and navigate to http://localhost:3000 to start using the platf
 
 ## 🐳 Docker Commands
 
-We provide two Docker setups for different use cases:
-
-### Turbo Setup (Recommended)
-Uses a single container for all applications leveraging the turbo monorepo - simplest deployment with everything bundled together:
+The platform uses Docker Compose with individual service containers for optimal performance and scalability:
 
 ```bash
-# Build all services in one container
-pnpm docker:turbo:build
-
-# Start all services in one container
-pnpm docker:turbo:up
-
-# Stop all services  
-pnpm docker:turbo:down
-
-# View logs
-pnpm docker:turbo:logs
-
-# Restart services
-pnpm docker:turbo:restart
-
-# Reset everything (rebuild and restart)
-pnpm docker:turbo:reset
-
-# Check service status
-pnpm docker:turbo:ps
-```
-
-### Production Setup (Advanced)
-Uses a single unified Dockerfile for all services - better for advanced production deployments and CI/CD:
-
-```bash
-# Build all services with unified Dockerfile
-pnpm docker:prod:build
+# Build all services
+pnpm docker:build
 
 # Start all services
-pnpm docker:prod:up
+pnpm docker:up
 
 # Stop all services  
-pnpm docker:prod:down
+pnpm docker:down
 
 # View logs
-pnpm docker:prod:logs
+pnpm docker:logs
 
 # Restart services
-pnpm docker:prod:restart
+pnpm docker:restart
 
 # Reset everything (rebuild and restart)
-pnpm docker:prod:reset
+pnpm docker:reset
 
 # Check service status
-pnpm docker:prod:ps
+pnpm docker:ps
 ```
 
-**When to use which:**
-- **Turbo setup (Recommended)**: Simplest deployment, fastest setup, leverages turbo monorepo structure, ideal for most use cases
-- **Production setup**: Advanced production deployments, CI/CD pipelines, when you need faster builds with better layer caching
-
-For development setup with individual services, see [CONTRIBUTING.md](./CONTRIBUTING.md).
+For development setup, see [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ## 📋 Services Overview
 
