@@ -4,33 +4,38 @@ A sample repository to build an agent orchestration platform with tasks, agents,
 
 See the full documentation on our [Boilerplate](https://docs.restack.io/boilerplate/introduction) page.
 
-### Apps
+## 🚀 Quick Start with Docker
 
-- `frontend`: a [Next.js](https://nextjs.org/) app
-- `backend`: a [Restack](https://restack.io/) app (TypeScript)
-- `backend_py`: a [Restack](https://restack.io/) app (Python)
+The easiest way to get started is using Docker Compose, which will build and run all services automatically.
 
-## Requirements
+### Prerequisites
 
-- **Node 20+**
-- **Python 3.10+**
-- **pnpm** (recommended)
 - **Docker & Docker Compose**
+- **Git**
 
-## Quick Start
+### 1. Clone and Start
 
-### 1. Start Infrastructure
 ```bash
-# Start PostgreSQL and Restack
-pnpm run infra:start
+# Clone the repository
+git clone <repository-url>
+cd boilerplate
+
+# Build and start all services
+pnpm docker:reset
 ```
 
-### 2. Install Dependencies
-```bash
-pnpm install
-```
+This will start:
+- **Frontend**: http://localhost:3000
+- **Webhook Server**: http://localhost:8000
+- **PostgreSQL**: localhost:5432
+- **Restack Engine**: localhost:5233
 
-### 3. Set up Environment
+The backend and MCP server run internally and communicate through the Docker network.
+
+### 2. Set up Environment (Optional)
+
+For advanced features, copy and configure environment variables:
+
 ```bash
 # Copy environment file
 cp env.development.example .env
@@ -38,65 +43,73 @@ cp env.development.example .env
 # Update the values in .env with your actual API keys
 ```
 
-### 4. Start ngrok
+### 3. Expose MCP Server (Optional)
 
-To have OpenAI be able to call local MCP servers, you need to use ngrok to expose your local server to the internet.
+To allow external services (like OpenAI) to access your local MCP server, expose it using ngrok:
 
-```
+```bash
+# Expose the MCP server port
 ngrok http 11233
 ```
 
-add the ngrok url to the .env file as MCP_URL with suffix /mcp
-
-For example:
-
-MCP_URL=https://fb095f09f128.ngrok-free.app/mcp
-
-
-### 5. Seed Database
+Add the ngrok URL to your `.env` file:
 ```bash
-pnpm run db:seed
+MCP_URL=https://your-ngrok-url.ngrok-free.app/mcp
 ```
 
-### 5. Start Development
-```bash
-# Start all applications
-pnpm run dev
-```
+### 4. Access the Application
 
-This will start:
-- Frontend: http://localhost:3000
-- TypeScript Backend: http://localhost:8000
-- Python Backend: http://localhost:8001
+Open your browser and navigate to http://localhost:3000 to start using the platform.
 
-## Development Commands
+## 🐳 Docker Commands
+
+The platform uses Docker Compose with individual service containers for optimal performance and scalability:
 
 ```bash
-# Infrastructure management
-pnpm run infra:start    # Start PostgreSQL and Restack
-pnpm run infra:stop     # Stop infrastructure
-pnpm run infra:restart  # Restart infrastructure
-pnpm run infra:logs     # View infrastructure logs
-pnpm run infra:reset    # Reset database and restart
+# Build all services
+pnpm docker:build
 
-# Database management
-pnpm run db:connect     # Connect to PostgreSQL
-pnpm run db:reset       # Reset database schema
-pnpm run db:seed        # Add seed data to database
-pnpm run db:clean       # Remove all data but keep schema
+# Start all services
+pnpm docker:up
 
-# Application development
-pnpm run dev            # Start all applications
-pnpm run build          # Build all applications
-pnpm run lint           # Lint all applications
+# Stop all services  
+pnpm docker:down
+
+# View logs
+pnpm docker:logs
+
+# Restart services
+pnpm docker:restart
+
+# Reset everything (rebuild and restart)
+pnpm docker:reset
+
+# Check service status
+pnpm docker:ps
 ```
 
-## Database Schema
+For development setup, see [CONTRIBUTING.md](./CONTRIBUTING.md).
+
+## 📋 Services Overview
+
+### Apps
+
+- **frontend**: Next.js application with React Flow editor
+- **backend**: Python backend with Restack AI workflows  
+- **mcp_server**: Model Context Protocol server
+- **webhook**: Webhook handling service
+
+### Infrastructure
+
+- **PostgreSQL**: Database for storing agents, tasks, and workflows
+- **Restack Engine**: AI workflow orchestration engine
+
+## 🗄️ Database Schema
 
 The platform includes a PostgreSQL database with the following tables:
 
 - **workspaces**: Organization workspaces
-- **users**: Users within workspaces
+- **users**: Users within workspaces  
 - **agents**: AI agents with configurations
 - **agent_runs**: Execution history of agents
 - **tasks**: Tasks assigned to agents
@@ -104,77 +117,32 @@ The platform includes a PostgreSQL database with the following tables:
 - **rules**: Rules for agent behavior
 - **experiments**: A/B testing experiments
 
-## Python Backend Features
+## 🤖 Running Agents
 
-The Python backend provides CRUD operations through Restack functions:
+### From the UI
 
-### Agent Operations
-- `agents_read()` - List all agents
-- `agents_create(agent_data)` - Create new agent
-- `agents_update(agent_id, updates)` - Update agent
-- `agents_delete(agent_id)` - Delete agent
-- `agents_get_by_id(agent_id)` - Get specific agent
-- `agents_get_by_status(status)` - Get agents by status
+You can run agents from the web interface by clicking the "Run" button in the agent management section.
 
-### Task Operations
-- `tasks_read()` - List all tasks
-- `tasks_create(task_data)` - Create new task
-- `tasks_update(task_id, updates)` - Update task
-- `tasks_delete(task_id)` - Delete task
-- `tasks_get_by_id(task_id)` - Get specific task
-- `tasks_get_by_status(status)` - Get tasks by status
+### From API
 
-## Run agents
-
-### From frontend
-
-![Run agents from frontend](./agent-reactflow.png)
-
-### from UI
-
-You can run agents from the UI by clicking the "Run" button.
-
-![Run agents from UI](./agent-post.png)
-
-### from API
-
-You can run agents from the API by using the generated endpoint:
-
-`POST http://localhost:6233/api/agents/agentFlow`
-
-### from any client
-
-You can run agents with any client connected to Restack, for example:
+Execute agents using the REST API:
 
 ```bash
-pnpm schedule-agent
+POST http://localhost:8000/api/agents/agentFlow
 ```
 
-executes `scheduleAgent.ts` which will connect to Restack and execute the `agentFlow` agent.
+### Send Events to Agents
 
-## Send events to the Agent
+Send events to running agents:
 
-### from Backend Developer UI
+```bash
+PUT http://localhost:8000/api/agents/agentFlow/:agentId/:runId
+```
 
-You can send events like or end from the UI.
-
-![Send events from UI](./agent-event.png)
-
-And see the events in the run:
-
-![See events in UI](./agent-run.png)
-
-### from API
-
-You can send events to the agent by using the following endpoint:
-
-`PUT http://localhost:6233/api/agents/agentFlow/:agentId/:runId`
-
-with the payload:
-
+With payload:
 ```json
 {
-  "name": "idVerification",
+  "name": "idVerification", 
   "input": {
     "type": "id",
     "documentNumber": "1234567890"
@@ -182,60 +150,30 @@ with the payload:
 }
 ```
 
-to send messages to the agent.
+## 🌐 Deploy on Cloud
 
-or
+### Deploy Frontend on Vercel
 
-```json
-{
-  "eventName": "end"
-}
-```
+1. Connect your repository to Vercel
+2. Set root directory: `apps/frontend`
+3. Build command: `turbo run build --filter=boilerplate-frontend`
 
-to end the conversation with the agent.
+### Deploy Backend on Restack Cloud
 
-### from any client
+1. Create account at [https://console.restack.io](https://console.restack.io)
+2. Use custom Dockerfile path: `apps/backend/Dockerfile`
+3. Set application folder: `apps/backend`
 
-You can send event to the agent with any client connected to Restack, for example:
+## 🛠️ Development
 
-Modify agentId and runId in eventAgent.ts and then run:
+For development setup, local development commands, and contributing guidelines, see [CONTRIBUTING.md](./CONTRIBUTING.md).
 
-```bash
-pnpm event-agent
-```
+## 📚 Documentation
 
-It will connect to Restack and send an events to the agent.
+- [Full Documentation](https://docs.restack.io/boilerplate/introduction)
+- [Restack AI](https://restack.io/)
+- [React Flow](https://reactflow.dev/)
 
-## Deploy on Cloud
+## 📄 License
 
-### Deploy frontend on Vercel
-
-Choose root directory as the project root.
-
-Root directory
-
-```
-agent-reactflow/apps/frontend
-```
-
-Build command
-
-```bash
-turbo run build --filter=@agent-reactflow/frontend
-```
-
-### Deploy backend on Restack Cloud
-
-To deploy the application on Restack, you can create an account at [https://console.restack.io](https://console.restack.io)
-
-Custom Dockerfile path
-
-```
-/agent-reactflow/Dockerfile
-```
-
-Application folder
-
-```
-/agent-reactflow
-```
+This project is licensed under the MIT License.

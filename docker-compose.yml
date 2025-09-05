@@ -1,0 +1,141 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: boilerplate_db
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-boilerplate_db}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./packages/database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./packages/database/workspace-seed.sql:/docker-entrypoint-initdb.d/02-workspace-seed.sql
+      - ./packages/database/agents-seed.sql:/docker-entrypoint-initdb.d/03-agents-seed.sql
+    command: >
+      postgres
+      -c shared_buffers=512MB
+      -c effective_cache_size=2GB
+      -c work_mem=16MB
+      -c random_page_cost=1.1
+      -c synchronous_commit=off
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d boilerplate_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - boilerplate-network
+
+  # Restack Engine
+  restack:
+    image: ghcr.io/restackio/restack:main
+    pull_policy: always
+    container_name: restack
+    ports:
+      - "5233:5233"
+      - "6233:6233"
+      - "7233:7233"
+      - "9233:9233"
+      - "10233:10233"
+      - "11233:11233"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6233/api/engine/health"]
+      interval: 3s
+      timeout: 10s
+      retries: 10
+    networks:
+      - boilerplate-network
+
+  # Backend Service
+  backend:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    container_name: boilerplate_backend
+    env_file:
+      - .env
+    environment:
+      - RESTACK_ENGINE_ADDRESS=${RESTACK_ENGINE_ADDRESS:-host.docker.internal:7233}
+      - RESTACK_ENGINE_API_ADDRESS=${RESTACK_ENGINE_API_ADDRESS:-host.docker.internal:6233}
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/boilerplate_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - boilerplate-network
+    restart: unless-stopped
+
+  # MCP Server Service
+  mcp_server:
+    build:
+      context: ./apps/mcp_server
+      dockerfile: Dockerfile
+    container_name: boilerplate_mcp_server
+    env_file:
+      - .env
+    environment:
+      - RESTACK_ENGINE_ADDRESS=${RESTACK_ENGINE_ADDRESS:-host.docker.internal:7233}
+      - RESTACK_ENGINE_API_ADDRESS=${RESTACK_ENGINE_API_ADDRESS:-host.docker.internal:6233}
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/boilerplate_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - boilerplate-network
+    restart: unless-stopped
+
+  # Webhook Service
+  webhook:
+    build:
+      context: ./apps/webhook
+      dockerfile: Dockerfile
+    container_name: boilerplate_webhook
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - RESTACK_ENGINE_ADDRESS=${RESTACK_ENGINE_ADDRESS:-host.docker.internal:7233}
+      - RESTACK_ENGINE_API_ADDRESS=${RESTACK_ENGINE_API_ADDRESS:-host.docker.internal:6233}
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/boilerplate_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - boilerplate-network
+    restart: unless-stopped
+
+  # Frontend Service
+  frontend:
+    build:
+      context: .
+      dockerfile: ./apps/frontend/Dockerfile
+    container_name: boilerplate_frontend
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      - RESTACK_ENGINE_ADDRESS=${RESTACK_ENGINE_ADDRESS:-host.docker.internal:7233}
+      - RESTACK_ENGINE_API_ADDRESS=${RESTACK_ENGINE_API_ADDRESS:-host.docker.internal:6233}
+      - NODE_ENV=${NODE_ENV:-production}
+    depends_on:
+      - backend
+      - mcp_server
+      - webhook
+    networks:
+      - boilerplate-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  boilerplate-network:
+    driver: bridge

@@ -9,12 +9,12 @@
     "start": "next start",
     "lint": "next lint",
     "lint:fix": "next lint --fix",
-    "type-check": "tsc --noEmit",
+    "type-check": "tsc --noEmit --incremental",
     "check": "npm run type-check && npm run lint",
-    "debug:agent": "tsx debug-agent.ts"
+    "clean": "rm -rf .next && rm -rf .turbo"
   },
   "dependencies": {
-    "@restackio/ai": "^0.0.145",
+    "@restackio/ai": "^0.0.146",
     "@restackio/react": "^0.10.15",
     "@workspace/ui": "workspace:*",
     "dotenv": "^16.4.5",

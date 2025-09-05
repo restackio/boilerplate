@@ -5,9 +5,6 @@
   "description": "Database schema and seed data for the boilerplate",
   "main": "index.js",
   "scripts": {
-    "build": "echo 'Database package does not need build step'",
-    "lint": "echo 'Database package does not need linting'",
-    "type-check": "echo 'Database package does not need type checking'",
     "db:reset": "psql $DATABASE_URL -f schema.sql",
     "db:seed:workspace": "psql $DATABASE_URL -f workspace-seed.sql",
     "db:seed:agents": "psql $DATABASE_URL -f agents-seed.sql",
