@@ -43,6 +43,7 @@ services:
       - "9233:9233"
       - "10233:10233"
       - "11233:11233"
+      - "12233:12233"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:6233/api/engine/health"]
       interval: 3s
