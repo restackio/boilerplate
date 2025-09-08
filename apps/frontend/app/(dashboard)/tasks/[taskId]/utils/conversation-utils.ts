@@ -64,7 +64,7 @@ export const extractTextContent = (item: ConversationItem): string => {
 };
 
 export const extractToolName = (item: ConversationItem): string => {
-  return item.openai_output?.name || "Unknown tool";
+  return item.openai_output?.name || "";
 };
 
 export const extractServerLabel = (item: ConversationItem): string => {

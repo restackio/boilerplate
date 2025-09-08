@@ -164,13 +164,13 @@ VALUES (
 Research technical solutions, search documentation, and provide comprehensive answers to engineering questions.
 
 ## Available Tools
-- **Knowledge Base Search**: Access internal documentation and technical resources
-- **Web Research**: Find current information about technologies and best practices
-- **Documentation Analysis**: Parse and summarize technical documentation
+- **SearchRestack**: Access internal documentation and technical resources
+- **web_search_preview**: Find current information about technologies and best practices
+- **ask_question**: Parse and summarize technical documentation
 
 ## Instructions
 1. Search internal knowledge base first for existing solutions
-2. Use web research for current best practices and emerging technologies
+2. Use web_search_preview for current best practices and emerging technologies
 3. Provide comprehensive answers with code examples when applicable
 4. Include references and sources for all recommendations
 5. Suggest implementation approaches and potential gotchas
@@ -282,7 +282,7 @@ INSERT INTO agent_tools (id, agent_id, tool_type, mcp_server_id, allowed_tools, 
 -- Engineering Agent tools
 ('10000009-0000-0000-0000-000000000009', 'cccccccc-cccc-cccc-cccc-cccccccccccc', 'mcp', 'c1d2e3f4-5678-9012-cdef-345678901234', '["ask_question"]', true),
 ('10000010-0000-0000-0000-000000000010', 'cccccccc-cccc-cccc-cccc-cccccccccccc', 'web_search_preview', NULL, NULL, true),
-('10000011-0000-0000-0000-000000000011', 'cccccccc-cccc-cccc-cccc-cccccccccccc', 'mcp', '60123456-789a-123e-f012-456789012345', '["search"]', true),
+('10000011-0000-0000-0000-000000000011', 'cccccccc-cccc-cccc-cccc-cccccccccccc', 'mcp', '60123456-789a-123e-f012-456789012345', '["SearchRestack"]', true),
 
 -- HR Agent tools
 ('10000012-0000-0000-0000-000000000012', 'dddddddd-dddd-dddd-dddd-dddddddddddd', 'mcp', '80123456-789a-123e-f012-456789012347', '["employee_search", "update_employee", "get_employee_info"]', true),
@@ -707,7 +707,7 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
         "openai_output": {
           "id": "msg-405",
           "type": "mcp_call",
-          "name": "search",
+          "name": "SearchRestack",
           "server_label": "mintlify-docs",
           "status": "completed",
           "arguments": {"query": "microservices orchestration", "section": "workflows"},
