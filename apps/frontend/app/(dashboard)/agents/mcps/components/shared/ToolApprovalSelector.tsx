@@ -21,10 +21,10 @@ export function ToolApprovalSelector({
   onSettingsChange,
 }: ToolApprovalSelectorProps) {
   const sortedTools = useMemo(() => {
-    // Get configured tools first (auto-approve and require-approval)
+    // Get configured tools first (never and always)
     const configuredTools = [
-      ...currentSettings.never.map(tool => ({ name: tool, type: 'auto' as const })),
-      ...currentSettings.always.map(tool => ({ name: tool, type: 'required' as const }))
+      ...currentSettings.never.map(tool => ({ name: tool, type: 'never' as const })),
+      ...currentSettings.always.map(tool => ({ name: tool, type: 'always' as const }))
     ];
 
     // Get unconfigured tools
@@ -38,27 +38,27 @@ export function ToolApprovalSelector({
     return [...configuredTools, ...unconfiguredTools];
   }, [discoveredTools, currentSettings]);
 
-  const handleToolSettingChange = (toolName: string, setting: 'auto' | 'required') => {
-    const isCurrentlyAuto = currentSettings.never.includes(toolName);
-    const isCurrentlyRequired = currentSettings.always.includes(toolName);
+  const handleToolSettingChange = (toolName: string, setting: 'never' | 'always') => {
+    const isCurrentlyNever = currentSettings.never.includes(toolName);
+    const isCurrentlyAlways = currentSettings.always.includes(toolName);
 
     const newSettings = { ...currentSettings };
 
-    if (setting === 'auto') {
-      if (isCurrentlyAuto) {
-        // Clicking auto again - deactivate
+    if (setting === 'never') {
+      if (isCurrentlyNever) {
+        // Clicking never again - deactivate
         newSettings.never = newSettings.never.filter(t => t !== toolName);
       } else {
-        // Set to auto (remove from required if it was there)
+        // Set to never (remove from always if it was there)
         newSettings.never = [...newSettings.never.filter(t => t !== toolName), toolName];
         newSettings.always = newSettings.always.filter(t => t !== toolName);
       }
-    } else if (setting === 'required') {
-      if (isCurrentlyRequired) {
-        // Clicking required again - deactivate
+    } else if (setting === 'always') {
+      if (isCurrentlyAlways) {
+        // Clicking always again - deactivate
         newSettings.always = newSettings.always.filter(t => t !== toolName);
       } else {
-        // Set to required (remove from auto if it was there)
+        // Set to always (remove from never if it was there)
         newSettings.always = [...newSettings.always.filter(t => t !== toolName), toolName];
         newSettings.never = newSettings.never.filter(t => t !== toolName);
       }
@@ -83,9 +83,9 @@ export function ToolApprovalSelector({
 
           <div className="max-h-96 overflow-y-auto space-y-2">
             {sortedTools.map(({ name: tool }) => {
-              const isAuto = currentSettings.never.includes(tool);
-              const isRequired = currentSettings.always.includes(tool);
-              const isConfigured = isAuto || isRequired;
+              const isNever = currentSettings.never.includes(tool);
+              const isAlways = currentSettings.always.includes(tool);
+              const isConfigured = isNever || isAlways;
 
               return (
                 <div 
@@ -102,8 +102,8 @@ export function ToolApprovalSelector({
                     <Button
                       type="button"
                       size="sm"
-                      variant={isAuto ? 'secondary' : 'ghost'}
-                      onClick={() => handleToolSettingChange(tool, 'auto')}
+                      variant={isNever ? 'secondary' : 'ghost'}
+                      onClick={() => handleToolSettingChange(tool, 'never')}
                       className="h-8 px-3 text-xs"
                     >
                       <ShieldAlert className="h-4 w-4 text-yellow-500" />
@@ -112,8 +112,8 @@ export function ToolApprovalSelector({
                     <Button
                       type="button"
                       size="sm"
-                      variant={isRequired ? 'secondary' : 'ghost'}
-                      onClick={() => handleToolSettingChange(tool, 'required')}
+                      variant={isAlways ? 'secondary' : 'ghost'}
+                      onClick={() => handleToolSettingChange(tool, 'always')}
                       className="h-8 px-3 text-xs"
                     >
                       <ShieldCheck className="h-4 w-4 text-green-500" />

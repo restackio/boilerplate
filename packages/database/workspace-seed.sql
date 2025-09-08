@@ -125,7 +125,7 @@ INSERT INTO mcp_servers (id, workspace_id, server_label, server_url, local, serv
   FALSE,
   'Mintlify MCP server for accessing Restack documentation and API references',
   NULL,
-  '{"never": {"tool_names": ["search"]}, "always": {"tool_names": []}}'
+  '{"never": {"tool_names": ["SearchRestack"]}, "always": {"tool_names": []}}'
 ),
 (
   '70123456-789a-123e-f012-456789012346',

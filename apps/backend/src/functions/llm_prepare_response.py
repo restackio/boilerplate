@@ -30,7 +30,7 @@ async def llm_prepare_response(
     create_params = {
         "model": function_input.model or "gpt-5",
         "input": input_data,
-        "tool_choice": "auto",
+        "tool_choice": "never",
         "reasoning": {
             "effort": function_input.reasoning_effort
             or "minimal",

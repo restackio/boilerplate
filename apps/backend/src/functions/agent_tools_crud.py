@@ -37,14 +37,14 @@ def _convert_approval_config(
         convert_to_string: If True, converts to string format; if False, returns original object format
 
     Returns:
-        String format ("never", "always", "auto") if convert_to_string=True,
+        String format ("never", "always") if convert_to_string=True,
         or original object format if convert_to_string=False
     """
     if not convert_to_string:
         # Return original object format for testing/debugging
         return require_approval or {}
     if not require_approval:
-        return "auto"
+        return "never"
 
     never_tools = require_approval.get("never", {}).get(
         "tool_names", []
@@ -60,9 +60,6 @@ def _convert_approval_config(
         else (never_tools + always_tools)
     )
 
-    if not tools_to_check:
-        return "auto"
-
     # If any allowed tool requires approval, set to "always"
     if any(tool in always_tools for tool in tools_to_check):
         return "always"
@@ -71,8 +68,8 @@ def _convert_approval_config(
     if all(tool in never_tools for tool in tools_to_check):
         return "never"
 
-    # Mixed or undefined tools default to "auto"
-    return "auto"
+    # Mixed or undefined tools default to "never"
+    return "never"
 
 
 class AgentToolsGetByAgentInput(BaseModel):

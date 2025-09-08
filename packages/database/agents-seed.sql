@@ -707,7 +707,7 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
         "openai_output": {
           "id": "msg-405",
           "type": "mcp_call",
-          "name": "search",
+          "name": "SearchRestack",
           "server_label": "mintlify-docs",
           "status": "completed",
           "arguments": {"query": "microservices orchestration", "section": "workflows"},
