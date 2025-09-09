@@ -67,10 +67,9 @@ CREATE TABLE IF NOT EXISTS agents (
     workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     team_id UUID REFERENCES teams(id) ON DELETE SET NULL,
     name VARCHAR(255) NOT NULL CHECK (name ~ '^[a-z0-9_\-]+$'),
-    version VARCHAR(50) NOT NULL DEFAULT 'v1.0',
     description TEXT,
     instructions TEXT,
-    status VARCHAR(50) NOT NULL DEFAULT 'inactive' CHECK (status IN ('active', 'inactive')),
+    status VARCHAR(50) NOT NULL DEFAULT 'draft' CHECK (status IN ('published', 'draft', 'archived')),
     parent_agent_id UUID REFERENCES agents(id) ON DELETE SET NULL,
     -- New GPT-5 model configuration fields
     model VARCHAR(100) DEFAULT 'gpt-5' CHECK (model IN (
@@ -79,7 +78,6 @@ CREATE TABLE IF NOT EXISTS agents (
         'gpt-4.1', 'gpt-4.1-mini', 'gpt-4.1-nano', 'gpt-4o', 'gpt-4o-mini'
     )),
     reasoning_effort VARCHAR(20) DEFAULT 'medium' CHECK (reasoning_effort IN ('minimal', 'low', 'medium', 'high')),
-    response_format JSONB DEFAULT '{"type": "text"}', -- Store response format configuration
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -176,14 +174,14 @@ CREATE INDEX IF NOT EXISTS idx_user_workspaces_user_role ON user_workspaces(user
 CREATE INDEX IF NOT EXISTS idx_agent_tools_agent_type_enabled ON agent_tools(agent_id, tool_type, enabled);
 CREATE INDEX IF NOT EXISTS idx_mcp_servers_workspace_label ON mcp_servers(workspace_id, server_label);
 
--- Partial indexes for active records (more efficient for common queries)
-CREATE INDEX IF NOT EXISTS idx_agents_active_workspace ON agents(workspace_id, created_at DESC) WHERE status = 'active';
+-- Partial indexes for published records (more efficient for common queries)
+CREATE INDEX IF NOT EXISTS idx_agents_published_workspace ON agents(workspace_id, created_at DESC) WHERE status = 'published';
 CREATE INDEX IF NOT EXISTS idx_tasks_open_workspace ON tasks(workspace_id, created_at DESC) WHERE status IN ('open', 'active');
 CREATE INDEX IF NOT EXISTS idx_tasks_scheduled_workspace ON tasks(workspace_id, is_scheduled, schedule_status, created_at DESC) WHERE is_scheduled = true;
 CREATE INDEX IF NOT EXISTS idx_agent_tools_enabled ON agent_tools(agent_id, tool_type) WHERE enabled = true;
 
 -- Covering indexes for read-heavy operations
-CREATE INDEX IF NOT EXISTS idx_agents_list_covering ON agents(workspace_id, status) INCLUDE (id, name, version, description, created_at, updated_at);
+CREATE INDEX IF NOT EXISTS idx_agents_list_covering ON agents(workspace_id, status) INCLUDE (id, name, description, created_at, updated_at);
 CREATE INDEX IF NOT EXISTS idx_tasks_list_covering ON tasks(workspace_id, status) INCLUDE (id, title, description, agent_id, assigned_to_id, created_at, updated_at);
 
 -- Index for email lookups (very common in auth)

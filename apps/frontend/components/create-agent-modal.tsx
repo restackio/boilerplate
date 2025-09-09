@@ -28,8 +28,7 @@ export function CreateAgentModal({ onAgentCreated }: CreateAgentModalProps) {
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    version: "v1.0",
-    status: "inactive" as "active" | "inactive",
+    status: "draft" as "published" | "draft" | "archived",
     model: "gpt-5",
     reasoning_effort: "medium",
   });
@@ -53,8 +52,7 @@ export function CreateAgentModal({ onAgentCreated }: CreateAgentModalProps) {
         setFormData({
           name: "",
           description: "",
-          version: "v1.0",
-          status: "inactive" as "active" | "inactive",
+          status: "draft" as "published" | "draft" | "archived",
           // New GPT-5 model configuration fields
           model: "gpt-5",
           reasoning_effort: "medium",
@@ -129,15 +127,6 @@ export function CreateAgentModal({ onAgentCreated }: CreateAgentModalProps) {
               rows={3}
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="version">Version</Label>
-            <Input
-              id="version"
-              value={formData.version}
-              onChange={(e) => handleInputChange("version", e.target.value)}
-              placeholder="v1.0"
-            />
-          </div>
 
           <div className="space-y-2">
             <Label htmlFor="status">Status</Label>
@@ -146,8 +135,9 @@ export function CreateAgentModal({ onAgentCreated }: CreateAgentModalProps) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
+                <SelectItem value="draft">Draft</SelectItem>
+                <SelectItem value="published">Published</SelectItem>
+                <SelectItem value="archived">Archived</SelectItem>
               </SelectContent>
             </Select>
           </div>

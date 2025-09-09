@@ -2,13 +2,12 @@
 -- This file creates demo agents and completed tasks with realistic conversation history
 
 -- Customer Support Agent - Zendesk orchestrator
-INSERT INTO agents (id, workspace_id, team_id, name, version, description, instructions, status, model, reasoning_effort, response_format)
+INSERT INTO agents (id, workspace_id, team_id, name, description, instructions, status, model, reasoning_effort)
 VALUES (
     '77777777-7777-7777-7777-777777777777',
     'c926e979-1f16-46bf-a7cc-8aab70162d65',
     '11111111-1111-1111-1111-111111111111', -- Customer Support team
     'zendesk-support-orchestrator',
-    'v1.0.0',
     'Demo agent orchestrating Zendesk, PagerDuty, Datadog, Linear, and GitHub',
     $$Developer: # Support Ticket for Zendesk
 
@@ -74,21 +73,19 @@ After processing each ticket, briefly validate that all actions match the ticket
 - All actions relevant to the ticket's issue level are recorded.
 - References (IDs/URLs) are included where possible.
 - If insufficient data, mark as 'Incomplete Data' and explain.$$,
-    'active',
+    'published',
     'gpt-5',
-    'medium',
-    '{"type": "text"}'
+    'medium'
 )
 ON CONFLICT (id) DO NOTHING;
 
 -- Sales Agent - CRM and lead management
-INSERT INTO agents (id, workspace_id, team_id, name, version, description, instructions, status, model, reasoning_effort, response_format)
+INSERT INTO agents (id, workspace_id, team_id, name, description, instructions, status, model, reasoning_effort)
 VALUES (
     'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
     'c926e979-1f16-46bf-a7cc-8aab70162d65',
     '22222222-2222-2222-2222-222222222222', -- Sales team
     'sales-lead-manager',
-    'v1.0.0',
     'AI agent for managing sales leads, opportunities, and customer relationships',
     $$You are a sales lead management assistant focused on converting prospects into customers.
 
@@ -108,21 +105,19 @@ Manage sales leads, track opportunities, and provide insights on sales pipeline 
 5. Provide insights on pipeline health and conversion rates
 
 Always maintain accurate records and follow up on commitments made to prospects.$$,
-    'active',
+    'published',
     'gpt-5-mini',
-    'low',
-    '{"type": "text"}'
+    'low'
 )
 ON CONFLICT (id) DO NOTHING;
 
 -- Marketing Agent - Campaign analytics and optimization
-INSERT INTO agents (id, workspace_id, team_id, name, version, description, instructions, status, model, reasoning_effort, response_format)
+INSERT INTO agents (id, workspace_id, team_id, name, description, instructions, status, model, reasoning_effort)
 VALUES (
     'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
     'c926e979-1f16-46bf-a7cc-8aab70162d65',
     '33333333-3333-3333-3333-333333333333', -- Marketing team
     'campaign-analytics-optimizer',
-    'v1.0.0',
     'AI agent for analyzing marketing campaign performance and optimization',
     $$You are a marketing analytics specialist focused on campaign performance and optimization.
 
@@ -142,21 +137,19 @@ Analyze marketing campaign performance, provide insights, and recommend optimiza
 5. Track campaign goals and measure success against objectives
 
 Focus on data-driven insights and clear recommendations for improving marketing effectiveness.$$,
-    'active',
+    'published',
     'gpt-5',
-    'medium',
-    '{"type": "json_object"}'
+    'medium'
 )
 ON CONFLICT (id) DO NOTHING;
 
 -- Engineering Agent - Documentation and research
-INSERT INTO agents (id, workspace_id, team_id, name, version, description, instructions, status, model, reasoning_effort, response_format)
+INSERT INTO agents (id, workspace_id, team_id, name, description, instructions, status, model, reasoning_effort)
 VALUES (
     'cccccccc-cccc-cccc-cccc-cccccccccccc',
     'c926e979-1f16-46bf-a7cc-8aab70162d65',
     '44444444-4444-4444-4444-444444444444', -- Engineering team
     'technical-research-assistant',
-    'v1.0.0',
     'AI agent for technical research, documentation, and knowledge management',
     $$You are a technical research assistant specializing in finding solutions and documentation.
 
@@ -176,21 +169,19 @@ Research technical solutions, search documentation, and provide comprehensive an
 5. Suggest implementation approaches and potential gotchas
 
 Always prioritize accuracy and provide multiple approaches when possible.$$,
-    'active',
+    'published',
     'gpt-5',
-    'high',
-    '{"type": "text"}'
+    'high'
 )
 ON CONFLICT (id) DO NOTHING;
 
 -- HR Agent - Employee data and operations
-INSERT INTO agents (id, workspace_id, team_id, name, version, description, instructions, status, model, reasoning_effort, response_format)
+INSERT INTO agents (id, workspace_id, team_id, name, description, instructions, status, model, reasoning_effort)
 VALUES (
     'dddddddd-dddd-dddd-dddd-dddddddddddd',
     'c926e979-1f16-46bf-a7cc-8aab70162d65',
     '55555555-5555-5555-5555-555555555555', -- HR team
     'hr-operations-assistant',
-    'v1.0.0',
     'AI agent for HR operations, employee data management, and policy assistance',
     $$You are an HR operations assistant focused on employee support and data management.
 
@@ -210,21 +201,19 @@ Assist with HR operations, employee data queries, and policy guidance.
 5. Ensure compliance with privacy and data protection requirements
 
 Always maintain confidentiality and follow proper authorization protocols for sensitive information.$$,
-    'active',
+    'published',
     'gpt-5-mini',
-    'medium',
-    '{"type": "text"}'
+    'medium'
 )
 ON CONFLICT (id) DO NOTHING;
 
 -- News Research Agent - Web search demonstration
-INSERT INTO agents (id, workspace_id, team_id, name, version, description, instructions, status, model, reasoning_effort, response_format)
+INSERT INTO agents (id, workspace_id, team_id, name, description, instructions, status, model, reasoning_effort)
 VALUES (
     'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
     'c926e979-1f16-46bf-a7cc-8aab70162d65',
     '33333333-3333-3333-3333-333333333333', -- Marketing team
     'news-research-agent',
-    'v1.0.0',
     'AI agent demonstrating web search capabilities for news research and fact-checking',
     $$You are a news research specialist focused on finding current information and fact-checking.
 
@@ -256,10 +245,9 @@ Always provide:
 - Recommendations for follow-up research if needed
 
 Demonstrate the full capabilities of web search with detailed, informative responses.$$,
-    'active',
+    'published',
     'gpt-5',
-    'medium',
-    '{"type": "text"}'
+    'medium'
 )
 ON CONFLICT (id) DO NOTHING;
 

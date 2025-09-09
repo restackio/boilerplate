@@ -1,3 +1,4 @@
+import asyncio
 from datetime import timedelta
 
 from restack_ai.workflow import (
@@ -6,6 +7,7 @@ from restack_ai.workflow import (
     import_functions,
     log,
     workflow,
+    workflow_info,
 )
 
 from src.agents.agent_task import AgentTask, AgentTaskInput
@@ -260,3 +262,60 @@ class TasksUpdateAgentTaskIdWorkflow:
             )
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e
+
+
+@workflow.defn()
+class PlaygroundCreateDualTasksWorkflow:
+    """Workflow to create two tasks simultaneously for playground A/B comparison."""
+
+    @workflow.run
+    async def run(self, workflow_input: dict) -> dict:
+        log.info("PlaygroundCreateDualTasksWorkflow started")
+        try:
+            workspace_id = workflow_input["workspace_id"]
+            task_description = workflow_input["task_description"]
+            draft_agent_id = workflow_input["draft_agent_id"]
+            comparison_agent_id = workflow_input["comparison_agent_id"]
+
+            # Create input for both task creation workflows
+            draft_task_input = TaskCreateInput(
+                workspace_id=workspace_id,
+                title=f"Playground Draft: {task_description[:50]}...",
+                description=task_description,
+                agent_id=draft_agent_id,
+                status="active",
+            )
+
+            comparison_task_input = TaskCreateInput(
+                workspace_id=workspace_id,
+                title=f"Playground Comparison: {task_description[:50]}...",
+                description=task_description,
+                agent_id=comparison_agent_id,
+                status="active",
+            )
+
+            # Execute both TasksCreateWorkflow instances in parallel
+            draft_result, comparison_result = await asyncio.gather(
+                workflow.child_execute(
+                    workflow=TasksCreateWorkflow,
+                    workflow_input=draft_task_input,
+                    workflow_id=f"playground_draft_task_{workflow_info().workflow_id}",
+                ),
+                workflow.child_execute(
+                    workflow=TasksCreateWorkflow,
+                    workflow_input=comparison_task_input,
+                    workflow_id=f"playground_comparison_task_{workflow_info().workflow_id}",
+                ),
+            )
+
+        except Exception as e:
+            error_message = f"Error during playground dual task creation: {e}"
+            log.error(error_message)
+            raise NonRetryableError(message=error_message) from e
+        else:
+            return {
+                "draft_task_id": draft_result.task.id,
+                "comparison_task_id": comparison_result.task.id,
+                "draft_agent_task_id": draft_result.task.agent_task_id,
+                "comparison_agent_task_id": comparison_result.task.agent_task_id,
+            }

@@ -60,6 +60,11 @@ export function TestAgentModal({ isOpen, onClose, agent }: TestAgentModalProps) 
     }
   };
 
+  const handleGoToPlayground = () => {
+    onClose();
+    router.push(`/playground?agentId=${agent.id}`);
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -82,7 +87,7 @@ export function TestAgentModal({ isOpen, onClose, agent }: TestAgentModalProps) 
             <div>
               <DialogTitle>Test Agent</DialogTitle>
               <DialogDescription>
-                Create a test task for {agent.name} {agent.version}
+                Create a test task for {agent.name}
               </DialogDescription>
             </div>
             <Button
@@ -112,31 +117,42 @@ export function TestAgentModal({ isOpen, onClose, agent }: TestAgentModalProps) 
             />
           </div>
 
-          <div className="flex justify-end space-x-2">
+          <div className="flex justify-between">
             <Button
               variant="outline"
-              onClick={handleClose}
+              onClick={handleGoToPlayground}
               disabled={isCreating}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSubmit}
-              disabled={!taskDescription.trim() || isCreating}
               className="flex items-center space-x-2"
             >
-              {isCreating ? (
-                <>
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                  <span>Creating...</span>
-                </>
-              ) : (
-                <>
-                  <ArrowUp className="h-4 w-4" />
-                  <span>Create Test Task</span>
-                </>
-              )}
+              <span>Compare in Playground</span>
             </Button>
+            
+            <div className="flex space-x-2">
+              <Button
+                variant="outline"
+                onClick={handleClose}
+                disabled={isCreating}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSubmit}
+                disabled={!taskDescription.trim() || isCreating}
+                className="flex items-center space-x-2"
+              >
+                {isCreating ? (
+                  <>
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    <span>Creating...</span>
+                  </>
+                ) : (
+                  <>
+                    <ArrowUp className="h-4 w-4" />
+                    <span>Create test task</span>
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       </DialogContent>

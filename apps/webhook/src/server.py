@@ -20,7 +20,7 @@ def start() -> None:
 
     uvicorn.run(
         app,
-        host="0.0.0.0",
+        host="0.0.0.0",  # noqa: S104 - Binding to all interfaces is intentional for containerized deployment
         port=8000,
         log_level="info",
         access_log=True,

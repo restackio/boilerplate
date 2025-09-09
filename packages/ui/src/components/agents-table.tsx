@@ -24,6 +24,9 @@ import {
   ChevronRight,
   Hash,
   Eye,
+  FileText,
+  Archive,
+  Tag,
 } from "lucide-react";
 import {
   Tooltip,
@@ -32,6 +35,7 @@ import {
   TooltipTrigger,
 } from "./ui/tooltip";
 import { Badge } from "./ui/badge";
+import { AgentStatusBadge, type AgentStatus } from "./agent-status-badge";
 import { Button } from "./ui/button";
 import { DataTableFilter } from "./table/index";
 import { createColumnConfigHelper } from "./table/core/filters";
@@ -50,17 +54,20 @@ import Link from "next/link";
 export interface Agent {
   id: string;
   name: string;
-  version: string;
   description?: string;
   instructions: string;
-  status: "active" | "inactive";
+  status: AgentStatus;
   parent_agent_id?: string;
   team_id?: string;
   team_name?: string;
   created_at?: string;
   updated_at?: string;
   version_count?: number;
-  latest_version?: string;
+  published_version_id?: string;
+  published_version_short?: string;
+  draft_count?: number;
+  latest_draft_version_id?: string;
+  latest_draft_version_short?: string;
 }
 
 // Column configuration helper
@@ -80,7 +87,7 @@ export const agentColumnsConfig = [
     .id("status")
     .accessor((row: Agent) => row.status)
     .displayName("Status")
-    .icon(CheckCircle)
+    .icon(Tag)
     .build(),
   dtf
     .option()
@@ -94,31 +101,10 @@ export const agentColumnsConfig = [
 // Status options
 export const statusOptions: Array<{ label: string; value: string; icon: any }> =
   [
-    { label: "Active", value: "active", icon: Play },
-    { label: "Inactive", value: "inactive", icon: Pause },
+    { label: "Published", value: "published", icon: CheckCircle },
+    { label: "Draft", value: "draft", icon: FileText },
+    { label: "Archived", value: "archived", icon: Archive },
   ];
-
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case "active":
-      return "bg-green-100 text-green-800";
-    case "inactive":
-      return "bg-neutral-100 text-neutral-800";
-    default:
-      return "bg-neutral-100 text-neutral-800";
-  }
-};
-
-const getStatusIcon = (status: string) => {
-  switch (status) {
-    case "active":
-      return <Play className="h-3 w-3" />;
-    case "inactive":
-      return <Pause className="h-3 w-3" />;
-    default:
-      return <AlertTriangle className="h-3 w-3" />;
-  }
-};
 
 interface AgentsTableProps {
   data: Agent[];
@@ -168,11 +154,12 @@ export function AgentsTable({ data, onRowClick, onViewAgent, teams = [], default
             <Table className="w-full" style={{ tableLayout: 'fixed' }}>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-1/2">Agent</TableHead>
+                  <TableHead className="w-1/3">Agent</TableHead>
+                  <TableHead className="hidden md:table-cell">Draft</TableHead>
+                  <TableHead className="hidden md:table-cell">Published</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="hidden sm:table-cell">Team</TableHead>
-                  <TableHead className="hidden md:table-cell">Version</TableHead>
-                  <TableHead className="hidden lg:table-cell">Updated At</TableHead>
+                  <TableHead className="hidden lg:table-cell">Updated at</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -197,21 +184,91 @@ export function AgentsTable({ data, onRowClick, onViewAgent, teams = [], default
                             <Users className="h-3 w-3 flex-shrink-0" />
                             <span className="truncate">{agent.team_name || "No Team"}</span>
                           </span>
-                          <span className="flex items-center gap-1 min-w-0">
-                            <GitBranch className="h-3 w-3 flex-shrink-0" />
-                            <span className="truncate">{agent.latest_version || agent.version}</span>
-                          </span>
+                          {agent.draft_count > 0 && (
+                            <span className="flex items-center gap-1 min-w-0">
+                              <GitBranch className="h-3 w-3 flex-shrink-0 text-yellow-600" />
+                              {agent.latest_draft_version_short ? (
+                                <Link 
+                                  href={`/agents/${agent.latest_draft_version_id}`}
+                                  className="truncate font-mono hover:underline text-yellow-700"
+                                >
+                                  {agent.latest_draft_version_short}
+                                </Link>
+                              ) : (
+                                <span className="truncate">draft</span>
+                              )}
+                              <span className="truncate">({agent.draft_count})</span>
+                            </span>
+                          )}
+                          {agent.published_version_short && (
+                            <span className="flex items-center gap-1 min-w-0">
+                              <span className="text-xs text-muted-foreground">Published:</span>
+                              <Link 
+                                href={`/agents/${agent.published_version_id}`}
+                                className="truncate font-mono hover:underline text-green-700"
+                              >
+                                {agent.published_version_short}
+                              </Link>
+                            </span>
+                          )}
                         </div>
                       </div>
                     </Link>
                   </TableCell>
+                  <TableCell className="hidden md:table-cell">
+                    {agent.draft_count > 0 ? (
+                      <div className="flex flex-col items-center gap-1">
+                        <div className="flex items-center gap-1">
+                          <GitBranch className="h-3 w-3 text-yellow-600" />
+                          {agent.latest_draft_version_short ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Link 
+                                  href={`/agents/${agent.latest_draft_version_id}`}
+                                  className="text-sm font-mono hover:underline text-yellow-700 hover:text-yellow-800"
+                                >
+                                  {agent.latest_draft_version_short}
+                                </Link>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Latest Draft Version: {agent.latest_draft_version_short}</p>
+                                <p className="text-xs">ID: {agent.latest_draft_version_id}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          ) : (
+                            <span className="text-sm font-mono text-yellow-700">draft</span>
+                          )}
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          {agent.draft_count} draft{agent.draft_count > 1 ? 's' : ''}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">-</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell">
+                    {agent.published_version_short ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Link 
+                            href={`/agents/${agent.published_version_id}`}
+                            className="text-sm font-mono hover:underline text-green-700 hover:text-green-800"
+                          >
+                            {agent.published_version_short}
+                          </Link>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Published version: {agent.published_version_short}</p>
+                          <p className="text-xs">ID: {agent.published_version_id}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">-</span>
+                    )}
+                  </TableCell>
                   <TableCell>
-                    <Badge
-                      className={`${getStatusColor(agent.status)} border-0 flex items-center space-x-1 w-fit`}
-                    >
-                      {getStatusIcon(agent.status)}
-                      <span>{agent.status}</span>
-                    </Badge>
+                    <AgentStatusBadge status={agent.status} size="sm" />
                   </TableCell>
                   <TableCell className="hidden sm:table-cell">
                     <div className="flex items-center space-x-2 min-w-0">
@@ -219,35 +276,7 @@ export function AgentsTable({ data, onRowClick, onViewAgent, teams = [], default
                       <span className="text-sm truncate">{agent.team_name || "No Team"}</span>
                     </div>
                   </TableCell>
-                  <TableCell className="hidden md:table-cell">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <GitBranch className="h-3 w-3 text-muted-foreground" />
-                              {agent.latest_version || agent.version}
-                          </div>
-                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                              <Hash className="h-3 w-3" />
-                              <span>{agent.version_count ?? 1} versions</span>
-                            </div>
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Latest version: {agent.latest_version || agent.version}</p>
-                        {agent.version_count && agent.version_count > 1 && (
-                          <p className="text-xs">
-                            Active version: {agent.version}
-                          </p>
-                        )}
-                        {agent.version_count && agent.version_count > 1 && (
-                          <p className="text-xs">
-                            Total versions: {agent.version_count}
-                          </p>
-                        )}
-                      </TooltipContent>
-                    </Tooltip>
-                  </TableCell>
+
                   <TableCell className="hidden lg:table-cell">
                     {new Date(agent.updated_at || "").toLocaleDateString()}
                   </TableCell>

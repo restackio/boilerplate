@@ -20,17 +20,22 @@ interface LoadingState {
 export interface Agent {
   id: string;
   name: string;
-  version: string;
   description?: string;
   instructions: string;
-  status: "active" | "inactive";
+  model?: string;
+  reasoning_effort?: string;
+  status: "published" | "draft" | "archived";
   parent_agent_id?: string;
   team_id?: string;
   team_name?: string;
   created_at?: string;
   updated_at?: string;
   version_count?: number;
-  latest_version?: string;
+  published_version_id?: string;
+  published_version_short?: string;
+  draft_count?: number;
+  latest_draft_version_id?: string;
+  latest_draft_version_short?: string;
 }
 
 export interface Task {
@@ -250,7 +255,7 @@ export function useWorkspaceScopedActions() {
   });
 
   // Agents actions
-  const fetchAgents = useCallback(async (options?: { activeOnly?: boolean }) => {
+  const fetchAgents = useCallback(async (options?: { publishedOnly?: boolean }) => {
     if (!isReady || !currentWorkspaceId) {
       console.error("Cannot fetch agents: no valid workspace context");
       return { success: false, error: "No valid workspace context" };
@@ -259,9 +264,10 @@ export function useWorkspaceScopedActions() {
     setAgentsLoading({ isLoading: true, error: null });
     let result;
     try {
-      result = await executeWorkflow<Agent[]>("AgentsReadWorkflow", {
+      // Use the enhanced table workflow to get version information
+      result = await executeWorkflow<Agent[]>("AgentsReadTableWorkflow", {
         workspace_id: currentWorkspaceId,
-        active_only: options?.activeOnly || false
+        published_only: options?.publishedOnly || false
       });
       
       if (result.success && result.data) {
@@ -404,6 +410,57 @@ export function useWorkspaceScopedActions() {
       return { success: false, error: "Failed to get agent versions" };
     }
   }, [currentWorkspaceId, isReady]);
+
+  const publishAgent = useCallback(async (agentId: string) => {
+    if (!isReady || !currentWorkspaceId) {
+      console.error("Cannot publish agent: no valid workspace context");
+      return { success: false, error: "No valid workspace context" };
+    }
+
+    setAgentsLoading({ isLoading: true, error: null });
+    let result;
+    try {
+      result = await executeWorkflow<{ agent: Agent; archived_agent_id?: string }>("AgentsPublishWorkflow", {
+        agent_id: agentId,
+        workspace_id: currentWorkspaceId
+      });
+      
+      if (result.success) {
+        await fetchAgents();
+      } else {
+        setAgentsLoading({ isLoading: false, error: result.error || "Failed to publish agent" });
+      }
+    } catch (error) {
+      setAgentsLoading({ isLoading: false, error: "Failed to publish agent" });
+    }
+    setAgentsLoading({ isLoading: false, error: null });
+    return result;
+  }, [currentWorkspaceId, isReady, fetchAgents]);
+
+  const archiveAgent = useCallback(async (agentId: string) => {
+    if (!isReady || !currentWorkspaceId) {
+      console.error("Cannot archive agent: no valid workspace context");
+      return { success: false, error: "No valid workspace context" };
+    }
+
+    setAgentsLoading({ isLoading: true, error: null });
+    let result;
+    try {
+      result = await executeWorkflow<{ agent: Agent }>("AgentsArchiveWorkflow", {
+        agent_id: agentId,
+      });
+      
+      if (result.success) {
+        await fetchAgents();
+      } else {
+        setAgentsLoading({ isLoading: false, error: result.error || "Failed to archive agent" });
+      }
+    } catch (error) {
+      setAgentsLoading({ isLoading: false, error: "Failed to archive agent" });
+    }
+    setAgentsLoading({ isLoading: false, error: null });
+    return result;
+  }, [currentWorkspaceId, isReady, fetchAgents]);
 
   // Tasks actions
   const fetchTasks = useCallback(async () => {
@@ -854,6 +911,8 @@ export function useWorkspaceScopedActions() {
     deleteAgent,
     getAgentById,
     getAgentVersions,
+    publishAgent,
+    archiveAgent,
     
     tasks,
     tasksLoading,

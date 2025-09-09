@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 
 from pydantic import BaseModel, Field
 from restack_ai.function import NonRetryableError, function
@@ -24,11 +24,10 @@ class AgentCreateInput(BaseModel):
         max_length=255,
         pattern=r"^[a-z0-9-_]+$",
     )
-    version: str = Field(default="v1.0", max_length=50)
     description: str | None = None
     instructions: str | None = None
     status: str = Field(
-        default="inactive", pattern="^(active|inactive)$"
+        default="draft", pattern="^(published|draft|archived)$"
     )
     parent_agent_id: str | None = None
     # New GPT-5 model configuration fields
@@ -39,7 +38,6 @@ class AgentCreateInput(BaseModel):
     reasoning_effort: str = Field(
         default="medium", pattern="^(minimal|low|medium|high)$"
     )
-    response_format: dict | None = Field(default={"type": "text"})
 
     mcp_relationships: list[AgentMcpRelationshipInput] | None = (
         Field(
@@ -57,11 +55,10 @@ class AgentUpdateInput(BaseModel):
         max_length=255,
         pattern=r"^[a-z0-9-_]+$",
     )
-    version: str | None = Field(None, max_length=50)
     description: str | None = None
     instructions: str | None = Field(None, min_length=1)
     status: str | None = Field(
-        None, pattern="^(active|inactive)$"
+        None, pattern="^(published|draft|archived)$"
     )
     parent_agent_id: str | None = None
     # New GPT-5 model configuration fields
@@ -72,7 +69,6 @@ class AgentUpdateInput(BaseModel):
     reasoning_effort: str | None = Field(
         None, pattern="^(minimal|low|medium|high)$"
     )
-    response_format: dict | None = None
 
 
 class AgentIdInput(BaseModel):
@@ -81,7 +77,7 @@ class AgentIdInput(BaseModel):
 
 class AgentGetByStatusInput(BaseModel):
     workspace_id: str = Field(..., min_length=1)
-    status: str = Field(..., pattern="^(active|inactive)$")
+    status: str = Field(..., pattern="^(published|draft|archived)$")
 
 
 class AgentGetVersionsInput(BaseModel):
@@ -90,9 +86,9 @@ class AgentGetVersionsInput(BaseModel):
 
 class AgentGetByWorkspaceInput(BaseModel):
     workspace_id: str = Field(..., min_length=1)
-    active_only: bool = Field(
+    published_only: bool = Field(
         default=False,
-        description="If true, return only active agents",
+        description="If true, return only published agents",
     )
 
 
@@ -103,7 +99,6 @@ class AgentOutput(BaseModel):
     team_id: str | None = None
     team_name: str | None = None
     name: str
-    version: str
     description: str | None
     instructions: str | None
     status: str
@@ -111,12 +106,10 @@ class AgentOutput(BaseModel):
     # New GPT-5 model configuration fields
     model: str = "gpt-5"
     reasoning_effort: str = "medium"
-    response_format: dict = {"type": "text"}
 
     created_at: str | None
     updated_at: str | None
     version_count: int = 1  # Number of versions for this agent
-    latest_version: str = "v1.0"  # The latest version number
 
     class Config:
         """Pydantic configuration."""
@@ -165,19 +158,18 @@ def get_latest_agent_versions(
                 key=lambda x: x.created_at or datetime.min,
             )
 
-            # Calculate version count and latest version
+            # Calculate version count
             version_count = len(group_agents)
-            latest_version = latest_agent.version
 
             result.append(
                 AgentOutput(
                     id=str(latest_agent.id),
                     workspace_id=str(latest_agent.workspace_id),
                     name=latest_agent.name,
-                    version=latest_agent.version,
                     description=latest_agent.description,
                     instructions=latest_agent.instructions,
                     status=latest_agent.status,
+                    is_draft=latest_agent.is_draft,
                     parent_agent_id=str(
                         latest_agent.parent_agent_id
                     )
@@ -187,8 +179,6 @@ def get_latest_agent_versions(
                     model=latest_agent.model or "gpt-5",
                     reasoning_effort=latest_agent.reasoning_effort
                     or "medium",
-                    response_format=latest_agent.response_format
-                    or {"type": "text"},
                     created_at=latest_agent.created_at.isoformat()
                     if latest_agent.created_at
                     else None,
@@ -196,7 +186,6 @@ def get_latest_agent_versions(
                     if latest_agent.updated_at
                     else None,
                     version_count=version_count,
-                    latest_version=latest_version,
                 )
             )
 
@@ -215,9 +204,9 @@ async def agents_read(
                 Agent.workspace_id
                 == uuid.UUID(function_input.workspace_id)
             ]
-            if function_input.active_only:
+            if function_input.published_only:
                 subquery_conditions.append(
-                    Agent.status == "active"
+                    Agent.status == "published"
                 )
             latest_versions_subquery = (
                 select(
@@ -256,10 +245,10 @@ async def agents_read(
                 )
                 .order_by(Agent.name.asc())
             )
-            # Add active status filter if requested
-            if function_input.active_only:
+            # Add published status filter if requested
+            if function_input.published_only:
                 latest_agents_query = latest_agents_query.where(
-                    Agent.status == "active"
+                    Agent.status == "published"
                 )
 
             result = await db.execute(latest_agents_query)
@@ -296,7 +285,6 @@ async def agents_read(
                         if agent.team
                         else None,
                         name=agent.name,
-                        version=agent.version,
                         description=agent.description,
                         instructions=agent.instructions,
                         status=agent.status,
@@ -307,8 +295,6 @@ async def agents_read(
                         model=agent.model or "gpt-5",
                         reasoning_effort=agent.reasoning_effort
                         or "medium",
-                        response_format=agent.response_format
-                        or {"type": "text"},
                         created_at=agent.created_at.isoformat()
                         if agent.created_at
                         else None,
@@ -316,7 +302,6 @@ async def agents_read(
                         if agent.updated_at
                         else None,
                         version_count=version_count or 1,
-                        latest_version=agent.version,
                     )
                 )
 
@@ -328,57 +313,122 @@ async def agents_read(
     return None
 
 
-def _bump_version(current_version: str) -> str:
-    """Utility function to bump version number."""
-    import re
+class AgentTableOutput(BaseModel):
+    """Enhanced agent data for table display with versioning info."""
+    id: str
+    workspace_id: str
+    team_id: str | None = None
+    team_name: str | None = None
+    name: str
+    description: str | None = None
+    instructions: str
+    status: str
+    parent_agent_id: str | None = None
+    model: str | None = "gpt-5"
+    reasoning_effort: str | None = "medium"
+    created_at: str | None = None
+    updated_at: str | None = None
+    version_count: int = 1
+    published_version_id: str | None = None
+    published_version_short: str | None = None
+    draft_count: int = 0
 
-    # Handle version formats like "v1.0", "v1.2.3", "1.0", etc.
-    version_match = re.match(
-        r"^(v?)(\d+)\.(\d+)(?:\.(\d+))?(.*)$", current_version
+
+class AgentTableListOutput(BaseModel):
+    agents: list[AgentTableOutput]
+
+
+def _process_agent_group(group_agents: list[Agent]) -> AgentTableOutput:
+    """Process a group of agent versions into table output."""
+    # Find published version
+    published_agent = None
+    draft_agents = []
+
+    for agent in group_agents:
+        if agent.status == "published":
+            published_agent = agent
+        elif agent.status == "draft":
+            draft_agents.append(agent)
+
+    # Determine which agent to show in the table
+    # Priority: published version, fallback to latest if no published version
+    display_agent = published_agent if published_agent else max(
+        group_agents,
+        key=lambda x: x.created_at or datetime.min,
     )
 
-    if not version_match:
-        # If version doesn't match expected format, default to incrementing
-        return "v1.1" if "v" in current_version else "1.1"
+    # Create short UUID for published version
+    published_version_short = None
+    if published_agent:
+        published_version_short = str(published_agent.id)[-5:]
 
-    prefix, major, minor, patch, suffix = version_match.groups()
-    patch = patch or "0"
-    suffix = suffix or ""
-
-    # Increment minor version and reset patch to 0 if it exists
-    new_minor = int(minor) + 1
-    return (
-        f"{prefix}{major}.{new_minor}.0{suffix}"
-        if patch != "0"
-        else f"{prefix}{major}.{new_minor}{suffix}"
+    return AgentTableOutput(
+        id=str(display_agent.id),
+        workspace_id=str(display_agent.workspace_id),
+        team_id=str(display_agent.team_id) if display_agent.team_id else None,
+        team_name=display_agent.team.name if display_agent.team else None,
+        name=display_agent.name,
+        description=display_agent.description,
+        instructions=display_agent.instructions,
+        status=display_agent.status,
+        parent_agent_id=str(display_agent.parent_agent_id) if display_agent.parent_agent_id else None,
+        model=display_agent.model or "gpt-5",
+        reasoning_effort=display_agent.reasoning_effort or "medium",
+        created_at=display_agent.created_at.isoformat() if display_agent.created_at else None,
+        updated_at=display_agent.updated_at.isoformat() if display_agent.updated_at else None,
+        version_count=len(group_agents),
+        published_version_id=str(published_agent.id) if published_agent else None,
+        published_version_short=published_version_short,
+        draft_count=len(draft_agents),
     )
 
 
-def _find_latest_version(versions: list[str]) -> str:
-    """Utility function to find the highest version from a list of versions."""
-    import re
+@function.defn()
+async def agents_read_table(
+    function_input: AgentGetByWorkspaceInput,
+) -> AgentTableListOutput:
+    """Read all agents from database for table display with enhanced versioning info."""
+    async for db in get_async_db():
+        try:
+            # Get all agents for the workspace
+            all_agents_query = (
+                select(Agent)
+                .options(selectinload(Agent.team))
+                .where(Agent.workspace_id == uuid.UUID(function_input.workspace_id))
+                .order_by(Agent.name.asc(), Agent.created_at.desc())
+            )
 
-    if not versions:
-        return "v1.0"
+            result = await db.execute(all_agents_query)
+            all_agents = result.scalars().all()
 
-    # Sort versions to find the latest
-    def version_key(version: str) -> tuple[int, int, int]:
-        match = re.match(
-            r"^(?:v?)(\d+)\.(\d+)(?:\.(\d+))?", version
-        )
-        if not match:
-            return (0, 0, 0)
+            # Group agents by parent_agent_id (or by id if no parent_agent_id)
+            agent_groups = {}
+            for agent in all_agents:
+                group_key = (
+                    str(agent.parent_agent_id)
+                    if agent.parent_agent_id
+                    else str(agent.id)
+                )
+                if group_key not in agent_groups:
+                    agent_groups[group_key] = []
+                agent_groups[group_key].append(agent)
 
-        major = int(match.group(1))
-        minor = int(match.group(2))
-        patch = int(match.group(3) or "0")
+            # For each group, create the enhanced output
+            output_result = [
+                _process_agent_group(group_agents)
+                for group_agents in agent_groups.values()
+                if group_agents
+            ]
 
-        return (major, minor, patch)
+            return AgentTableListOutput(agents=output_result)
+        except Exception as e:
+            raise NonRetryableError(
+                message=f"Database error: {e!s}"
+            ) from e
+    return None
 
-    sorted_versions = sorted(
-        versions, key=version_key, reverse=True
-    )
-    return sorted_versions[0]
+
+# Version-related utility functions removed - no longer needed with simplified versioning
 
 
 @function.defn()
@@ -400,48 +450,10 @@ async def agents_create(
                         message="Invalid parent_agent_id format"
                     ) from e
 
-            # Auto-bump version if creating a new version of an existing agent
-            final_version = agent_data.version
-            if parent_agent_id:
-                # Fetch all versions of this agent family to determine the latest version
-                try:
-                    from sqlalchemy import or_, select
-
-                    # Query for all agents that are either:
-                    # 1. The parent agent itself (parent_agent_id is None and id matches)
-                    # 2. Children of the parent agent (parent_agent_id matches)
-                    version_query = select(Agent.version).where(
-                        or_(
-                            Agent.id == parent_agent_id,
-                            Agent.parent_agent_id
-                            == parent_agent_id,
-                        )
-                    )
-
-                    result = await db.execute(version_query)
-                    existing_versions = [
-                        row[0] for row in result.fetchall()
-                    ]
-
-                    if existing_versions:
-                        latest_version = _find_latest_version(
-                            existing_versions
-                        )
-                        final_version = _bump_version(
-                            latest_version
-                        )
-
-                except (ValueError, KeyError, AttributeError):
-                    # If version fetching fails, fall back to bumping the provided version
-                    final_version = _bump_version(
-                        agent_data.version
-                    )
-
             agent = Agent(
                 id=uuid.uuid4(),
                 workspace_id=uuid.UUID(agent_data.workspace_id),
                 name=agent_data.name,
-                version=final_version,
                 description=agent_data.description,
                 instructions=agent_data.instructions,
                 status=agent_data.status,
@@ -449,7 +461,6 @@ async def agents_create(
                 # New GPT-5 model configuration fields
                 model=agent_data.model,
                 reasoning_effort=agent_data.reasoning_effort,
-                response_format=agent_data.response_format,
             )
             db.add(agent)
             await db.commit()
@@ -478,7 +489,6 @@ async def agents_create(
                 id=str(agent.id),
                 workspace_id=str(agent.workspace_id),
                 name=agent.name,
-                version=agent.version,
                 description=agent.description,
                 instructions=agent.instructions,
                 status=agent.status,
@@ -489,8 +499,6 @@ async def agents_create(
                 model=agent.model or "gpt-5",
                 reasoning_effort=agent.reasoning_effort
                 or "medium",
-                response_format=agent.response_format
-                or {"type": "text"},
                 created_at=agent.created_at.isoformat()
                 if agent.created_at
                 else None,
@@ -528,18 +536,24 @@ async def agents_update(
                 exclude_unset=True, exclude={"agent_id"}
             )
 
+            # Filter out None values to avoid null constraint violations
+            filtered_update_data = {
+                key: value for key, value in update_data.items() 
+                if value is not None
+            }
+
             # Handle parent_agent_id conversion
-            if update_data.get("parent_agent_id"):
+            if filtered_update_data.get("parent_agent_id"):
                 try:
-                    update_data["parent_agent_id"] = uuid.UUID(
-                        update_data["parent_agent_id"]
+                    filtered_update_data["parent_agent_id"] = uuid.UUID(
+                        filtered_update_data["parent_agent_id"]
                     )
                 except ValueError as e:
                     raise NonRetryableError(
                         message="Invalid parent_agent_id format"
                     ) from e
 
-            for key, value in update_data.items():
+            for key, value in filtered_update_data.items():
                 if hasattr(agent, key):
                     setattr(agent, key, value)
             await db.commit()
@@ -548,7 +562,6 @@ async def agents_update(
                 id=str(agent.id),
                 workspace_id=str(agent.workspace_id),
                 name=agent.name,
-                version=agent.version,
                 description=agent.description,
                 instructions=agent.instructions,
                 status=agent.status,
@@ -559,8 +572,6 @@ async def agents_update(
                 model=agent.model or "gpt-5",
                 reasoning_effort=agent.reasoning_effort
                 or "medium",
-                response_format=agent.response_format
-                or {"type": "text"},
                 created_at=agent.created_at.isoformat()
                 if agent.created_at
                 else None,
@@ -666,7 +677,6 @@ async def agents_get_by_id(
                 else None,
                 team_name=agent.team.name if agent.team else None,
                 name=agent.name,
-                version=agent.version,
                 description=agent.description,
                 instructions=agent.instructions,
                 status=agent.status,
@@ -677,8 +687,6 @@ async def agents_get_by_id(
                 model=agent.model or "gpt-5",
                 reasoning_effort=agent.reasoning_effort
                 or "medium",
-                response_format=agent.response_format
-                or {"type": "text"},
                 created_at=agent.created_at.isoformat()
                 if agent.created_at
                 else None,
@@ -765,7 +773,6 @@ async def agents_get_by_status(
                         id=str(agent.id),
                         workspace_id=str(agent.workspace_id),
                         name=agent.name,
-                        version=agent.version,
                         description=agent.description,
                         instructions=agent.instructions,
                         status=agent.status,
@@ -776,8 +783,6 @@ async def agents_get_by_status(
                         model=agent.model or "gpt-5",
                         reasoning_effort=agent.reasoning_effort
                         or "medium",
-                        response_format=agent.response_format
-                        or {"type": "text"},
                         created_at=agent.created_at.isoformat()
                         if agent.created_at
                         else None,
@@ -785,7 +790,6 @@ async def agents_get_by_status(
                         if agent.updated_at
                         else None,
                         version_count=version_count,
-                        latest_version=agent.version,
                     )
                 )
 
@@ -826,7 +830,6 @@ async def agents_get_versions(
                         id=str(agent.id),
                         workspace_id=str(agent.workspace_id),
                         name=agent.name,
-                        version=agent.version,
                         description=agent.description,
                         instructions=agent.instructions,
                         status=agent.status,
@@ -837,8 +840,6 @@ async def agents_get_versions(
                         model=agent.model or "gpt-5",
                         reasoning_effort=agent.reasoning_effort
                         or "medium",
-                        response_format=agent.response_format
-                        or {"type": "text"},
                         created_at=agent.created_at.isoformat()
                         if agent.created_at
                         else None,
@@ -853,6 +854,145 @@ async def agents_get_versions(
                 message=f"Failed to get agent versions: {e!s}"
             ) from e
     return None
+
+
+class AgentPublishInput(BaseModel):
+    agent_id: str = Field(..., min_length=1)
+
+
+class AgentPublishOutput(BaseModel):
+    agent: AgentOutput
+    archived_agent_id: str | None = None
+
+
+class AgentUpdateStatusInput(BaseModel):
+    agent_id: str = Field(..., min_length=1)
+    status: str = Field(..., pattern="^(published|draft|archived)$")
+
+
+class AgentUpdateStatusOutput(BaseModel):
+    agent: AgentOutput
+    archived_agent_id: str | None = None  # For publish workflow compatibility
+
+
+@function.defn()
+async def agents_update_status(
+    function_input: AgentUpdateStatusInput,
+) -> AgentUpdateStatusOutput:
+    """Update agent status - handles publish, archive, and draft transitions."""
+    async for db in get_async_db():
+        try:
+            # Convert agent_id string to UUID
+            try:
+                agent_id = uuid.UUID(function_input.agent_id)
+            except ValueError as e:
+                raise NonRetryableError(
+                    message="Invalid agent_id format"
+                ) from e
+
+            # Get the agent to update
+            agent_query = select(Agent).where(Agent.id == agent_id)
+            result = await db.execute(agent_query)
+            agent = result.scalar_one_or_none()
+
+            if not agent:
+                raise NonRetryableError(  # noqa: TRY301
+                    message="Agent not found"
+                )
+
+            archived_agent_id = None
+
+            # Handle publish workflow - archive any currently published version
+            if function_input.status == "published":
+                # Find the root agent ID (parent or self)
+                root_agent_id = agent.parent_agent_id or agent.id
+
+                # Find any currently published agent in this group
+                published_query = select(Agent).where(
+                    and_(
+                        func.coalesce(Agent.parent_agent_id, Agent.id) == root_agent_id,
+                        Agent.status == "published"
+                    )
+                )
+                published_result = await db.execute(published_query)
+                currently_published = published_result.scalar_one_or_none()
+
+                if currently_published and currently_published.id != agent.id:
+                    currently_published.status = "archived"
+                    currently_published.updated_at = datetime.now(UTC)
+                    archived_agent_id = str(currently_published.id)
+
+            # Update the target agent status
+            agent.status = function_input.status
+            agent.updated_at = datetime.now(UTC)
+
+            await db.commit()
+            await db.refresh(agent)
+
+            return AgentUpdateStatusOutput(
+                agent=AgentOutput(
+                    id=str(agent.id),
+                    workspace_id=str(agent.workspace_id),
+                    team_id=str(agent.team_id) if agent.team_id else None,
+                    team_name=agent.team.name if agent.team else None,
+                    name=agent.name,
+                    description=agent.description,
+                    instructions=agent.instructions,
+                    status=agent.status,
+                    parent_agent_id=str(agent.parent_agent_id) if agent.parent_agent_id else None,
+                    model=agent.model or "gpt-5",
+                    reasoning_effort=agent.reasoning_effort or "medium",
+                    created_at=agent.created_at.isoformat() if agent.created_at else None,
+                    updated_at=agent.updated_at.isoformat() if agent.updated_at else None,
+                ),
+                archived_agent_id=archived_agent_id,
+            )
+
+        except Exception as e:
+            raise NonRetryableError(
+                message=f"Database error: {e!s}"
+            ) from e
+    return None
+
+
+# Legacy functions for backward compatibility
+class AgentArchiveInput(BaseModel):
+    agent_id: str = Field(..., min_length=1)
+
+
+class AgentArchiveOutput(BaseModel):
+    agent: AgentOutput
+
+
+@function.defn()
+async def agents_archive(
+    function_input: AgentArchiveInput,
+) -> AgentArchiveOutput:
+    """Archive an agent - legacy wrapper for agents_update_status."""
+    result = await agents_update_status(
+        AgentUpdateStatusInput(
+            agent_id=function_input.agent_id,
+            status="archived"
+        )
+    )
+    return AgentArchiveOutput(agent=result.agent)
+
+
+@function.defn()
+async def agents_publish(
+    function_input: AgentPublishInput,
+) -> AgentPublishOutput:
+    """Publish an agent - legacy wrapper for agents_update_status."""
+    result = await agents_update_status(
+        AgentUpdateStatusInput(
+            agent_id=function_input.agent_id,
+            status="published"
+        )
+    )
+    return AgentPublishOutput(
+        agent=result.agent,
+        archived_agent_id=result.archived_agent_id
+    )
 
 
 class AgentResolveInput(BaseModel):
@@ -870,12 +1010,10 @@ class AgentResolveOutput(BaseModel):
 async def agents_resolve_by_name(
     function_input: AgentResolveInput,
 ) -> AgentResolveOutput:
-    """Resolve agent name to the latest active agent ID."""
+    """Resolve agent name to the latest published agent ID."""
     async for db in get_async_db():
         try:
-            # Find the latest active agent by name
-            from sqlalchemy import and_, func
-
+            # Find the latest published agent by name
             # Subquery to get the latest created_at for each agent group in the workspace
             latest_versions_subquery = (
                 select(
@@ -899,7 +1037,7 @@ async def agents_resolve_by_name(
                 .subquery()
             )
 
-            # Main query to get the latest active agent by name
+            # Main query to get the latest published agent by name
             agent_query = (
                 select(Agent)
                 .join(
@@ -918,7 +1056,7 @@ async def agents_resolve_by_name(
                         Agent.workspace_id
                         == uuid.UUID(function_input.workspace_id),
                         Agent.name == function_input.agent_name,
-                        Agent.status == "active",
+                        Agent.status == "published",
                     )
                 )
             )
@@ -928,7 +1066,7 @@ async def agents_resolve_by_name(
 
             if not agent:
                 raise NonRetryableError(  # noqa: TRY301
-                    message=f"Agent '{function_input.agent_name}' not found or not active in workspace"
+                    message=f"Agent '{function_input.agent_name}' not found or not published in workspace"
                 )
 
             return AgentResolveOutput(agent_id=str(agent.id))

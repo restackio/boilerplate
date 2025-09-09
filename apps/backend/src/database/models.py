@@ -192,11 +192,10 @@ class Agent(Base):
     name = Column(
         String(255), nullable=False
     )  # Must be slug format: lowercase, numbers, hyphens, underscores only
-    version = Column(String(50), nullable=False, default="v1.0")
     description = Column(Text)
     instructions = Column(Text, nullable=True)
     status = Column(
-        String(50), nullable=False, default="inactive"
+        String(50), nullable=False, default="draft"
     )
     parent_agent_id = Column(
         UUID(as_uuid=True),
@@ -207,9 +206,6 @@ class Agent(Base):
     model = Column(String(100), nullable=False, default="gpt-5")
     reasoning_effort = Column(
         String(20), nullable=False, default="medium"
-    )
-    response_format = Column(
-        JSONB, nullable=False, default={"type": "text"}
     )
 
     created_at = Column(
@@ -227,7 +223,7 @@ class Agent(Base):
     # Constraints
     __table_args__ = (
         CheckConstraint(
-            status.in_(["active", "inactive"]),
+            status.in_(["published", "draft", "archived"]),
             name="valid_status",
         ),
         CheckConstraint(

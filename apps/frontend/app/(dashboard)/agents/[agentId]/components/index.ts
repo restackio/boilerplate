@@ -1,7 +1,11 @@
 export { AgentSetupTab } from './AgentSetupTab';
 export { AgentVersionsTab } from './AgentVersionsTab';
-export { DeleteAgentModal } from './DeleteAgentModal';
+export { DeleteAgentModal, ArchiveAgentModal } from './DeleteAgentModal';
 export { AgentToolsManager } from './AgentToolsManager';
 export { McpServerDialog } from './McpServerDialog';
 export { WebhookTab } from './WebhookTab';
 export { TestAgentModal } from './TestAgentModal';
+export { AgentPageSkeleton } from './AgentPageSkeleton';
+export { AgentActions } from './AgentActions';
+export { AgentNotFound } from './AgentNotFound';
+export { AgentTabNavigation } from './AgentTabNavigation';
