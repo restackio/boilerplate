@@ -15,7 +15,8 @@ import {
   Play, 
   Pause, 
   Trash2, 
-  Calendar
+  Calendar,
+  RefreshCw
 } from "lucide-react";
 
 interface SchedulePageTask {
@@ -52,6 +53,7 @@ export default function SchedulePage() {
   const [relatedTasks, setRelatedTasks] = useState<SchedulePageTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const { tasks: allTasks, tasksLoading, fetchTasks, isReady } = useWorkspaceScopedActions();
 
@@ -103,6 +105,18 @@ export default function SchedulePage() {
       loadScheduleData();
     }
   }, [scheduleId, allTasks, tasksLoading.isLoading]);
+
+  // Refresh tasks function
+  const handleRefreshTasks = async () => {
+    setRefreshing(true);
+    try {
+      await fetchTasks();
+    } catch (error) {
+      console.error("Error refreshing tasks:", error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleScheduleUpdate = async (newScheduleSpec: any) => {
@@ -334,11 +348,22 @@ export default function SchedulePage() {
         {/* Tasks Created from Schedule */}
         <div className="rounded-lg border bg-card">
           <div className="p-4">
-            <div className="mb-4">
-              <h3 className="text-lg font-semibold">Scheduled tasks</h3>
-              <p className="text-sm text-muted-foreground">
-                {relatedTasks.length} task{relatedTasks.length !== 1 ? 's' : ''} created from this schedule
-              </p>
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold">Scheduled tasks</h3>
+                <p className="text-sm text-muted-foreground">
+                  {relatedTasks.length} task{relatedTasks.length !== 1 ? 's' : ''} created from this schedule
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRefreshTasks}
+                disabled={refreshing || tasksLoading.isLoading}
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
             </div>
             
             {relatedTasks.length > 0 ? (
