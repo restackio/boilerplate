@@ -7,11 +7,14 @@ import { PageHeader } from "@workspace/ui/components/page-header";
 import { SchedulesTable } from "@workspace/ui/components/schedules-table";
 import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
 import { executeWorkflow } from "@/app/actions/workflow";
+import { CreateTaskForm } from "@/components/create-task-form";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@workspace/ui/components/ui/dialog";
 import TasksTabs from "../TasksTabs";
 import { 
   Bot,
   Plus,
-  RefreshCw
+  RefreshCw,
+  Clock
 } from "lucide-react";
 
 interface ScheduleOverview {
@@ -31,8 +34,9 @@ interface ScheduleOverview {
 export default function SchedulesPage() {
   const router = useRouter();
   const [updating, setUpdating] = useState<string | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   
-  const { tasks: allTasks, teams, agents, tasksLoading, fetchTasks, fetchTeams, fetchAgents, isReady } = useWorkspaceScopedActions();
+  const { tasks: allTasks, teams, agents, tasksLoading, fetchTasks, fetchTeams, fetchAgents, createTask, isReady } = useWorkspaceScopedActions();
 
   // Fetch data on mount
   useEffect(() => {
@@ -97,6 +101,28 @@ export default function SchedulesPage() {
     fetchTasks();
   };
 
+  const handleCreateTask = async (taskData: {
+    title: string;
+    description: string;
+    status: "open" | "active" | "waiting" | "closed" | "completed";
+    agent_id: string;
+    assigned_to_id: string;
+    // Schedule-related fields
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    schedule_spec?: any;
+    is_scheduled?: boolean;
+    schedule_status?: string;
+  }) => {
+    const result = await createTask(taskData);
+    return result;
+  };
+
+  const handleTaskCreated = async (taskData: { id: string }) => {
+    // Close the modal
+    setShowCreateModal(false);
+    // The CreateTaskForm will navigate to the schedule page automatically
+  };
+
   // Format teams and agents for the table
   const formattedTeams = teams.map(team => ({
     label: team.name,
@@ -123,14 +149,33 @@ export default function SchedulesPage() {
         <RefreshCw className={`h-4 w-4 mr-1 ${tasksLoading.isLoading || updating !== null ? 'animate-spin' : ''}`} />
         Refresh
       </Button>
-      <Button 
-        variant="ghost" 
-        size="sm"
-        onClick={() => router.push('/tasks')}
-      >
-        <Plus className="h-4 w-4 mr-1" />
-        New Schedule
-      </Button>
+      <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
+        <DialogTrigger asChild>
+          <Button 
+            variant="ghost" 
+            size="sm"
+          >
+            <Plus className="h-4 w-4 mr-1" />
+            New Schedule
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5" />
+              Create New Schedule
+            </DialogTitle>
+          </DialogHeader>
+          <div className="mt-4">
+            <CreateTaskForm
+              onSubmit={handleCreateTask}
+              onTaskCreated={handleTaskCreated}
+              placeholder="Describe the task to be scheduled..."
+              buttonText="Create task"
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 

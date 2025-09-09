@@ -182,7 +182,7 @@ export function SchedulesTable({
         description={data.length === 0 ? "Create a first scheduled task to see it here." : "No schedules match the current filters."}
         action={{
           label: "+ New schedule",
-          onClick: () => window.location.href = "/tasks"
+          onClick: () => window.location.href = "/tasks/schedules"
         }}
       />
     );
