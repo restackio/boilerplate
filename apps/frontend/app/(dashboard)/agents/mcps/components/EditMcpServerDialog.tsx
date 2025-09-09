@@ -92,14 +92,7 @@ export function EditMcpServerDialog({ open, onOpenChange, mcpServer, onSuccess }
       }
 
       // Parse headers
-      const parsedHeaders = parseHeaders(headerInput);
-
-      // Merge discovered tools with existing approval settings
-      // const currentApproval = mcpServer.require_approval || {
-      //   never: { tool_names: [] },
-      //   always: { tool_names: [] }
-      // };
-      
+      const parsedHeaders = parseHeaders(headerInput);      
       // Use the approval settings from the interactive selector
       const updatedApproval = {
         never: { tool_names: toolList.approvalSettings.never },

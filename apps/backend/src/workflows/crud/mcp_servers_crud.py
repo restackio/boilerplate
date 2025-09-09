@@ -25,10 +25,10 @@ with import_functions():
     )
     from src.functions.mcp_tools_refresh import (
         McpSessionInitInput,
-        McpToolsDiscoverInput,
-        McpToolsDiscoverOutput,
         McpToolsListDirectInput,
         McpToolsListInput,
+        McpToolsListOutput,
+        McpToolsSessionInput,
         mcp_session_init,
         mcp_tools_list,
         mcp_tools_list_direct,
@@ -155,12 +155,12 @@ class McpServersGetByIdWorkflow:
 
 @workflow.defn()
 class McpToolsListWorkflow:
-    """Simple workflow to discover tools from an MCP server URL."""
+    """Simple workflow to disclistover tools from an MCP server URL."""
 
     @workflow.run
     async def run(
-        self, workflow_input: McpToolsDiscoverInput
-    ) -> McpToolsDiscoverOutput:
+        self, workflow_input: McpToolsListInput
+    ) -> McpToolsListOutput:
         try:
             # First, always try initialization to check if session is needed
             log.info(
@@ -171,6 +171,7 @@ class McpToolsListWorkflow:
                 function_input=McpSessionInitInput(
                     server_url=workflow_input.server_url,
                     headers=workflow_input.headers,
+                    local=getattr(workflow_input, "local", False),
                 ),
                 start_to_close_timeout=timedelta(seconds=30),
                 retry_policy=RetryPolicy(maximum_attempts=1),
@@ -184,7 +185,7 @@ class McpToolsListWorkflow:
                 # Use session-based tool listing
                 tools_list_result = await workflow.step(
                     function=mcp_tools_list,
-                    function_input=McpToolsListInput(
+                    function_input=McpToolsSessionInput(
                         mcp_endpoint=session_init_result.mcp_endpoint
                         or workflow_input.server_url,
                         session_id=session_init_result.session_id,
@@ -197,15 +198,15 @@ class McpToolsListWorkflow:
                     log.error(
                         f"Session-based tools list retrieval failed: {tools_list_result.error}"
                     )
-                    return McpToolsDiscoverOutput(
+                    return McpToolsListOutput(
                         success=False,
-                        tools_discovered=[],
+                        tools_list=[],
                         error=tools_list_result.error,
                     )
 
-                return McpToolsDiscoverOutput(
+                return McpToolsListOutput(
                     success=True,
-                    tools_discovered=tools_list_result.tools,
+                    tools_list=tools_list_result.tools,
                 )
             log.info(
                 "Server does not require session management, using direct tool listing"
@@ -216,6 +217,7 @@ class McpToolsListWorkflow:
                 function_input=McpToolsListDirectInput(
                     server_url=workflow_input.server_url,
                     headers=workflow_input.headers,
+                    local=getattr(workflow_input, "local", False),
                 ),
                 start_to_close_timeout=timedelta(seconds=30),
             )
@@ -224,14 +226,14 @@ class McpToolsListWorkflow:
                 log.error(
                     f"Direct tools list retrieval failed: {direct_result.error}"
                 )
-                return McpToolsDiscoverOutput(
+                return McpToolsListOutput(
                     success=False,
-                    tools_discovered=[],
+                    tools_list=[],
                     error=direct_result.error,
                 )
 
-            return McpToolsDiscoverOutput(
-                success=True, tools_discovered=direct_result.tools
+            return McpToolsListOutput(
+                success=True, tools_list=direct_result.tools
             )
 
         except Exception as e:  # noqa: BLE001
@@ -239,8 +241,8 @@ class McpToolsListWorkflow:
                 f"Error during mcp_tools_list workflow: {e}"
             )
             log.error(error_message)
-            return McpToolsDiscoverOutput(
+            return McpToolsListOutput(
                 success=False,
-                tools_discovered=[],
+                tools_list=[],
                 error=error_message,
             )

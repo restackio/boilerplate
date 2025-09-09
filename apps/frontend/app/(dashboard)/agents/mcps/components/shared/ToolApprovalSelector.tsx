@@ -10,13 +10,13 @@ export interface ToolApprovalSettings {
 }
 
 interface ToolApprovalSelectorProps {
-  discoveredTools: string[];
+  listedTools: string[];
   currentSettings: ToolApprovalSettings;
   onSettingsChange: (settings: ToolApprovalSettings) => void;
 }
 
 export function ToolApprovalSelector({
-  discoveredTools,
+  listedTools,
   currentSettings,
   onSettingsChange,
 }: ToolApprovalSelectorProps) {
@@ -28,7 +28,7 @@ export function ToolApprovalSelector({
     ];
 
     // Get unconfigured tools
-    const unconfiguredTools = discoveredTools
+    const unconfiguredTools = listedTools
       .filter(tool => 
         !currentSettings.never.includes(tool) && 
         !currentSettings.always.includes(tool)
@@ -36,7 +36,7 @@ export function ToolApprovalSelector({
       .map(tool => ({ name: tool, type: null }));
 
     return [...configuredTools, ...unconfiguredTools];
-  }, [discoveredTools, currentSettings]);
+  }, [listedTools, currentSettings]);
 
   const handleToolSettingChange = (toolName: string, setting: 'never' | 'always') => {
     const isCurrentlyNever = currentSettings.never.includes(toolName);
@@ -67,7 +67,7 @@ export function ToolApprovalSelector({
     onSettingsChange(newSettings);
   };
 
-  if (discoveredTools.length === 0) {
+  if (listedTools.length === 0) {
     return null;
   }
 

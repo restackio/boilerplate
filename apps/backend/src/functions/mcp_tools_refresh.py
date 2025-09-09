@@ -1,24 +1,27 @@
 import json
+import os
 
 import aiohttp
 from pydantic import BaseModel, Field
 from restack_ai.function import function
 
 
-class McpToolsDiscoverInput(BaseModel):
+class McpToolsListInput(BaseModel):
     server_url: str = Field(..., min_length=1)
     headers: dict[str, str] | None = None
+    local: bool = Field(default=False)
 
 
-class McpToolsDiscoverOutput(BaseModel):
+class McpToolsListOutput(BaseModel):
     success: bool
-    tools_discovered: list[str] = Field(default_factory=list)
+    tools_list: list[str] = Field(default_factory=list)
     error: str | None = None
 
 
 class McpSessionInitInput(BaseModel):
     server_url: str = Field(..., min_length=1)
     headers: dict[str, str] | None = None
+    local: bool = Field(default=False)
 
 
 class McpSessionInitOutput(BaseModel):
@@ -28,13 +31,13 @@ class McpSessionInitOutput(BaseModel):
     error: str | None = None
 
 
-class McpToolsListInput(BaseModel):
+class McpToolsSessionInput(BaseModel):
     mcp_endpoint: str = Field(..., min_length=1)
     session_id: str = Field(..., min_length=1)
     headers: dict[str, str] | None = None
 
 
-class McpToolsListOutput(BaseModel):
+class McpToolsSessionOutput(BaseModel):
     success: bool
     tools: list[str] = Field(default_factory=list)
     error: str | None = None
@@ -43,6 +46,7 @@ class McpToolsListOutput(BaseModel):
 class McpToolsListDirectInput(BaseModel):
     server_url: str = Field(..., min_length=1)
     headers: dict[str, str] | None = None
+    local: bool = Field(default=False)
 
 
 class McpToolsListDirectOutput(BaseModel):
@@ -57,6 +61,11 @@ async def mcp_session_init(
 ) -> McpSessionInitOutput:
     """Initialize an MCP session and return session ID and endpoint."""
     try:
+        # Get the effective server URL (use MCP_URL for local servers)
+        effective_url = _get_effective_server_url(
+            function_input.server_url, local=function_input.local
+        )
+
         async with aiohttp.ClientSession() as session:
             request_headers = function_input.headers or {}
             request_headers.setdefault(
@@ -78,14 +87,14 @@ async def mcp_session_init(
                     "protocolVersion": "2025-03-26",
                     "capabilities": {"tools": {}},
                     "clientInfo": {
-                        "name": "MCP-Tools-Discovery",
+                        "name": "MCP-Tools-List",
                         "version": "1.0.0",
                     },
                 },
             }
 
             async with session.post(
-                function_input.server_url,
+                effective_url,
                 json=init_payload,
                 headers=request_headers,
                 timeout=10,
@@ -127,7 +136,7 @@ async def mcp_session_init(
                                         return McpSessionInitOutput(
                                             success=True,
                                             session_id=session_id,
-                                            mcp_endpoint=function_input.server_url,
+                                            mcp_endpoint=effective_url,
                                         )
                                     current_data = (
                                         ""  # Reset for next event
@@ -149,7 +158,7 @@ async def mcp_session_init(
                             return McpSessionInitOutput(
                                 success=True,
                                 session_id=session_id,
-                                mcp_endpoint=function_input.server_url,
+                                mcp_endpoint=effective_url,
                             )
 
             return McpSessionInitOutput(
@@ -162,6 +171,13 @@ async def mcp_session_init(
             success=False,
             error=f"Error initializing MCP session: {e!s}",
         )
+
+
+def _get_effective_server_url(server_url: str, *, local: bool) -> str:
+    """Get the effective server URL, using MCP_URL environment variable for local servers."""
+    if local:
+        return os.getenv("MCP_URL", server_url)
+    return server_url
 
 
 def _prepare_mcp_headers(
@@ -215,7 +231,7 @@ async def _parse_sse_response(
                         result
                     )
                     if tool_names:
-                        return McpToolsListOutput(
+                        return McpToolsSessionOutput(
                             success=True, tools=tool_names
                         )
                 current_data = ""  # Reset for next event
@@ -229,8 +245,8 @@ async def _parse_sse_response(
 
 @function.defn()
 async def mcp_tools_list(
-    function_input: McpToolsListInput,
-) -> McpToolsListOutput:
+    function_input: McpToolsSessionInput,
+) -> McpToolsSessionOutput:
     """Get tools list from an MCP server with an active session."""
     try:
         async with aiohttp.ClientSession() as session:
@@ -277,17 +293,17 @@ async def mcp_tools_list(
                                 )
                             )
                             if tool_names:
-                                return McpToolsListOutput(
+                                return McpToolsSessionOutput(
                                     success=True, tools=tool_names
                                 )
 
-                return McpToolsListOutput(
+                return McpToolsSessionOutput(
                     success=False,
                     error=f"Failed to get tools list: HTTP {tools_response.status}",
                 )
 
     except Exception as e:  # noqa: BLE001
-        return McpToolsListOutput(
+        return McpToolsSessionOutput(
             success=False,
             error=f"Error getting tools list: {e!s}",
         )
@@ -299,6 +315,11 @@ async def mcp_tools_list_direct(
 ) -> McpToolsListDirectOutput:
     """Get tools list from an MCP server without session management (for servers that don't require sessions)."""
     try:
+        # Get the effective server URL (use MCP_URL for local servers)
+        effective_url = _get_effective_server_url(
+            function_input.server_url, local=function_input.local
+        )
+
         async with aiohttp.ClientSession() as session:
             request_headers = function_input.headers or {}
             request_headers.setdefault(
@@ -319,7 +340,7 @@ async def mcp_tools_list_direct(
             }
 
             async with session.post(
-                function_input.server_url,
+                effective_url,
                 json=tools_payload,
                 headers=request_headers,
                 timeout=10,

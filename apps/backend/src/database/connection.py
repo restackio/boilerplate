@@ -1,7 +1,9 @@
+import logging
 import os
 from collections.abc import AsyncGenerator
 
 from dotenv import load_dotenv
+from sqlalchemy.exc import DisconnectionError
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
@@ -19,7 +21,6 @@ DATABASE_URL = os.getenv(
     "DATABASE_URL",
     "postgresql://postgres:postgres@localhost:5432/boilerplate_db",
 )
-print(f"Database URL: {DATABASE_URL}")  # Debug print
 # Convert to async URL if it's not already
 if DATABASE_URL.startswith("postgresql://"):
     ASYNC_DATABASE_URL = DATABASE_URL.replace(
@@ -32,11 +33,14 @@ elif DATABASE_URL.startswith("postgresql+psycopg2://"):
 else:
     ASYNC_DATABASE_URL = DATABASE_URL
 
-# Create async engine with essential optimizations
+# Create async engine with built-in resilience features
 async_engine = create_async_engine(
     ASYNC_DATABASE_URL,
     echo=False,
-    pool_pre_ping=True,
+    pool_pre_ping=True,          # Validate connections before use
+    pool_recycle=3600,           # Recycle connections after 1 hour
+    pool_timeout=30,             # Timeout for getting connection from pool
+    pool_reset_on_return="commit",  # Reset connections when returned to pool
     pool_size=20,
     max_overflow=10,
 )
@@ -57,25 +61,18 @@ async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
 
 
 async def init_async_db() -> None:
-    """Initialize database tables (async version)."""
-    import asyncio
-    
-    # Retry database connection up to 5 times with exponential backoff
-    for attempt in range(5):
-        try:
-            async with async_engine.begin() as conn:
-                await conn.run_sync(Base.metadata.create_all)
-            print("Database initialized successfully")
-            return
-        except Exception as e:
-            wait_time = 2 ** attempt  # Exponential backoff: 1, 2, 4, 8, 16 seconds
-            print(f"Database connection attempt {attempt + 1} failed: {e}")
-            if attempt < 4:  # Don't wait after the last attempt
-                print(f"Retrying in {wait_time} seconds...")
-                await asyncio.sleep(wait_time)
-            else:
-                print("All database connection attempts failed")
-                raise
+    """Initialize database tables using SQLAlchemy's built-in resilience features."""
+    try:
+        async with async_engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        logging.info("Database initialized successfully")
+    except DisconnectionError as e:
+        logging.warning("Database connection failed: %s", e)
+        logging.info("SQLAlchemy will handle reconnection automatically via pool_pre_ping")
+        raise
+    except Exception:
+        logging.exception("Database initialization failed")
+        raise
 
 
 async def close_async_db() -> None:

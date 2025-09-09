@@ -49,12 +49,8 @@ export function McpServerForm({
   isDeleting = false,
 }: McpServerFormProps) {
   const listTools = async () => {
-    // For local servers, we'll use a default local URL since they use environment variables
-    const serverUrl = formData.local 
-      ? (formData.server_url.trim() || "http://localhost:11233/mcp")  // Default local URL
-      : formData.server_url.trim();
-
-    if (!serverUrl) {
+    // For local servers, we don't need to validate server_url since it uses MCP_URL environment variable
+    if (!formData.local && !formData.server_url.trim()) {
       onToolListChange({
         ...toolList,
         error: "Tool listing requires a valid server URL",
@@ -88,20 +84,22 @@ export function McpServerForm({
       }
 
       // Use backend workflow to list tools
-      const result = await listMcpServerTools(serverUrl, parsedHeaders);
+      // For local servers, pass a placeholder URL since the backend will use MCP_URL environment variable
+      const serverUrl = formData.local ? "placeholder" : formData.server_url.trim();
+      const result = await listMcpServerTools(serverUrl, parsedHeaders, formData.local);
 
       if (result && typeof result === "object") {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const data = result as any;
         if (data.success) {
-          const discoveredTools = data.tools_discovered || [];
+          const listedTools = data.tools_list || [];
           // Initialize approval settings - new tools start uncategorized
           const currentApproval = toolList.approvalSettings;
           
           onToolListChange({
             ...toolList,
             isListing: false,
-            listedTools: discoveredTools,
+            listedTools,
             error: null,
             hasListed: true,
             approvalSettings: currentApproval,
@@ -210,7 +208,7 @@ export function McpServerForm({
         </p>
       </div>
 
-      {(formData.server_url.trim() || formData.local) && (
+      {(formData.local || formData.server_url.trim()) && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <Label>Tools</Label>
@@ -249,7 +247,7 @@ export function McpServerForm({
               ) : toolList.listedTools.length > 0 ? (
                 <div className="space-y-3">
                   <ToolApprovalSelector
-                    discoveredTools={toolList.listedTools}
+                    listedTools={toolList.listedTools}
                     currentSettings={toolList.approvalSettings}
                     onSettingsChange={(settings) => 
                       onToolListChange({
@@ -263,7 +261,7 @@ export function McpServerForm({
                 <div className="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
                   <AlertCircle className="h-4 w-4 text-yellow-500" />
                   <span className="text-sm text-yellow-700">
-                    No tools discovered. The server may not expose tool information.
+                    No tools listed. The server may not expose tool information.
                   </span>
                 </div>
               )}

@@ -34,6 +34,8 @@ export function TaskChatInterface({
 }: TaskChatInterfaceProps) {
   const conversationEndRef = useRef<HTMLDivElement>(null);
 
+  console.log("conversation", conversation);
+
   return (
     <div className={`${showSplitView ? 'w-1/2' : 'w-full max-w-4xl mx-auto'} flex flex-col bg-background`}>
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
