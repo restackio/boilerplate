@@ -141,7 +141,8 @@ export function useTaskDetail() {
         item.type === "mcp_approval_request" ||
         item.type === "web_search_call" ||
         item.type === "assistant" ||
-        item.type === "reasoning") {
+        item.type === "reasoning" ||
+        item.type === "error") {
       // If split view is already open and same card is clicked, close it
       if (showSplitView && selectedCard?.id === item.id) {
         setShowSplitView(false);

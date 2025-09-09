@@ -16,6 +16,7 @@ import {
   isApprovalRequest,
   isWebSearch,
   isReasoning,
+  isError,
   formatTimestamp,
   formatFullTimestamp,
   getApprovalId,
@@ -50,6 +51,7 @@ export function useConversationItem(item: ConversationItem) {
   const isApproval = isApprovalRequest(item);
   const isWebSearchType = isWebSearch(item);
   const isReasoningType = isReasoning(item);
+  const isErrorType = isError(item);
 
   // Formatting
   const timestamp = formatTimestamp(item.timestamp);
@@ -92,6 +94,10 @@ export function useConversationItem(item: ConversationItem) {
     isApproval,
     isWebSearchType,
     isReasoningType,
+    isErrorType,
+    
+    // Error details
+    errorDetails: item.error,
     
     // Formatting
     timestamp,

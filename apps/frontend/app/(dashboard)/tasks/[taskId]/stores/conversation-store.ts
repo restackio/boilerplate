@@ -11,6 +11,14 @@ export interface StreamEvent {
     content?: unknown[];
     [key: string]: unknown;
   };
+  error?: {
+    id: string;
+    type: string;
+    error_type: string;
+    error_message: string;
+    error_source: "openai" | "mcp" | "backend" | "network";
+    error_details?: Record<string, unknown>;
+  };
   item_id?: string;
   sequence_number: number;
   text?: string;
@@ -98,6 +106,29 @@ export class ConversationStore {
   }
 
   private processEvent(event: StreamEvent, existingIds: Set<string>): void {
+    // Handle error events specially
+    if (event.type === "error" && event.error) {
+      const errorId = event.error.id;
+      const eventKey = `${event.type}:${errorId}:${event.sequence_number}`;
+      if (this.processedEvents.has(eventKey)) return;
+      this.processedEvents.add(eventKey);
+      
+      // Skip if item exists in persistent state
+      if (existingIds.has(errorId)) return;
+      
+      const errorItem: Partial<ConversationItem> = {
+        id: errorId,
+        type: "error",
+        timestamp: new Date().toISOString(),
+        isStreaming: false,
+        error: event.error,
+        openai_output: null
+      };
+      
+      this.streamingItems.set(errorId, errorItem);
+      return;
+    }
+
     if (!event.item_id) return;
     
     const eventKey = `${event.type}:${event.item_id}:${event.sequence_number}`;

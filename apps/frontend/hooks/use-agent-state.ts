@@ -58,11 +58,16 @@ export function useAgentState({ taskId, agentTaskId, runId, onStateChange }: Use
         // Only process messages if we have a valid agentTaskId
         if (!agentTaskId) return;
         
-        // Always replace the state with the latest data, don't accumulate
-        if (Array.isArray(data)) {
-          setCurrentResponseState(data);
-        } else {
-          setCurrentResponseState(data);
+        try {
+          // Always replace the state with the latest data, don't accumulate
+          if (Array.isArray(data)) {
+            setCurrentResponseState(data);
+          } else {
+            setCurrentResponseState(data);
+          }
+        } catch (err) {
+          console.error("Error processing agent state message:", err);
+          setError("Failed to process agent state update");
         }
       },
       onError: (error: any) => {
@@ -86,6 +91,14 @@ export function useAgentState({ taskId, agentTaskId, runId, onStateChange }: Use
       onMessage: (data: any) => {
         // Only process messages if we have a valid agentTaskId
         if (!agentTaskId) return;
+        
+        try {
+          // Process agent responses safely
+          // The data is already processed by the Restack hook
+        } catch (err) {
+          console.error("Error processing agent responses message:", err);
+          setError("Failed to process agent responses update");
+        }
       },
       onError: (error: any) => {
         // Only process errors if we have a valid agentTaskId

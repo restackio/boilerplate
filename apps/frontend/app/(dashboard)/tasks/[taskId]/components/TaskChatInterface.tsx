@@ -6,6 +6,7 @@ import { ConversationMessage } from "./ConversationMessage";
 import { TaskCardMcp } from "./TaskCardMcp";
 import { TaskCardTool } from "./TaskCardTool";
 import { TaskCardWebSearch } from "./TaskCardWebSearch";
+import { TaskCardError } from "./TaskCardError";
 import { Reasoning, ReasoningTrigger, ReasoningContent } from "@workspace/ui/components/ai-elements/reasoning";
 
 
@@ -78,6 +79,15 @@ function renderConversationItem(
   onCardClick?: (item: ConversationItem) => void,
 ) {
   switch (item.type) {
+    case 'error':
+      return (
+        <TaskCardError 
+          key={item.id}
+          item={item}
+          onClick={onCardClick}
+        />
+      );
+
     case 'reasoning': {
       const reasoningText = item.openai_output?.summary?.map(s => s.text).join('\n\n') || '';
       return (

@@ -27,7 +27,7 @@ export const isItemCompleted = (item: ConversationItem): boolean => {
 
 export const isItemFailed = (item: ConversationItem): boolean => {
   const status = getItemStatus(item);
-  return status === "failed" || status === "error";
+  return status === "failed" || status === "error" || item.type === "error" || !!item.error;
 };
 
 export const isItemPending = (item: ConversationItem): boolean => {
@@ -42,19 +42,40 @@ export const isItemWaitingApproval = (item: ConversationItem): boolean => {
 
 // Content extraction utilities
 export const extractTextContent = (item: ConversationItem): string => {
+  // Handle error items
+  if (item.type === "error" || item.error) {
+    return item.error?.error_message || "An error occurred";
+  }
+
   const output = item.openai_output;
   
-  if (output.content) {
-    // For messages, extract text from content array
-    return output.content
-      .map(c => c.text)
-      .join("");
-  } else if (output.summary) {
-    // For reasoning, join summary texts
-    return output.summary
-      .map(s => s.text)
-      .join("\n\n");
-  } else if (output.role === "assistant" || output.role === "user") {
+  if (output?.content) {
+    // Check if content is an array
+    if (Array.isArray(output.content)) {
+      // For messages, extract text from content array
+      return output.content
+        .map(c => c.text)
+        .join("");
+    } else if (typeof output.content === 'string') {
+      // For direct string content
+      return output.content;
+    } else {
+      // For other content types, convert to string
+      return String(output.content);
+    }
+  } else if (output?.summary) {
+    // Check if summary is an array
+    if (Array.isArray(output.summary)) {
+      // For reasoning, join summary texts
+      return output.summary
+        .map(s => s.text)
+        .join("\n\n");
+    } else if (typeof output.summary === 'string') {
+      return output.summary;
+    } else {
+      return String(output.summary);
+    }
+  } else if (output?.role === "assistant" || output?.role === "user") {
     // For messages without content array, return empty string
     return "";
   } else {
@@ -108,6 +129,10 @@ export const isReasoning = (item: ConversationItem): boolean => {
   return item.type === "reasoning";
 };
 
+export const isError = (item: ConversationItem): boolean => {
+  return item.type === "error" || !!item.error;
+};
+
 // Formatting utilities
 export const formatTimestamp = (timestamp: string | null): string => {
   return timestamp ? new Date(timestamp).toLocaleTimeString() : "";
@@ -124,6 +149,13 @@ export const getApprovalId = (item: ConversationItem): string => {
 
 // Display text utilities
 export const getDisplayTitle = (item: ConversationItem): string => {
+  // Handle error items
+  if (item.type === "error" || item.error) {
+    const source = item.error?.error_source || "unknown";
+    const errorType = item.error?.error_type || "error";
+    return `Error (${source}): ${errorType}`;
+  }
+
   const toolName = extractToolName(item);
   const serverLabel = extractServerLabel(item);
   

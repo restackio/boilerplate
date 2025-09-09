@@ -40,6 +40,7 @@ export function TaskSplitView({
              selectedCard?.type === "mcp_approval_request" ? "Approval" :
              selectedCard?.type === "web_search_call" ? "Web Search" :
              selectedCard?.type === "reasoning" ? "Reasoning" :
+             selectedCard?.type === "error" ? "Error Details" :
              "Message"}
           </h3>
           <Button
@@ -161,6 +162,41 @@ export function TaskSplitView({
                         ? selectedCard.openai_output.summary.map(s => s.text || s).join('\n\n')
                         : String(selectedCard.openai_output.summary)}
                     </div>
+                  </div>
+                )}
+
+                {/* Error Details */}
+                {selectedCard.error && (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Error Type</label>
+                      <p className="text-sm font-mono bg-red-50 dark:bg-red-950/20 p-2 rounded mt-1">
+                        {selectedCard.error.error_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      </p>
+                    </div>
+                    
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Error Source</label>
+                      <p className="text-sm font-mono bg-red-50 dark:bg-red-950/20 p-2 rounded mt-1">
+                        {selectedCard.error.error_source}
+                      </p>
+                    </div>
+                    
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Error Message</label>
+                      <div className="text-sm bg-red-50 dark:bg-red-950/20 p-2 rounded mt-1 whitespace-pre-wrap break-words">
+                        {selectedCard.error.error_message}
+                      </div>
+                    </div>
+                    
+                    {selectedCard.error.error_details && Object.keys(selectedCard.error.error_details).length > 0 && (
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Technical Details</label>
+                        <pre className="text-xs bg-neutral-50 dark:bg-neutral-800 p-2 rounded mt-1 overflow-auto max-h-32 whitespace-pre-wrap break-words max-w-full">
+                          {JSON.stringify(selectedCard.error.error_details, null, 2)}
+                        </pre>
+                      </div>
+                    )}
                   </div>
                 )}
 

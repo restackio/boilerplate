@@ -50,6 +50,8 @@ export function useRxjsConversation({
           openai_output: msg.openai_output || msg,
           // @ts-ignore
           openai_event: msg.openai_event || { sequence_number: 0 },
+          // @ts-ignore - Preserve error property for error items
+          error: msg.error,
           isStreaming: false,
         }));
       
@@ -67,6 +69,22 @@ export function useRxjsConversation({
     const aiResponses: ConversationItem[] = [];
     const loadingIndicators: ConversationItem[] = [];
     
+    // Step 0: Collect error events first
+    responseState.events.forEach((event: OpenAIEvent) => {
+      if (event.type === 'error' && (event as any).error) {
+        const errorEvent = event as any;
+        aiResponses.push({
+          id: errorEvent.error.id,
+          type: 'error',
+          timestamp: event.timestamp || new Date().toISOString(),
+          openai_output: null,
+          openai_event: event,
+          error: errorEvent.error,
+          isStreaming: false,
+        });
+      }
+    });
+
     // Step 1: Collect user messages and approval requests in chronological order
     responseState.events.forEach((event: OpenAIEvent) => {
       if (event.type === 'response.output_item.done' && event.item) {

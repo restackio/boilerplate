@@ -784,3 +784,199 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
     ]'
 )
 ON CONFLICT (id) DO NOTHING;
+
+-- Insert an error examples task to test error display in the UI
+INSERT INTO tasks (
+    id, 
+    title, 
+    description, 
+    status, 
+    agent_id, 
+    assigned_to_id, 
+    workspace_id, 
+    agent_task_id,
+    created_at, 
+    updated_at,
+    messages
+) VALUES (
+    uuid_generate_v4(),
+    'Error Handling Examples - UI Testing',
+    'This task demonstrates all possible error types that can occur during agent execution for UI testing purposes',
+    'active',
+    'cccccccc-cccc-cccc-cccc-cccccccccccc', -- technical-research-assistant
+    '29fcdd0a-708e-478a-8030-34b02ad9ef84', -- Demo User
+    'c926e979-1f16-46bf-a7cc-8aab70162d65', -- demo workspace
+    'agent_task_error_examples',
+    NOW(),
+    NOW(),
+    '[
+      {
+        "id": "msg_user_error_demo",
+        "role": "user",
+        "type": "message",
+        "content": "Please demonstrate various error scenarios for testing our error handling UI",
+        "timestamp": "2024-01-20T14:00:00Z"
+      },
+      {
+        "id": "msg_assistant_intro",
+        "role": "assistant", 
+        "type": "message",
+        "content": "I''ll demonstrate various error scenarios to help test the error handling UI. Below you''ll see examples of different error types that can occur during agent execution.",
+        "timestamp": "2024-01-20T14:00:30Z"
+      },
+      {
+        "id": "error_openai_api",
+        "type": "error",
+        "error": {
+          "id": "error_openai_api",
+          "type": "openai_error",
+          "error_type": "rate_limit_exceeded", 
+          "error_message": "Rate limit exceeded for gpt-4. Please wait 60 seconds before retrying.",
+          "error_source": "openai",
+          "error_details": {
+            "error_code": "rate_limit_exceeded",
+            "retry_after": 60,
+            "model": "gpt-4",
+            "organization": "org-demo"
+          }
+        },
+        "timestamp": "2024-01-20T14:01:00Z"
+      },
+      {
+        "id": "error_mcp_timeout",
+        "type": "error", 
+        "error": {
+          "id": "error_mcp_timeout",
+          "type": "mcp_error",
+          "error_type": "tool_execution_timeout",
+          "error_message": "MCP tool ''web_search'' timed out after 30 seconds",
+          "error_source": "mcp",
+          "error_details": {
+            "tool_name": "web_search",
+            "server_label": "search_server",
+            "timeout_duration": 30,
+            "last_response": "Searching for: AI trends 2024..."
+          }
+        },
+        "timestamp": "2024-01-20T14:01:30Z"
+      },
+      {
+        "id": "error_network_failure",
+        "type": "error",
+        "error": {
+          "id": "error_network_failure", 
+          "type": "network_error",
+          "error_type": "connection_failed",
+          "error_message": "Failed to connect to external API endpoint. Network unreachable.",
+          "error_source": "network",
+          "error_details": {
+            "endpoint": "https://api.external-service.com/v1/data",
+            "error_code": "ENOTFOUND",
+            "retry_count": 3,
+            "last_attempt": "2024-01-20T14:02:00Z"
+          }
+        },
+        "timestamp": "2024-01-20T14:02:00Z"
+      },
+      {
+        "id": "error_backend_internal",
+        "type": "error",
+        "error": {
+          "id": "error_backend_internal",
+          "type": "agent_error", 
+          "error_type": "internal_server_error",
+          "error_message": "Internal server error occurred while processing agent workflow",
+          "error_source": "backend",
+          "error_details": {
+            "exception_type": "ValueError",
+            "stack_trace": "ValueError: Invalid configuration for agent workflow\\n  at process_workflow() line 42\\n  at execute_step() line 18",
+            "workflow_id": "wf_demo_123",
+            "step_id": "step_data_validation"
+          }
+        },
+        "timestamp": "2024-01-20T14:02:30Z"
+      },
+      {
+        "id": "error_mcp_permission_denied",
+        "type": "error",
+        "error": {
+          "id": "error_mcp_permission_denied",
+          "type": "mcp_error",
+          "error_type": "permission_denied",
+          "error_message": "Access denied to file system operations. Insufficient permissions.",
+          "error_source": "mcp", 
+          "error_details": {
+            "tool_name": "file_write",
+            "server_label": "filesystem_server",
+            "requested_path": "/secure/config.json",
+            "required_permission": "write",
+            "current_permission": "read"
+          }
+        },
+        "timestamp": "2024-01-20T14:03:00Z"
+      },
+      {
+        "id": "error_openai_model_unavailable",
+        "type": "error",
+        "error": {
+          "id": "error_openai_model_unavailable",
+          "type": "openai_error", 
+          "error_type": "model_unavailable",
+          "error_message": "The model gpt-5 is currently unavailable. Please try again later or use an alternative model.",
+          "error_source": "openai",
+          "error_details": {
+            "model": "gpt-5",
+            "status": "maintenance",
+            "estimated_availability": "2024-01-20T16:00:00Z",
+            "suggested_alternatives": ["gpt-4", "gpt-4-turbo"]
+          }
+        },
+        "timestamp": "2024-01-20T14:03:30Z"
+      },
+      {
+        "id": "error_mcp_invalid_response",
+        "type": "error",
+        "error": {
+          "id": "error_mcp_invalid_response", 
+          "type": "mcp_error",
+          "error_type": "invalid_response_format",
+          "error_message": "MCP server returned malformed response data",
+          "error_source": "mcp",
+          "error_details": {
+            "tool_name": "database_query",
+            "server_label": "db_server",
+            "expected_format": "JSON",
+            "received_data": "Invalid JSON: {''results'': [missing bracket",
+            "parse_error": "Unexpected end of JSON input"
+          }
+        },
+        "timestamp": "2024-01-20T14:04:00Z"
+      },
+      {
+        "id": "error_stream_processing",
+        "type": "error",
+        "error": {
+          "id": "error_stream_processing",
+          "type": "stream_error",
+          "error_type": "stream_interrupted", 
+          "error_message": "Response stream was interrupted unexpectedly",
+          "error_source": "backend",
+          "error_details": {
+            "bytes_received": 1024,
+            "expected_bytes": 2048,
+            "interruption_point": "response_content_delta",
+            "last_successful_event": "response.created"
+          }
+        },
+        "timestamp": "2024-01-20T14:04:30Z"
+      },
+      {
+        "id": "msg_assistant_conclusion",
+        "role": "assistant",
+        "type": "message", 
+        "content": "These examples demonstrate the various error types our system can encounter:\\n\\n• **OpenAI API Errors**: Rate limits, model unavailability\\n• **MCP Tool Errors**: Timeouts, permission issues, malformed responses\\n• **Network Errors**: Connection failures, unreachable endpoints\\n• **Backend Errors**: Internal server errors, stream interruptions\\n\\nEach error type is displayed with appropriate styling, icons, and suggested actions to help users understand and resolve issues.",
+        "timestamp": "2024-01-20T14:05:00Z"
+      }
+    ]'
+)
+ON CONFLICT (id) DO NOTHING;
