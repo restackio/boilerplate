@@ -9,6 +9,8 @@ from restack_ai.workflow import (
 
 with import_functions():
     from src.functions.agents_crud import (
+        AgentArchiveInput,
+        AgentArchiveOutput,
         AgentCreateInput,
         AgentDeleteOutput,
         AgentGetByStatusInput,
@@ -17,14 +19,20 @@ with import_functions():
         AgentIdInput,
         AgentListOutput,
         AgentSingleOutput,
+        AgentTableListOutput,
         AgentUpdateInput,
+        AgentUpdateStatusInput,
+        AgentUpdateStatusOutput,
+        agents_archive,
         agents_create,
         agents_delete,
         agents_get_by_id,
         agents_get_by_status,
         agents_get_versions,
         agents_read,
+        agents_read_table,
         agents_update,
+        agents_update_status,
     )
 
 
@@ -182,6 +190,78 @@ class AgentsGetVersionsWorkflow:
         except Exception as e:
             error_message = (
                 f"Error during agents_get_versions: {e}"
+            )
+            log.error(error_message)
+            raise NonRetryableError(message=error_message) from e
+
+
+@workflow.defn()
+class AgentsReadTableWorkflow:
+    """Workflow to read all agents with enhanced table data."""
+
+    @workflow.run
+    async def run(
+        self, workflow_input: AgentGetByWorkspaceInput
+    ) -> AgentTableListOutput:
+        """Read all agents with enhanced table data."""
+        try:
+            return await workflow.step(
+                function=agents_read_table,
+                function_input=workflow_input,
+                start_to_close_timeout=timedelta(seconds=30),
+            )
+
+        except Exception as e:
+            error_message = (
+                f"Error during agents_read_table: {e}"
+            )
+            log.error(error_message)
+            raise NonRetryableError(message=error_message) from e
+
+
+@workflow.defn()
+class AgentsArchiveWorkflow:
+    """Workflow to archive an agent."""
+
+    @workflow.run
+    async def run(
+        self, workflow_input: AgentArchiveInput
+    ) -> AgentArchiveOutput:
+        """Archive an agent."""
+        try:
+            return await workflow.step(
+                function=agents_archive,
+                function_input=workflow_input,
+                start_to_close_timeout=timedelta(seconds=30),
+            )
+
+        except Exception as e:
+            error_message = (
+                f"Error during agents_archive: {e}"
+            )
+            log.error(error_message)
+            raise NonRetryableError(message=error_message) from e
+
+
+@workflow.defn()
+class AgentsUpdateStatusWorkflow:
+    """Workflow to update agent status (publish, archive, draft)."""
+
+    @workflow.run
+    async def run(
+        self, workflow_input: AgentUpdateStatusInput
+    ) -> AgentUpdateStatusOutput:
+        """Update agent status."""
+        try:
+            return await workflow.step(
+                function=agents_update_status,
+                function_input=workflow_input,
+                start_to_close_timeout=timedelta(seconds=30),
+            )
+
+        except Exception as e:
+            error_message = (
+                f"Error during agents_update_status: {e}"
             )
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e

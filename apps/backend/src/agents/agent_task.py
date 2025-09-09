@@ -13,7 +13,7 @@ from restack_ai.agent import (
 
 class ErrorDetails(BaseModel):
     """Error details for error events."""
-    id: str = Field(default_factory=lambda: f"error_{uuid()}")
+    id: str
     type: str
     error_type: str
     error_message: str
@@ -97,7 +97,6 @@ class AgentTask:
         # Agent model configuration for GPT-5 features
         self.agent_model = None
         self.agent_reasoning_effort = None
-        self.agent_response_format = None
 
     @agent.state
     def state_response(self) -> dict[str, Any]:
@@ -179,6 +178,7 @@ class AgentTask:
                         # Create error event for frontend display
                         error_event = ErrorEvent(
                             error=ErrorDetails(
+                                id=f"error_{uuid()}",
                                 type="agent_error",
                                 error_type="llm_response_failed",
                                 error_message=error_message,
@@ -204,6 +204,7 @@ class AgentTask:
             # Create error event for frontend display
             error_event = ErrorEvent(
                 error=ErrorDetails(
+                    id=f"error_{uuid()}",
                     type="agent_error",
                     error_type="message_processing_failed",
                     error_message=f"Error processing message: {e}",
@@ -267,6 +268,7 @@ class AgentTask:
                 error_info = event_data.get("error", {})
                 error_event = ErrorEvent(
                     error=ErrorDetails(
+                        id=f"error_{uuid()}",
                         type="openai_error",
                         error_type=error_info.get("type", "unknown_error"),
                         error_message=error_info.get("message", "Unknown OpenAI error"),
@@ -299,6 +301,7 @@ class AgentTask:
             # Create error event for this processing error
             error_event = ErrorEvent(
                 error=ErrorDetails(
+                    id=f"error_{uuid()}",
                     type="agent_error",
                     error_type="response_processing_failed",
                     error_message=f"Error processing response item: {e}",
@@ -349,9 +352,6 @@ class AgentTask:
             self.agent_reasoning_effort = (
                 agent_data.reasoning_effort
             )
-            self.agent_response_format = (
-                agent_data.response_format
-            )
 
             log.info(
                 f"Loaded agent configuration - Model: {self.agent_model}, "
@@ -373,7 +373,6 @@ class AgentTask:
             # Set defaults if no agent found
             self.agent_model = "gpt-5"
             self.agent_reasoning_effort = "medium"
-            self.agent_response_format = {"type": "text"}
 
         # Load tools once at startup (deterministic)
         tools_result = await agent.step(

@@ -16,14 +16,18 @@ from src.functions.agent_tools_crud import (
     agent_tools_update,
 )
 from src.functions.agents_crud import (
+    agents_archive,
     agents_create,
     agents_delete,
     agents_get_by_id,
     agents_get_by_status,
     agents_get_versions,
+    agents_publish,
     agents_read,
+    agents_read_table,
     agents_resolve_by_name,
     agents_update,
+    agents_update_status,
 )
 from src.functions.auth_crud import user_login, user_signup
 from src.functions.llm_prepare_response import (
@@ -98,12 +102,15 @@ from src.workflows.crud.agent_tools_crud import (
     AgentToolsUpdateWorkflow,
 )
 from src.workflows.crud.agents_crud import (
+    AgentsArchiveWorkflow,
     AgentsCreateWorkflow,
     AgentsDeleteWorkflow,
     AgentsGetByIdWorkflow,
     AgentsGetByStatusWorkflow,
     AgentsGetVersionsWorkflow,
+    AgentsReadTableWorkflow,
     AgentsReadWorkflow,
+    AgentsUpdateStatusWorkflow,
     AgentsUpdateWorkflow,
 )
 from src.workflows.crud.auth_crud import (
@@ -125,6 +132,7 @@ from src.workflows.crud.schedule_crud import (
     ScheduleUpdateWorkflow,
 )
 from src.workflows.crud.tasks_crud import (
+    PlaygroundCreateDualTasksWorkflow,
     TasksCreateWorkflow,
     TasksDeleteWorkflow,
     TasksGetByIdWorkflow,
@@ -170,9 +178,12 @@ async def run_restack_service() -> None:
         agents=[AgentTask],
         workflows=[
             AgentsReadWorkflow,
+            AgentsReadTableWorkflow,
             AgentsCreateWorkflow,
             AgentsUpdateWorkflow,
             AgentsDeleteWorkflow,
+            AgentsArchiveWorkflow,
+            AgentsUpdateStatusWorkflow,
             AgentsGetByIdWorkflow,
             AgentsGetByStatusWorkflow,
             AgentsGetVersionsWorkflow,
@@ -182,6 +193,7 @@ async def run_restack_service() -> None:
             TasksDeleteWorkflow,
             TasksGetByIdWorkflow,
             TasksUpdateAgentTaskIdWorkflow,
+            PlaygroundCreateDualTasksWorkflow,
             WorkspacesReadWorkflow,
             WorkspacesCreateWorkflow,
             WorkspacesUpdateWorkflow,
@@ -227,13 +239,17 @@ async def run_restack_service() -> None:
             llm_response_stream,
             llm_prepare_response,
             agents_read,
+            agents_read_table,
             agents_create,
             agents_update,
             agents_delete,
+            agents_archive,
             agents_get_by_id,
             agents_get_by_status,
             agents_get_versions,
             agents_resolve_by_name,
+            agents_publish,
+            agents_update_status,
             tasks_read,
             tasks_create,
             tasks_update,

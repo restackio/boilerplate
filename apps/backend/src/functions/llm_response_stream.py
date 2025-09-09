@@ -14,7 +14,6 @@ from restack_ai.function import (
     log,
     stream_to_websocket,
 )
-
 from restack_ai.workflow import uuid
 
 from src.client import api_address
@@ -29,7 +28,7 @@ load_dotenv()
 
 class ErrorDetails(BaseModel):
     """Error details for error events."""
-    id: str = Field(default_factory=lambda: f"error_{uuid()}")
+    id: str
     type: str
     error_type: str
     error_message: str
@@ -62,6 +61,7 @@ def validate_json_serializable(data: Any) -> dict[str, Any]:
         # Return a safe fallback using our error model
         fallback_error = ErrorEvent(
             error=ErrorDetails(
+                id=f"error_{uuid()}",
                 type="serialization_error",
                 error_type="json_serialization_failed",
                 error_message=f"Failed to serialize data: {e!s}",
@@ -205,6 +205,7 @@ async def send_non_delta_events_to_agent(
                     # Send error event to agent for failed event transmission
                     error_event = ErrorEvent(
                         error=ErrorDetails(
+                            id=f"error_{uuid()}",
                             type="network_error",
                             error_type="event_transmission_failed",
                             error_message=f"Failed to send event to agent: {e}",
@@ -232,6 +233,7 @@ async def send_non_delta_events_to_agent(
         # Try to send a critical error event
         critical_error_event = ErrorEvent(
             error=ErrorDetails(
+                id=f"error_{uuid()}",
                 type="stream_error",
                 error_type="critical_stream_processing_error",
                 error_message=f"Critical error in stream processing: {e}",
@@ -292,6 +294,7 @@ async def llm_response_stream(
             agent_id = function_info().workflow_id
             openai_error_event = ErrorEvent(
                 error=ErrorDetails(
+                    id=f"error_{uuid()}",
                     type="openai_api_error",
                     error_type="api_request_failed",
                     error_message=error_msg,
@@ -346,6 +349,7 @@ async def llm_response_stream(
             agent_id = function_info().workflow_id
             stream_error_event = ErrorEvent(
                 error=ErrorDetails(
+                    id=f"error_{uuid()}",
                     type="stream_processing_error",
                     error_type="stream_processing_failed",
                     error_message=f"Stream processing failed: {e}",

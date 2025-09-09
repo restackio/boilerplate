@@ -2,9 +2,8 @@
 export interface AgentVersion {
   id: string;
   name: string;
-  version: string;
   description: string;
-  status: "active" | "inactive";
+  status: "published" | "draft" | "archived";
   created_at: string;
   updated_at: string;
   parent_agent_id?: string;
@@ -34,15 +33,13 @@ export interface TestAgentLog {
 export interface Agent {
   id: string;
   name: string;
-  version: string;
   description?: string;
   instructions: string;
-  status: "active" | "inactive" | "testing" | "paused"; // Extended to handle demo data
+  status: "published" | "draft" | "archived" | "testing" | "paused"; // Extended to handle demo data
   parent_agent_id?: string;
   created_at?: string;
   updated_at?: string;
   version_count?: number;
-  latest_version?: string;
   // Demo data specific fields (optional)
   model?: string;
   channel?: string;

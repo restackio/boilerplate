@@ -1,17 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
-// Card components not currently used in this component
-import { Badge } from "@workspace/ui/components/ui/badge";
+
+import { AgentStatusBadge, type AgentStatus } from "@workspace/ui/components/agent-status-badge";
 import { History } from "lucide-react";
 
 // Types for agent version history
 interface AgentVersion {
   id: string;
   name: string;
-  version: string;
   description: string;
-  status: "active" | "inactive";
+  status: AgentStatus;
   created_at: string;
   updated_at: string;
   parent_agent_id?: string;
@@ -26,9 +25,8 @@ interface ApiResponse<T> {
 interface RawAgent {
   id: string;
   name: string;
-  version: string;
   description?: string;
-  status: "active" | "inactive";
+  status: AgentStatus;
   created_at?: string;
   updated_at?: string;
   parent_agent_id?: string;
@@ -57,7 +55,6 @@ export function AgentVersionsTab({ agentId, getAgentVersions }: AgentVersionsTab
           const versions: AgentVersion[] = result.data.map((agent: RawAgent) => ({
             id: agent.id,
             name: agent.name,
-            version: agent.version,
             description: agent.description || "",
             status: agent.status,
             created_at: agent.created_at || "",
@@ -103,7 +100,7 @@ export function AgentVersionsTab({ agentId, getAgentVersions }: AgentVersionsTab
               <table className="w-full">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="text-left p-3 font-medium">Version</th>
+                    <th className="text-left p-3 font-medium">Name</th>
                     <th className="text-left p-3 font-medium">Description</th>
                     <th className="text-left p-3 font-medium">Status</th>
                     <th className="text-left p-3 font-medium">Created</th>
@@ -114,18 +111,13 @@ export function AgentVersionsTab({ agentId, getAgentVersions }: AgentVersionsTab
                   {agentVersions.map((version) => (
                     <tr key={version.id} className="border-b hover:bg-muted/30">
                       <td className="p-3">
-                        <div className="font-medium">{version.version}</div>
+                        <div className="font-medium">{version.name}</div>
                       </td>
                       <td className="p-3">
                         <div className="text-sm">{version.description}</div>
                       </td>
                       <td className="p-3">
-                        <Badge
-                          variant={version.status === "active" ? "default" : "secondary"}
-                          className="text-xs"
-                        >
-                          {version.status}
-                        </Badge>
+                        <AgentStatusBadge status={version.status} size="sm" />
                       </td>
                       <td className="p-3">
                         <div className="text-sm text-muted-foreground">

@@ -175,7 +175,7 @@ export function McpServerForm({
       )}
 
       {formData.local && (
-        <div className="text-sm text-muted-foreground bg-blue-50 p-3 rounded-md">
+        <div className="text-sm text-muted-foreground p-3 rounded-md">
           <strong>Local Server:</strong> This server will use environment variables (like MCP_URL) for connection.
           Tool listing will attempt to connect to the local server automatically.
         </div>

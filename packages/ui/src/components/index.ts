@@ -6,4 +6,4 @@ export * from "./page-header";
 export * from "./ui/empty-state";
 export * from "./ui/switch";
 export * from "./ui/separator";
-export * from "./agent-lifecycle";
+export * from "./agent-status-badge";
