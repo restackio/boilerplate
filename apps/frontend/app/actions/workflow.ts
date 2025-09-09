@@ -192,12 +192,17 @@ export async function getMcpServerById(mcpServerId: string) {
 }
 
 
-export async function listMcpServerTools(serverUrl: string, headers?: Record<string, string>) {
+export async function listMcpServerTools(
+  serverUrl: string, 
+  headers?: Record<string, string>, 
+  local?: boolean
+) {
   const { workflowId, runId } = await runWorkflow({
     workflowName: "McpToolsListWorkflow",
     input: { 
       server_url: serverUrl,
-      headers: headers || null 
+      headers: headers || null,
+      local: local || false
     }
   });
   

@@ -219,7 +219,7 @@ export function McpToolApprovalManager({
                 <Label className="text-sm font-medium">Available Tools</Label>
               </div>
               <p className="text-xs text-muted-foreground">
-                Quick add tools discovered from the server.
+                Add tools listed from the server.
               </p>
               
               {unassignedTools.length > 0 ? (
