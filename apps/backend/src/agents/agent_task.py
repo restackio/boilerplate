@@ -1,7 +1,7 @@
 from datetime import timedelta
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from restack_ai.agent import (
     NonRetryableError,
     agent,
@@ -9,6 +9,27 @@ from restack_ai.agent import (
     log,
     uuid,
 )
+
+
+class ErrorDetails(BaseModel):
+    """Error details for error events."""
+    id: str = Field(default_factory=lambda: f"error_{uuid()}")
+    type: str
+    error_type: str
+    error_message: str
+    error_source: Literal["openai", "mcp", "backend", "network"]
+    error_details: dict[str, Any] = Field(default_factory=dict)
+
+
+class ErrorEvent(BaseModel):
+    """Error event with proper Pydantic validation."""
+    type: Literal["error"] = "error"
+    error: ErrorDetails
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for event storage."""
+        return self.model_dump()
+
 
 with import_functions():
     from src.functions.agent_tools_crud import (
@@ -154,6 +175,22 @@ class AgentTask:
                         )
                     except Exception as e:
                         error_message = f"Error during llm_response_stream: {e}"
+
+                        # Create error event for frontend display
+                        error_event = ErrorEvent(
+                            error=ErrorDetails(
+                                type="agent_error",
+                                error_type="llm_response_failed",
+                                error_message=error_message,
+                                error_source="backend",
+                                error_details={
+                                    "exception_type": type(e).__name__,
+                                    "original_error": str(e)
+                                }
+                            )
+                        )
+                        self.events.append(error_event.to_dict())
+
                         raise NonRetryableError(
                             error_message
                         ) from e
@@ -163,6 +200,21 @@ class AgentTask:
 
         except Exception as e:
             log.error(f"Error during message event: {e}")
+
+            # Create error event for frontend display
+            error_event = ErrorEvent(
+                error=ErrorDetails(
+                    type="agent_error",
+                    error_type="message_processing_failed",
+                    error_message=f"Error processing message: {e}",
+                    error_source="backend",
+                    error_details={
+                        "exception_type": type(e).__name__,
+                        "original_error": str(e)
+                    }
+                )
+            )
+            self.events.append(error_event.to_dict())
             raise
         else:
             return self.messages
@@ -207,8 +259,30 @@ class AgentTask:
     async def response_item(self, event_data: dict) -> dict:
         """Store OpenAI ResponseStreamEvent in simple format."""
         try:
-            # Store all events and update sequence tracking
-            self.events.append(event_data)
+            # Check for OpenAI error events and convert them to our error format
+            event_type = event_data.get("type", "")
+
+            if "error" in event_type or event_data.get("error"):
+                # Handle OpenAI/MCP errors
+                error_info = event_data.get("error", {})
+                error_event = ErrorEvent(
+                    error=ErrorDetails(
+                        type="openai_error",
+                        error_type=error_info.get("type", "unknown_error"),
+                        error_message=error_info.get("message", "Unknown OpenAI error"),
+                        error_source="openai" if "mcp" not in event_type else "mcp",
+                        error_details={
+                            "original_event": str(event_data),  # Convert to string for safety
+                            "error_code": error_info.get("code"),
+                            "param": error_info.get("param")
+                        }
+                    )
+                )
+                self.events.append(error_event.to_dict())
+                log.error(f"OpenAI/MCP error: {error_info}")
+            else:
+                # Store normal events
+                self.events.append(event_data)
 
             # Extract response_id from response.created event for conversation continuity
             if (
@@ -221,6 +295,22 @@ class AgentTask:
 
         except ValueError as e:
             log.error(f"Error handling response_item: {e}")
+
+            # Create error event for this processing error
+            error_event = ErrorEvent(
+                error=ErrorDetails(
+                    type="agent_error",
+                    error_type="response_processing_failed",
+                    error_message=f"Error processing response item: {e}",
+                    error_source="backend",
+                    error_details={
+                        "exception_type": type(e).__name__,
+                        "original_error": str(e),
+                        "event_data": str(event_data)  # Convert to string for safety
+                    }
+                )
+            )
+            self.events.append(error_event.to_dict())
             return {"processed": False, "error": str(e)}
         else:
             return {"processed": True}

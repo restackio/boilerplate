@@ -1,12 +1,12 @@
 import asyncio
 import os
 from collections.abc import AsyncIterator
-from typing import Any
+from typing import Any, Literal
 
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
 from openai.types.responses import ResponseStreamEvent
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from restack_ai.function import (
     NonRetryableError,
     function,
@@ -14,6 +14,8 @@ from restack_ai.function import (
     log,
     stream_to_websocket,
 )
+
+from restack_ai.workflow import uuid
 
 from src.client import api_address
 
@@ -23,6 +25,54 @@ from .send_agent_event import (
 )
 
 load_dotenv()
+
+
+class ErrorDetails(BaseModel):
+    """Error details for error events."""
+    id: str = Field(default_factory=lambda: f"error_{uuid()}")
+    type: str
+    error_type: str
+    error_message: str
+    error_source: Literal["openai", "mcp", "backend", "network"]
+    error_details: dict[str, Any] = Field(default_factory=dict)
+
+
+class ErrorEvent(BaseModel):
+    """Error event with proper Pydantic validation."""
+    type: Literal["error"] = "error"
+    error: ErrorDetails
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for event storage."""
+        return self.model_dump()
+
+
+def validate_json_serializable(data: Any) -> dict[str, Any]:
+    """Ensure data is JSON serializable and return as dict."""
+    try:
+        # Test JSON serialization with Pydantic if it's one of our models
+        if isinstance(data, BaseModel):
+            return data.model_dump()
+        # For other data, ensure it's JSON serializable
+        import json
+        json_str = json.dumps(data)
+        return json.loads(json_str)
+    except (TypeError, ValueError) as e:
+        log.error(f"Data not JSON serializable: {e}, data: {data}")
+        # Return a safe fallback using our error model
+        fallback_error = ErrorEvent(
+            error=ErrorDetails(
+                type="serialization_error",
+                error_type="json_serialization_failed",
+                error_message=f"Failed to serialize data: {e!s}",
+                error_source="backend",
+                error_details={
+                    "original_data_type": type(data).__name__,
+                    "serialization_error": str(e)
+                }
+            )
+        )
+        return fallback_error.to_dict()
 
 
 class Message(BaseModel):
@@ -126,23 +176,83 @@ async def send_non_delta_events_to_agent(
     """Send only non-delta events to agent."""
     agent_id = function_info().workflow_id
 
-    async for event in stream:
-        if hasattr(event, "type") and ".delta" not in event.type:
-            event_data = (
-                event.model_dump()
-                if hasattr(event, "model_dump")
-                else event.__dict__
-            )
-            try:
-                await send_agent_event(
-                    SendAgentEventInput(
-                        event_name="response_item",
-                        agent_id=agent_id,
-                        event_input=event_data,
-                    )
+    try:
+        async for event in stream:
+            if hasattr(event, "type") and ".delta" not in event.type:
+                event_data = (
+                    event.model_dump()
+                    if hasattr(event, "model_dump")
+                    else event.__dict__
                 )
-            except (OSError, ValueError, RuntimeError) as e:
-                log.warning(f"Failed to send event to agent: {e}")
+
+                # Check for error events and enhance them
+                if hasattr(event, "type") and ("error" in event.type or "failed" in event.type):
+                    log.error(f"OpenAI error event: {event_data}")
+
+                try:
+                    # Validate event data is JSON serializable before sending
+                    validated_event_data = validate_json_serializable(event_data)
+                    await send_agent_event(
+                        SendAgentEventInput(
+                            event_name="response_item",
+                            agent_id=agent_id,
+                            event_input=validated_event_data,
+                        )
+                    )
+                except (OSError, ValueError, RuntimeError) as e:
+                    log.warning(f"Failed to send event to agent: {e}")
+
+                    # Send error event to agent for failed event transmission
+                    error_event = ErrorEvent(
+                        error=ErrorDetails(
+                            type="network_error",
+                            error_type="event_transmission_failed",
+                            error_message=f"Failed to send event to agent: {e}",
+                            error_source="backend",
+                            error_details={
+                                "original_event": str(event_data),  # Convert to string to ensure serializability
+                                "exception": str(e)
+                            }
+                        )
+                    )
+                    try:
+                        await send_agent_event(
+                            SendAgentEventInput(
+                                event_name="response_item",
+                                agent_id=agent_id,
+                                event_input=error_event.to_dict(),
+                            )
+                        )
+                    except (OSError, ValueError, RuntimeError):
+                        # If we can't even send the error event, just log it
+                        log.error(f"Critical: Failed to send error event to agent: {error_event}")
+    except (OSError, ValueError, RuntimeError, asyncio.CancelledError) as e:
+        log.error(f"Critical error in stream processing: {e}")
+
+        # Try to send a critical error event
+        critical_error_event = ErrorEvent(
+            error=ErrorDetails(
+                type="stream_error",
+                error_type="critical_stream_processing_error",
+                error_message=f"Critical error in stream processing: {e}",
+                error_source="backend",
+                error_details={
+                    "exception_type": type(e).__name__,
+                    "exception": str(e)
+                }
+            )
+        )
+        try:
+            await send_agent_event(
+                SendAgentEventInput(
+                    event_name="response_item",
+                    agent_id=agent_id,
+                    event_input=critical_error_event.to_dict(),
+                )
+            )
+        except (OSError, ValueError, RuntimeError):
+            log.error(f"Critical: Failed to send critical error event: {critical_error_event}")
+            raise
 
 
 @function.defn()
@@ -177,6 +287,34 @@ async def llm_response_stream(
                 error_msg,
                 create_params=function_input.create_params,
             )
+
+            # Send detailed error event to agent
+            agent_id = function_info().workflow_id
+            openai_error_event = ErrorEvent(
+                error=ErrorDetails(
+                    type="openai_api_error",
+                    error_type="api_request_failed",
+                    error_message=error_msg,
+                    error_source="openai",
+                    error_details={
+                        "exception_type": type(e).__name__,
+                        "exception": str(e),
+                        "create_params": str(function_input.create_params)  # Convert to string for safety
+                    }
+                )
+            )
+
+            try:
+                await send_agent_event(
+                    SendAgentEventInput(
+                        event_name="response_item",
+                        agent_id=agent_id,
+                        event_input=openai_error_event.to_dict(),
+                    )
+                )
+            except (OSError, ValueError, RuntimeError) as send_error:
+                log.error(f"Failed to send OpenAI error event to agent: {send_error}")
+
             raise NonRetryableError(error_msg) from e
 
         # Split stream for parallel processing - maximum performance!
@@ -203,6 +341,32 @@ async def llm_response_stream(
             await asyncio.gather(websocket_task, agent_task)
         except (OSError, ValueError, RuntimeError) as e:
             log.warning(f"Stream processing failed: {e}")
+
+            # Send stream processing error to agent
+            agent_id = function_info().workflow_id
+            stream_error_event = ErrorEvent(
+                error=ErrorDetails(
+                    type="stream_processing_error",
+                    error_type="stream_processing_failed",
+                    error_message=f"Stream processing failed: {e}",
+                    error_source="backend",
+                    error_details={
+                        "exception_type": type(e).__name__,
+                        "exception": str(e)
+                    }
+                )
+            )
+
+            try:
+                await send_agent_event(
+                    SendAgentEventInput(
+                        event_name="response_item",
+                        agent_id=agent_id,
+                        event_input=stream_error_event.to_dict(),
+                    )
+                )
+            except (OSError, ValueError, RuntimeError) as send_error:
+                log.error(f"Failed to send stream error event to agent: {send_error}")
 
         # Return minimal response - agent handles all metadata extraction
         response_data = {

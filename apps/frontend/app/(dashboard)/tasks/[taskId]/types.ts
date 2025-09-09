@@ -43,6 +43,16 @@ export interface OpenAIEvent {
   [key: string]: unknown;
 }
 
+// Error details for error events
+export interface ErrorDetails {
+  id: string;
+  type: string;
+  error_type: string;
+  error_message: string;
+  error_source: "openai" | "mcp" | "backend" | "network";
+  error_details?: Record<string, unknown>;
+}
+
 // Simplified conversation item that uses OpenAI structure directly
 export interface ConversationItem {
   id: string;
@@ -71,5 +81,7 @@ export interface ConversationItem {
   } | null;
   // For SDK events from agent state
   openai_event?: OpenAIEvent;
+  // For error events
+  error?: ErrorDetails;
   isStreaming?: boolean;
 } 
