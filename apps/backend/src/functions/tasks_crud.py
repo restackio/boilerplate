@@ -302,7 +302,7 @@ async def tasks_update(
                 exclude_unset=True, exclude={"task_id"}
             )
             for key, value in update_data.items():
-                if hasattr(task, key):
+                if hasattr(task, key) and value is not None:
                     # Handle UUID fields
                     if (
                         (key == "agent_id" and value)
@@ -310,25 +310,11 @@ async def tasks_update(
                         or (key == "schedule_task_id" and value)
                     ):
                         setattr(task, key, uuid.UUID(value))
-                    elif (
-                        (key == "agent_task_id" and value)
-                        or (
-                            key == "messages"
-                            and value is not None
-                        )
-                        or (
-                            key == "schedule_spec"
-                            and value is not None
-                        )
-                        or (
-                            key
-                            in [
-                                "is_scheduled",
-                                "schedule_status",
-                                "restack_schedule_id",
-                            ]
-                        )
-                    ):
+                    elif key == "messages" and value is not None:
+                        setattr(task, key, value)
+                    elif key == "schedule_spec" and value is not None:
+                        setattr(task, key, value)
+                    elif key in ["is_scheduled", "schedule_status", "restack_schedule_id"] and value is not None:
                         setattr(task, key, value)
                     else:
                         setattr(task, key, value)

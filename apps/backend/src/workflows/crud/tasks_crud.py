@@ -192,7 +192,11 @@ class TasksUpdateWorkflow:
                     log.info(f"Successfully sent end event to agent {current_task.agent_task_id}")
                 except Exception as e:
                     # Don't fail the task update if agent stopping fails, just log it
-                    log.warning(f"Failed to stop agent {current_task.agent_task_id}: {e}")
+                    # This can happen if the agent workflow doesn't exist or has already completed
+                    if "workflow not found" in str(e).lower():
+                        log.info(f"Agent workflow {current_task.agent_task_id} not found - likely already completed or stopped")
+                    else:
+                        log.warning(f"Failed to stop agent {current_task.agent_task_id}: {e}")
 
             # Then update the task in the database
             result = await workflow.step(
