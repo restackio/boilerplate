@@ -267,11 +267,6 @@ async def llm_response_stream(
     function_input: LlmResponseInput,
 ) -> LlmResponseOutput:
     try:
-        log.info(
-            "llm_response started",
-            create_params=function_input.create_params,
-        )
-
         if not os.environ.get("OPENAI_API_KEY"):
             error_msg = "OPENAI_API_KEY is not set"
             raise NonRetryableError(error_msg)
@@ -281,10 +276,6 @@ async def llm_response_stream(
         )
 
         try:
-            log.info(
-                "Creating response with params",
-                create_params=function_input.create_params,
-            )
             response_stream = await client.responses.create(
                 **function_input.create_params
             )
@@ -323,9 +314,6 @@ async def llm_response_stream(
             raise NonRetryableError(error_msg) from e
 
         # Split stream for parallel processing - maximum performance!
-        log.info(
-            "Splitting response stream for parallel processing"
-        )
         tee = AsyncTee(response_stream, 2)
         websocket_stream = tee.get_iterator(0)
         agent_stream = tee.get_iterator(1)
