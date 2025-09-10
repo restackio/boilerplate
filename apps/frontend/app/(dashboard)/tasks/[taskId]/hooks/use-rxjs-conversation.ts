@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { Subscription } from 'rxjs';
 import { ConversationItem, OpenAIEvent } from '../types';
 import { ConversationStore, StreamEvent } from '../stores/conversation-store';
