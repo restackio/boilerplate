@@ -62,6 +62,7 @@ services:
       - .env
     environment:
       - RESTACK_ENGINE_ADDRESS=${RESTACK_ENGINE_ADDRESS:-host.docker.internal:7233}
+      - RESTACK_ENGINE_API_ADDRESS=${RESTACK_ENGINE_API_ADDRESS:-host.docker.internal:6233}
       - RESTACK_ENGINE_STREAM_ADDRESS=${RESTACK_ENGINE_STREAM_ADDRESS:-host.docker.internal:9233}
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/boilerplate_db
     depends_on:
