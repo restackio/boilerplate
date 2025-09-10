@@ -44,6 +44,7 @@ export function PlaygroundTaskExecution({
     responseState,
     agentResponses,
     taskAgentTaskId: task?.agent_task_id || undefined,
+    storeKey: taskId || 'default', // Use taskId as unique store key
   });
 
   // Fetch task data when taskId changes

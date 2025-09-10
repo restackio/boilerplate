@@ -37,6 +37,7 @@ export function useTaskDetail() {
     agentResponses: agentResponses,
     taskAgentTaskId: task?.agent_task_id,
     persistedMessages: task?.messages,
+    storeKey: taskId, // Use taskId as unique store key
   });
 
   useEffect(() => {
