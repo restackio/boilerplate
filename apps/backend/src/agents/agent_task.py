@@ -263,9 +263,6 @@ class AgentTask:
             function=llm_response_stream,
             function_input=prepared,
             start_to_close_timeout=timedelta(seconds=120),
-            retry_policy=RetryPolicy(
-                maximum_attempts=1,
-            ),
         )
 
         return {
