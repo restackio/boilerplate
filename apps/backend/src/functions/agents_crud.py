@@ -321,7 +321,7 @@ class AgentTableOutput(BaseModel):
     team_name: str | None = None
     name: str
     description: str | None = None
-    instructions: str
+    instructions: str | None = None
     status: str
     parent_agent_id: str | None = None
     model: str | None = "gpt-5"
