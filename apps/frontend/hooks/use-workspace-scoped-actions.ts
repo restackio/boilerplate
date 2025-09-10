@@ -4,7 +4,7 @@ import { useCallback, useState } from "react";
 import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 import { runWorkflow, getWorkflowResult } from "@/app/actions/workflow";
 
-interface ApiResponse<T = any> {
+export interface ApiResponse<T = any> {
   success: boolean;
   data?: T;
   error?: string;
