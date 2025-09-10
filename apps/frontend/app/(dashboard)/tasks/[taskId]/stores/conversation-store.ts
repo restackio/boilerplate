@@ -239,5 +239,3 @@ export class ConversationStore {
     streamItem.timestamp = new Date().toISOString();
   }
 }
-
-export const conversationStore = new ConversationStore();

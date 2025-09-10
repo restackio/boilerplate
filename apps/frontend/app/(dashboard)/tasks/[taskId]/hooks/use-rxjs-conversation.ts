@@ -1,13 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Subscription } from 'rxjs';
 import { ConversationItem, OpenAIEvent } from '../types';
-import { conversationStore, StreamEvent } from '../stores/conversation-store';
+import { ConversationStore, StreamEvent } from '../stores/conversation-store';
 
 interface UseRxjsConversationProps {
   responseState?: { events: OpenAIEvent[]; [key: string]: unknown } | false;
   agentResponses?: { events?: OpenAIEvent[]; [key: string]: unknown }[];
   taskAgentTaskId?: string | null;
   persistedMessages?: unknown[];
+  storeKey?: string; // Unique key to create separate store instances
 }
 
 /**
@@ -17,9 +18,13 @@ export function useRxjsConversation({
   responseState,
   agentResponses = [],
   taskAgentTaskId,
-  persistedMessages
+  persistedMessages,
+  storeKey = 'default'
 }: UseRxjsConversationProps) {
   const [conversation, setConversation] = useState<ConversationItem[]>([]);
+
+  // Create a unique conversation store instance for this component
+  const conversationStore = useMemo(() => new ConversationStore(), [storeKey]);
 
   // Subscribe to the RxJS store
   useEffect(() => {
@@ -29,7 +34,7 @@ export function useRxjsConversation({
       }
     );
     return () => subscription.unsubscribe();
-  }, []);
+  }, [conversationStore]);
 
   // Update state items from responseState
   useEffect(() => {
