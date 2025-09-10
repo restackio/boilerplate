@@ -146,5 +146,15 @@ INSERT INTO mcp_servers (id, workspace_id, server_label, server_url, local, serv
   'BambooHR MCP server for employee data and HR operations',
   '{"Authorization": "Bearer bamboo_api_key_67890"}',
   '{"never": {"tool_names": ["employee_search", "update_employee"]}, "always": {"tool_names": ["get_employee_info"]}}'
+),
+(
+  '90123456-789a-123e-f012-456789012348',
+  'c926e979-1f16-46bf-a7cc-8aab70162d65',
+  'failing-mcp-test',
+  NULL,
+  TRUE,
+  'Failing MCP Test server for testing error handling scenarios',
+  NULL,
+  '{"never": {"tool_names": ["failingmcptest"]}, "always": {"tool_names": []}}'
 )
 ON CONFLICT (id) DO NOTHING;

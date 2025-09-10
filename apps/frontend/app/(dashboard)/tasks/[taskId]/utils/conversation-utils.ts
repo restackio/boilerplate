@@ -7,6 +7,16 @@ import { ConversationItem } from "../types";
 
 // Status-related utilities
 export const getItemStatus = (item: ConversationItem): string => {
+  // Check for errors first - MCP calls with errors should be marked as failed
+  if (item.openai_output?.error || item.error) {
+    return "failed";
+  }
+
+  // Check for failed MCP calls by event type - these come from response.mcp_call.failed events
+  if (item.openai_event?.type === "response.mcp_call.failed") {
+    return "failed";
+  }
+
   // For MCP approval requests, check if they have a status first
   if (item.type === "mcp_approval_request") {
     // If there's an explicit status, use it
@@ -45,6 +55,25 @@ export const extractTextContent = (item: ConversationItem): string => {
   // Handle error items
   if (item.type === "error" || item.error) {
     return item.error?.error_message || "An error occurred";
+  }
+
+  // Handle MCP call errors
+  if (item.openai_output?.error) {
+    const error = item.openai_output.error as any;
+    if (error.content && Array.isArray(error.content)) {
+      return error.content.map((c: any) => c.text || c).join('\n');
+    }
+    if (error.message) {
+      return `${error.type || 'Error'}: ${error.message}`;
+    }
+    return typeof error === 'string' ? error : JSON.stringify(error);
+  }
+
+  // Handle failed MCP calls from response.mcp_call.failed events
+  if (item.openai_event?.type === "response.mcp_call.failed") {
+    // Extract error information from the event
+    const eventData = item.openai_event as any;
+    return `MCP Call Failed: ${eventData.item_id || 'Unknown tool'} - ${eventData.error?.message || 'Unknown error'}`;
   }
 
   const output = item.openai_output;
@@ -101,6 +130,23 @@ export const extractToolArguments = (item: ConversationItem): Record<string, unk
 };
 
 export const extractToolOutput = (item: ConversationItem): unknown => {
+  // Check for errors first - show error details for failed MCP calls
+  if (item.openai_output?.error) {
+    return item.openai_output.error;
+  }
+  
+  // Handle failed MCP calls from response.mcp_call.failed events
+  if (item.openai_event?.type === "response.mcp_call.failed") {
+    const eventData = item.openai_event as any;
+    return {
+      error: true,
+      message: eventData.error?.message || 'MCP call failed',
+      type: 'mcp_call_failed',
+      item_id: eventData.item_id,
+      details: eventData
+    };
+  }
+  
   return item.openai_output?.output || item.openai_output?.result;
 };
 

@@ -24,10 +24,12 @@ export function TaskHeader({ task, onDelete, onUpdateTask }: TaskHeaderProps) {
       >
         <Trash2 className="h-4 w-4" />
       </Button>
-      <Button variant="ghost" size="sm" onClick={() => onUpdateTask({ status: "closed" })}>
-        <Archive className="h-4 w-4" />
-      </Button>
-      {task.status !== "completed" && (
+      {task.status !== "completed" && task.status !== "closed" && (
+        <Button variant="ghost" size="sm" onClick={() => onUpdateTask({ status: "closed" })}>
+          <Archive className="h-4 w-4" />
+        </Button>
+      )}
+      {task.status !== "completed" && task.status !== "closed" && (
         <Button
           variant="default"
           size="sm"

@@ -1,13 +1,19 @@
 import asyncio
 import os
-import uuid as python_uuid
+import warnings
 from collections.abc import AsyncIterator
-from typing import Any, Literal
+from typing import Any
 
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
+from openai._exceptions import (
+    APIResponseValidationError,
+)
 from openai.types.responses import ResponseStreamEvent
-from pydantic import BaseModel, Field
+from openai.types.responses.response_error_event import (
+    ResponseErrorEvent,
+)
+from pydantic import BaseModel
 from restack_ai.function import (
     NonRetryableError,
     function,
@@ -25,59 +31,32 @@ from .send_agent_event import (
 
 load_dotenv()
 
-
-class ErrorDetails(BaseModel):
-    """Error details for error events."""
-
-    id: str
-    type: str
-    error_type: str
-    error_message: str
-    error_source: Literal["openai", "mcp", "backend", "network"]
-    error_details: dict[str, Any] = Field(default_factory=dict)
-
-
-class ErrorEvent(BaseModel):
-    """Error event with proper Pydantic validation."""
-
-    type: Literal["error"] = "error"
-    error: ErrorDetails
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary for event storage."""
-        return self.model_dump()
+# Suppress noisy Pydantic serialization warnings from OpenAI SDK
+# These warnings occur when OpenAI tries to serialize McpCall objects
+# which don't perfectly fit the expected union types, but the serialization still works
+warnings.filterwarnings(
+    "ignore",
+    message=".*PydanticSerializationUnexpectedValue.*",
+    category=UserWarning,
+    module="pydantic"
+)
 
 
-def validate_json_serializable(data: Any) -> dict[str, Any]:
-    """Ensure data is JSON serializable and return as dict."""
-    try:
-        # Test JSON serialization with Pydantic if it's one of our models
-        if isinstance(data, BaseModel):
-            return data.model_dump()
-        # For other data, ensure it's JSON serializable
-        import json
-
-        json_str = json.dumps(data)
-        return json.loads(json_str)
-    except (TypeError, ValueError) as e:
-        log.error(
-            f"Data not JSON serializable: {e}, data: {data}"
-        )
-        # Return a safe fallback using our error modelw
-        fallback_error = ErrorEvent(
-            error=ErrorDetails(
-                id=f"error_{python_uuid.uuid4()}",
-                type="serialization_error",
-                error_type="json_serialization_failed",
-                error_message=f"Failed to serialize data: {e!s}",
-                error_source="backend",
-                error_details={
-                    "original_data_type": type(data).__name__,
-                    "serialization_error": str(e),
-                },
-            )
-        )
-        return fallback_error.to_dict()
+def create_error_event(
+    message: str,
+    error_type: str = "unknown_error",
+    code: str | None = None,
+    param: str | None = None,
+    sequence_number: int = 0,
+) -> ResponseErrorEvent:
+    """Create an OpenAI-native error event."""
+    return ResponseErrorEvent(
+        code=code or error_type,
+        message=message,
+        param=param,
+        sequence_number=sequence_number,
+        type="error",
+    )
 
 
 class Message(BaseModel):
@@ -187,11 +166,30 @@ async def send_non_delta_events_to_agent(
                 hasattr(event, "type")
                 and ".delta" not in event.type
             ):
-                event_data = (
-                    event.model_dump()
-                    if hasattr(event, "model_dump")
-                    else event.__dict__
-                )
+                # Use standard OpenAI SDK serialization with error handling
+                if hasattr(event, "model_dump"):
+                    try:
+                        event_data = event.model_dump()
+                    except (
+                        APIResponseValidationError,
+                        ValueError,
+                        TypeError,
+                    ) as e:
+                        # Handle OpenAI SDK serialization errors
+                        log.warning(
+                            f"OpenAI model_dump failed for event {getattr(event, 'type', 'unknown')}: {e}"
+                        )
+                        event_data = (
+                            event.__dict__
+                            if hasattr(event, "__dict__")
+                            else {"error": str(e)}
+                        )
+                else:
+                    event_data = (
+                        event.__dict__
+                        if hasattr(event, "__dict__")
+                        else str(event)
+                    )
 
                 # Check for error events and enhance them
                 if hasattr(event, "type") and (
@@ -201,15 +199,12 @@ async def send_non_delta_events_to_agent(
                     log.error(f"OpenAI error event: {event_data}")
 
                 try:
-                    # Validate event data is JSON serializable before sending
-                    validated_event_data = (
-                        validate_json_serializable(event_data)
-                    )
+                    # Send event data directly (already JSON serializable from model_dump())
                     await send_agent_event(
                         SendAgentEventInput(
                             event_name="response_item",
                             agent_id=agent_id,
-                            event_input=validated_event_data,
+                            event_input=event_data,
                         )
                     )
                 except (OSError, ValueError, RuntimeError) as e:
@@ -217,28 +212,18 @@ async def send_non_delta_events_to_agent(
                         f"Failed to send event to agent: {e}"
                     )
 
-                    # Send error event to agent for failed event transmission
-                    error_event = ErrorEvent(
-                        error=ErrorDetails(
-                            id=f"error_{python_uuid.uuid4()}",
-                            type="network_error",
-                            error_type="event_transmission_failed",
-                            error_message=f"Failed to send event to agent: {e}",
-                            error_source="backend",
-                            error_details={
-                                "original_event": str(
-                                    event_data
-                                ),  # Convert to string to ensure serializability
-                                "exception": str(e),
-                            },
-                        )
+                    # Send OpenAI-native error event to agent for failed event transmission
+                    error_event = create_error_event(
+                        message=f"Failed to send event to agent: {e}",
+                        error_type="event_transmission_failed",
+                        code="network_error",
                     )
                     try:
                         await send_agent_event(
                             SendAgentEventInput(
                                 event_name="response_item",
                                 agent_id=agent_id,
-                                event_input=error_event.to_dict(),
+                                event_input=error_event.model_dump(),
                             )
                         )
                     except (OSError, ValueError, RuntimeError):
@@ -255,25 +240,17 @@ async def send_non_delta_events_to_agent(
         log.error(f"Critical error in stream processing: {e}")
 
         # Try to send a critical error event
-        critical_error_event = ErrorEvent(
-            error=ErrorDetails(
-                id=f"error_{python_uuid.uuid4()}",
-                type="stream_error",
-                error_type="critical_stream_processing_error",
-                error_message=f"Critical error in stream processing: {e}",
-                error_source="backend",
-                error_details={
-                    "exception_type": type(e).__name__,
-                    "exception": str(e),
-                },
-            )
+        critical_error_event = create_error_event(
+            message=f"Critical error in stream processing: {e}",
+            error_type="critical_stream_processing_error",
+            code="stream_error",
         )
         try:
             await send_agent_event(
                 SendAgentEventInput(
                     event_name="response_item",
                     agent_id=agent_id,
-                    event_input=critical_error_event.to_dict(),
+                    event_input=critical_error_event.model_dump(),
                 )
             )
         except (OSError, ValueError, RuntimeError):
@@ -290,11 +267,6 @@ async def llm_response_stream(
     function_input: LlmResponseInput,
 ) -> LlmResponseOutput:
     try:
-        log.info(
-            "llm_response started",
-            create_params=function_input.create_params,
-        )
-
         if not os.environ.get("OPENAI_API_KEY"):
             error_msg = "OPENAI_API_KEY is not set"
             raise NonRetryableError(error_msg)
@@ -304,10 +276,6 @@ async def llm_response_stream(
         )
 
         try:
-            log.info(
-                "Creating response with params",
-                create_params=function_input.create_params,
-            )
             response_stream = await client.responses.create(
                 **function_input.create_params
             )
@@ -320,21 +288,10 @@ async def llm_response_stream(
 
             # Send detailed error event to agent
             agent_id = function_info().workflow_id
-            openai_error_event = ErrorEvent(
-                error=ErrorDetails(
-                    id=f"error_{python_uuid.uuid4()}",
-                    type="openai_api_error",
-                    error_type="api_request_failed",
-                    error_message=error_msg,
-                    error_source="openai",
-                    error_details={
-                        "exception_type": type(e).__name__,
-                        "exception": str(e),
-                        "create_params": str(
-                            function_input.create_params
-                        ),  # Convert to string for safety
-                    },
-                )
+            openai_error_event = create_error_event(
+                message=error_msg,
+                error_type="api_request_failed",
+                code="openai_api_error",
             )
 
             try:
@@ -342,7 +299,7 @@ async def llm_response_stream(
                     SendAgentEventInput(
                         event_name="response_item",
                         agent_id=agent_id,
-                        event_input=openai_error_event.to_dict(),
+                        event_input=openai_error_event.model_dump(),
                     )
                 )
             except (
@@ -357,9 +314,6 @@ async def llm_response_stream(
             raise NonRetryableError(error_msg) from e
 
         # Split stream for parallel processing - maximum performance!
-        log.info(
-            "Splitting response stream for parallel processing"
-        )
         tee = AsyncTee(response_stream, 2)
         websocket_stream = tee.get_iterator(0)
         agent_stream = tee.get_iterator(1)
@@ -377,8 +331,15 @@ async def llm_response_stream(
 
         # Wait for both to complete, but don't let websocket failures fail the function
         try:
-            await asyncio.gather(websocket_task, agent_task, return_exceptions=True)
-        except (OSError, ValueError, RuntimeError, asyncio.CancelledError) as e:
+            await asyncio.gather(
+                websocket_task, agent_task, return_exceptions=True
+            )
+        except (
+            OSError,
+            ValueError,
+            RuntimeError,
+            asyncio.CancelledError,
+        ) as e:
             log.warning(f"Stream processing had issues: {e}")
 
         # Return minimal response - agent handles all metadata extraction

@@ -251,6 +251,72 @@ Demonstrate the full capabilities of web search with detailed, informative respo
 )
 ON CONFLICT (id) DO NOTHING;
 
+-- Error Testing Agent - For testing MCP failure scenarios
+INSERT INTO agents (id, workspace_id, team_id, name, description, instructions, status, model, reasoning_effort)
+VALUES (
+    'ffffffff-ffff-ffff-ffff-ffffffffffff',
+    'c926e979-1f16-46bf-a7cc-8aab70162d65',
+    '44444444-4444-4444-4444-444444444444', -- Engineering team
+    'error-testing-agent',
+    'AI agent for testing MCP error handling and failure scenarios',
+    $$You are an error testing specialist designed to test various MCP failure scenarios.
+
+## Objective
+Test and demonstrate different types of MCP tool failures to validate error handling systems.
+
+## Available Tools
+- **FailingMcpTest**: A tool that intentionally fails in various ways to test error handling
+
+## Instructions
+1. **Test Different Failure Types**: Use the FailingMcpTest tool with different failure_type parameters:
+   - "timeout" - Simulates MCP tool timeout (NonRetryableError)
+   - "invalid_params" - Simulates invalid parameter errors (NonRetryableError)
+   - "tool_not_found" - Simulates tool not found errors (NonRetryableError)
+   - "permission_denied" - Simulates permission/authorization errors (NonRetryableError)
+   - "network_error" - Simulates network connectivity issues (NonRetryableError)
+   - "json_parse_error" - Simulates JSON parsing failures (NonRetryableError)
+   - "workflow_error" - Simulates workflow execution errors (NonRetryableError)
+   - "activity_failure" - Simulates activity failure errors (NonRetryableError)
+   - "random" - Randomly selects one of the above failure types
+
+2. **Success Testing**: Set should_fail=false to test successful execution
+
+3. **Error Analysis**: When failures occur, analyze the error response and explain:
+   - What type of error occurred
+   - How the system handled the error
+   - Whether the error was properly caught and displayed
+   - Any improvements that could be made to error handling
+
+## Example Usage
+To test a timeout error:
+```
+Use FailingMcpTest with:
+- failure_type: "timeout"
+- user_request: "Test timeout scenario"
+- should_fail: true
+```
+
+To test a workflow execution error:
+```
+Use FailingMcpTest with:
+- failure_type: "workflow_error"
+- user_request: "Test workflow failure"
+- should_fail: true
+```
+
+## Testing Scenarios
+- **Systematic Testing**: Test each failure type individually
+- **Random Testing**: Use "random" failure type for unpredictable scenarios
+- **Success Validation**: Verify tool works when should_fail=false
+- **Error Recovery**: Test how the system recovers from different error types
+
+Focus on thorough testing and clear documentation of error handling behavior.$$,
+    'published',
+    'gpt-5',
+    'low'
+)
+ON CONFLICT (id) DO NOTHING;
+
 -- Link agents to MCP servers via agent_tools table
 INSERT INTO agent_tools (id, agent_id, tool_type, mcp_server_id, allowed_tools, enabled) VALUES
 -- Customer Support Agent tools
@@ -276,7 +342,10 @@ INSERT INTO agent_tools (id, agent_id, tool_type, mcp_server_id, allowed_tools, 
 ('10000012-0000-0000-0000-000000000012', 'dddddddd-dddd-dddd-dddd-dddddddddddd', 'mcp', '80123456-789a-123e-f012-456789012347', '["employee_search", "update_employee", "get_employee_info"]', true),
 
 -- News Research Agent tools
-('10000013-0000-0000-0000-000000000013', 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'web_search_preview', NULL, NULL, true)
+('10000013-0000-0000-0000-000000000013', 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'web_search_preview', NULL, NULL, true),
+
+-- Error Testing Agent tools
+('10000014-0000-0000-0000-000000000014', 'ffffffff-ffff-ffff-ffff-ffffffffffff', 'mcp', '90123456-789a-123e-f012-456789012348', '["failingmcptest"]', true)
 ON CONFLICT (id) DO NOTHING;
 
 -- Demo completed tasks with realistic conversation history

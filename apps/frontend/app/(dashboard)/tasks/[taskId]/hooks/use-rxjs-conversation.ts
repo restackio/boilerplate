@@ -173,8 +173,27 @@ export function useRxjsConversation({
         });
       }
     });
+
+    // Step 5: Collect failed MCP calls (these come as response.mcp_call.failed events)
+    responseState.events.forEach((event: OpenAIEvent) => {
+      if (event.type === 'response.mcp_call.failed') {
+        aiResponses.push({
+          id: event.item_id || `failed_${event.sequence_number}`,
+          type: 'mcp_call',
+          timestamp: event.timestamp || new Date().toISOString(),
+          openai_output: {
+            id: event.item_id || `failed_${event.sequence_number}`,
+            type: 'mcp_call',
+            status: 'failed',
+            error: event.error || { message: 'MCP call failed', type: 'mcp_error' }
+          },
+          openai_event: event,
+          isStreaming: false,
+        });
+      }
+    });
     
-    // Step 4: Interleave user messages with loading indicators and AI responses
+    // Step 6: Interleave user messages with loading indicators and AI responses
     const items: ConversationItem[] = [];
     
     // Group AI responses by response ID (each response has reasoning + message)

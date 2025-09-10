@@ -1,6 +1,6 @@
 import uuid
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from restack_ai.function import NonRetryableError, function
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -39,8 +39,8 @@ class TaskUpdateInput(BaseModel):
     status: str | None = Field(
         None, pattern="^(open|active|waiting|closed|completed)$"
     )
-    agent_id: str | None = Field(None, min_length=1)
-    assigned_to_id: str | None = Field(None, min_length=1)
+    agent_id: str | None = None
+    assigned_to_id: str | None = None
     agent_task_id: str | None = None
     messages: list | None = None
     # Schedule-related fields
@@ -51,6 +51,19 @@ class TaskUpdateInput(BaseModel):
         None, pattern="^(active|inactive|paused)$"
     )
     restack_schedule_id: str | None = None
+
+    @field_validator(
+        "assigned_to_id",
+        "agent_id",
+        "schedule_task_id",
+        mode="before",
+    )
+    @classmethod
+    def validate_optional_string_fields(cls, v: str | None) -> str | None:
+        """Convert empty strings to None for optional UUID fields."""
+        if v == "":
+            return None
+        return v
 
 
 class TaskGetByIdInput(BaseModel):
@@ -294,7 +307,7 @@ async def tasks_update(
                 exclude_unset=True, exclude={"task_id"}
             )
             for key, value in update_data.items():
-                if hasattr(task, key):
+                if hasattr(task, key) and value is not None:
                     # Handle UUID fields
                     if (
                         (key == "agent_id" and value)
@@ -302,24 +315,17 @@ async def tasks_update(
                         or (key == "schedule_task_id" and value)
                     ):
                         setattr(task, key, uuid.UUID(value))
-                    elif (
-                        (key == "agent_task_id" and value)
-                        or (
-                            key == "messages"
-                            and value is not None
-                        )
-                        or (
-                            key == "schedule_spec"
-                            and value is not None
-                        )
-                        or (
-                            key
-                            in [
-                                "is_scheduled",
-                                "schedule_status",
-                                "restack_schedule_id",
-                            ]
-                        )
+                    elif (key == "messages" and value is not None) or (
+                        key == "schedule_spec"
+                        and value is not None
+                    ) or (
+                        key
+                        in [
+                            "is_scheduled",
+                            "schedule_status",
+                            "restack_schedule_id",
+                        ]
+                        and value is not None
                     ):
                         setattr(task, key, value)
                     else:
