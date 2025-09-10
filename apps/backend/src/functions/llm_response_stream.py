@@ -28,6 +28,7 @@ load_dotenv()
 
 class ErrorDetails(BaseModel):
     """Error details for error events."""
+
     id: str
     type: str
     error_type: str
@@ -38,6 +39,7 @@ class ErrorDetails(BaseModel):
 
 class ErrorEvent(BaseModel):
     """Error event with proper Pydantic validation."""
+
     type: Literal["error"] = "error"
     error: ErrorDetails
 
@@ -54,10 +56,13 @@ def validate_json_serializable(data: Any) -> dict[str, Any]:
             return data.model_dump()
         # For other data, ensure it's JSON serializable
         import json
+
         json_str = json.dumps(data)
         return json.loads(json_str)
     except (TypeError, ValueError) as e:
-        log.error(f"Data not JSON serializable: {e}, data: {data}")
+        log.error(
+            f"Data not JSON serializable: {e}, data: {data}"
+        )
         # Return a safe fallback using our error modelw
         fallback_error = ErrorEvent(
             error=ErrorDetails(
@@ -68,8 +73,8 @@ def validate_json_serializable(data: Any) -> dict[str, Any]:
                 error_source="backend",
                 error_details={
                     "original_data_type": type(data).__name__,
-                    "serialization_error": str(e)
-                }
+                    "serialization_error": str(e),
+                },
             )
         )
         return fallback_error.to_dict()
@@ -178,7 +183,10 @@ async def send_non_delta_events_to_agent(
 
     try:
         async for event in stream:
-            if hasattr(event, "type") and ".delta" not in event.type:
+            if (
+                hasattr(event, "type")
+                and ".delta" not in event.type
+            ):
                 event_data = (
                     event.model_dump()
                     if hasattr(event, "model_dump")
@@ -186,12 +194,17 @@ async def send_non_delta_events_to_agent(
                 )
 
                 # Check for error events and enhance them
-                if hasattr(event, "type") and ("error" in event.type or "failed" in event.type):
+                if hasattr(event, "type") and (
+                    "error" in event.type
+                    or "failed" in event.type
+                ):
                     log.error(f"OpenAI error event: {event_data}")
 
                 try:
                     # Validate event data is JSON serializable before sending
-                    validated_event_data = validate_json_serializable(event_data)
+                    validated_event_data = (
+                        validate_json_serializable(event_data)
+                    )
                     await send_agent_event(
                         SendAgentEventInput(
                             event_name="response_item",
@@ -200,7 +213,9 @@ async def send_non_delta_events_to_agent(
                         )
                     )
                 except (OSError, ValueError, RuntimeError) as e:
-                    log.warning(f"Failed to send event to agent: {e}")
+                    log.warning(
+                        f"Failed to send event to agent: {e}"
+                    )
 
                     # Send error event to agent for failed event transmission
                     error_event = ErrorEvent(
@@ -211,9 +226,11 @@ async def send_non_delta_events_to_agent(
                             error_message=f"Failed to send event to agent: {e}",
                             error_source="backend",
                             error_details={
-                                "original_event": str(event_data),  # Convert to string to ensure serializability
-                                "exception": str(e)
-                            }
+                                "original_event": str(
+                                    event_data
+                                ),  # Convert to string to ensure serializability
+                                "exception": str(e),
+                            },
                         )
                     )
                     try:
@@ -226,8 +243,15 @@ async def send_non_delta_events_to_agent(
                         )
                     except (OSError, ValueError, RuntimeError):
                         # If we can't even send the error event, just log it
-                        log.error(f"Critical: Failed to send error event to agent: {error_event}")
-    except (OSError, ValueError, RuntimeError, asyncio.CancelledError) as e:
+                        log.error(
+                            f"Critical: Failed to send error event to agent: {error_event}"
+                        )
+    except (
+        OSError,
+        ValueError,
+        RuntimeError,
+        asyncio.CancelledError,
+    ) as e:
         log.error(f"Critical error in stream processing: {e}")
 
         # Try to send a critical error event
@@ -240,8 +264,8 @@ async def send_non_delta_events_to_agent(
                 error_source="backend",
                 error_details={
                     "exception_type": type(e).__name__,
-                    "exception": str(e)
-                }
+                    "exception": str(e),
+                },
             )
         )
         try:
@@ -253,9 +277,12 @@ async def send_non_delta_events_to_agent(
                 )
             )
         except (OSError, ValueError, RuntimeError):
-            log.error(f"Critical: Failed to send critical error event: {critical_error_event}")
-            
-        raise NonRetryableError(f"Critical error in stream processing: {e}") from e
+            log.error(
+                f"Critical: Failed to send critical error event: {critical_error_event}"
+            )
+
+        error_msg = f"Critical error in stream processing: {e}"
+        raise NonRetryableError(error_msg) from e
 
 
 @function.defn()
@@ -303,8 +330,10 @@ async def llm_response_stream(
                     error_details={
                         "exception_type": type(e).__name__,
                         "exception": str(e),
-                        "create_params": str(function_input.create_params)  # Convert to string for safety
-                    }
+                        "create_params": str(
+                            function_input.create_params
+                        ),  # Convert to string for safety
+                    },
                 )
             )
 
@@ -316,8 +345,14 @@ async def llm_response_stream(
                         event_input=openai_error_event.to_dict(),
                     )
                 )
-            except (OSError, ValueError, RuntimeError) as send_error:
-                log.error(f"Failed to send OpenAI error event to agent: {send_error}")
+            except (
+                OSError,
+                ValueError,
+                RuntimeError,
+            ) as send_error:
+                log.error(
+                    f"Failed to send OpenAI error event to agent: {send_error}"
+                )
 
             raise NonRetryableError(error_msg) from e
 
@@ -340,40 +375,11 @@ async def llm_response_stream(
             send_non_delta_events_to_agent(agent_stream)
         )
 
-        # Wait for both to complete
+        # Wait for both to complete, but don't let websocket failures fail the function
         try:
-            await asyncio.gather(websocket_task, agent_task)
-        except (OSError, ValueError, RuntimeError) as e:
-            log.warning(f"Stream processing failed: {e}")
-
-            # Send stream processing error to agent
-            agent_id = function_info().workflow_id
-            stream_error_event = ErrorEvent(
-                error=ErrorDetails(
-                    id=f"error_{python_uuid.uuid4()}",
-                    type="stream_processing_error",
-                    error_type="stream_processing_failed",
-                    error_message=f"Stream processing failed: {e}",
-                    error_source="backend",
-                    error_details={
-                        "exception_type": type(e).__name__,
-                        "exception": str(e)
-                    }
-                )
-            )
-
-            try:
-                await send_agent_event(
-                    SendAgentEventInput(
-                        event_name="response_item",
-                        agent_id=agent_id,
-                        event_input=stream_error_event.to_dict(),
-                    )
-                )
-            except (OSError, ValueError, RuntimeError) as send_error:
-                log.error(f"Failed to send stream error event to agent: {send_error}")
-                
-            raise NonRetryableError(f"Stream processing failed: {e}") from e
+            await asyncio.gather(websocket_task, agent_task, return_exceptions=True)
+        except (OSError, ValueError, RuntimeError, asyncio.CancelledError) as e:
+            log.warning(f"Stream processing had issues: {e}")
 
         # Return minimal response - agent handles all metadata extraction
         response_data = {

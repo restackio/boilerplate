@@ -194,9 +194,7 @@ class Agent(Base):
     )  # Must be slug format: lowercase, numbers, hyphens, underscores only
     description = Column(Text)
     instructions = Column(Text, nullable=True)
-    status = Column(
-        String(50), nullable=False, default="draft"
-    )
+    status = Column(String(50), nullable=False, default="draft")
     parent_agent_id = Column(
         UUID(as_uuid=True),
         ForeignKey("agents.id", ondelete="SET NULL"),

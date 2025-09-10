@@ -77,7 +77,9 @@ class AgentIdInput(BaseModel):
 
 class AgentGetByStatusInput(BaseModel):
     workspace_id: str = Field(..., min_length=1)
-    status: str = Field(..., pattern="^(published|draft|archived)$")
+    status: str = Field(
+        ..., pattern="^(published|draft|archived)$"
+    )
 
 
 class AgentGetVersionsInput(BaseModel):
@@ -315,6 +317,7 @@ async def agents_read(
 
 class AgentTableOutput(BaseModel):
     """Enhanced agent data for table display with versioning info."""
+
     id: str
     workspace_id: str
     team_id: str | None = None
@@ -338,7 +341,9 @@ class AgentTableListOutput(BaseModel):
     agents: list[AgentTableOutput]
 
 
-def _process_agent_group(group_agents: list[Agent]) -> AgentTableOutput:
+def _process_agent_group(
+    group_agents: list[Agent],
+) -> AgentTableOutput:
     """Process a group of agent versions into table output."""
     # Find published version
     published_agent = None
@@ -352,9 +357,13 @@ def _process_agent_group(group_agents: list[Agent]) -> AgentTableOutput:
 
     # Determine which agent to show in the table
     # Priority: published version, fallback to latest if no published version
-    display_agent = published_agent if published_agent else max(
-        group_agents,
-        key=lambda x: x.created_at or datetime.min,
+    display_agent = (
+        published_agent
+        if published_agent
+        else max(
+            group_agents,
+            key=lambda x: x.created_at or datetime.min,
+        )
     )
 
     # Create short UUID for published version
@@ -365,19 +374,32 @@ def _process_agent_group(group_agents: list[Agent]) -> AgentTableOutput:
     return AgentTableOutput(
         id=str(display_agent.id),
         workspace_id=str(display_agent.workspace_id),
-        team_id=str(display_agent.team_id) if display_agent.team_id else None,
-        team_name=display_agent.team.name if display_agent.team else None,
+        team_id=str(display_agent.team_id)
+        if display_agent.team_id
+        else None,
+        team_name=display_agent.team.name
+        if display_agent.team
+        else None,
         name=display_agent.name,
         description=display_agent.description,
         instructions=display_agent.instructions,
         status=display_agent.status,
-        parent_agent_id=str(display_agent.parent_agent_id) if display_agent.parent_agent_id else None,
+        parent_agent_id=str(display_agent.parent_agent_id)
+        if display_agent.parent_agent_id
+        else None,
         model=display_agent.model or "gpt-5",
-        reasoning_effort=display_agent.reasoning_effort or "medium",
-        created_at=display_agent.created_at.isoformat() if display_agent.created_at else None,
-        updated_at=display_agent.updated_at.isoformat() if display_agent.updated_at else None,
+        reasoning_effort=display_agent.reasoning_effort
+        or "medium",
+        created_at=display_agent.created_at.isoformat()
+        if display_agent.created_at
+        else None,
+        updated_at=display_agent.updated_at.isoformat()
+        if display_agent.updated_at
+        else None,
         version_count=len(group_agents),
-        published_version_id=str(published_agent.id) if published_agent else None,
+        published_version_id=str(published_agent.id)
+        if published_agent
+        else None,
         published_version_short=published_version_short,
         draft_count=len(draft_agents),
     )
@@ -394,8 +416,13 @@ async def agents_read_table(
             all_agents_query = (
                 select(Agent)
                 .options(selectinload(Agent.team))
-                .where(Agent.workspace_id == uuid.UUID(function_input.workspace_id))
-                .order_by(Agent.name.asc(), Agent.created_at.desc())
+                .where(
+                    Agent.workspace_id
+                    == uuid.UUID(function_input.workspace_id)
+                )
+                .order_by(
+                    Agent.name.asc(), Agent.created_at.desc()
+                )
             )
 
             result = await db.execute(all_agents_query)
@@ -538,15 +565,20 @@ async def agents_update(
 
             # Filter out None values to avoid null constraint violations
             filtered_update_data = {
-                key: value for key, value in update_data.items() 
+                key: value
+                for key, value in update_data.items()
                 if value is not None
             }
 
             # Handle parent_agent_id conversion
             if filtered_update_data.get("parent_agent_id"):
                 try:
-                    filtered_update_data["parent_agent_id"] = uuid.UUID(
-                        filtered_update_data["parent_agent_id"]
+                    filtered_update_data["parent_agent_id"] = (
+                        uuid.UUID(
+                            filtered_update_data[
+                                "parent_agent_id"
+                            ]
+                        )
                     )
                 except ValueError as e:
                     raise NonRetryableError(
@@ -867,12 +899,16 @@ class AgentPublishOutput(BaseModel):
 
 class AgentUpdateStatusInput(BaseModel):
     agent_id: str = Field(..., min_length=1)
-    status: str = Field(..., pattern="^(published|draft|archived)$")
+    status: str = Field(
+        ..., pattern="^(published|draft|archived)$"
+    )
 
 
 class AgentUpdateStatusOutput(BaseModel):
     agent: AgentOutput
-    archived_agent_id: str | None = None  # For publish workflow compatibility
+    archived_agent_id: str | None = (
+        None  # For publish workflow compatibility
+    )
 
 
 @function.defn()
@@ -891,7 +927,9 @@ async def agents_update_status(
                 ) from e
 
             # Get the agent to update
-            agent_query = select(Agent).where(Agent.id == agent_id)
+            agent_query = select(Agent).where(
+                Agent.id == agent_id
+            )
             result = await db.execute(agent_query)
             agent = result.scalar_one_or_none()
 
@@ -910,17 +948,31 @@ async def agents_update_status(
                 # Find any currently published agent in this group
                 published_query = select(Agent).where(
                     and_(
-                        func.coalesce(Agent.parent_agent_id, Agent.id) == root_agent_id,
-                        Agent.status == "published"
+                        func.coalesce(
+                            Agent.parent_agent_id, Agent.id
+                        )
+                        == root_agent_id,
+                        Agent.status == "published",
                     )
                 )
-                published_result = await db.execute(published_query)
-                currently_published = published_result.scalar_one_or_none()
+                published_result = await db.execute(
+                    published_query
+                )
+                currently_published = (
+                    published_result.scalar_one_or_none()
+                )
 
-                if currently_published and currently_published.id != agent.id:
+                if (
+                    currently_published
+                    and currently_published.id != agent.id
+                ):
                     currently_published.status = "archived"
-                    currently_published.updated_at = datetime.now(UTC)
-                    archived_agent_id = str(currently_published.id)
+                    currently_published.updated_at = datetime.now(
+                        UTC
+                    )
+                    archived_agent_id = str(
+                        currently_published.id
+                    )
 
             # Update the target agent status
             agent.status = function_input.status
@@ -933,17 +985,28 @@ async def agents_update_status(
                 agent=AgentOutput(
                     id=str(agent.id),
                     workspace_id=str(agent.workspace_id),
-                    team_id=str(agent.team_id) if agent.team_id else None,
-                    team_name=agent.team.name if agent.team else None,
+                    team_id=str(agent.team_id)
+                    if agent.team_id
+                    else None,
+                    team_name=agent.team.name
+                    if agent.team
+                    else None,
                     name=agent.name,
                     description=agent.description,
                     instructions=agent.instructions,
                     status=agent.status,
-                    parent_agent_id=str(agent.parent_agent_id) if agent.parent_agent_id else None,
+                    parent_agent_id=str(agent.parent_agent_id)
+                    if agent.parent_agent_id
+                    else None,
                     model=agent.model or "gpt-5",
-                    reasoning_effort=agent.reasoning_effort or "medium",
-                    created_at=agent.created_at.isoformat() if agent.created_at else None,
-                    updated_at=agent.updated_at.isoformat() if agent.updated_at else None,
+                    reasoning_effort=agent.reasoning_effort
+                    or "medium",
+                    created_at=agent.created_at.isoformat()
+                    if agent.created_at
+                    else None,
+                    updated_at=agent.updated_at.isoformat()
+                    if agent.updated_at
+                    else None,
                 ),
                 archived_agent_id=archived_agent_id,
             )
@@ -971,8 +1034,7 @@ async def agents_archive(
     """Archive an agent - legacy wrapper for agents_update_status."""
     result = await agents_update_status(
         AgentUpdateStatusInput(
-            agent_id=function_input.agent_id,
-            status="archived"
+            agent_id=function_input.agent_id, status="archived"
         )
     )
     return AgentArchiveOutput(agent=result.agent)
@@ -985,13 +1047,12 @@ async def agents_publish(
     """Publish an agent - legacy wrapper for agents_update_status."""
     result = await agents_update_status(
         AgentUpdateStatusInput(
-            agent_id=function_input.agent_id,
-            status="published"
+            agent_id=function_input.agent_id, status="published"
         )
     )
     return AgentPublishOutput(
         agent=result.agent,
-        archived_agent_id=result.archived_agent_id
+        archived_agent_id=result.archived_agent_id,
     )
 
 

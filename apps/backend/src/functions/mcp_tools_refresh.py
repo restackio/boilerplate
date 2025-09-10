@@ -173,7 +173,9 @@ async def mcp_session_init(
         )
 
 
-def _get_effective_server_url(server_url: str, *, local: bool) -> str:
+def _get_effective_server_url(
+    server_url: str, *, local: bool
+) -> str:
     """Get the effective server URL, using MCP_URL environment variable for local servers."""
     if local:
         return os.getenv("MCP_URL", server_url)
