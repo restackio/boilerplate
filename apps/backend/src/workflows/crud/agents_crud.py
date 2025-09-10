@@ -212,9 +212,7 @@ class AgentsReadTableWorkflow:
             )
 
         except Exception as e:
-            error_message = (
-                f"Error during agents_read_table: {e}"
-            )
+            error_message = f"Error during agents_read_table: {e}"
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e
 
@@ -236,9 +234,7 @@ class AgentsArchiveWorkflow:
             )
 
         except Exception as e:
-            error_message = (
-                f"Error during agents_archive: {e}"
-            )
+            error_message = f"Error during agents_archive: {e}"
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e
 

@@ -37,9 +37,9 @@ else:
 async_engine = create_async_engine(
     ASYNC_DATABASE_URL,
     echo=False,
-    pool_pre_ping=True,          # Validate connections before use
-    pool_recycle=3600,           # Recycle connections after 1 hour
-    pool_timeout=30,             # Timeout for getting connection from pool
+    pool_pre_ping=True,  # Validate connections before use
+    pool_recycle=3600,  # Recycle connections after 1 hour
+    pool_timeout=30,  # Timeout for getting connection from pool
     pool_reset_on_return="commit",  # Reset connections when returned to pool
     pool_size=20,
     max_overflow=10,
@@ -68,7 +68,9 @@ async def init_async_db() -> None:
         logging.info("Database initialized successfully")
     except DisconnectionError as e:
         logging.warning("Database connection failed: %s", e)
-        logging.info("SQLAlchemy will handle reconnection automatically via pool_pre_ping")
+        logging.info(
+            "SQLAlchemy will handle reconnection automatically via pool_pre_ping"
+        )
         raise
     except Exception:
         logging.exception("Database initialization failed")

@@ -4,6 +4,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 from restack_ai.agent import (
     NonRetryableError,
+    RetryPolicy,
     agent,
     import_functions,
     log,
@@ -13,6 +14,7 @@ from restack_ai.agent import (
 
 class ErrorDetails(BaseModel):
     """Error details for error events."""
+
     id: str
     type: str
     error_type: str
@@ -23,6 +25,7 @@ class ErrorDetails(BaseModel):
 
 class ErrorEvent(BaseModel):
     """Error event with proper Pydantic validation."""
+
     type: Literal["error"] = "error"
     error: ErrorDetails
 
@@ -126,10 +129,9 @@ class AgentTask:
         self, messages_event: MessagesEvent
     ) -> list[Message]:
         try:
-            
             await agent.condition(
                 lambda: self.initialized,
-                timeout=timedelta(seconds=60)
+                timeout=timedelta(seconds=60),
             )
 
             # Store messages for OpenAI API call
@@ -192,9 +194,11 @@ class AgentTask:
                                 error_message=error_message,
                                 error_source="backend",
                                 error_details={
-                                    "exception_type": type(e).__name__,
-                                    "original_error": str(e)
-                                }
+                                    "exception_type": type(
+                                        e
+                                    ).__name__,
+                                    "original_error": str(e),
+                                },
                             )
                         )
                         self.events.append(error_event.to_dict())
@@ -219,8 +223,8 @@ class AgentTask:
                     error_source="backend",
                     error_details={
                         "exception_type": type(e).__name__,
-                        "original_error": str(e)
-                    }
+                        "original_error": str(e),
+                    },
                 )
             )
             self.events.append(error_event.to_dict())
@@ -256,7 +260,9 @@ class AgentTask:
         )
 
         await agent.step(
-            function=llm_response_stream, function_input=prepared
+            function=llm_response_stream,
+            function_input=prepared,
+            start_to_close_timeout=timedelta(seconds=120),
         )
 
         return {
@@ -278,14 +284,22 @@ class AgentTask:
                     error=ErrorDetails(
                         id=f"error_{uuid()}",
                         type="openai_error",
-                        error_type=error_info.get("type", "unknown_error"),
-                        error_message=error_info.get("message", "Unknown OpenAI error"),
-                        error_source="openai" if "mcp" not in event_type else "mcp",
+                        error_type=error_info.get(
+                            "type", "unknown_error"
+                        ),
+                        error_message=error_info.get(
+                            "message", "Unknown OpenAI error"
+                        ),
+                        error_source="openai"
+                        if "mcp" not in event_type
+                        else "mcp",
                         error_details={
-                            "original_event": str(event_data),  # Convert to string for safety
+                            "original_event": str(
+                                event_data
+                            ),  # Convert to string for safety
                             "error_code": error_info.get("code"),
-                            "param": error_info.get("param")
-                        }
+                            "param": error_info.get("param"),
+                        },
                     )
                 )
                 self.events.append(error_event.to_dict())
@@ -317,8 +331,10 @@ class AgentTask:
                     error_details={
                         "exception_type": type(e).__name__,
                         "original_error": str(e),
-                        "event_data": str(event_data)  # Convert to string for safety
-                    }
+                        "event_data": str(
+                            event_data
+                        ),  # Convert to string for safety
+                    },
                 )
             )
             self.events.append(error_event.to_dict())
@@ -392,7 +408,7 @@ class AgentTask:
             start_to_close_timeout=timedelta(seconds=30),
         )
         self.tools = tools_result.tools or []
-        
+
         self.initialized = True
 
         log.info("AgentTask agent_id", agent_id=self.agent_id)

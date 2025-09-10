@@ -275,7 +275,9 @@ class PlaygroundCreateDualTasksWorkflow:
             workspace_id = workflow_input["workspace_id"]
             task_description = workflow_input["task_description"]
             draft_agent_id = workflow_input["draft_agent_id"]
-            comparison_agent_id = workflow_input["comparison_agent_id"]
+            comparison_agent_id = workflow_input[
+                "comparison_agent_id"
+            ]
 
             # Create input for both task creation workflows
             draft_task_input = TaskCreateInput(
@@ -295,7 +297,10 @@ class PlaygroundCreateDualTasksWorkflow:
             )
 
             # Execute both TasksCreateWorkflow instances in parallel
-            draft_result, comparison_result = await asyncio.gather(
+            (
+                draft_result,
+                comparison_result,
+            ) = await asyncio.gather(
                 workflow.child_execute(
                     workflow=TasksCreateWorkflow,
                     workflow_input=draft_task_input,
@@ -309,7 +314,9 @@ class PlaygroundCreateDualTasksWorkflow:
             )
 
         except Exception as e:
-            error_message = f"Error during playground dual task creation: {e}"
+            error_message = (
+                f"Error during playground dual task creation: {e}"
+            )
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e
         else:

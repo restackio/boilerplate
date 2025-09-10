@@ -171,7 +171,7 @@ Research technical solutions, search documentation, and provide comprehensive an
 Always prioritize accuracy and provide multiple approaches when possible.$$,
     'published',
     'gpt-5',
-    'high'
+    'low'
 )
 ON CONFLICT (id) DO NOTHING;
 
