@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { Subscription } from 'rxjs';
 import { ConversationItem, OpenAIEvent } from '../types';
 import { ConversationStore, StreamEvent } from '../stores/conversation-store';
@@ -24,7 +24,8 @@ export function useRxjsConversation({
   const [conversation, setConversation] = useState<ConversationItem[]>([]);
 
   // Create a unique conversation store instance for this component
-  const conversationStore = useMemo(() => new ConversationStore(), [storeKey]);
+  // Use useState to ensure the store persists across re-renders
+  const [conversationStore] = useState(() => new ConversationStore());
 
   // Subscribe to the RxJS store
   useEffect(() => {
@@ -219,7 +220,7 @@ export function useRxjsConversation({
     }
     
     conversationStore.updateStateItems(items);
-  }, [responseState, taskAgentTaskId, persistedMessages]);
+  }, [responseState, taskAgentTaskId, persistedMessages, conversationStore]);
 
   // Update stream events from agentResponses
   useEffect(() => {
@@ -238,17 +239,18 @@ export function useRxjsConversation({
         delta: response.delta,
         text: response.text,
         item: response.item,
+        error: response.error,
       }));
 
     conversationStore.updateStreamEvents(streamEvents);
-  }, [agentResponses]);
+  }, [agentResponses, conversationStore]);
 
   // Clear streaming state when task changes
   useEffect(() => {
     if (taskAgentTaskId) {
       conversationStore.clearStreamingState();
     }
-  }, [taskAgentTaskId]);
+  }, [taskAgentTaskId, conversationStore]);
 
   const updateConversationItemStatus = (itemId: string, status: string) => {
     const updatedItems = conversation.map(item => 
