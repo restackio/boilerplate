@@ -85,6 +85,7 @@ class AgentTaskInput(BaseModel):
 class AgentTask:
     def __init__(self) -> None:
         self.end = False
+        self.initialized = False
         self.agent_id = "None"
         self.task_id = None
         self.messages = []
@@ -117,6 +118,7 @@ class AgentTask:
             "task_id": self.task_id,
             "agent_task_id": self.agent_id,
             "last_response_id": self.last_response_id,
+            "initialized": self.initialized,
         }
 
     @agent.event
@@ -124,6 +126,12 @@ class AgentTask:
         self, messages_event: MessagesEvent
     ) -> list[Message]:
         try:
+            
+            await agent.condition(
+                lambda: self.initialized,
+                timeout=timedelta(seconds=60)
+            )
+
             # Store messages for OpenAI API call
             self.messages.extend(messages_event.messages)
 
@@ -384,6 +392,8 @@ class AgentTask:
             start_to_close_timeout=timedelta(seconds=30),
         )
         self.tools = tools_result.tools or []
+        
+        self.initialized = True
 
         log.info("AgentTask agent_id", agent_id=self.agent_id)
         await agent.condition(lambda: self.end)
