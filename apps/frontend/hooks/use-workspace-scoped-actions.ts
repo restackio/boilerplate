@@ -420,9 +420,11 @@ export function useWorkspaceScopedActions() {
     setAgentsLoading({ isLoading: true, error: null });
     let result;
     try {
-      result = await executeWorkflow<{ agent: Agent; archived_agent_id?: string }>("AgentsPublishWorkflow", {
+      // Update the agent status to 'published' directly
+      result = await executeWorkflow<Agent>("AgentsUpdateWorkflow", {
         agent_id: agentId,
-        workspace_id: currentWorkspaceId
+        workspace_id: currentWorkspaceId,
+        status: "published"
       });
       
       if (result.success) {
