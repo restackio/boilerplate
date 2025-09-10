@@ -18,6 +18,7 @@ from src.workflows.tools.pagerduty_incident import (
     PagerDutyIncident,
 )
 from src.workflows.tools.zendesk_ticket import ZendeskTicket
+from src.workflows.tools.failing_mcp_test import FailingMcpTest
 
 
 async def run_restack_service() -> None:
@@ -32,6 +33,7 @@ async def run_restack_service() -> None:
             KnowledgeBase,
             PagerDutyIncident,
             HelloWorld,
+            FailingMcpTest,
         ],
         functions=[
             llm_response,
