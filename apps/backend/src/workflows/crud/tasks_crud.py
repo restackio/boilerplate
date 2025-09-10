@@ -17,6 +17,7 @@ with import_functions():
         AgentResolveInput,
         agents_resolve_by_name,
     )
+    from src.functions.llm_response_stream import Message
     from src.functions.send_agent_event import (
         SendAgentEventInput,
         send_agent_event,
@@ -134,10 +135,10 @@ class TasksCreateWorkflow:
                     agent_id=agent_task.id,
                     event_input={
                         "messages": [
-                            {
-                                "role": "user",
-                                "content": result.task.description,
-                            }
+                            Message(
+                                role="user",
+                                content=result.task.description,
+                            ).model_dump()
                         ]
                     },
                 ),
@@ -162,50 +163,75 @@ class TasksUpdateWorkflow:
         try:
             # First get the current task to check its status and agent_task_id
             current_task = None
-            if hasattr(workflow_input, 'status') and workflow_input.status in ["completed", "closed"]:
+            if hasattr(
+                workflow_input, "status"
+            ) and workflow_input.status in [
+                "completed",
+                "closed",
+            ]:
                 try:
                     current_task_result = await workflow.step(
                         function=tasks_get_by_id,
-                        function_input=TaskGetByIdInput(task_id=workflow_input.task_id),
-                        start_to_close_timeout=timedelta(seconds=30),
+                        function_input=TaskGetByIdInput(
+                            task_id=workflow_input.task_id
+                        ),
+                        start_to_close_timeout=timedelta(
+                            seconds=30
+                        ),
                     )
-                    current_task = current_task_result.task if current_task_result else None
-                except Exception as e:
-                    log.warning(f"Failed to get current task for agent stopping: {e}")
+                    current_task = (
+                        current_task_result.task
+                        if current_task_result
+                        else None
+                    )
+                except (ValueError, RuntimeError, OSError) as e:
+                    log.warning(
+                        f"Failed to get current task for agent stopping: {e}"
+                    )
 
             # If task is being completed/closed and has an active agent, stop the agent FIRST
-            if (current_task and 
-                current_task.agent_task_id and 
-                hasattr(workflow_input, 'status') and 
-                workflow_input.status in ["completed", "closed"]):
-                
+            if (
+                current_task
+                and current_task.agent_task_id
+                and hasattr(workflow_input, "status")
+                and workflow_input.status
+                in ["completed", "closed"]
+            ):
                 try:
-                    log.info(f"Stopping agent {current_task.agent_task_id} before task {workflow_input.status}")
+                    log.info(
+                        f"Stopping agent {current_task.agent_task_id} before task {workflow_input.status}"
+                    )
                     await workflow.step(
                         function=send_agent_event,
                         function_input=SendAgentEventInput(
                             event_name="end",
                             agent_id=current_task.agent_task_id,
                         ),
-                        start_to_close_timeout=timedelta(seconds=30),
+                        start_to_close_timeout=timedelta(
+                            seconds=30
+                        ),
                     )
-                    log.info(f"Successfully sent end event to agent {current_task.agent_task_id}")
-                except Exception as e:
+                    log.info(
+                        f"Successfully sent end event to agent {current_task.agent_task_id}"
+                    )
+                except (ValueError, RuntimeError, OSError) as e:
                     # Don't fail the task update if agent stopping fails, just log it
                     # This can happen if the agent workflow doesn't exist or has already completed
                     if "workflow not found" in str(e).lower():
-                        log.info(f"Agent workflow {current_task.agent_task_id} not found - likely already completed or stopped")
+                        log.info(
+                            f"Agent workflow {current_task.agent_task_id} not found - likely already completed or stopped"
+                        )
                     else:
-                        log.warning(f"Failed to stop agent {current_task.agent_task_id}: {e}")
+                        log.warning(
+                            f"Failed to stop agent {current_task.agent_task_id}: {e}"
+                        )
 
             # Then update the task in the database
-            result = await workflow.step(
+            return await workflow.step(
                 function=tasks_update,
                 function_input=workflow_input,
                 start_to_close_timeout=timedelta(seconds=30),
             )
-
-            return result
 
         except Exception as e:
             error_message = f"Error during tasks_update: {e}"

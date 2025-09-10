@@ -153,4 +153,4 @@ class FailingMcpTest:
             log.error(error_message)
             
             # Re-raise as NonRetryableError to simulate MCP tool failure
-            raise NonRetryableError(message=error_message) from e
+            raise NonRetryableError(error_message) from e

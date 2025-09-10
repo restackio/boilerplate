@@ -11,13 +11,32 @@ interface TaskCardToolProps {
 }
 
 export function TaskCardTool({ item, onClick }: TaskCardToolProps) {
-  const { toolOutput } = useConversationItem(item);
+  const { toolOutput, isFailed, toolArguments } = useConversationItem(item);
   const tools = item.openai_output?.tools;
+  const hasError = item.openai_output?.error;
   
   // Extract output content
   let outputContent = "";
   if (toolOutput) {
-    outputContent = typeof toolOutput === 'string' ? toolOutput : JSON.stringify(toolOutput, null, 2);
+    if (hasError) {
+      // Format error output more nicely
+      const error = toolOutput as any;
+      if (error.content && Array.isArray(error.content)) {
+        // Handle structured error content (like workflow errors)
+        outputContent = error.content.map((c: any) => c.text || c).join('\n');
+      } else if (error.message) {
+        // Handle simple error messages
+        outputContent = `Error (${error.type || 'unknown'}): ${error.message}`;
+        if (error.code) {
+          outputContent = `Error ${error.code}: ${error.message}`;
+        }
+      } else {
+        // Fallback to JSON representation
+        outputContent = typeof error === 'string' ? error : JSON.stringify(error, null, 2);
+      }
+    } else {
+      outputContent = typeof toolOutput === 'string' ? toolOutput : JSON.stringify(toolOutput, null, 2);
+    }
   }
   
   return (
@@ -26,9 +45,17 @@ export function TaskCardTool({ item, onClick }: TaskCardToolProps) {
       onClick={onClick}
       showChevron={true}
     >
+      {toolArguments && (
+        <ContentSection label="Arguments">
+          <CodeBlock content={typeof toolArguments === 'string' ? toolArguments : JSON.stringify(toolArguments, null, 2)} />
+        </ContentSection>
+      )}
       {outputContent && (
-        <ContentSection label="Output">
-          <CodeBlock content={outputContent} />
+        <ContentSection label={isFailed ? "Error Details" : "Output"}>
+          <CodeBlock 
+            content={outputContent} 
+            isError={isFailed}
+          />
         </ContentSection>
       )}
       {tools && Array.isArray(tools) && (

@@ -24,15 +24,29 @@ interface CodeBlockProps {
   content: string | object;
   maxHeight?: string;
   language?: "json" | "text";
+  className?: string;
+  isError?: boolean;
 }
 
-export function CodeBlock({ content, maxHeight = "max-h-40" }: CodeBlockProps) {
+export function CodeBlock({ 
+  content, 
+  maxHeight = "max-h-40", 
+  className = "",
+  isError = false 
+}: CodeBlockProps) {
   const displayContent = typeof content === 'string' 
     ? content 
     : JSON.stringify(content, null, 2);
 
+  const baseClasses = "text-xs p-2 rounded border overflow-x-auto";
+  const defaultClasses = isError 
+    ? "bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800 text-red-900 dark:text-red-100"
+    : "bg-neutral-100 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700";
+  
+  const finalClassName = `${baseClasses} ${defaultClasses} ${maxHeight} ${className}`.trim();
+
   return (
-    <pre className={`text-xs bg-neutral-100 dark:bg-neutral-800 p-2 rounded border overflow-x-auto ${maxHeight}`}>
+    <pre className={finalClassName}>
       {displayContent}
     </pre>
   );
