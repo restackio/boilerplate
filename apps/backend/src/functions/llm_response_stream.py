@@ -1,5 +1,6 @@
 import asyncio
 import os
+import uuid as python_uuid
 from collections.abc import AsyncIterator
 from typing import Any, Literal
 
@@ -14,7 +15,6 @@ from restack_ai.function import (
     log,
     stream_to_websocket,
 )
-from restack_ai.workflow import uuid
 
 from src.client import api_address
 
@@ -58,10 +58,10 @@ def validate_json_serializable(data: Any) -> dict[str, Any]:
         return json.loads(json_str)
     except (TypeError, ValueError) as e:
         log.error(f"Data not JSON serializable: {e}, data: {data}")
-        # Return a safe fallback using our error model
+        # Return a safe fallback using our error modelw
         fallback_error = ErrorEvent(
             error=ErrorDetails(
-                id=f"error_{uuid()}",
+                id=f"error_{python_uuid.uuid4()}",
                 type="serialization_error",
                 error_type="json_serialization_failed",
                 error_message=f"Failed to serialize data: {e!s}",
@@ -205,7 +205,7 @@ async def send_non_delta_events_to_agent(
                     # Send error event to agent for failed event transmission
                     error_event = ErrorEvent(
                         error=ErrorDetails(
-                            id=f"error_{uuid()}",
+                            id=f"error_{python_uuid.uuid4()}",
                             type="network_error",
                             error_type="event_transmission_failed",
                             error_message=f"Failed to send event to agent: {e}",
@@ -233,7 +233,7 @@ async def send_non_delta_events_to_agent(
         # Try to send a critical error event
         critical_error_event = ErrorEvent(
             error=ErrorDetails(
-                id=f"error_{uuid()}",
+                id=f"error_{python_uuid.uuid4()}",
                 type="stream_error",
                 error_type="critical_stream_processing_error",
                 error_message=f"Critical error in stream processing: {e}",
@@ -254,7 +254,8 @@ async def send_non_delta_events_to_agent(
             )
         except (OSError, ValueError, RuntimeError):
             log.error(f"Critical: Failed to send critical error event: {critical_error_event}")
-            raise
+            
+        raise NonRetryableError(f"Critical error in stream processing: {e}") from e
 
 
 @function.defn()
@@ -294,7 +295,7 @@ async def llm_response_stream(
             agent_id = function_info().workflow_id
             openai_error_event = ErrorEvent(
                 error=ErrorDetails(
-                    id=f"error_{uuid()}",
+                    id=f"error_{python_uuid.uuid4()}",
                     type="openai_api_error",
                     error_type="api_request_failed",
                     error_message=error_msg,
@@ -349,7 +350,7 @@ async def llm_response_stream(
             agent_id = function_info().workflow_id
             stream_error_event = ErrorEvent(
                 error=ErrorDetails(
-                    id=f"error_{uuid()}",
+                    id=f"error_{python_uuid.uuid4()}",
                     type="stream_processing_error",
                     error_type="stream_processing_failed",
                     error_message=f"Stream processing failed: {e}",
@@ -371,6 +372,8 @@ async def llm_response_stream(
                 )
             except (OSError, ValueError, RuntimeError) as send_error:
                 log.error(f"Failed to send stream error event to agent: {send_error}")
+                
+            raise NonRetryableError(f"Stream processing failed: {e}") from e
 
         # Return minimal response - agent handles all metadata extraction
         response_data = {
