@@ -13,15 +13,15 @@ import {
   History,
 } from "lucide-react";
 import { Agent } from "@/hooks/use-workspace-scoped-actions";
-import { AgentSetupTab, AgentVersionsTab, WebhookTab } from "./";
+import { AgentSetupTab, AgentVersionsTab, WebhookTab, AgentConfigData } from "./";
 import AgentFlow from "@workspace/ui/components/agent-flow";
 
 interface AgentTabNavigationProps {
   agent: Agent;
   activeTab: string;
   onTabChange: (tab: string) => void;
-  onSave: (agentData: { name: string; description: string; instructions: string; model?: string; reasoning_effort?: string }) => void;
-  onChange: (draft: { name: string; description: string; instructions: string; model?: string; reasoning_effort?: string }) => void;
+  onSave: (agentData: AgentConfigData) => Promise<void>;
+  onChange: (draft: AgentConfigData) => void;
   isSaving: boolean;
   workspaceId: string;
   agentId: string;

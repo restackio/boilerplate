@@ -49,7 +49,7 @@ export function CreateTaskForm({
 
   // Fetch agents on component mount
   useEffect(() => {
-    fetchAgents({ activeOnly: true });
+    fetchAgents({ publishedOnly: true });
   }, [fetchAgents]);
 
   // Fetch all versions when an agent is selected
@@ -148,8 +148,8 @@ export function CreateTaskForm({
           ...baseTaskData,
           agent_id: agentId,
           // Add version info to title if multiple versions are selected
-          title: agentIdsToUse.length > 1 
-            ? `${baseTaskData.title} (${agent?.name || 'Unknown'} ${agent?.version || 'v1.0'})`
+          title: agentIdsToUse.length > 1
+            ? `${baseTaskData.title} (${agent?.name || 'Unknown'})`
             : baseTaskData.title,
         };
         
@@ -349,10 +349,10 @@ export function CreateTaskForm({
                         htmlFor={`dropdown-${version.id}`} 
                         className="text-sm flex-1 cursor-pointer flex items-center justify-between"
                       >
-                        <span>{version.name} - {version.version}</span>
+                        <span>{version.name}</span>
                         <span className={`text-xs px-2 py-1 rounded ${
-                          version.status === 'active' 
-                            ? 'bg-green-100 text-green-800' 
+                          version.status === 'published'
+                            ? 'bg-green-100 text-green-800'
                             : 'bg-neutral-100 text-neutral-600'
                         }`}>
                           {version.status}

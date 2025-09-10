@@ -1,3 +1,4 @@
+export type { AgentConfigData } from '@/components/shared/AgentConfigurationForm';
 export { AgentSetupTab } from './AgentSetupTab';
 export { AgentVersionsTab } from './AgentVersionsTab';
 export { DeleteAgentModal, ArchiveAgentModal } from './DeleteAgentModal';

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 import { useWorkspaceScopedActions, Agent } from "@/hooks/use-workspace-scoped-actions";
 import { getAgentTools, createAgentTool } from "@/app/actions/workflow";
+import { AgentConfigData } from "@/components/shared/AgentConfigurationForm";
 
 export function useAgentPage(agentId: string) {
   const router = useRouter();
@@ -30,13 +31,7 @@ export function useAgentPage(agentId: string) {
   const [isArchiving, setIsArchiving] = useState(false);
 
   // Track draft edits from AgentSetupTab
-  const [draft, setDraft] = useState<{ 
-    name: string; 
-    description: string; 
-    instructions: string; 
-    model?: string; 
-    reasoning_effort?: string 
-  } | null>(null);
+  const [draft, setDraft] = useState<AgentConfigData | null>(null);
 
   // Tab navigation state
   const [activeTab, setActiveTab] = useState("setup");
@@ -67,23 +62,11 @@ export function useAgentPage(agentId: string) {
   }, [fetchAgent]);
 
   // Memoize the onChange callback to prevent infinite re-renders
-  const handleDraftChange = useCallback((d: { 
-    name: string; 
-    description: string; 
-    instructions: string; 
-    model?: string; 
-    reasoning_effort?: string 
-  }) => {
+  const handleDraftChange = useCallback((d: AgentConfigData) => {
     setDraft(d);
   }, []);
 
-  const handleSave = useCallback(async (agentData?: { 
-    name: string; 
-    description: string; 
-    instructions: string; 
-    model?: string; 
-    reasoning_effort?: string 
-  }) => {
+  const handleSave = useCallback(async (agentData?: AgentConfigData) => {
     if (!agent) return;
 
     const dataToSave = agentData || {
