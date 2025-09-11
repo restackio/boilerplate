@@ -1,32 +1,39 @@
 """MCP OAuth client operations for handling OAuth flows."""
 
 import secrets
-import httpx
-from urllib.parse import parse_qs, urlparse, urlencode
+from urllib.parse import parse_qs, urlencode, urlparse
 
-from pydantic import BaseModel, Field, AnyUrl
-from restack_ai.function import NonRetryableError, function, log
-from mcp.client.auth import PKCEParameters, OAuthRegistrationError, OAuthTokenError
-from mcp.shared.auth import OAuthClientMetadata, OAuthClientInformationFull, OAuthToken, OAuthMetadata
+import httpx
+from mcp.client.auth import (
+    OAuthRegistrationError,
+    OAuthTokenError,
+    PKCEParameters,
+)
+from mcp.shared.auth import (
+    OAuthClientInformationFull,
+    OAuthClientMetadata,
+    OAuthMetadata,
+    OAuthToken,
+)
 from mcp.shared.auth_utils import resource_url_from_server_url
+from pydantic import AnyUrl, BaseModel, Field
+from restack_ai.function import NonRetryableError, function, log
+
 from .mcp_oauth_crud import GetOAuthTokenInput
+
 
 # Custom exceptions for better error handling
 class OAuthValidationError(NonRetryableError):
     """Raised when OAuth input validation fails."""
-    pass
 
 class OAuthDiscoveryError(NonRetryableError):
     """Raised when OAuth discovery fails."""
-    pass
 
 class OAuthClientRegistrationError(NonRetryableError):
     """Raised when OAuth client registration fails."""
-    pass
 
 class OAuthStateValidationError(NonRetryableError):
     """Raised when OAuth state validation fails."""
-    pass
 
 # Pydantic models for OAuth flow operations
 class ParseCallbackInput(BaseModel):
@@ -98,8 +105,8 @@ class TokenExchangeResultOutput(BaseModel):
 def sanitize_log_data(data: dict) -> dict:
     """Sanitize sensitive data for logging."""
     sanitized = data.copy()
-    sensitive_keys = ['access_token', 'refresh_token', 'client_secret', 'code', 'code_verifier']
-    
+    sensitive_keys = ["access_token", "refresh_token", "client_secret", "code", "code_verifier"]
+
     for key in sensitive_keys:
         if key in sanitized:
             value = sanitized[key]
@@ -107,7 +114,7 @@ def sanitize_log_data(data: dict) -> dict:
                 sanitized[key] = f"{str(value)[:4]}...{str(value)[-4:]}"
             else:
                 sanitized[key] = "***"
-    
+
     return sanitized
 
 def validate_oauth_callback_params(params: dict, expected_state: str | None = None) -> tuple[str, str | None]:
@@ -115,27 +122,27 @@ def validate_oauth_callback_params(params: dict, expected_state: str | None = No
     if "error" in params:
         error_desc = params.get("error_description", [""])[0]
         raise NonRetryableError(f"OAuth error: {params['error'][0]} - {error_desc}")
-    
+
     if "code" not in params:
         raise NonRetryableError("No authorization code found in callback URL")
-    
+
     code = params["code"][0]
     state = params.get("state", [None])[0]
-    
+
     # Basic state validation - in production, you'd want to store and validate against expected states
     if expected_state and state != expected_state:
         raise OAuthStateValidationError("OAuth state parameter mismatch - possible CSRF attack")
-    
+
     # Basic validation of code format
     if not code or len(code) < 10:  # OAuth codes are typically much longer
         raise NonRetryableError("Invalid authorization code format")
-    
+
     return code, state
 
 def create_client_metadata(user_id: str, workspace_id: str, server_label: str, redirect_uri: str) -> OAuthClientMetadata:
     """Create deterministic OAuth client metadata."""
     deterministic_client_name = f"MCP-Client-{user_id}-{workspace_id}-{server_label}"
-    
+
     return OAuthClientMetadata(
         client_name=deterministic_client_name,
         redirect_uris=[AnyUrl(redirect_uri)],
@@ -146,13 +153,13 @@ def create_client_metadata(user_id: str, workspace_id: str, server_label: str, r
 
 def get_discovery_urls(server_url: str) -> list[str]:
     """Generate OAuth discovery URLs using MCP SDK logic."""
-    from urllib.parse import urlparse, urljoin
-    
+    from urllib.parse import urljoin, urlparse
+
     parsed = urlparse(server_url)
     base_url = f"{parsed.scheme}://{parsed.netloc}"
 
     urls: list[str] = []
-    
+
     # RFC 8414: Path-aware OAuth discovery
     if parsed.path and parsed.path != "/":
         oauth_path = f"/.well-known/oauth-authorization-server{parsed.path.rstrip('/')}"
@@ -177,13 +184,13 @@ async def discover_oauth_metadata(server_url: str) -> OAuthMetadata:
     """Discover OAuth metadata using MCP SDK's discovery logic with proper fallbacks."""
     discovery_urls = get_discovery_urls(server_url)
     last_error = None
-    
+
     async with httpx.AsyncClient(timeout=30.0) as client:
         for url in discovery_urls:
             try:
                 log.info(f"Attempting OAuth discovery at: {url}")
                 response = await client.get(url)
-                
+
                 if response.status_code == 200:
                     try:
                         metadata = OAuthMetadata.model_validate_json(response.content)
@@ -193,7 +200,7 @@ async def discover_oauth_metadata(server_url: str) -> OAuthMetadata:
                         log.warning(f"Invalid OAuth metadata at {url}: {e}")
                         last_error = e
                         continue
-                        
+
                 elif response.status_code >= 500:
                     # Server error, stop trying other URLs
                     log.error(f"Server error {response.status_code} at {url}")
@@ -202,7 +209,7 @@ async def discover_oauth_metadata(server_url: str) -> OAuthMetadata:
                 else:
                     log.warning(f"OAuth discovery failed at {url}: {response.status_code}")
                     last_error = Exception(f"HTTP {response.status_code}")
-                    
+
             except httpx.TimeoutException as e:
                 log.warning(f"Timeout discovering OAuth metadata at {url}")
                 last_error = e
@@ -211,7 +218,7 @@ async def discover_oauth_metadata(server_url: str) -> OAuthMetadata:
                 log.warning(f"Error discovering OAuth metadata at {url}: {e}")
                 last_error = e
                 continue
-    
+
     error_msg = f"OAuth discovery failed for all endpoints {discovery_urls}"
     if last_error:
         error_msg += f". Last error: {last_error}"
@@ -236,20 +243,20 @@ async def oauth_generate_auth_url(
         # Create deterministic client metadata
         client_metadata = create_client_metadata(
             function_input.user_id,
-            function_input.workspace_id, 
+            function_input.workspace_id,
             function_input.server_label,
             function_input.redirect_uri
         )
 
         # Step 1: Discover OAuth metadata using MCP SDK logic
         oauth_metadata = await discover_oauth_metadata(function_input.server_url)
-        
+
         # Get base URL for client registration
         parsed_url = urlparse(function_input.server_url)
         base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
 
         async with httpx.AsyncClient() as client:
-            
+
             # Step 2: Register client
             registration_url = f"{base_url}/register"
             registration_data = client_metadata.model_dump(by_alias=True, mode="json", exclude_none=True)
@@ -264,7 +271,7 @@ async def oauth_generate_auth_url(
             # Step 3: Build authorization URL with our PKCE parameters
             auth_endpoint = str(oauth_metadata.authorization_endpoint)
             state = secrets.token_urlsafe(32)
-            
+
             auth_params = {
                 "response_type": "code",
                 "client_id": client_info.client_id,
@@ -337,7 +344,7 @@ async def oauth_exchange_code_for_token(
 ) -> TokenExchangeResultOutput:
     """Exchange OAuth authorization code for access token using MCP SDK."""
     try:
-        
+
         if not function_input.server_url:
             raise NonRetryableError(
                 message=f"MCP server {function_input.server_label} does not have a server URL configured"
@@ -346,7 +353,7 @@ async def oauth_exchange_code_for_token(
         # Create OAuth client metadata (same as during auth URL generation)
         # Use deterministic client_name to ensure consistent registration
         deterministic_client_name = f"MCP-Client-{function_input.user_id}-{function_input.workspace_id}-{function_input.server_label}"
-        
+
         client_metadata = OAuthClientMetadata(
             client_name=deterministic_client_name,
             redirect_uris=[AnyUrl(function_input.redirect_uri)],
@@ -360,7 +367,7 @@ async def oauth_exchange_code_for_token(
             # Step 1: Discover OAuth metadata using MCP SDK logic
             oauth_metadata = await discover_oauth_metadata(function_input.server_url)
             token_endpoint = str(oauth_metadata.token_endpoint)
-            
+
             # Get base URL for fallback client registration
             parsed_url = urlparse(function_input.server_url)
             base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
@@ -375,7 +382,7 @@ async def oauth_exchange_code_for_token(
                     else:
                         client_secret = function_input.client_secret
                         code_verifier = None
-                    
+
                     # Use the client credentials from the authorization phase
                     token_data = {
                         "grant_type": "authorization_code",
@@ -386,12 +393,12 @@ async def oauth_exchange_code_for_token(
                         # RFC 8707: Include resource parameter for token scoping
                         "resource": resource_url_from_server_url(function_input.server_url)
                     }
-                    
+
                     # Add PKCE code_verifier if available
                     if code_verifier:
                         token_data["code_verifier"] = code_verifier
-                        log.info(f"Using PKCE code_verifier for token exchange")
-                    
+                        log.info("Using PKCE code_verifier for token exchange")
+
                     log.info(f"Using client credentials from authorization phase: {function_input.client_id}")
                 else:
                     # Fallback: register a new client (this was causing the mismatch)
@@ -425,7 +432,8 @@ async def oauth_exchange_code_for_token(
 
                 if token_response.status_code != 200:
                     await token_response.aread()  # MCP pattern: read before accessing text
-                    raise OAuthTokenError(f"Token exchange failed: {token_response.status_code} - {token_response.text}")
+                    error_message = f"Token exchange failed: {token_response.status_code} - {token_response.text}"
+                    raise OAuthTokenError(error_message)
 
                 tokens = OAuthToken.model_validate_json(token_response.content)
 
@@ -445,7 +453,7 @@ async def oauth_exchange_code_for_token(
         except Exception as e:
             raise NonRetryableError(
                 message=f"OAuth token exchange failed: {e!s}"
-            )
+            ) from e
 
     except Exception as e:
         raise NonRetryableError(
@@ -455,7 +463,7 @@ async def oauth_exchange_code_for_token(
 
 @function.defn()
 async def oauth_refresh_token(
-    function_input: GetOAuthTokenInput,
+    _function_input: GetOAuthTokenInput,
 ) -> TokenExchangeResultOutput:
     """Refresh OAuth access token using refresh token."""
     try:
@@ -467,9 +475,12 @@ async def oauth_refresh_token(
         # 4. Return the new tokens
 
         # For now, return a placeholder indicating this needs to be implemented
-        raise NonRetryableError(
-            message="OAuth token refresh not yet implemented. Please configure MCP server OAuth endpoints."
-        )
+        def _raise_not_implemented() -> None:
+            raise NonRetryableError(
+                message="OAuth token refresh not yet implemented. Please configure MCP server OAuth endpoints."
+            )
+
+        _raise_not_implemented()
 
     except Exception as e:
         raise NonRetryableError(

@@ -2,10 +2,14 @@ import uuid
 
 from pydantic import BaseModel, Field
 from restack_ai.function import NonRetryableError, function
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 
 from src.database.connection import get_async_db
-from src.database.models import AgentTool, McpServer
+from src.database.models import (
+    AgentTool,
+    McpServer,
+    UserOAuthConnection,
+)
 
 
 # Pydantic models for approval structure

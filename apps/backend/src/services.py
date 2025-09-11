@@ -131,8 +131,11 @@ from src.workflows.crud.auth_crud import (
     UserSignupWorkflow,
 )
 from src.workflows.crud.mcp_oauth_sdk import (
+    BearerTokenCreateWorkflow,
     McpOAuthCallbackWorkflow,
     McpOAuthInitializeWorkflow,
+    OAuthTokenDeleteWorkflow,
+    OAuthTokensGetByWorkspaceWorkflow,
 )
 from src.workflows.crud.mcp_servers_crud import (
     McpServersCreateWorkflow,
@@ -253,6 +256,9 @@ async def run_restack_service() -> None:
             # MCP OAuth SDK workflows (official implementation)
             McpOAuthInitializeWorkflow,
             McpOAuthCallbackWorkflow,
+            OAuthTokensGetByWorkspaceWorkflow,
+            BearerTokenCreateWorkflow,
+            OAuthTokenDeleteWorkflow,
         ],
         functions=[
             send_agent_event,

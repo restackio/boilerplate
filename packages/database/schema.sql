@@ -118,7 +118,8 @@ CREATE TABLE IF NOT EXISTS user_oauth_connections (
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     mcp_server_id UUID NOT NULL REFERENCES mcp_servers(id) ON DELETE CASCADE,
-    -- OAuth token data (encrypted in application)
+    -- Authentication type and token data (encrypted in application)
+    auth_type VARCHAR(20) NOT NULL DEFAULT 'oauth' CHECK (auth_type IN ('oauth', 'bearer')),
     access_token VARCHAR(2000) NOT NULL,
     refresh_token VARCHAR(2000),
     token_type VARCHAR(50) NOT NULL DEFAULT 'Bearer',

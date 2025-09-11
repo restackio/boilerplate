@@ -18,12 +18,19 @@ with import_functions():
         oauth_parse_callback,
     )
     from src.functions.mcp_oauth_crud import (
+        DeleteTokenOutput,
         GetMcpServerInput,
         GetOAuthTokenInput,
+        GetTokensByWorkspaceInput,
+        OAuthTokensListOutput,
+        SaveBearerTokenInput,
         SaveOAuthTokenInput,
+        SaveOAuthTokenOutput,
+        bearer_token_create_or_update,
         mcp_server_get_by_id,
         oauth_token_create_or_update,
-        oauth_token_get_by_user_and_server,
+        oauth_token_delete,
+        oauth_tokens_get_by_workspace,
     )
 
 
@@ -44,6 +51,8 @@ class McpOAuthCallbackWorkflowInput(BaseModel):
     callback_url: str = Field(..., description="OAuth callback URL")
     client_id: str | None = Field(None, description="OAuth client ID from authorization phase")
     client_secret: str | None = Field(None, description="OAuth client secret from authorization phase")
+
+
 
 
 @workflow.defn()
@@ -108,13 +117,13 @@ class McpOAuthInitializeWorkflow:
                 }
 
             log.info("OAuth authorization URL generated successfully")
-            
+
             # Extract client_id from the authorization URL for use in callback
-            from urllib.parse import urlparse, parse_qs
+            from urllib.parse import parse_qs, urlparse
             parsed_url = urlparse(auth_url_result.auth_url.authorization_url)
             query_params = parse_qs(parsed_url.query)
             client_id = query_params.get("client_id", [None])[0]
-            
+
             return {
                 "success": True,
                 "authorization_url": auth_url_result.auth_url.authorization_url,
@@ -228,7 +237,7 @@ class McpOAuthCallbackWorkflow:
                     refresh_token=token_data.refresh_token,
                     token_type=token_data.token_type or "Bearer",
                     expires_in=token_data.expires_in,
-                    scope=token_data.scope
+                    scope=token_data.scope.split() if token_data.scope else None
                 ),
                 start_to_close_timeout=timedelta(seconds=30),
             )
@@ -250,5 +259,80 @@ class McpOAuthCallbackWorkflow:
 
         except Exception as e:
             error_message = f"Error during MCP OAuth callback workflow: {e}"
+            log.error(error_message)
+            raise NonRetryableError(message=error_message) from e
+
+
+@workflow.defn()
+class OAuthTokensGetByWorkspaceWorkflow:
+    """Workflow to get OAuth tokens by workspace."""
+
+    @workflow.run
+    async def run(self, input_data: GetTokensByWorkspaceInput) -> OAuthTokensListOutput:
+        """Get OAuth tokens for a workspace."""
+        try:
+            log.info(f"Getting OAuth tokens for workspace: {input_data.workspace_id}")
+            
+            result = await workflow.execute_activity(
+                oauth_tokens_get_by_workspace,
+                input_data,
+                start_to_close_timeout=timedelta(seconds=30),
+            )
+            
+            log.info(f"Successfully retrieved {len(result.tokens)} tokens")
+            return result
+            
+        except Exception as e:
+            error_message = f"Error getting OAuth tokens by workspace: {e}"
+            log.error(error_message)
+            raise NonRetryableError(message=error_message) from e
+
+
+@workflow.defn()
+class BearerTokenCreateWorkflow:
+    """Workflow to create a Bearer token."""
+
+    @workflow.run
+    async def run(self, input_data: SaveBearerTokenInput) -> SaveOAuthTokenOutput:
+        """Create a Bearer token."""
+        try:
+            log.info(f"Creating Bearer token for server: {input_data.mcp_server_id}")
+            
+            result = await workflow.execute_activity(
+                bearer_token_create_or_update,
+                input_data,
+                start_to_close_timeout=timedelta(seconds=30),
+            )
+            
+            log.info(f"Successfully created Bearer token with ID: {result.token.id}")
+            return result
+            
+        except Exception as e:
+            error_message = f"Error creating Bearer token: {e}"
+            log.error(error_message)
+            raise NonRetryableError(message=error_message) from e
+
+
+@workflow.defn()
+class OAuthTokenDeleteWorkflow:
+    """Workflow to delete an OAuth token."""
+
+    @workflow.run
+    async def run(self, input_data: GetOAuthTokenInput) -> DeleteTokenOutput:
+        """Delete an OAuth token."""
+        try:
+            log.info(f"Deleting OAuth token for user: {input_data.user_id}, server: {input_data.mcp_server_id}")
+            
+            result = await workflow.execute_activity(
+                oauth_token_delete,
+                input_data,
+                start_to_close_timeout=timedelta(seconds=30),
+            )
+            
+            log.info(f"Successfully deleted OAuth token for user: {input_data.user_id}, server: {input_data.mcp_server_id}")
+            return result
+            
+        except Exception as e:
+            error_message = f"Error deleting OAuth token: {e}"
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e

@@ -440,7 +440,8 @@ class UserOAuthConnection(Base):
         ForeignKey("mcp_servers.id", ondelete="CASCADE"),
         nullable=False,
     )
-    # Simple OAuth token storage
+    # Token storage - supports both OAuth and Bearer tokens
+    auth_type = Column(String(20), nullable=False, default="oauth")  # "oauth" or "bearer"
     access_token = Column(String(2000), nullable=False)
     refresh_token = Column(String(2000))
     token_type = Column(String(50), nullable=False, default="Bearer")

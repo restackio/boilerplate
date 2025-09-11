@@ -147,17 +147,17 @@ export function IntegrationsTable({
   // Show empty state if no data
   if (data.length === 0) {
     return (
-      <EmptyState
-        icon={<Plug className="h-12 w-12" />}
-        title="No integrations configured"
-        description="OAuth integrations allow agents to access external services on behalf of users. Configure integrations to enable seamless authentication flows."
-        action={
-          <Button>
-            <Plug className="h-4 w-4 mr-2" />
-            Add Integration
-          </Button>
-        }
-      />
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <Plug className="h-12 w-12 text-muted-foreground mb-4" />
+        <h3 className="text-lg font-semibold mb-2">No integrations configured</h3>
+        <p className="text-muted-foreground mb-4 max-w-md">
+          OAuth integrations allow agents to access external services on behalf of users. Configure integrations to enable seamless authentication flows.
+        </p>
+        <Button>
+          <Plug className="h-4 w-4 mr-2" />
+          Add Integration
+        </Button>
+      </div>
     );
   }
 
@@ -187,7 +187,11 @@ export function IntegrationsTable({
               {filteredData.map((integration) => {
                 const isOAuthType = integration.integration_type === "oauth_mcp";
                 return (
-                  <TableRow key={integration.id}>
+                  <TableRow 
+                    key={integration.id}
+                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => onEditIntegration?.(integration.id)}
+                  >
                     <TableCell>
                       <div className="space-y-1">
                         <div className="font-medium flex items-center gap-2">
@@ -269,7 +273,10 @@ export function IntegrationsTable({
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => onConnectIntegration?.(integration.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onConnectIntegration?.(integration.id);
+                            }}
                           >
                             <Plug className="h-4 w-4 sm:mr-2" />
                             <span className="hidden sm:inline">Connect</span>
@@ -278,7 +285,10 @@ export function IntegrationsTable({
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => onEditIntegration?.(integration.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onEditIntegration?.(integration.id);
+                          }}
                         >
                           <Settings className="h-4 w-4 sm:mr-2" />
                           <span className="hidden sm:inline">Settings</span>
@@ -287,7 +297,10 @@ export function IntegrationsTable({
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => onManageConnections?.(integration.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onManageConnections?.(integration.id);
+                            }}
                           >
                             <Users className="h-4 w-4 sm:mr-2" />
                             <span className="hidden sm:inline">Connections</span>
