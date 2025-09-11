@@ -155,67 +155,71 @@ export function EditMcpServerDialog({ open, onOpenChange, mcpServer, onSuccess }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             Edit
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <McpServerForm
-            formData={formData}
-            onFormDataChange={setFormData}
-            headerInput={headerInput}
-            onHeaderInputChange={setHeaderInput}
-            toolList={toolList}
-            onToolListChange={setToolList}
-            isSubmitting={isSubmitting}
-            isDeleting={isDeleting}
-          />
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
+          <div className="flex-1 overflow-y-auto px-1">
+            <McpServerForm
+              formData={formData}
+              onFormDataChange={setFormData}
+              headerInput={headerInput}
+              onHeaderInputChange={setHeaderInput}
+              toolList={toolList}
+              onToolListChange={setToolList}
+              isSubmitting={isSubmitting}
+              isDeleting={isDeleting}
+            />
+          </div>
 
-          <Separator />
+          <div className="flex-shrink-0">
+            <Separator />
 
-          <div className="flex justify-between items-center pt-4">
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={isSubmitting || isDeleting}
-            >
-              {isDeleting ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                <>
-                  Delete
-                </>
-              )}
-            </Button>
-
-            <div className="flex gap-2">
+            <div className="flex justify-between items-center pt-4">
               <Button
                 type="button"
-                variant="outline"
-                onClick={() => onOpenChange(false)}
+                variant="destructive"
+                onClick={handleDelete}
                 disabled={isSubmitting || isDeleting}
               >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isSubmitting || isDeleting}>
-                {isSubmitting ? (
+                {isDeleting ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Saving...
+                    Deleting...
                   </>
                 ) : (
                   <>
-                    Save
+                    Delete
                   </>
                 )}
               </Button>
+
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => onOpenChange(false)}
+                  disabled={isSubmitting || isDeleting}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isSubmitting || isDeleting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      Save
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
           </div>
         </form>
