@@ -66,6 +66,51 @@ export const REASONING_EFFORT_OPTIONS = [
   { value: "high", label: "High" },
 ];
 
+// Helper component for formatting instructions
+function InstructionsPreview({ instructions }: { instructions: string }) {
+  const formatInstructionsWithMCPs = (text: string) => {
+    const parts = text.split(/(@\w+)/g);
+    return parts.map((part, index) => {
+      if (part.startsWith("@")) {
+        return (
+          <span
+            key={index}
+            className="font-bold text-black bg-neutral-100 px-1 rounded"
+          >
+            {part}
+          </span>
+        );
+      }
+      return part;
+    });
+  };
+
+  const formattedInstructions = formatInstructionsWithMCPs(instructions);
+  return (
+    <div className="whitespace-pre-wrap font-mono text-sm p-3 bg-muted rounded-md border min-h-[200px]">
+      {formattedInstructions}
+    </div>
+  );
+};
+
+// Helper component for layout
+function FieldWrapper({ children, title, variant }: { children: React.ReactNode; title?: string; variant: "full" | "compact" }) {
+  if (variant === "compact") {
+    return <div className="space-y-2">{children}</div>;
+  }
+  
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm">{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {children}
+      </CardContent>
+    </Card>
+  );
+};
+
 export function AgentConfigurationForm({
   initialData,
   onChange,
@@ -95,6 +140,20 @@ export function AgentConfigurationForm({
   
   const nameError = externalNameError || internalNameError;
 
+  // Emit changes
+  const emitChange = useCallback(() => {
+    if (onChange) {
+      const payload: AgentConfigData = {
+        ...(showNameField && { name }),
+        ...(showDescriptionField && { description }),
+        instructions,
+        model,
+        reasoning_effort: reasoningEffort,
+      };
+      onChange(payload);
+    }
+  }, [name, description, instructions, model, reasoningEffort, showNameField, showDescriptionField, onChange]);
+
   // Validation
   const validateAgentName = useCallback((name: string): boolean => {
     if (!validateName) return true;
@@ -117,19 +176,6 @@ export function AgentConfigurationForm({
     return true;
   }, [validateName, onNameValidation]);
 
-  // Emit changes
-  const emitChange = useCallback((overrides: Partial<AgentConfigData> = {}) => {
-    const payload: AgentConfigData = {
-      ...(showNameField && { name }),
-      ...(showDescriptionField && { description }),
-      instructions,
-      model,
-      reasoning_effort: reasoningEffort,
-      ...overrides,
-    };
-    onChange?.(payload);
-  }, [name, description, instructions, model, reasoningEffort, showNameField, showDescriptionField, onChange]);
-
   // Update form when initial data changes
   useEffect(() => {
     if (initialData) {
@@ -139,75 +185,12 @@ export function AgentConfigurationForm({
       if (initialData.model !== undefined) setModel(initialData.model);
       if (initialData.reasoning_effort !== undefined) setReasoningEffort(initialData.reasoning_effort);
     }
-  }, [
-    initialData,
-    initialData?.name,
-    initialData?.description,
-    initialData?.instructions,
-    initialData?.model,
-    initialData?.reasoning_effort
-  ]);
+  }, [initialData]);
 
-  // Emit initial values only once when component mounts
+  // Emit changes whenever a state variable changes
   useEffect(() => {
-    if (onChange) {
-      const payload: AgentConfigData = {
-        ...(showNameField && { name }),
-        ...(showDescriptionField && { description }),
-        instructions,
-        model,
-        reasoning_effort: reasoningEffort,
-      };
-      onChange(payload);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Empty dependency array - only run on mount
-
-  // Format instructions with MCP tool references
-  const formatInstructionsWithMCPs = (text: string) => {
-    const parts = text.split(/(@\w+)/g);
-    return parts.map((part, index) => {
-      if (part.startsWith("@")) {
-        return (
-          <span
-            key={index}
-            className="font-bold text-black bg-neutral-100 px-1 rounded"
-          >
-            {part}
-          </span>
-        );
-      }
-      return part;
-    });
-  };
-
-  // Instructions preview component
-  const InstructionsPreview = ({ instructions }: { instructions: string }) => {
-    const formattedInstructions = formatInstructionsWithMCPs(instructions);
-    return (
-      <div className="whitespace-pre-wrap font-mono text-sm p-3 bg-muted rounded-md border min-h-[200px]">
-        {formattedInstructions}
-      </div>
-    );
-  };
-
-  // Render field wrapper based on variant
-  const FieldWrapper = ({ children, title }: { children: React.ReactNode; title?: string }) => {
-    if (variant === "compact") {
-      return <div className="space-y-2">{children}</div>;
-    }
-    
-    return (
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm">{title}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {children}
-        </CardContent>
-      </Card>
-    );
-  };
+    emitChange();
+  }, [name, description, instructions, model, reasoningEffort, emitChange]);
 
   return (
     <div className="space-y-4">
@@ -222,7 +205,6 @@ export function AgentConfigurationForm({
               const v = e.target.value;
               setName(v);
               validateAgentName(v);
-              emitChange({ name: v });
             }}
             placeholder="e.g., github-pr-agent, zendesk-support"
             className={nameError ? "border-red-500" : ""}
@@ -247,7 +229,6 @@ export function AgentConfigurationForm({
             onChange={(e) => {
               const v = e.target.value;
               setDescription(v);
-              emitChange({ description: v });
             }}
             placeholder="Brief description of what this agent does..."
             disabled={isReadOnly}
@@ -256,7 +237,7 @@ export function AgentConfigurationForm({
       )}
 
       {/* Model Configuration */}
-      <FieldWrapper title="Model Configuration">
+      <FieldWrapper title="Model Configuration" variant={variant}>
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="agent-model" className="text-xs">Model</Label>
@@ -264,7 +245,6 @@ export function AgentConfigurationForm({
               value={model}
               onValueChange={(v) => {
                 setModel(v);
-                emitChange({ model: v });
               }}
               disabled={isReadOnly}
             >
@@ -287,7 +267,6 @@ export function AgentConfigurationForm({
               value={reasoningEffort}
               onValueChange={(v) => {
                 setReasoningEffort(v);
-                emitChange({ reasoning_effort: v });
               }}
               disabled={isReadOnly}
             >
@@ -307,7 +286,7 @@ export function AgentConfigurationForm({
       </FieldWrapper>
 
       {/* Instructions */}
-      <FieldWrapper title="System Instructions">
+      <FieldWrapper title="System Instructions" variant={variant}>
         <div className="space-y-4">
           {showInstructionsPreview && (
             <div className="flex items-center gap-2">
@@ -333,7 +312,7 @@ export function AgentConfigurationForm({
             </div>
           )}
 
-          {(!showInstructionsPreview || !previewMode) ? (
+          <div style={{ display: (!showInstructionsPreview || !previewMode) ? 'block' : 'none' }}>
             <div className="space-y-2">
               <Textarea
                 id="agent-instructions"
@@ -341,7 +320,6 @@ export function AgentConfigurationForm({
                 onChange={(e) => {
                   const v = e.target.value;
                   setInstructions(v);
-                  emitChange({ instructions: v });
                 }}
                 placeholder="Enter detailed instructions for how this agent should behave..."
                 className={`font-mono text-sm resize-none`}
@@ -354,14 +332,15 @@ export function AgentConfigurationForm({
                 to reference MCP tools.
               </p>
             </div>
-          ) : (
+          </div>
+          <div style={{ display: (!showInstructionsPreview || !previewMode) ? 'none' : 'block' }}>
             <div className="space-y-2">
               <InstructionsPreview instructions={instructions} />
               <p className="text-xs text-muted-foreground">
                 Preview of how the instructions will appear with tool references highlighted.
               </p>
             </div>
-          )}
+          </div>
         </div>
       </FieldWrapper>
     </div>
