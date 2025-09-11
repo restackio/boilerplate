@@ -34,6 +34,19 @@ from src.functions.llm_prepare_response import (
     llm_prepare_response,
 )
 from src.functions.llm_response_stream import llm_response_stream
+from src.functions.mcp_oauth_client import (
+    oauth_exchange_code_for_token,
+    oauth_generate_auth_url,
+    oauth_parse_callback,
+    oauth_refresh_token,
+)
+from src.functions.mcp_oauth_crud import (
+    mcp_server_get_by_id,
+    oauth_token_create_or_update,
+    oauth_token_delete,
+    oauth_token_get_by_user_and_server,
+    oauth_tokens_get_by_workspace,
+)
 from src.functions.mcp_servers_crud import (
     mcp_servers_create,
     mcp_servers_delete,
@@ -116,6 +129,10 @@ from src.workflows.crud.agents_crud import (
 from src.workflows.crud.auth_crud import (
     UserLoginWorkflow,
     UserSignupWorkflow,
+)
+from src.workflows.crud.mcp_oauth_sdk import (
+    McpOAuthCallbackWorkflow,
+    McpOAuthInitializeWorkflow,
 )
 from src.workflows.crud.mcp_servers_crud import (
     McpServersCreateWorkflow,
@@ -233,6 +250,9 @@ async def run_restack_service() -> None:
             ScheduleUpdateWorkflow,
             ScheduleEditWorkflow,
             ScheduleControlWorkflow,
+            # MCP OAuth SDK workflows (official implementation)
+            McpOAuthInitializeWorkflow,
+            McpOAuthCallbackWorkflow,
         ],
         functions=[
             send_agent_event,
@@ -294,6 +314,17 @@ async def run_restack_service() -> None:
             mcp_session_init,
             mcp_tools_list,
             mcp_tools_list_direct,
+            # MCP OAuth CRUD functions
+            mcp_server_get_by_id,
+            oauth_token_create_or_update,
+            oauth_token_get_by_user_and_server,
+            oauth_token_delete,
+            oauth_tokens_get_by_workspace,
+            # MCP OAuth client functions
+            oauth_parse_callback,
+            oauth_generate_auth_url,
+            oauth_exchange_code_for_token,
+            oauth_refresh_token,
             # Agent tools functions
             agent_tools_read_by_agent,
             agent_tools_read_records_by_agent,

@@ -198,6 +198,14 @@ async function executeWorkflow<T>(
         };
       }
       
+      // For OAuth responses (e.g., McpOAuthInitializeWorkflow returns { success: true, authorization_url: "..." })
+      if ('success' in result && 'authorization_url' in result) {
+        return {
+          success: Boolean(result.success),
+          data: result as T,
+        };
+      }
+      
       // For delete responses (e.g., AgentsDeleteWorkflow returns { success: boolean })
       if ('success' in result && typeof result.success === 'boolean') {
         return {
@@ -904,6 +912,9 @@ export function useWorkspaceScopedActions() {
   return {
     currentWorkspaceId,
     isReady,
+    
+    // Core workflow execution
+    executeWorkflow,
     
     agents,
     agentsLoading,

@@ -13,6 +13,7 @@ import {
   Zap,
   Shield,
   Globe,
+  Plug,
   type LucideIcon,
 } from "lucide-react";
 
@@ -154,6 +155,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         title: "Agents",
         url: "/agents",
         icon: Bot,
+      },
+      {
+        title: "Integrations",
+        url: "/integrations",
+        icon: Plug,
       },
     ],
     teams: teams.map(formatTeamForUI),

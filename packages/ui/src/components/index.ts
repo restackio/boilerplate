@@ -2,6 +2,7 @@ export * from "./agents-table";
 export * from "./tasks-table";
 export * from "./schedules-table";
 export * from "./mcps-table";
+export * from "./integrations-table";
 export * from "./page-header";
 export * from "./ui/empty-state";
 export * from "./ui/switch";

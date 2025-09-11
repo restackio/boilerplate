@@ -1,6 +1,7 @@
 from datetime import UTC, datetime
 
 from sqlalchemy import (
+    ARRAY,
     Boolean,
     CheckConstraint,
     Column,
@@ -41,6 +42,9 @@ class Workspace(Base):
     teams = relationship("Team", back_populates="workspace")
     mcp_servers = relationship(
         "McpServer", back_populates="workspace"
+    )
+    user_oauth_connections = relationship(
+        "UserOAuthConnection", back_populates="workspace", cascade="all, delete-orphan"
     )
 
 
@@ -131,6 +135,7 @@ class McpServer(Base):
             "always": {"tool_names": []},
         },
     )
+
     created_at = Column(
         DateTime,
         default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
@@ -146,6 +151,9 @@ class McpServer(Base):
     # Relationships
     workspace = relationship(
         "Workspace", back_populates="mcp_servers"
+    )
+    user_oauth_connections = relationship(
+        "UserOAuthConnection", back_populates="mcp_server", cascade="all, delete-orphan"
     )
 
 
@@ -411,3 +419,50 @@ class Task(Base):
         back_populates="schedule_task",
         foreign_keys=[schedule_task_id],
     )
+
+
+class UserOAuthConnection(Base):
+    __tablename__ = "user_oauth_connections"
+
+    id = Column(UUID(as_uuid=True), primary_key=True)
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    workspace_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    mcp_server_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("mcp_servers.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    # Simple OAuth token storage
+    access_token = Column(String(2000), nullable=False)
+    refresh_token = Column(String(2000))
+    token_type = Column(String(50), nullable=False, default="Bearer")
+    expires_at = Column(DateTime)
+    scope = Column(ARRAY(String))
+    connected_at = Column(
+        DateTime,
+        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+    )
+    created_at = Column(
+        DateTime,
+        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+    )
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+        onupdate=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+    )
+
+    # Relationships
+    user = relationship("User")
+    workspace = relationship("Workspace", back_populates="user_oauth_connections")
+    mcp_server = relationship("McpServer", back_populates="user_oauth_connections")
+
+

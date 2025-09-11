@@ -1,0 +1,199 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Button } from "@workspace/ui/components/ui/button";
+import { CheckCircle, AlertCircle, Loader2, ExternalLink } from "lucide-react";
+import Link from "next/link";
+
+export default function OAuthCallbackPage() {
+  const searchParams = useSearchParams();
+  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
+  const [message, setMessage] = useState('');
+  const [provider, setProvider] = useState('');
+
+  useEffect(() => {
+    const handleOAuthCallback = async () => {
+      try {
+        // Get parameters from URL
+        const code = searchParams.get('code');
+        const state = searchParams.get('state');
+        const error = searchParams.get('error');
+        const errorDescription = searchParams.get('error_description');
+
+        // Check for OAuth errors
+        if (error) {
+          setStatus('error');
+          setMessage(`OAuth error: ${error}${errorDescription ? ` - ${errorDescription}` : ''}`);
+          return;
+        }
+
+        // Check for required parameters
+        if (!code || !state) {
+          setStatus('error');
+          setMessage('Missing authorization code or state parameter');
+          return;
+        }
+
+        // Get stored OAuth parameters (MCP SDK handles PKCE internally)
+        const mcpServerId = sessionStorage.getItem('oauth_mcp_server_id');
+        const userId = sessionStorage.getItem('oauth_user_id');
+        const workspaceId = sessionStorage.getItem('oauth_workspace_id');
+        const clientId = sessionStorage.getItem('oauth_client_id');
+        const clientSecret = sessionStorage.getItem('oauth_client_secret');
+
+        if (!mcpServerId || !userId || !workspaceId) {
+          setStatus('error');
+          setMessage('Missing OAuth session data. Please try the connection process again.');
+          return;
+        }
+
+        // Determine provider from MCP server ID (for display)
+        const providerMapping: Record<string, string> = {
+          'a0123456-789a-123e-f012-456789012349': 'notion',
+          // Add more mappings as needed
+        };
+        const detectedProvider = providerMapping[mcpServerId] || 'unknown';
+        setProvider(detectedProvider);
+
+        console.log('OAuth callback received:', {
+          provider: detectedProvider,
+          mcpServerId,
+          code: code.substring(0, 10) + '...', // Log partial code for debugging
+          state,
+        });
+
+        // Call backend to handle OAuth callback
+        const response = await fetch('/api/oauth/callback', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            workflow: 'McpOAuthCallbackWorkflow',
+            input: {
+              user_id: userId,
+              workspace_id: workspaceId,
+              mcp_server_id: mcpServerId,
+              callback_url: window.location.href,
+              client_id: clientId, // Pass the client_id from authorization phase
+              client_secret: clientSecret, // Pass the client_secret from authorization phase
+            }
+          }),
+        });
+
+        const result = await response.json();
+        
+        if (result.success && result.data?.success) {
+          setStatus('success');
+          setMessage(`Successfully connected your ${detectedProvider} account! You can now close this window.`);
+        } else {
+          setStatus('error');
+          setMessage(result.data?.error || 'Failed to complete OAuth connection');
+        }
+        
+        // Clean up session storage
+        sessionStorage.removeItem('oauth_mcp_server_id');
+        sessionStorage.removeItem('oauth_user_id');
+        sessionStorage.removeItem('oauth_workspace_id');
+
+      } catch (error) {
+        console.error('OAuth callback error:', error);
+        setStatus('error');
+        setMessage('An unexpected error occurred during OAuth callback processing.');
+      }
+    };
+
+    handleOAuthCallback();
+  }, [searchParams]);
+
+  const getProviderIcon = (provider: string) => {
+    switch (provider.toLowerCase()) {
+      case 'notion':
+        return '📋';
+      case 'github':
+        return '🐙';
+      case 'slack':
+        return '💬';
+      default:
+        return '🔗';
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
+        {status === 'loading' && (
+          <>
+            <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-blue-600" />
+            <h1 className="text-xl font-semibold mb-2">Processing OAuth connection...</h1>
+            <p className="text-gray-600">
+              Please wait while we complete your {provider} integration.
+            </p>
+          </>
+        )}
+
+        {status === 'success' && (
+          <>
+            <div className="flex items-center justify-center mb-4">
+              <span className="text-4xl mr-2">{getProviderIcon(provider)}</span>
+              <CheckCircle className="h-12 w-12 text-green-600" />
+            </div>
+            <h1 className="text-xl font-semibold text-green-800 mb-2">
+              Connection Successful!
+            </h1>
+            <p className="text-gray-600 mb-6">{message}</p>
+            <div className="space-y-3">
+              <Button asChild className="w-full">
+                <Link href="/integrations">
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Back to Integrations
+                </Link>
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => window.close()} 
+                className="w-full"
+              >
+                Close Window
+              </Button>
+            </div>
+          </>
+        )}
+
+        {status === 'error' && (
+          <>
+            <AlertCircle className="h-12 w-12 text-red-600 mx-auto mb-4" />
+            <h1 className="text-xl font-semibold text-red-800 mb-2">
+              Connection Failed
+            </h1>
+            <p className="text-gray-600 mb-6">{message}</p>
+            <div className="space-y-3">
+              <Button asChild className="w-full">
+                <Link href="/integrations">
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Back to Integrations
+                </Link>
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => window.close()} 
+                className="w-full"
+              >
+                Close Window
+              </Button>
+            </div>
+            
+            {/* Debug information */}
+            <div className="mt-6 p-3 bg-gray-100 rounded text-left text-sm">
+              <p className="font-medium mb-1">Debug Information:</p>
+              <p className="text-gray-600">
+                Check the browser console for more details, and see OAUTH_SETUP.md for configuration help.
+              </p>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}

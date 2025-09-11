@@ -112,6 +112,31 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_agent_tools_simple
   ON agent_tools(agent_id, tool_type)
   WHERE tool_type NOT IN ('mcp');
 
+-- Create user_oauth_connections table for individual user OAuth tokens
+CREATE TABLE IF NOT EXISTS user_oauth_connections (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    mcp_server_id UUID NOT NULL REFERENCES mcp_servers(id) ON DELETE CASCADE,
+    -- OAuth token data (encrypted in application)
+    access_token VARCHAR(2000) NOT NULL,
+    refresh_token VARCHAR(2000),
+    token_type VARCHAR(50) NOT NULL DEFAULT 'Bearer',
+    expires_at TIMESTAMP,
+    scope TEXT[],
+    -- OAuth 2.1 specific fields
+    resource_server VARCHAR(500), -- RFC8707 resource parameter
+    audience VARCHAR(500), -- Token audience for validation
+    -- Connection metadata
+    connected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_refreshed_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    -- Ensure one connection per user per MCP server
+    CONSTRAINT unique_user_mcp_oauth UNIQUE(user_id, mcp_server_id)
+);
+
+
 -- Create tasks table
 CREATE TABLE IF NOT EXISTS tasks (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -165,6 +190,12 @@ CREATE INDEX IF NOT EXISTS idx_tasks_is_scheduled ON tasks(is_scheduled);
 CREATE INDEX IF NOT EXISTS idx_tasks_schedule_status ON tasks(schedule_status);
 CREATE INDEX IF NOT EXISTS idx_tasks_restack_schedule_id ON tasks(restack_schedule_id);
 
+-- OAuth-related indexes
+CREATE INDEX IF NOT EXISTS idx_user_oauth_connections_user_id ON user_oauth_connections(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_oauth_connections_workspace_id ON user_oauth_connections(workspace_id);
+CREATE INDEX IF NOT EXISTS idx_user_oauth_connections_mcp_server_id ON user_oauth_connections(mcp_server_id);
+CREATE INDEX IF NOT EXISTS idx_user_oauth_connections_expires_at ON user_oauth_connections(expires_at);
+
 -- Performance-critical composite indexes for common query patterns
 CREATE INDEX IF NOT EXISTS idx_agents_workspace_status_created ON agents(workspace_id, status, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_agents_workspace_name_parent ON agents(workspace_id, name, parent_agent_id);
@@ -203,3 +234,4 @@ CREATE TRIGGER update_workspaces_updated_at BEFORE UPDATE ON workspaces FOR EACH
 CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_teams_updated_at BEFORE UPDATE ON teams FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_mcp_servers_updated_at BEFORE UPDATE ON mcp_servers FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_user_oauth_connections_updated_at BEFORE UPDATE ON user_oauth_connections FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
