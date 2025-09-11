@@ -1,28 +1,11 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import {
-  Github,
-  Mail,
-  Slack,
-  Server,
-  Crown,
-  Shield,
   Users,
-  TrendingUp,
-  TrendingDown,
-  Play,
-  Pause,
   CheckCircle,
-  AlertTriangle,
   Bot,
-  ThumbsUp,
   GitBranch,
-  Clock,
-  DollarSign,
-  Brain,
-  HelpCircle,
-  ChevronRight,
-  Hash,
   Eye,
   FileText,
   Archive,
@@ -34,7 +17,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "./ui/tooltip";
-import { Badge } from "./ui/badge";
 import { AgentStatusBadge, type AgentStatus } from "./agent-status-badge";
 import { Button } from "./ui/button";
 import { DataTableFilter } from "./table/index";
@@ -115,6 +97,8 @@ interface AgentsTableProps {
 }
 
 export function AgentsTable({ data, onRowClick, onViewAgent, teams = [], defaultFilters = [] }: AgentsTableProps) {
+  const router = useRouter();
+
   // Create data table filters instance
   const { columns, filters, actions, strategy, filteredData } =
     useDataTableFilters({
@@ -188,12 +172,15 @@ export function AgentsTable({ data, onRowClick, onViewAgent, teams = [], default
                             <span className="flex items-center gap-1 min-w-0">
                               <GitBranch className="h-3 w-3 flex-shrink-0 text-yellow-600" />
                               {agent.latest_draft_version_short ? (
-                                <Link 
-                                  href={`/agents/${agent.latest_draft_version_id}`}
-                                  className="truncate font-mono hover:underline text-yellow-700"
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    router.push(`/agents/${agent.latest_draft_version_id}`);
+                                  }}
+                                  className="truncate font-mono hover:underline text-yellow-700 bg-transparent border-none cursor-pointer p-0"
                                 >
                                   {agent.latest_draft_version_short}
-                                </Link>
+                                </button>
                               ) : (
                                 <span className="truncate">draft</span>
                               )}
@@ -203,12 +190,15 @@ export function AgentsTable({ data, onRowClick, onViewAgent, teams = [], default
                           {agent.published_version_short && (
                             <span className="flex items-center gap-1 min-w-0">
                               <span className="text-xs text-muted-foreground">Published:</span>
-                              <Link 
-                                href={`/agents/${agent.published_version_id}`}
-                                className="truncate font-mono hover:underline text-green-700"
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  router.push(`/agents/${agent.published_version_id}`);
+                                }}
+                                className="truncate font-mono hover:underline text-green-700 bg-transparent border-none cursor-pointer p-0"
                               >
                                 {agent.published_version_short}
-                              </Link>
+                              </button>
                             </span>
                           )}
                         </div>
@@ -223,12 +213,15 @@ export function AgentsTable({ data, onRowClick, onViewAgent, teams = [], default
                           {agent.latest_draft_version_short ? (
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <Link 
-                                  href={`/agents/${agent.latest_draft_version_id}`}
-                                  className="text-sm font-mono hover:underline text-yellow-700 hover:text-yellow-800"
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    router.push(`/agents/${agent.latest_draft_version_id}`);
+                                  }}
+                                  className="text-sm font-mono hover:underline text-yellow-700 hover:text-yellow-800 bg-transparent border-none cursor-pointer p-0"
                                 >
                                   {agent.latest_draft_version_short}
-                                </Link>
+                                </button>
                               </TooltipTrigger>
                               <TooltipContent>
                                 <p>Latest Draft Version: {agent.latest_draft_version_short}</p>
@@ -251,12 +244,15 @@ export function AgentsTable({ data, onRowClick, onViewAgent, teams = [], default
                     {agent.published_version_short ? (
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Link 
-                            href={`/agents/${agent.published_version_id}`}
-                            className="text-sm font-mono hover:underline text-green-700 hover:text-green-800"
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              router.push(`/agents/${agent.published_version_id}`);
+                            }}
+                            className="text-sm font-mono hover:underline text-green-700 hover:text-green-800 bg-transparent border-none cursor-pointer p-0"
                           >
                             {agent.published_version_short}
-                          </Link>
+                          </button>
                         </TooltipTrigger>
                         <TooltipContent>
                           <p>Published version: {agent.published_version_short}</p>
