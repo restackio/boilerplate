@@ -103,23 +103,27 @@ export function AddMcpServerDialog({ open, onOpenChange, onSuccess }: AddMcpServ
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Add New Integration</DialogTitle>
+      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
+        <DialogHeader className="flex-shrink-0">
+          <DialogTitle className="flex items-center gap-2">
+            Add New Integration
+          </DialogTitle>
         </DialogHeader>
-        
-        <div className="space-y-6">
-          <McpServerForm
-            formData={formData}
-            onFormDataChange={setFormData}
-            headerInput={headerInput}
-            onHeaderInputChange={setHeaderInput}
-            toolList={toolList}
-            onToolListChange={setToolList}
-            isSubmitting={isSubmitting}
-          />
+
+        <div className="flex-1 flex flex-col min-h-0 space-y-6">
+          <div className="flex-1 overflow-y-auto px-1">
+            <McpServerForm
+              formData={formData}
+              onFormDataChange={setFormData}
+              headerInput={headerInput}
+              onHeaderInputChange={setHeaderInput}
+              toolList={toolList}
+              onToolListChange={setToolList}
+              isSubmitting={isSubmitting}
+            />
+          </div>
           
-          <div className="flex justify-end gap-3 pt-4 border-t">
+          <div className="flex justify-end gap-3 pt-4 border-t flex-shrink-0">
             <Button variant="outline" onClick={handleCancel} disabled={isSubmitting}>
               Cancel
             </Button>

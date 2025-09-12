@@ -41,6 +41,8 @@ export class ConversationStore {
   // Simple streaming state for active items
   private streamingItems = new Map<string, Partial<ConversationItem>>();
   private processedEvents = new Set<string>();
+  // Buffer for storing text deltas by sequence number to handle out-of-order events
+  private textDeltaBuffers = new Map<string, Map<number, string>>();
 
   public stateItems$: Observable<ConversationItem[]> = this.stateItemsSubject.asObservable();
   public streamEvents$: Observable<StreamEvent[]> = this.streamEventsSubject.asObservable();
@@ -81,14 +83,20 @@ export class ConversationStore {
   public clearStreamingState() {
     this.streamingItems.clear();
     this.processedEvents.clear();
+    this.textDeltaBuffers.clear();
   }
 
   private mergeConversation(stateItems: ConversationItem[], streamEvents: StreamEvent[]): ConversationItem[] {
     // Get existing item IDs to avoid duplicates
     const existingIds = new Set(stateItems.map(item => item.id));
     
+    // Sort stream events by sequence number to ensure proper ordering
+    const sortedStreamEvents = [...streamEvents].sort((a, b) => 
+      (a.sequence_number || 0) - (b.sequence_number || 0)
+    );
+    
     // Process stream events to create/update streaming items
-    for (const event of streamEvents) {
+    for (const event of sortedStreamEvents) {
       this.processEvent(event, existingIds);
     }
     
@@ -177,23 +185,36 @@ export class ConversationStore {
   }
 
   private updateStreamItem(streamItem: Partial<ConversationItem>, event: StreamEvent): void {
-    if (!streamItem.openai_output) return;
+    if (!streamItem.openai_output || !streamItem.id) return;
     
-    // Handle text content
+    // Handle text content with sequence number ordering
     if (event.delta && (event.type.includes('text') || event.type.includes('reasoning'))) {
       const isReasoning = event.type.includes('reasoning');
       const contentArray = isReasoning ? streamItem.openai_output.summary : streamItem.openai_output.content;
       
+      // Store delta in buffer
+      const itemId = streamItem.id;
+      if (!this.textDeltaBuffers.has(itemId)) {
+        this.textDeltaBuffers.set(itemId, new Map());
+      }
+      const deltaBuffer = this.textDeltaBuffers.get(itemId)!;
+      deltaBuffer.set(event.sequence_number, String(event.delta));
+      
+      // Reconstruct text from all buffered deltas in sequence order
+      const sortedDeltas = Array.from(deltaBuffer.entries())
+        .sort(([a], [b]) => a - b)
+        .map(([, delta]) => delta);
+      const reconstructedText = sortedDeltas.join('');
+      
       if (!contentArray || contentArray.length === 0) {
-        const newContent = { type: "text", text: String(event.delta) };
+        const newContent = { type: "text", text: reconstructedText };
         if (isReasoning) {
           streamItem.openai_output.summary = [newContent];
         } else {
           streamItem.openai_output.content = [newContent];
         }
       } else {
-        const currentText = String(contentArray[0].text || "");
-        contentArray[0].text = currentText + String(event.delta);
+        contentArray[0].text = reconstructedText;
       }
     }
     
@@ -208,6 +229,11 @@ export class ConversationStore {
       
       streamItem.isStreaming = false;
       streamItem.openai_output.status = "completed";
+      
+      // Clean up delta buffer when item is completed
+      if (streamItem.id) {
+        this.textDeltaBuffers.delete(streamItem.id);
+      }
     }
     
     // Handle item additions/completions
@@ -233,6 +259,11 @@ export class ConversationStore {
       if (event.type.includes('done')) {
         streamItem.isStreaming = false;
         streamItem.openai_output.status = "completed";
+        
+        // Clean up delta buffer when item is completed
+        if (streamItem.id) {
+          this.textDeltaBuffers.delete(streamItem.id);
+        }
       }
     }
     
