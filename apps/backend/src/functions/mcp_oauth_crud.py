@@ -343,6 +343,103 @@ class GetTokensByWorkspaceInput(BaseModel):
 
 
 @function.defn()
+async def oauth_token_refresh_and_update(
+    function_input: GetOAuthTokenInput,
+) -> SaveOAuthTokenOutput:
+    """Refresh OAuth token and update database with new tokens."""
+    try:
+        # Import here to avoid circular imports
+        from src.functions.mcp_oauth_client import oauth_refresh_token
+        
+        # Step 1: Refresh the token using OAuth client
+        refresh_result = await oauth_refresh_token(function_input)
+        if not refresh_result or not refresh_result.token_exchange:
+            raise NonRetryableError(
+                message="Failed to refresh OAuth token"
+            )
+        
+        token_data = refresh_result.token_exchange
+        
+        # Step 2: Update the database with new tokens
+        update_input = SaveOAuthTokenInput(
+            user_id=function_input.user_id,
+            workspace_id="",  # Will be filled from existing token
+            mcp_server_id=function_input.mcp_server_id,
+            access_token=token_data.access_token,
+            refresh_token=token_data.refresh_token,
+            token_type=token_data.token_type or "Bearer",
+            expires_in=token_data.expires_in,
+            scope=token_data.scope.split() if token_data.scope else None,
+            auth_type="oauth"
+        )
+        
+        # Get existing token to fill workspace_id
+        async for db in get_async_db():
+            try:
+                query = select(UserOAuthConnection).where(
+                    UserOAuthConnection.user_id == uuid.UUID(function_input.user_id),
+                    UserOAuthConnection.mcp_server_id == uuid.UUID(function_input.mcp_server_id)
+                )
+                result = await db.execute(query)
+                existing_token = result.scalar_one_or_none()
+                
+                if existing_token:
+                    update_input.workspace_id = str(existing_token.workspace_id)
+                    
+                    # Update the existing token with new values
+                    expires_at = None
+                    if token_data.expires_in:
+                        expires_at = (datetime.now(timezone.utc) + 
+                            timedelta(seconds=token_data.expires_in)).replace(tzinfo=None)
+                    
+                    # Encrypt new tokens
+                    existing_token.access_token = encrypt_token(token_data.access_token)
+                    if token_data.refresh_token:
+                        existing_token.refresh_token = encrypt_token(token_data.refresh_token)
+                    existing_token.token_type = token_data.token_type or "Bearer"
+                    existing_token.expires_at = expires_at
+                    existing_token.scope = token_data.scope.split() if token_data.scope else None
+                    existing_token.last_refreshed_at = datetime.now(timezone.utc).replace(tzinfo=None)
+                    existing_token.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
+                    
+                    await db.commit()
+                    await db.refresh(existing_token)
+                    
+                    return SaveOAuthTokenOutput(
+                        token=OAuthTokenOutput(
+                            id=str(existing_token.id),
+                            user_id=str(existing_token.user_id),
+                            workspace_id=str(existing_token.workspace_id),
+                            mcp_server_id=str(existing_token.mcp_server_id),
+                            token_type=existing_token.token_type,
+                            expires_at=existing_token.expires_at.isoformat() if existing_token.expires_at else None,
+                            scope=existing_token.scope,
+                            connected_at=existing_token.connected_at.isoformat(),
+                            auth_type=existing_token.auth_type,
+                        )
+                    )
+                else:
+                    raise NonRetryableError(
+                        message="No existing token found to refresh"
+                    )
+                    
+            except SQLAlchemyError as e:
+                raise NonRetryableError(
+                    message=f"Database error refreshing token: {e}"
+                ) from e
+        
+        # This should never be reached due to async generator
+        raise NonRetryableError(message="Database connection failed")
+        
+    except NonRetryableError:
+        raise
+    except Exception as e:
+        raise NonRetryableError(
+            message=f"Failed to refresh and update token: {e}"
+        ) from e
+
+
+@function.defn()
 async def oauth_tokens_get_by_workspace(
     function_input: GetTokensByWorkspaceInput,
 ) -> OAuthTokensListOutput:

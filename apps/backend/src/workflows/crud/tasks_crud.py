@@ -112,6 +112,7 @@ class TasksCreateWorkflow:
                     agent_id=result.task.agent_id,
                     assigned_to_id=result.task.assigned_to_id
                     or None,
+                    user_id=result.task.assigned_to_id,  # Use assigned_to_id as user_id for OAuth tokens
                 ),
                 parent_close_policy=ParentClosePolicy.ABANDON,
             )

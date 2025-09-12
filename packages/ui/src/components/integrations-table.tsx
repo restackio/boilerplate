@@ -32,14 +32,10 @@ import Link from "next/link";
 export interface Integration {
   id: string;
   integration_name: string;
-  provider_name: string;
-  integration_type: string;
-  enabled: boolean;
-  oauth_authorization_url?: string;
-  oauth_scopes?: string[];
-  required_role: string;
-  allow_user_connections: boolean;
-  auto_refresh_tokens: boolean;
+  server_description?: string;
+  server_url?: string;
+  local: boolean;
+  tools_count: number;
   connected_users_count?: number;
   created_at: string;
   updated_at: string;
@@ -61,72 +57,39 @@ export const integrationColumnsConfig = [
     .text()
     .id("integration_name")
     .accessor((row: Integration) => row.integration_name)
-    .displayName("Integration Name")
+    .displayName("Integration")
     .icon(Plug)
     .build(),
   dtf
-    .option()
-    .id("provider_name")
-    .accessor((row: Integration) => row.provider_name)
-    .displayName("Provider")
+    .text()
+    .id("server_url")
+    .accessor((row: Integration) => row.server_url || (row.local ? "Local" : ""))
+    .displayName("MCP Server URL")
     .icon(Globe)
     .build(),
   dtf
-    .option()
-    .id("integration_type")
-    .accessor((row: Integration) => row.integration_type)
-    .displayName("Type")
+    .text()
+    .id("tools_count")
+    .accessor((row: Integration) => row.tools_count.toString())
+    .displayName("Tools")
     .icon(Settings)
     .build(),
   dtf
-    .option()
-    .id("enabled")
-    .accessor((row: Integration) => row.enabled ? "enabled" : "disabled")
-    .displayName("Status")
-    .icon(CheckCircle)
+    .text()
+    .id("connected_users_count")
+    .accessor((row: Integration) => (row.connected_users_count || 0).toString())
+    .displayName("Connections")
+    .icon(Users)
     .build(),
 ] as const;
 
-// Status options
-export const statusOptions: Array<{
-  label: string;
-  value: string;
-  icon: any;
-}> = [
-  { label: "Enabled", value: "enabled", icon: CheckCircle },
-  { label: "Disabled", value: "disabled", icon: AlertCircle },
-];
-
-// Provider icons mapping
-const getProviderIcon = (provider: string) => {
-  switch (provider.toLowerCase()) {
-    case "notion":
-      return "📋";
-    case "github":
-      return "🐙";
-    case "slack":
-      return "💬";
-    case "linear":
-      return "📊";
-    case "figma":
-      return "🎨";
-    default:
-      return "🔗";
-  }
-};
-
 // Integration type badges
-const getIntegrationTypeBadge = (type: string) => {
-  switch (type) {
-    case "oauth_mcp":
-      return <Badge variant="default" className="text-xs">OAuth MCP</Badge>;
-    case "api_key":
-      return <Badge variant="secondary" className="text-xs">API Key</Badge>;
-    case "webhook":
-      return <Badge variant="outline" className="text-xs">Webhook</Badge>;
-    default:
-      return <Badge variant="outline" className="text-xs">{type}</Badge>;
-  }
+const getIntegrationTypeBadge = (local: boolean) => {
+  return local ? (
+    <Badge variant="secondary" className="text-xs">Local</Badge>
+  ) : (
+    <Badge variant="default" className="text-xs">Remote</Badge>
+  );
 };
 
 export function IntegrationsTable({ 
@@ -176,16 +139,14 @@ export function IntegrationsTable({
             <TableHeader>
               <TableRow>
                 <TableHead className="w-1/3">Integration</TableHead>
-                <TableHead className="hidden sm:table-cell w-1/6">Type</TableHead>
-                <TableHead className="hidden md:table-cell w-1/6">Status</TableHead>
-                <TableHead className="hidden lg:table-cell w-1/6">Connections</TableHead>
-                <TableHead className="hidden xl:table-cell w-1/6">Updated</TableHead>
+                <TableHead className="hidden sm:table-cell w-1/4">MCP Server URL</TableHead>
+                <TableHead className="hidden md:table-cell w-1/8">Tools</TableHead>
+                <TableHead className="hidden lg:table-cell w-1/8">Connections</TableHead>
                 <TableHead className="w-1/6">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredData.map((integration) => {
-                const isOAuthType = integration.integration_type === "oauth_mcp";
                 return (
                   <TableRow 
                     key={integration.id}
@@ -195,93 +156,55 @@ export function IntegrationsTable({
                     <TableCell>
                       <div className="space-y-1">
                         <div className="font-medium flex items-center gap-2">
-                          <span className="text-lg">{getProviderIcon(integration.provider_name)}</span>
                           <span>{integration.integration_name}</span>
-                          {!integration.enabled && (
-                            <Badge variant="secondary" className="text-xs">Disabled</Badge>
-                          )}
+                          {getIntegrationTypeBadge(integration.local)}
                         </div>
-                        <div className="text-xs text-muted-foreground">
-                          {integration.provider_name}
-                          {integration.oauth_scopes && integration.oauth_scopes.length > 0 && (
-                            <span className="ml-2">
-                              • {integration.oauth_scopes.join(", ")}
-                            </span>
-                          )}
-                        </div>
-                        {/* Show type and status on mobile when columns are hidden */}
+                        {integration.server_description && (
+                          <div className="text-xs text-muted-foreground">
+                            {integration.server_description}
+                          </div>
+                        )}
+                        {/* Show additional info on mobile when columns are hidden */}
                         <div className="sm:hidden flex flex-col gap-1 mt-2 text-xs">
-                          <div className="flex items-center gap-2">
-                            {getIntegrationTypeBadge(integration.integration_type)}
-                            {integration.enabled ? (
-                              <Badge variant="default" className="text-xs bg-green-100 text-green-800">
-                                <CheckCircle className="h-3 w-3 mr-1" />
-                                Active
-                              </Badge>
-                            ) : (
-                              <Badge variant="secondary" className="text-xs">
-                                <AlertCircle className="h-3 w-3 mr-1" />
-                                Inactive
-                              </Badge>
-                            )}
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <Globe className="h-3 w-3" />
+                            <span>{integration.server_url || (integration.local ? "Local" : "N/A")}</span>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-1">
+                              <Settings className="h-3 w-3" />
+                              <span>{integration.tools_count} tools</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Users className="h-3 w-3" />
+                              <span>{integration.connected_users_count || 0} connections</span>
+                            </div>
                           </div>
                         </div>
                       </div>
                     </TableCell>
                     <TableCell className="hidden sm:table-cell">
-                      {getIntegrationTypeBadge(integration.integration_type)}
+                      <div className="flex items-center gap-2">
+                        <Globe className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm truncate">
+                          {integration.server_url || (integration.local ? "Local" : "N/A")}
+                        </span>
+                      </div>
                     </TableCell>
                     <TableCell className="hidden md:table-cell">
-                      {integration.enabled ? (
-                        <div className="flex items-center gap-1 text-green-600">
-                          <CheckCircle className="h-4 w-4" />
-                          <span className="text-sm">Active</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1 text-gray-500">
-                          <AlertCircle className="h-4 w-4" />
-                          <span className="text-sm">Inactive</span>
-                        </div>
-                      )}
+                      <div className="flex items-center gap-1">
+                        <Settings className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm">{integration.tools_count}</span>
+                      </div>
                     </TableCell>
                     <TableCell className="hidden lg:table-cell">
-                      {isOAuthType && integration.allow_user_connections ? (
-                        <div className="flex items-center gap-1">
-                          <Users className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm">
-                            {integration.connected_users_count || 0} connected
-                          </span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1 text-muted-foreground">
-                          <Lock className="h-4 w-4" />
-                          <span className="text-sm">Admin only</span>
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell className="hidden xl:table-cell">
-                      <div className="flex items-center gap-1 text-muted-foreground">
-                        <Clock className="h-4 w-4" />
-                        <span className="text-sm">
-                          {new Date(integration.updated_at).toLocaleDateString()}
-                        </span>
+                      <div className="flex items-center gap-1">
+                        <Users className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm">{integration.connected_users_count || 0}</span>
                       </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
-                        {isOAuthType && integration.allow_user_connections && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onConnectIntegration?.(integration.id);
-                            }}
-                          >
-                            <Plug className="h-4 w-4 sm:mr-2" />
-                            <span className="hidden sm:inline">Connect</span>
-                          </Button>
-                        )}
                         <Button
                           variant="outline"
                           size="sm"
@@ -293,19 +216,17 @@ export function IntegrationsTable({
                           <Settings className="h-4 w-4 sm:mr-2" />
                           <span className="hidden sm:inline">Settings</span>
                         </Button>
-                        {isOAuthType && integration.allow_user_connections && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onManageConnections?.(integration.id);
-                            }}
-                          >
-                            <Users className="h-4 w-4 sm:mr-2" />
-                            <span className="hidden sm:inline">Connections</span>
-                          </Button>
-                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onManageConnections?.(integration.id);
+                          }}
+                        >
+                          <Users className="h-4 w-4 sm:mr-2" />
+                          <span className="hidden sm:inline">Connections</span>
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>

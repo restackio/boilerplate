@@ -113,5 +113,65 @@ INSERT INTO mcp_servers (id, workspace_id, server_label, server_url, local, serv
   'GitHub PR MCP server for pull request management',
   '{"Authorization": "Bearer ghpr-demo-token"}',
   '{"never": {"tool_names": []}, "always": {"tool_names": ["githubpr"]}}'
+),
+(
+  '70123456-789a-123e-f012-456789012346',
+  'c926e979-1f16-46bf-a7cc-8aab70162d65',
+  'sales-crm',
+  'https://mcp.salesforce.com/mcp',
+  FALSE,
+  'Salesforce CRM MCP server for lead and opportunity management',
+  '{"Authorization": "Bearer sf-demo-token"}',
+  '{"never": {"tool_names": []}, "always": {"tool_names": ["create_lead", "update_opportunity", "get_lead_status"]}}'
+),
+(
+  'd2e3f456-7890-0123-def0-456789012345',
+  'c926e979-1f16-46bf-a7cc-8aab70162d65',
+  'posthog',
+  'https://mcp.posthog.com/mcp',
+  FALSE,
+  'PostHog MCP server for analytics and insights',
+  '{"Authorization": "Bearer ph-demo-token"}',
+  '{"never": {"tool_names": []}, "always": {"tool_names": ["insights-get-all", "insight-get"]}}'
+),
+(
+  'c1d2e3f4-5678-9012-cdef-345678901234',
+  'c926e979-1f16-46bf-a7cc-8aab70162d65',
+  'deepwiki',
+  'https://mcp.deepwiki.com/mcp',
+  FALSE,
+  'DeepWiki MCP server for internal documentation search',
+  '{"Authorization": "Bearer dw-demo-token"}',
+  '{"never": {"tool_names": []}, "always": {"tool_names": ["ask_question"]}}'
+),
+(
+  '60123456-789a-123e-f012-456789012345',
+  'c926e979-1f16-46bf-a7cc-8aab70162d65',
+  'mintlify-docs',
+  'https://mcp.mintlify.com/mcp',
+  FALSE,
+  'Mintlify Docs MCP server for documentation search',
+  '{"Authorization": "Bearer mint-demo-token"}',
+  '{"never": {"tool_names": []}, "always": {"tool_names": ["SearchRestack"]}}'
+),
+(
+  '80123456-789a-123e-f012-456789012347',
+  'c926e979-1f16-46bf-a7cc-8aab70162d65',
+  'hr-system',
+  'https://mcp.bamboohr.com/mcp',
+  FALSE,
+  'BambooHR MCP server for employee data management',
+  '{"Authorization": "Bearer bhr-demo-token"}',
+  '{"never": {"tool_names": []}, "always": {"tool_names": ["employee_search", "update_employee", "get_employee_info"]}}'
+),
+(
+  '90123456-789a-123e-f012-456789012348',
+  'c926e979-1f16-46bf-a7cc-8aab70162d65',
+  'failing-mcp-test',
+  'https://mcp.test.com/failing',
+  FALSE,
+  'Failing MCP Test server for error handling testing',
+  '{"Authorization": "Bearer test-demo-token"}',
+  '{"never": {"tool_names": []}, "always": {"tool_names": ["failingmcptest"]}}'
 )
 ON CONFLICT (id) DO NOTHING;

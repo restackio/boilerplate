@@ -1,12 +1,96 @@
 import os
 import uuid
+from datetime import datetime, timezone
 
 from pydantic import BaseModel, Field
-from restack_ai.function import NonRetryableError, function
+from restack_ai.function import NonRetryableError, function, log
 from sqlalchemy import select
 
 from src.database.connection import get_async_db
-from src.database.models import AgentTool, McpServer
+from src.database.models import AgentTool, McpServer, UserOAuthConnection
+from src.utils.token_encryption import decrypt_token
+
+
+async def _get_oauth_token_for_mcp_server(
+    mcp_server_id: str, user_id: str | None = None
+) -> str | None:
+    """Get OAuth token for MCP server, refreshing if needed.
+    
+    Args:
+        mcp_server_id: The MCP server ID to get token for
+        user_id: Optional user ID. If not provided, uses the most recent token for the server
+    """
+    try:
+        async for db in get_async_db():
+            if user_id:
+                # Get OAuth token for specific user and MCP server
+                query = select(UserOAuthConnection).where(
+                    UserOAuthConnection.user_id == uuid.UUID(user_id),
+                    UserOAuthConnection.mcp_server_id == uuid.UUID(mcp_server_id)
+                )
+            else:
+                # Get the most recent OAuth token for this MCP server (any user)
+                query = select(UserOAuthConnection).where(
+                    UserOAuthConnection.mcp_server_id == uuid.UUID(mcp_server_id)
+                ).order_by(UserOAuthConnection.last_refreshed_at.desc().nulls_last(),
+                          UserOAuthConnection.connected_at.desc())
+            
+            result = await db.execute(query)
+            oauth_connection = result.scalar_one_or_none()
+            
+            if not oauth_connection:
+                user_context = f"user {user_id}" if user_id else "any user"
+                log.info(f"No OAuth connection found for {user_context} and MCP server {mcp_server_id}")
+                return None
+            
+            # Check if token is expired or about to expire (within 5 minutes)
+            now = datetime.now(timezone.utc).replace(tzinfo=None)
+            if oauth_connection.expires_at and oauth_connection.expires_at <= now:
+                log.info(f"OAuth token expired for MCP server {mcp_server_id}, attempting refresh")
+                
+                # Import here to avoid circular imports
+                from src.functions.mcp_oauth_crud import (
+                    GetOAuthTokenInput,
+                    oauth_token_refresh_and_update,
+                )
+                
+                try:
+                    # Attempt to refresh the token using the connection's user_id
+                    refresh_user_id = user_id or str(oauth_connection.user_id)
+                    refresh_result = await oauth_token_refresh_and_update(
+                        GetOAuthTokenInput(
+                            user_id=refresh_user_id,
+                            mcp_server_id=mcp_server_id
+                        )
+                    )
+                    
+                    if refresh_result and refresh_result.token:
+                        log.info(f"Successfully refreshed OAuth token for MCP server {mcp_server_id}")
+                        # Get the refreshed token from database
+                        refreshed_query = select(UserOAuthConnection).where(
+                            UserOAuthConnection.user_id == uuid.UUID(refresh_user_id),
+                            UserOAuthConnection.mcp_server_id == uuid.UUID(mcp_server_id)
+                        )
+                        refreshed_result = await db.execute(refreshed_query)
+                        oauth_connection = refreshed_result.scalar_one_or_none()
+                    else:
+                        log.error(f"Failed to refresh OAuth token for MCP server {mcp_server_id}")
+                        return None
+                        
+                except Exception as e:
+                    log.error(f"Error refreshing OAuth token for MCP server {mcp_server_id}: {e}")
+                    return None
+            
+            # Decrypt and return the access token
+            if oauth_connection and oauth_connection.access_token:
+                access_token = decrypt_token(oauth_connection.access_token)
+                return access_token
+                
+            return None
+            
+    except Exception as e:
+        log.error(f"Error getting OAuth token for MCP server {mcp_server_id}: {e}")
+        return None
 
 
 def _raise_mcp_server_required_error() -> None:
@@ -74,6 +158,8 @@ def _convert_approval_config(
 
 class AgentToolsGetByAgentInput(BaseModel):
     agent_id: str = Field(..., min_length=1)
+
+    user_id: str | None = Field(None, description="Optional user ID for OAuth token refresh. If not provided, uses most recent token.")
     convert_approval_to_string: bool = Field(
         default=True,
         description="Convert approval config to string format for OpenAI",
@@ -199,6 +285,21 @@ async def agent_tools_read_by_agent(  # noqa: C901
                             "headers": ms.headers or {},
                             "require_approval": require_approval,
                         }
+                        
+                        # Add OAuth authorization if token exists for this MCP server
+                        oauth_token = await _get_oauth_token_for_mcp_server(
+                            str(ms.id), function_input.user_id
+                        )
+                        if oauth_token:
+                            tool_obj["authorization"] = oauth_token
+                            user_context = f"user {function_input.user_id}" if function_input.user_id else "most recent token"
+                            log.info(f"Added OAuth authorization for MCP server {ms.server_label} using {user_context}")
+                        else:
+                            # Only log if we expect OAuth (don't spam logs for non-OAuth servers)
+                            if ms.server_url and ("oauth" in (ms.server_url or "").lower() or 
+                                                "api." in (ms.server_url or "").lower()):
+                                user_context = f"user {function_input.user_id}" if function_input.user_id else "any user"
+                                log.debug(f"No OAuth token found for MCP server {ms.server_label} for {user_context}")
                         if r.allowed_tools:
                             tool_obj["allowed_tools"] = (
                                 r.allowed_tools

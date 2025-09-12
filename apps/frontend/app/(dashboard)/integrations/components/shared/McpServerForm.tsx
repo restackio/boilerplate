@@ -6,7 +6,7 @@ import { Textarea } from "@workspace/ui/components/ui/textarea";
 import { Switch } from "@workspace/ui/components/ui/switch";
 import { Button } from "@workspace/ui/components/ui/button";
 import { Loader2, AlertCircle, Wrench } from "lucide-react";
-import { listMcpServerTools } from "@/app/actions/workflow";
+import { listMcpServerTools } from "../../../../actions/workflow";
 import { ToolApprovalSelector, ToolApprovalSettings } from "./ToolApprovalSelector";
 
 /** Form data for MCP server configuration */

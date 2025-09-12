@@ -1,25 +1,22 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { IntegrationsTable } from "@workspace/ui/components/integrations-table";
 import { PageHeader } from "@workspace/ui/components/page-header";
 import { Button } from "@workspace/ui/components/ui/button";
 import { RefreshCw, Plus } from "lucide-react";
 import { useWorkspaceScopedActions, McpServer } from "../../../hooks/use-workspace-scoped-actions";
+import { AddMcpServerDialog } from "./components/AddMcpServerDialog";
 
 // Map McpServer to Integration format for the table component
 const mapServerToIntegration = (server: McpServer) => ({
   id: server.id,
   integration_name: server.server_label,
-  provider_name: server.server_label.split('-')[0] || server.server_label,
-  integration_type: server.local ? "local" : "remote",
-  enabled: true,
-  oauth_authorization_url: server.server_url,
-  oauth_scopes: [],
-  required_role: "user",
-  allow_user_connections: true,
-  auto_refresh_tokens: true,
+  server_description: server.server_description,
+  server_url: server.server_url,
+  local: server.local,
+  tools_count: server.require_approval.always.tool_names.length + server.require_approval.never.tool_names.length,
   connected_users_count: 0, // This will be populated by the table component if needed
   created_at: server.created_at || "",
   updated_at: server.updated_at || "",
@@ -28,6 +25,7 @@ const mapServerToIntegration = (server: McpServer) => ({
 export default function IntegrationsPage() {
   const router = useRouter();
   const { mcpServers, mcpServersLoading, fetchMcpServers } = useWorkspaceScopedActions();
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchMcpServers();
@@ -50,7 +48,11 @@ export default function IntegrationsPage() {
   };
 
   const handleAddIntegration = () => {
-    router.push("/agents/mcps");
+    setAddDialogOpen(true);
+  };
+
+  const handleDialogSuccess = () => {
+    fetchMcpServers(); // Refresh the list
   };
 
   // Convert servers to integration format for the table
@@ -71,7 +73,7 @@ export default function IntegrationsPage() {
       </Button>
       <Button size="sm" variant="ghost" onClick={handleAddIntegration}>
         <Plus className="h-4 w-4 mr-1" />
-        Add Integration
+        New Integration
       </Button>
     </div>
   );
@@ -105,6 +107,13 @@ export default function IntegrationsPage() {
           />
         )}
       </div>
+
+      {/* Add Integration Dialog */}
+      <AddMcpServerDialog
+        open={addDialogOpen}
+        onOpenChange={setAddDialogOpen}
+        onSuccess={handleDialogSuccess}
+      />
     </div>
   );
 }

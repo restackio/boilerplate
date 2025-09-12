@@ -13,11 +13,6 @@ export default function AgentsTabs() {
       href: "/agents",
       current: pathname === "/agents",
     },
-    {
-      name: "MCPs",
-      href: "/agents/mcps",
-      current: pathname.startsWith("/agents/mcps"),
-    },
   ];
 
   return (

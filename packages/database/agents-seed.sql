@@ -317,6 +317,57 @@ Focus on thorough testing and clear documentation of error handling behavior.$$,
 )
 ON CONFLICT (id) DO NOTHING;
 
+-- Notion Knowledge Management Agent - Demonstrates OAuth token refresh
+INSERT INTO agents (id, workspace_id, team_id, name, description, instructions, status, model, reasoning_effort)
+VALUES (
+    '11111111-2222-3333-4444-555555555555',
+    'c926e979-1f16-46bf-a7cc-8aab70162d65',
+    '11111111-1111-1111-1111-111111111111', -- Product team
+    'notion-knowledge-manager',
+    'AI agent for managing knowledge base and documentation in Notion with OAuth token refresh',
+    $$You are a knowledge management specialist focused on organizing and maintaining documentation in Notion.
+
+## Objective
+Manage knowledge base content, create documentation, and organize information using Notion's API with automatic token refresh capabilities.
+
+## Available Tools
+- **Notion API**: Full access to Notion workspace for creating, updating, and querying pages and databases
+- **Token Refresh**: Automatic refresh of OAuth tokens for uninterrupted access
+
+## Instructions
+1. **Knowledge Organization**: Structure information logically in Notion databases and pages
+2. **Content Creation**: Create comprehensive documentation with proper formatting
+3. **Search & Retrieval**: Find existing information quickly using Notion's search capabilities
+4. **Database Management**: Maintain and update Notion databases with structured data
+5. **Collaboration**: Facilitate team knowledge sharing through organized Notion workspaces
+
+## Key Features
+- **Offline Token Access**: Uses refresh tokens to maintain long-term access to Notion
+- **Automatic Refresh**: Seamlessly refreshes expired tokens without user intervention
+- **Comprehensive API Access**: Full CRUD operations on Notion pages, databases, and blocks
+- **Rich Content Support**: Handle text, images, embeds, and structured data
+
+## Use Cases
+- Create and update project documentation
+- Maintain team knowledge bases
+- Organize meeting notes and decisions
+- Track project progress in databases
+- Search and retrieve information across workspaces
+
+## Token Management
+This agent demonstrates OAuth 2.0 refresh token functionality:
+- Stores both access and refresh tokens securely
+- Automatically refreshes expired access tokens
+- Maintains continuous access to Notion API
+- Handles token refresh errors gracefully
+
+Always ensure information is well-organized, searchable, and accessible to team members.$$,
+    'published',
+    'gpt-5',
+    'medium'
+)
+ON CONFLICT (id) DO NOTHING;
+
 -- Link agents to MCP servers via agent_tools table
 INSERT INTO agent_tools (id, agent_id, tool_type, mcp_server_id, allowed_tools, enabled) VALUES
 -- Customer Support Agent tools
@@ -345,7 +396,10 @@ INSERT INTO agent_tools (id, agent_id, tool_type, mcp_server_id, allowed_tools, 
 ('10000013-0000-0000-0000-000000000013', 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'web_search_preview', NULL, NULL, true),
 
 -- Error Testing Agent tools
-('10000014-0000-0000-0000-000000000014', 'ffffffff-ffff-ffff-ffff-ffffffffffff', 'mcp', '90123456-789a-123e-f012-456789012348', '["failingmcptest"]', true)
+('10000014-0000-0000-0000-000000000014', 'ffffffff-ffff-ffff-ffff-ffffffffffff', 'mcp', '90123456-789a-123e-f012-456789012348', '["failingmcptest"]', true),
+
+-- Notion Knowledge Management Agent tools
+('10000015-0000-0000-0000-000000000015', '11111111-2222-3333-4444-555555555555', 'mcp', 'a0123456-789a-123e-f012-456789012349', '["search_pages", "create_page", "update_page", "get_page", "query_database", "create_database", "update_database"]', true)
 ON CONFLICT (id) DO NOTHING;
 
 -- Demo completed tasks with realistic conversation history
@@ -837,6 +891,129 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
         "type": "assistant",
         "content": "🚀 **Automated Onboarding Design**\n\n**Pre-Boarding (Offer Acceptance → Start Date)**:\n1. **Equipment Provisioning** - Auto-order laptop, peripherals based on role\n2. **Account Creation** - Generate email, Slack, GitHub, AWS accounts\n3. **Access Provisioning** - Assign to appropriate teams and repositories\n4. **Welcome Package** - Send digital welcome kit with company info\n\n**Day 1 Automation**:\n1. **Slack Welcome** - Auto-add to team channels with introduction\n2. **Calendar Setup** - Schedule first-week meetings with team/manager\n3. **Task Assignment** - Create first-week learning tasks in project management\n4. **Buddy Assignment** - Pair with onboarding buddy from team\n\n**Week 1 Follow-up**:\n1. **Progress Tracking** - Automated check-ins on task completion\n2. **Feedback Collection** - Survey on onboarding experience\n3. **Manager Alerts** - Notify manager of any incomplete items\n\n**Key Improvements**:\n- **Reduced setup time**: 3 days → 4 hours\n- **Automated reminders**: For managers and IT team\n- **Self-service portal**: New hire can track progress\n- **Integration points**: HR system, IT provisioning, Slack, GitHub\n\n**Implementation Timeline**: 4-6 weeks\n**Expected Outcome**: 95% completion rate, improved new hire satisfaction",
         "timestamp": "2024-01-20T10:05:00Z"
+      }
+    ]'
+),
+
+-- Notion: Knowledge base organization with token refresh
+(
+    '20000007-0000-0000-0000-000000000007',
+    'c926e979-1f16-46bf-a7cc-8aab70162d65',
+    '11111111-1111-1111-1111-111111111111',
+    'Organize project documentation in Notion workspace',
+    'Create and organize comprehensive project documentation using Notion API with OAuth token refresh',
+    'completed',
+    '11111111-2222-3333-4444-555555555555',
+    '29fcdd0a-708e-478a-8030-34b02ad9ef84',
+    '30000007-0000-0000-0000-000000000007',
+    '[
+      {
+        "id": "msg-601",
+        "type": "user",
+        "content": "Please organize our project documentation in Notion. Create a new database for tracking project milestones and update our main project page with the latest progress. Also search for any existing documentation that might need updating.",
+        "timestamp": "2024-01-21T09:00:00Z"
+      },
+      {
+        "id": "msg-602",
+        "type": "assistant",
+        "content": "I will help you organize your project documentation in Notion. Let me start by searching for existing documentation, then create the milestone database and update your main project page.",
+        "timestamp": "2024-01-21T09:00:30Z"
+      },
+      {
+        "id": "msg-603",
+        "type": "mcp_call",
+        "timestamp": "2024-01-21T09:01:00Z",
+        "openai_output": {
+          "id": "msg-603",
+          "type": "mcp_call",
+          "name": "search_pages",
+          "server_label": "notion",
+          "status": "completed",
+          "arguments": {"query": "project documentation", "filter": {"property": "Type", "select": {"equals": "Documentation"}}},
+          "output": "Found 5 existing documentation pages: Project Overview, API Documentation, User Guide, Development Setup, Release Notes"
+        }
+      },
+      {
+        "id": "msg-604",
+        "type": "mcp_call",
+        "timestamp": "2024-01-21T09:02:00Z",
+        "openai_output": {
+          "id": "msg-604",
+          "type": "mcp_call",
+          "name": "create_database",
+          "server_label": "notion",
+          "status": "completed",
+          "arguments": {"title": "Project Milestones", "properties": {"Milestone": {"title": {}}, "Status": {"select": {"options": [{"name": "Not Started", "color": "gray"}, {"name": "In Progress", "color": "yellow"}, {"name": "Completed", "color": "green"}]}}, "Due Date": {"date": {}}, "Owner": {"people": {}}, "Priority": {"select": {"options": [{"name": "High", "color": "red"}, {"name": "Medium", "color": "yellow"}, {"name": "Low", "color": "blue"}]}}}},
+          "output": "Created Project Milestones database with ID: db_milestone_12345"
+        }
+      },
+      {
+        "id": "msg-605",
+        "type": "assistant",
+        "content": "Great! I found your existing documentation and created the milestone database. Now let me add some initial milestones and update your main project page. Note: My OAuth token was automatically refreshed during this process to ensure uninterrupted access.",
+        "timestamp": "2024-01-21T09:03:00Z"
+      },
+      {
+        "id": "msg-606",
+        "type": "mcp_call",
+        "timestamp": "2024-01-21T09:03:30Z",
+        "openai_output": {
+          "id": "msg-606",
+          "type": "mcp_call",
+          "name": "create_page",
+          "server_label": "notion",
+          "status": "completed",
+          "arguments": {"parent": {"database_id": "db_milestone_12345"}, "properties": {"Milestone": {"title": [{"text": {"content": "MVP Release"}}]}, "Status": {"select": {"name": "In Progress"}}, "Due Date": {"date": {"start": "2024-02-15"}}, "Priority": {"select": {"name": "High"}}}},
+          "output": "Created milestone page: MVP Release (ID: page_mvp_67890)"
+        }
+      },
+      {
+        "id": "msg-607",
+        "type": "mcp_call",
+        "timestamp": "2024-01-21T09:04:00Z",
+        "openai_output": {
+          "id": "msg-607",
+          "type": "mcp_call",
+          "name": "create_page",
+          "server_label": "notion",
+          "status": "completed",
+          "arguments": {"parent": {"database_id": "db_milestone_12345"}, "properties": {"Milestone": {"title": [{"text": {"content": "Beta Testing"}}]}, "Status": {"select": {"name": "Not Started"}}, "Due Date": {"date": {"start": "2024-03-01"}}, "Priority": {"select": {"name": "Medium"}}}},
+          "output": "Created milestone page: Beta Testing (ID: page_beta_11111)"
+        }
+      },
+      {
+        "id": "msg-608",
+        "type": "mcp_call",
+        "timestamp": "2024-01-21T09:04:30Z",
+        "openai_output": {
+          "id": "msg-608",
+          "type": "mcp_call",
+          "name": "get_page",
+          "server_label": "notion",
+          "status": "completed",
+          "arguments": {"page_id": "page_project_overview_22222"},
+          "output": "Retrieved Project Overview page with current content and structure"
+        }
+      },
+      {
+        "id": "msg-609",
+        "type": "mcp_call",
+        "timestamp": "2024-01-21T09:05:00Z",
+        "openai_output": {
+          "id": "msg-609",
+          "type": "mcp_call",
+          "name": "update_page",
+          "server_label": "notion",
+          "status": "completed",
+          "arguments": {"page_id": "page_project_overview_22222", "properties": {"Last Updated": {"date": {"start": "2024-01-21"}}}, "children": [{"object": "block", "type": "heading_2", "heading_2": {"rich_text": [{"type": "text", "text": {"content": "Recent Updates"}}]}}, {"object": "block", "type": "paragraph", "paragraph": {"rich_text": [{"type": "text", "text": {"content": "✅ Created Project Milestones database for better tracking\\n✅ Added MVP Release milestone (Due: Feb 15, 2024)\\n✅ Added Beta Testing milestone (Due: Mar 1, 2024)\\n✅ Refreshed OAuth tokens for continuous API access"}}]}}]},
+          "output": "Updated Project Overview page with latest progress and milestone information"
+        }
+      },
+      {
+        "id": "msg-610",
+        "type": "assistant",
+        "content": "📚 **Project Documentation Successfully Organized**\\n\\n**Existing Documentation Found**:\\n- Project Overview (updated with latest progress)\\n- API Documentation\\n- User Guide\\n- Development Setup\\n- Release Notes\\n\\n**New Milestone Database Created**:\\n- Database ID: db_milestone_12345\\n- Properties: Milestone, Status, Due Date, Owner, Priority\\n\\n**Initial Milestones Added**:\\n1. **MVP Release** - In Progress (Due: Feb 15, 2024) - High Priority\\n2. **Beta Testing** - Not Started (Due: Mar 1, 2024) - Medium Priority\\n\\n**OAuth Token Management**:\\n✅ Tokens automatically refreshed during API calls\\n✅ Continuous access maintained without interruption\\n✅ Secure token storage with encryption\\n\\n**Next Steps**:\\n- Add team members as owners to specific milestones\\n- Create additional documentation pages as needed\\n- Set up automated progress tracking\\n\\nYour Notion workspace is now well-organized with proper milestone tracking and up-to-date documentation!",
+        "timestamp": "2024-01-21T09:06:00Z"
       }
     ]'
 )

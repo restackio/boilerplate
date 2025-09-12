@@ -30,6 +30,7 @@ with import_functions():
         mcp_server_get_by_id,
         oauth_token_create_or_update,
         oauth_token_delete,
+        oauth_token_refresh_and_update,
         oauth_tokens_get_by_workspace,
     )
 
@@ -268,14 +269,14 @@ class OAuthTokensGetByWorkspaceWorkflow:
     """Workflow to get OAuth tokens by workspace."""
 
     @workflow.run
-    async def run(self, input_data: GetTokensByWorkspaceInput) -> OAuthTokensListOutput:
+    async def run(self, workflow_input: GetTokensByWorkspaceInput) -> OAuthTokensListOutput:
         """Get OAuth tokens for a workspace."""
         try:
-            log.info(f"Getting OAuth tokens for workspace: {input_data.workspace_id}")
+            log.info(f"Getting OAuth tokens for workspace: {workflow_input.workspace_id}")
             
-            result = await workflow.execute_activity(
-                oauth_tokens_get_by_workspace,
-                input_data,
+            result = await workflow.step(
+                function=oauth_tokens_get_by_workspace,
+                function_input= workflow_input,
                 start_to_close_timeout=timedelta(seconds=30),
             )
             
@@ -293,14 +294,14 @@ class BearerTokenCreateWorkflow:
     """Workflow to create a Bearer token."""
 
     @workflow.run
-    async def run(self, input_data: SaveBearerTokenInput) -> SaveOAuthTokenOutput:
+    async def run(self, workflow_input: SaveBearerTokenInput) -> SaveOAuthTokenOutput:
         """Create a Bearer token."""
         try:
-            log.info(f"Creating Bearer token for server: {input_data.mcp_server_id}")
+            log.info(f"Creating Bearer token for server: {workflow_input.mcp_server_id}")
             
-            result = await workflow.execute_activity(
-                bearer_token_create_or_update,
-                input_data,
+            result = await workflow.step(
+                function=bearer_token_create_or_update,
+                function_input=workflow_input,
                 start_to_close_timeout=timedelta(seconds=30),
             )
             
@@ -318,21 +319,46 @@ class OAuthTokenDeleteWorkflow:
     """Workflow to delete an OAuth token."""
 
     @workflow.run
-    async def run(self, input_data: GetOAuthTokenInput) -> DeleteTokenOutput:
+    async def run(self, workflow_input: GetOAuthTokenInput) -> DeleteTokenOutput:
         """Delete an OAuth token."""
         try:
-            log.info(f"Deleting OAuth token for user: {input_data.user_id}, server: {input_data.mcp_server_id}")
+            log.info(f"Deleting OAuth token for user: {workflow_input.user_id}, server: {workflow_input.mcp_server_id}")
             
-            result = await workflow.execute_activity(
-                oauth_token_delete,
-                input_data,
+            result = await workflow.step(
+                function=oauth_token_delete,
+                function_input=workflow_input,
                 start_to_close_timeout=timedelta(seconds=30),
             )
             
-            log.info(f"Successfully deleted OAuth token for user: {input_data.user_id}, server: {input_data.mcp_server_id}")
+            log.info(f"Successfully deleted OAuth token for user: {workflow_input.user_id}, server: {workflow_input.mcp_server_id}")
             return result
             
         except Exception as e:
             error_message = f"Error deleting OAuth token: {e}"
+            log.error(error_message)
+            raise NonRetryableError(message=error_message) from e
+
+
+@workflow.defn()
+class OAuthTokenRefreshWorkflow:
+    """Workflow to refresh an OAuth token."""
+
+    @workflow.run
+    async def run(self, workflow_input: GetOAuthTokenInput) -> SaveOAuthTokenOutput:
+        """Refresh an OAuth token and update the database."""
+        try:
+            log.info(f"Refreshing OAuth token for user: {workflow_input.user_id}, server: {workflow_input.mcp_server_id}")
+            
+            result = await workflow.step(
+                function=oauth_token_refresh_and_update,
+                function_input=workflow_input,
+                start_to_close_timeout=timedelta(seconds=60),
+            )
+            
+            log.info(f"Successfully refreshed OAuth token for user: {workflow_input.user_id}, server: {workflow_input.mcp_server_id}")
+            return result
+            
+        except Exception as e:
+            error_message = f"Error refreshing OAuth token: {e}"
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e

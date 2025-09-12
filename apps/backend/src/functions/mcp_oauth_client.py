@@ -463,25 +463,114 @@ async def oauth_exchange_code_for_token(
 
 @function.defn()
 async def oauth_refresh_token(
-    _function_input: GetOAuthTokenInput,
+    function_input: GetOAuthTokenInput,
 ) -> TokenExchangeResultOutput:
     """Refresh OAuth access token using refresh token."""
     try:
-        # This is a placeholder implementation
-        # In a real implementation, this would:
-        # 1. Get stored refresh token from database
-        # 2. Get MCP server OAuth configuration (token endpoint, client credentials)
-        # 3. Make POST request to token endpoint with refresh token
-        # 4. Return the new tokens
-
-        # For now, return a placeholder indicating this needs to be implemented
-        def _raise_not_implemented() -> None:
+        log.info(f"Refreshing OAuth token for user {function_input.user_id}, server {function_input.mcp_server_id}")
+        
+        # Import here to avoid circular imports
+        from src.functions.mcp_oauth_crud import (
+            oauth_token_get_decrypted,
+            mcp_server_get_by_id,
+            GetMcpServerInput,
+        )
+        
+        # Step 1: Get stored refresh token from database
+        token_result = await oauth_token_get_decrypted(function_input)
+        if not token_result or not token_result.refresh_token:
             raise NonRetryableError(
-                message="OAuth token refresh not yet implemented. Please configure MCP server OAuth endpoints."
+                message="No refresh token found for this user and MCP server"
             )
-
-        _raise_not_implemented()
-
+        
+        # Step 2: Get MCP server configuration
+        server_result = await mcp_server_get_by_id(
+            GetMcpServerInput(mcp_server_id=function_input.mcp_server_id)
+        )
+        if not server_result or not server_result.server:
+            raise NonRetryableError(
+                message=f"MCP server not found: {function_input.mcp_server_id}"
+            )
+        
+        server = server_result.server
+        
+        # Step 3: Discover OAuth metadata to get token endpoint
+        oauth_metadata = await discover_oauth_metadata(server.server_url)
+        token_endpoint = str(oauth_metadata.token_endpoint)
+        
+        # Step 4: Get client credentials (stored in server headers or use dynamic registration)
+        client_id = None
+        client_secret = None
+        
+        if server.headers and isinstance(server.headers, dict):
+            # Check if client credentials are stored in server headers
+            client_id = server.headers.get("oauth_client_id")
+            client_secret = server.headers.get("oauth_client_secret")
+        
+        if not client_id or not client_secret:
+            # Fall back to dynamic client registration if no stored credentials
+            log.info("No stored client credentials, attempting dynamic registration")
+            parsed_url = urlparse(server.server_url)
+            base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
+            
+            async with httpx.AsyncClient() as client:
+                registration_result = await register_oauth_client(
+                    client, oauth_metadata, base_url, server.server_label
+                )
+                client_id = registration_result.client_id
+                client_secret = registration_result.client_secret
+        
+        # Step 5: Make refresh token request
+        async with httpx.AsyncClient() as client:
+            token_data = {
+                "grant_type": "refresh_token",
+                "refresh_token": token_result.refresh_token,
+                "client_id": client_id,
+                "client_secret": client_secret,
+                # RFC 8707: Include resource parameter for token scoping
+                "resource": resource_url_from_server_url(server.server_url)
+            }
+            
+            headers = {
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Accept": "application/json",
+            }
+            
+            log.info(f"Making refresh token request to {token_endpoint}")
+            response = await client.post(
+                token_endpoint,
+                data=token_data,
+                headers=headers,
+                timeout=30.0,
+            )
+            
+            if response.status_code != 200:
+                error_detail = f"HTTP {response.status_code}"
+                try:
+                    error_json = response.json()
+                    error_detail = f"HTTP {response.status_code}: {error_json.get('error', 'unknown_error')} - {error_json.get('error_description', 'No description')}"
+                except Exception:
+                    error_detail = f"HTTP {response.status_code}: {response.text[:200]}"
+                
+                raise NonRetryableError(
+                    message=f"Token refresh failed: {error_detail}"
+                )
+            
+            tokens = response.json()
+            
+            # Step 6: Return the refreshed tokens
+            return TokenExchangeResultOutput(
+                token_exchange=TokenExchangeResult(
+                    access_token=tokens["access_token"],
+                    refresh_token=tokens.get("refresh_token", token_result.refresh_token),  # Use new refresh token if provided, otherwise keep existing
+                    token_type=tokens.get("token_type", "Bearer"),
+                    expires_in=tokens.get("expires_in"),
+                    scope=tokens.get("scope"),
+                )
+            )
+            
+    except NonRetryableError:
+        raise
     except Exception as e:
         raise NonRetryableError(
             message=f"Failed to refresh token: {e!s}"

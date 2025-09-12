@@ -48,16 +48,12 @@ export default function OAuthCallbackPage() {
           return;
         }
 
-        // Determine provider from MCP server ID (for display)
-        const providerMapping: Record<string, string> = {
-          'a0123456-789a-123e-f012-456789012349': 'notion',
-          // Add more mappings as needed
-        };
-        const detectedProvider = providerMapping[mcpServerId] || 'unknown';
-        setProvider(detectedProvider);
+        // Get provider name from session storage (set during OAuth initiation)
+        const storedProvider = sessionStorage.getItem('oauth_provider_name') || 'service';
+        setProvider(storedProvider);
 
         console.log('OAuth callback received:', {
-          provider: detectedProvider,
+          provider: storedProvider,
           mcpServerId,
           code: code.substring(0, 10) + '...', // Log partial code for debugging
           state,
@@ -86,7 +82,7 @@ export default function OAuthCallbackPage() {
         
         if (result.success && result.data?.success) {
           setStatus('success');
-          setMessage(`Successfully connected your ${detectedProvider} account! You can now close this window.`);
+          setMessage(`Successfully connected your ${storedProvider} account! You can now close this window.`);
         } else {
           setStatus('error');
           setMessage(result.data?.error || 'Failed to complete OAuth connection');
@@ -96,6 +92,9 @@ export default function OAuthCallbackPage() {
         sessionStorage.removeItem('oauth_mcp_server_id');
         sessionStorage.removeItem('oauth_user_id');
         sessionStorage.removeItem('oauth_workspace_id');
+        sessionStorage.removeItem('oauth_provider_name');
+        sessionStorage.removeItem('oauth_client_id');
+        sessionStorage.removeItem('oauth_client_secret');
 
       } catch (error) {
         console.error('OAuth callback error:', error);
@@ -108,16 +107,22 @@ export default function OAuthCallbackPage() {
   }, [searchParams]);
 
   const getProviderIcon = (provider: string) => {
-    switch (provider.toLowerCase()) {
-      case 'notion':
-        return '📋';
-      case 'github':
-        return '🐙';
-      case 'slack':
-        return '💬';
-      default:
-        return '🔗';
-    }
+    const lowerProvider = provider.toLowerCase();
+    
+    // Common service icons
+    if (lowerProvider.includes('notion')) return '📋';
+    if (lowerProvider.includes('github')) return '🐙';
+    if (lowerProvider.includes('slack')) return '💬';
+    if (lowerProvider.includes('google')) return '🔍';
+    if (lowerProvider.includes('microsoft')) return '🏢';
+    if (lowerProvider.includes('linear')) return '📊';
+    if (lowerProvider.includes('figma')) return '🎨';
+    if (lowerProvider.includes('trello')) return '📋';
+    if (lowerProvider.includes('asana')) return '✅';
+    if (lowerProvider.includes('jira')) return '🎫';
+    
+    // Default for any OAuth service
+    return '🔗';
   };
 
   return (
