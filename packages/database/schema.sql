@@ -93,47 +93,33 @@ CREATE TABLE IF NOT EXISTS agent_tools (
         'file_search','web_search_preview','mcp','code_interpreter','image_generation','local_shell'
     )),
     mcp_server_id UUID REFERENCES mcp_servers(id) ON DELETE CASCADE,
+    -- MCP-specific fields (merged from agent_mcp_tools)
+    tool_name VARCHAR(255),  -- Required for MCP tools
+    custom_description TEXT,  -- Agent-specific tool description override
+    require_approval BOOLEAN NOT NULL DEFAULT FALSE,  -- Tool approval setting
+    -- General fields
     config JSONB,
     allowed_tools JSONB,
     execution_order INTEGER,
     enabled BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     -- Validation via CHECK constraints (no triggers)
     CONSTRAINT chk_agent_tools_mcp_server
-        CHECK (tool_type <> 'mcp' OR mcp_server_id IS NOT NULL)
+        CHECK (tool_type <> 'mcp' OR mcp_server_id IS NOT NULL),
+    CONSTRAINT chk_agent_tools_mcp_tool_name
+        CHECK (tool_type <> 'mcp' OR tool_name IS NOT NULL)
 );
 
 -- Uniqueness constraints per tool type
 CREATE UNIQUE INDEX IF NOT EXISTS ux_agent_tools_mcp
-  ON agent_tools(agent_id, tool_type, mcp_server_id)
+  ON agent_tools(agent_id, mcp_server_id, tool_name)
   WHERE tool_type = 'mcp';
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_agent_tools_simple
   ON agent_tools(agent_id, tool_type)
   WHERE tool_type NOT IN ('mcp');
 
--- Create agent_mcp_tools table for agent-specific MCP tool configuration
-CREATE TABLE IF NOT EXISTS agent_mcp_tools (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    agent_id UUID NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
-    mcp_server_id UUID NOT NULL REFERENCES mcp_servers(id) ON DELETE CASCADE,
-    tool_name VARCHAR(255) NOT NULL,
-    custom_description TEXT,
-    require_approval BOOLEAN NOT NULL DEFAULT FALSE,
-    enabled BOOLEAN NOT NULL DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Indexes for agent_mcp_tools
-CREATE UNIQUE INDEX IF NOT EXISTS ux_agent_mcp_tools_unique
-  ON agent_mcp_tools(agent_id, mcp_server_id, tool_name);
-
-CREATE INDEX IF NOT EXISTS idx_agent_mcp_tools_agent_id
-  ON agent_mcp_tools(agent_id);
-
-CREATE INDEX IF NOT EXISTS idx_agent_mcp_tools_mcp_server_id
-  ON agent_mcp_tools(mcp_server_id);
 
 -- Create user_oauth_connections table for individual user OAuth tokens
 CREATE TABLE IF NOT EXISTS user_oauth_connections (
@@ -255,6 +241,7 @@ $$ language 'plpgsql';
 
 -- Create triggers for updated_at
 CREATE TRIGGER update_agents_updated_at BEFORE UPDATE ON agents FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_agent_tools_updated_at BEFORE UPDATE ON agent_tools FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_tasks_updated_at BEFORE UPDATE ON tasks FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_workspaces_updated_at BEFORE UPDATE ON workspaces FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

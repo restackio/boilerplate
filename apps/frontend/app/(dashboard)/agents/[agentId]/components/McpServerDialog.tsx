@@ -17,7 +17,7 @@ import { Switch } from "@workspace/ui/components/ui/switch";
 // Removed unused imports: Card, CardContent, CardHeader, CardTitle, Separator, Shield, Info, Search, Input
 import { Loader2, ShieldCheck, AlertTriangle, ShieldAlert } from "lucide-react";
 import { McpServer } from "@/hooks/use-workspace-scoped-actions";
-import { listAgentMcpTools } from "@/app/actions/workflow";
+import { listMcpServerTools } from "@/app/actions/workflow";
 
 interface McpServerDialogProps {
   open: boolean;
@@ -28,7 +28,10 @@ interface McpServerDialogProps {
     agent_id: string;
     tool_type: 'mcp';
     mcp_server_id: string;
-    allowed_tools?: string[];
+    tool_name: string;
+    custom_description?: string | null;
+    require_approval?: boolean;
+    enabled?: boolean;
   }) => Promise<void>;
   agentId: string;
   isCreating: boolean;
@@ -53,7 +56,7 @@ export function McpServerDialog({
   const [selectedMcpServerId, setSelectedMcpServerId] = useState("");
   const [selectedTools, setSelectedTools] = useState<Set<string>>(new Set());
   const [toolApprovalSettings, setToolApprovalSettings] = useState<Record<string, boolean>>({}); // true = requires approval, false = auto-approved
-  const [listedTools, setListedTools] = useState<string[]>([]);
+  const [listedTools, setListedTools] = useState<Array<{name: string, description?: string}>>([]);
   const [isListing, setIsListing] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
 
@@ -91,22 +94,40 @@ export function McpServerDialog({
   }, [selectedMcpServerId, agentId, workspaceId]);
 
   const handleListTools = async () => {
-    if (!selectedMcpServerId) return;
+    if (!selectedMcpServerId || !selectedServer) return;
     
     setIsListing(true);
     setListError(null);
     setListedTools([]);
     
     try {
-      const result = await listAgentMcpTools({
-        agent_id: agentId,
-        mcp_server_id: selectedMcpServerId,
-        workspace_id: workspaceId,
-      });
+      // Use the proper MCP server tools listing with the server's URL
+      let headers = {};
+      if (selectedServer.headers) {
+        try {
+          headers = typeof selectedServer.headers === 'string' 
+            ? JSON.parse(selectedServer.headers) 
+            : selectedServer.headers;
+        } catch (e) {
+          console.warn("Failed to parse server headers:", e);
+        }
+      }
       
-      if ((result as any)?.success && (result as any)?.tools) {
-        const toolNames = (result as any).tools.map((tool: any) => tool.name || tool);
-        setListedTools(toolNames);
+      const result = await listMcpServerTools(
+        selectedServer.server_url,
+        headers,
+        selectedServer.local || false,
+        workspaceId,
+        selectedMcpServerId
+      );
+      
+      if ((result as any)?.success) {
+        // Use the new tools array with descriptions if available, fallback to tools_list
+        const tools = (result as any)?.tools || [];
+        const toolsWithDescriptions = tools.length > 0 ? tools : 
+          ((result as any)?.tools_list || []).map((name: string) => ({ name, description: null }));
+        
+        setListedTools(toolsWithDescriptions);
       } else {
         setListError((result as any)?.error || "Failed to list tools");
         setListedTools([]);
@@ -123,7 +144,7 @@ export function McpServerDialog({
   const availableTools = useMemo(() => {
     // Prefer listed tools, fallback to server approval settings
     if (listedTools.length > 0) {
-      return listedTools;
+      return listedTools.map(tool => tool.name);
     }
     
     if (!selectedServer?.require_approval) return [];
@@ -175,12 +196,21 @@ export function McpServerDialog({
 
     const toolsArray = Array.from(selectedTools);
     
-    await onCreateTool({
-      agent_id: agentId,
-      tool_type: 'mcp',
-      mcp_server_id: selectedMcpServerId,
-      allowed_tools: toolsArray.length > 0 ? toolsArray : undefined
-    });
+    // Create individual agent tools for each selected tool
+    for (const toolName of toolsArray) {
+      // Get the default description from MCP server to initialize custom_description
+      const toolInfo = listedTools.find(tool => tool.name === toolName);
+      
+      await onCreateTool({
+        agent_id: agentId,
+        tool_type: 'mcp',
+        mcp_server_id: selectedMcpServerId,
+        tool_name: toolName,
+        custom_description: toolInfo?.description || null,
+        require_approval: toolApprovalSettings[toolName] || false,
+        enabled: true
+      });
+    }
   };
 
   return (

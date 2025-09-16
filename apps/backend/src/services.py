@@ -15,13 +15,6 @@ from src.functions.agent_tools_crud import (
     agent_tools_read_records_by_agent,
     agent_tools_update,
 )
-from src.functions.agent_mcp_tools_crud import (
-    agent_mcp_tools_create,
-    agent_mcp_tools_delete,
-    agent_mcp_tools_list,
-    agent_mcp_tools_read_by_agent,
-    agent_mcp_tools_update,
-)
 from src.functions.agents_crud import (
     agents_archive,
     agents_create,
@@ -125,13 +118,6 @@ from src.workflows.crud.agent_tools_crud import (
     AgentToolsReadByAgentWorkflow,
     AgentToolsReadRecordsByAgentWorkflow,
     AgentToolsUpdateWorkflow,
-)
-from src.workflows.crud.agent_mcp_tools_crud import (
-    AgentMcpToolsCreateWorkflow,
-    AgentMcpToolsDeleteWorkflow,
-    AgentMcpToolsListWorkflow,
-    AgentMcpToolsReadByAgentWorkflow,
-    AgentMcpToolsUpdateWorkflow,
 )
 from src.workflows.crud.agents_crud import (
     AgentsArchiveWorkflow,
@@ -271,12 +257,6 @@ async def run_restack_service() -> None:
             AgentToolsCreateWorkflow,
             AgentToolsUpdateWorkflow,
             AgentToolsDeleteWorkflow,
-            # Agent MCP tools workflows
-            AgentMcpToolsReadByAgentWorkflow,
-            AgentMcpToolsCreateWorkflow,
-            AgentMcpToolsUpdateWorkflow,
-            AgentMcpToolsDeleteWorkflow,
-            AgentMcpToolsListWorkflow,
             ScheduleCreateWorkflow,
             ScheduleUpdateWorkflow,
             ScheduleEditWorkflow,
@@ -370,12 +350,6 @@ async def run_restack_service() -> None:
             agent_tools_create,
             agent_tools_update,
             agent_tools_delete,
-            # Agent MCP tools functions
-            agent_mcp_tools_read_by_agent,
-            agent_mcp_tools_create,
-            agent_mcp_tools_update,
-            agent_mcp_tools_delete,
-            agent_mcp_tools_list,
             get_oauth_token_for_mcp_server
         ],
     )

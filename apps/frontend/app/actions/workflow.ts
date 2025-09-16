@@ -241,6 +241,11 @@ export async function createAgentTool(toolData: {
   agent_id: string;
   tool_type: 'web_search_preview'|'mcp'|'code_interpreter'|'image_generation';
   mcp_server_id?: string;
+  // MCP-specific fields
+  tool_name?: string;
+  custom_description?: string;
+  require_approval?: boolean;
+  // General fields
   config?: Record<string, unknown>;
   allowed_tools?: string[];
   execution_order?: number;
@@ -257,10 +262,15 @@ export async function updateAgentTool(toolData: {
   agent_tool_id: string;
   tool_type?: 'web_search_preview'|'mcp'|'code_interpreter'|'image_generation';
   mcp_server_id?: string | null;
-
+  // MCP-specific fields
+  tool_name?: string;
+  custom_description?: string;
+  require_approval?: boolean;
+  // General fields
   config?: Record<string, unknown>;
   allowed_tools?: string[] | null;
   execution_order?: number | null;
+  enabled?: boolean;
 }) {
   const { workflowId, runId } = await runWorkflow({
     workflowName: "AgentToolsUpdateWorkflow",
@@ -318,13 +328,10 @@ export async function getAgentMcpServerById() {
   throw new Error("getAgentMcpServerById is deprecated - use getAgentTools and filter by tool_type='mcp'");
 }
 
-// Agent MCP Tools (new agent-level tool management)
+// Agent MCP Tools (now unified with regular agent tools)
 export async function getAgentMcpTools(agentId: string) {
-  const { workflowId, runId } = await runWorkflow({
-    workflowName: "AgentMcpToolsReadByAgentWorkflow",
-    input: { agent_id: agentId },
-  });
-  return await getWorkflowResult({ workflowId, runId });
+  // Use the unified agent tools system
+  return await getAgentTools(agentId);
 }
 
 export async function createAgentMcpTool(toolData: {
@@ -335,11 +342,16 @@ export async function createAgentMcpTool(toolData: {
   require_approval?: boolean;
   enabled?: boolean;
 }) {
-  const { workflowId, runId } = await runWorkflow({
-    workflowName: "AgentMcpToolsCreateWorkflow",
-    input: toolData,
+  // Use the unified agent tools system with MCP-specific fields
+  return await createAgentTool({
+    agent_id: toolData.agent_id,
+    tool_type: "mcp",
+    mcp_server_id: toolData.mcp_server_id,
+    tool_name: toolData.tool_name,
+    custom_description: toolData.custom_description,
+    require_approval: toolData.require_approval || false,
+    enabled: toolData.enabled,
   });
-  return await getWorkflowResult({ workflowId, runId });
 }
 
 export async function updateAgentMcpTool(toolData: {
@@ -348,32 +360,20 @@ export async function updateAgentMcpTool(toolData: {
   require_approval?: boolean;
   enabled?: boolean;
 }) {
-  const { workflowId, runId } = await runWorkflow({
-    workflowName: "AgentMcpToolsUpdateWorkflow",
-    input: toolData,
+  // Use the unified agent tools system
+  return await updateAgentTool({
+    agent_tool_id: toolData.id,
+    custom_description: toolData.custom_description,
+    require_approval: toolData.require_approval,
+    enabled: toolData.enabled,
   });
-  return await getWorkflowResult({ workflowId, runId });
 }
 
 export async function deleteAgentMcpTool(toolId: string) {
-  const { workflowId, runId } = await runWorkflow({
-    workflowName: "AgentMcpToolsDeleteWorkflow",
-    input: { id: toolId },
-  });
-  return await getWorkflowResult({ workflowId, runId });
+  // Use the unified agent tools system
+  return await deleteAgentTool({ agent_tool_id: toolId });
 }
 
-export async function listAgentMcpTools(listData: {
-  agent_id: string;
-  mcp_server_id: string;
-  workspace_id: string;
-}) {
-  const { workflowId, runId } = await runWorkflow({
-    workflowName: "AgentMcpToolsListWorkflow",
-    input: listData,
-  });
-  return await getWorkflowResult({ workflowId, runId });
-}
 
 // Zendesk Ticket Workflow
 export async function generateZendeskTicket(ticketData: {

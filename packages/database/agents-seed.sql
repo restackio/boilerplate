@@ -140,24 +140,6 @@ INSERT INTO mcp_servers (id, workspace_id, server_label, server_url, local, serv
 )
 ON CONFLICT (id) DO NOTHING;
 
--- Insert sample agent MCP tools to demonstrate the new agent-level tool management
-INSERT INTO agent_mcp_tools (id, agent_id, mcp_server_id, tool_name, custom_description, require_approval, enabled) VALUES
--- Notion agent with search tool (from existing seed data)
-('a0000001-0001-0001-0001-000000000001', 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'a0123456-789a-123e-f012-456789012349', 'search', 'Search through Notion pages and databases for relevant information', FALSE, TRUE),
-
--- Customer Support Agent tools
-('a0000002-0002-0002-0002-000000000002', '77777777-7777-7777-7777-777777777777', 'f4567890-1234-5678-9abc-def012345678', 'zendeskticket', 'Create and manage Zendesk support tickets', TRUE, TRUE),
-('a0000003-0003-0003-0003-000000000003', '77777777-7777-7777-7777-777777777777', '15678901-2345-6789-bcde-f01234567890', 'knowledgebase', 'Search internal knowledge base for solutions', FALSE, TRUE),
-
--- Sales Agent tools  
-('a0000004-0004-0004-0004-000000000004', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '70123456-789a-123e-f012-456789012346', 'create_lead', 'Create new sales leads in CRM', TRUE, TRUE),
-('a0000005-0005-0005-0005-000000000005', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '70123456-789a-123e-f012-456789012346', 'update_opportunity', 'Update existing sales opportunities', FALSE, TRUE),
-
--- Engineering Agent tools
-('a0000006-0006-0006-0006-000000000006', 'cccccccc-cccc-cccc-cccc-cccccccccccc', 'c1d2e3f4-5678-9012-cdef-345678901234', 'ask_question', 'Query internal documentation and wikis', FALSE, TRUE),
-('a0000007-0007-0007-0007-000000000007', 'cccccccc-cccc-cccc-cccc-cccccccccccc', '60123456-789a-123e-f012-456789012345', 'SearchRestack', 'Search Restack documentation for technical information', FALSE, TRUE)
-
-ON CONFLICT (id) DO NOTHING;
 
 -- Customer Support Agent - Zendesk orchestrator
 INSERT INTO agents (id, workspace_id, team_id, name, description, instructions, status, model, reasoning_effort)
@@ -526,38 +508,23 @@ Always ensure information is well-organized, searchable, and accessible to team 
 )
 ON CONFLICT (id) DO NOTHING;
 
--- Link agents to MCP servers via agent_tools table
-INSERT INTO agent_tools (id, agent_id, tool_type, mcp_server_id, allowed_tools, enabled) VALUES
+-- Insert sample agent MCP tools using the unified agent_tools table (after all agents are created)
+INSERT INTO agent_tools (id, agent_id, tool_type, mcp_server_id, tool_name, custom_description, require_approval, enabled) VALUES
+-- Notion agent with search tool (from existing seed data)
+('a0000001-0001-0001-0001-000000000001', 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'mcp', 'a0123456-789a-123e-f012-456789012349', 'search', 'Search through Notion pages and databases for relevant information', FALSE, TRUE),
+
 -- Customer Support Agent tools
-('10000001-0000-0000-0000-000000000001', '77777777-7777-7777-7777-777777777777', 'mcp', 'f4567890-1234-5678-9abc-def012345678', '["zendeskticket"]', true),
-('10000002-0000-0000-0000-000000000002', '77777777-7777-7777-7777-777777777777', 'mcp', '15678901-2345-6789-bcde-f01234567890', '["knowledgebase"]', true),
-('10000003-0000-0000-0000-000000000003', '77777777-7777-7777-7777-777777777777', 'mcp', '26789012-3456-789a-cdef-012345678901', '["pagerdutyincident"]', true),
-('10000004-0000-0000-0000-000000000004', '77777777-7777-7777-7777-777777777777', 'mcp', '37890123-4567-890b-cdef-123456789012', '["datadoglogs"]', true),
-('10000005-0000-0000-0000-000000000005', '77777777-7777-7777-7777-777777777777', 'mcp', '48901234-5678-901c-def0-234567890123', '["linearissue"]', true),
-('10000006-0000-0000-0000-000000000006', '77777777-7777-7777-7777-777777777777', 'mcp', '59012345-6789-012d-ef01-345678901234', '["githubpr"]', true),
+('a0000002-0002-0002-0002-000000000002', '77777777-7777-7777-7777-777777777777', 'mcp', 'f4567890-1234-5678-9abc-def012345678', 'zendeskticket', 'Create and manage Zendesk support tickets', TRUE, TRUE),
+('a0000003-0003-0003-0003-000000000003', '77777777-7777-7777-7777-777777777777', 'mcp', '15678901-2345-6789-bcde-f01234567890', 'knowledgebase', 'Search internal knowledge base for solutions', FALSE, TRUE),
 
--- Sales Agent tools
-('10000007-0000-0000-0000-000000000007', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'mcp', '70123456-789a-123e-f012-456789012346', '["create_lead", "update_opportunity", "get_lead_status"]', true),
-
--- Marketing Agent tools
-('10000008-0000-0000-0000-000000000008', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'mcp', 'd2e3f456-7890-0123-def0-456789012345', '["insights-get-all", "insight-get"]', true),
+-- Sales Agent tools  
+('a0000004-0004-0004-0004-000000000004', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'mcp', '70123456-789a-123e-f012-456789012346', 'create_lead', 'Create new sales leads in CRM', TRUE, TRUE),
+('a0000005-0005-0005-0005-000000000005', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'mcp', '70123456-789a-123e-f012-456789012346', 'update_opportunity', 'Update existing sales opportunities', FALSE, TRUE),
 
 -- Engineering Agent tools
-('10000009-0000-0000-0000-000000000009', 'cccccccc-cccc-cccc-cccc-cccccccccccc', 'mcp', 'c1d2e3f4-5678-9012-cdef-345678901234', '["ask_question"]', true),
-('10000010-0000-0000-0000-000000000010', 'cccccccc-cccc-cccc-cccc-cccccccccccc', 'web_search_preview', NULL, NULL, true),
-('10000011-0000-0000-0000-000000000011', 'cccccccc-cccc-cccc-cccc-cccccccccccc', 'mcp', '60123456-789a-123e-f012-456789012345', '["SearchRestack"]', true),
+('a0000006-0006-0006-0006-000000000006', 'cccccccc-cccc-cccc-cccc-cccccccccccc', 'mcp', 'c1d2e3f4-5678-9012-cdef-345678901234', 'ask_question', 'Query internal documentation and wikis', FALSE, TRUE),
+('a0000007-0007-0007-0007-000000000007', 'cccccccc-cccc-cccc-cccc-cccccccccccc', 'mcp', '60123456-789a-123e-f012-456789012345', 'SearchRestack', 'Search Restack documentation for technical information', FALSE, TRUE)
 
--- HR Agent tools
-('10000012-0000-0000-0000-000000000012', 'dddddddd-dddd-dddd-dddd-dddddddddddd', 'mcp', '80123456-789a-123e-f012-456789012347', '["employee_search", "update_employee", "get_employee_info"]', true),
-
--- News Research Agent tools
-('10000013-0000-0000-0000-000000000013', 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'web_search_preview', NULL, NULL, true),
-
--- Error Testing Agent tools
-('10000014-0000-0000-0000-000000000014', 'ffffffff-ffff-ffff-ffff-ffffffffffff', 'mcp', '90123456-789a-123e-f012-456789012348', '["failingmcptest"]', true),
-
--- Notion Knowledge Management Agent tools
-('10000015-0000-0000-0000-000000000015', '11111111-2222-3333-4444-555555555555', 'mcp', 'a0123456-789a-123e-f012-456789012349', '["search_pages", "create_page", "update_page", "get_page", "query_database", "create_database", "update_database"]', true)
 ON CONFLICT (id) DO NOTHING;
 
 -- Demo completed tasks with realistic conversation history

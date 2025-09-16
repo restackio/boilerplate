@@ -198,6 +198,7 @@ export default function PlaygroundPage() {
           onAgentChange={handleDraftAgentChange}
           isCollapsed={isLeftPanelCollapsed}
           onToggleCollapse={() => setIsLeftPanelCollapsed(!isLeftPanelCollapsed)}
+          workspaceId={workspaceId}
         />
 
         {/* Middle Panel - Draft Agent Execution */}

@@ -25,6 +25,7 @@ with import_functions():
     )
     from src.functions.mcp_tools_refresh import (
         McpSessionInitInput,
+        McpTool,
         McpToolsListDirectInput,
         McpToolsListInput,
         McpToolsListOutput,
@@ -166,6 +167,24 @@ class McpToolsListWorkflow:
         self, workflow_input: McpToolsListInput
     ) -> McpToolsListOutput:
         try:
+            # Resolve server URL if it's a placeholder and we have mcp_server_id
+            server_url = workflow_input.server_url
+            if (server_url == "placeholder" and workflow_input.mcp_server_id):
+                # Get the actual server URL from the MCP server record
+                server_result = await workflow.step(
+                    function=mcp_servers_get_by_id,
+                    function_input=McpServerIdInput(
+                        mcp_server_id=workflow_input.mcp_server_id
+                    ),
+                )
+                if server_result.success and server_result.mcp_server:
+                    server_url = server_result.mcp_server.server_url
+                    log.info(f"Resolved server URL from MCP server: {server_url}")
+                else:
+                    raise NonRetryableError(
+                        message=f"Could not resolve server URL for MCP server {workflow_input.mcp_server_id}"
+                    )
+            
             # Prepare headers with authentication if available
             headers = workflow_input.headers or {}
 
@@ -209,7 +228,7 @@ class McpToolsListWorkflow:
             session_init_result = await workflow.step(
                 function=mcp_session_init,
                 function_input=McpSessionInitInput(
-                    server_url=workflow_input.server_url,
+                    server_url=server_url,
                     headers=headers,
                     local=getattr(workflow_input, "local", False),
                 ),
@@ -227,7 +246,7 @@ class McpToolsListWorkflow:
                     function=mcp_tools_list,
                     function_input=McpToolsSessionInput(
                         mcp_endpoint=session_init_result.mcp_endpoint
-                        or workflow_input.server_url,
+                        or server_url,
                         session_id=session_init_result.session_id,
                         headers=headers,
                     ),
@@ -253,9 +272,19 @@ class McpToolsListWorkflow:
                         error=error_message,
                     )
 
+                # Convert tools_with_descriptions to McpTool objects
+                tools_with_desc = []
+                if hasattr(tools_list_result, 'tools_with_descriptions'):
+                    for tool_dict in tools_list_result.tools_with_descriptions:
+                        tools_with_desc.append(McpTool(
+                            name=tool_dict.get("name", ""),
+                            description=tool_dict.get("description")
+                        ))
+                
                 return McpToolsListOutput(
                     success=True,
                     tools_list=tools_list_result.tools,
+                    tools=tools_with_desc,
                 )
             log.info(
                 "Server does not require session management, using direct tool listing"
@@ -264,7 +293,7 @@ class McpToolsListWorkflow:
             direct_result = await workflow.step(
                 function=mcp_tools_list_direct,
                 function_input=McpToolsListDirectInput(
-                    server_url=workflow_input.server_url,
+                    server_url=server_url,
                     headers=headers,
                     local=getattr(workflow_input, "local", False),
                 ),
@@ -290,8 +319,19 @@ class McpToolsListWorkflow:
                     error=error_message,
                 )
 
+            # Convert tools_with_descriptions to McpTool objects for direct result
+            tools_with_desc = []
+            if hasattr(direct_result, 'tools_with_descriptions'):
+                for tool_dict in direct_result.tools_with_descriptions:
+                    tools_with_desc.append(McpTool(
+                        name=tool_dict.get("name", ""),
+                        description=tool_dict.get("description")
+                    ))
+            
             return McpToolsListOutput(
-                success=True, tools_list=direct_result.tools
+                success=True, 
+                tools_list=direct_result.tools,
+                tools=tools_with_desc,
             )
 
         except Exception as e:  # noqa: BLE001

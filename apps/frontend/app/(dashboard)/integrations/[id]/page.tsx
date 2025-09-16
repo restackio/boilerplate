@@ -14,7 +14,6 @@ import {
   Trash2,
 } from "lucide-react";
 import { useWorkspaceScopedActions, McpServer } from "../../../../hooks/use-workspace-scoped-actions";
-import { IntegrationSetupTab } from "./components/integration-setup-tab";
 import { IntegrationSetupTabSimplified } from "./components/integration-setup-tab-simplified";
 import { IntegrationTokensTab } from "./components/integration-tokens-tab";
 

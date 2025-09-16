@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { ChevronDown } from "lucide-react";
-import { cn } from "../lib/utils";
+import { cn } from "@workspace/ui/lib/utils";
 import { getLucideIcon } from "../lib/get-lucide-icon";
 import { iconNames } from "lucide-react/dynamic";
 import { Button } from "./ui/button";

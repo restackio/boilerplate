@@ -279,13 +279,26 @@ class AgentTool(Base):
         UUID(as_uuid=True),
         ForeignKey("mcp_servers.id", ondelete="CASCADE"),
     )
+    # MCP-specific fields (merged from AgentMcpTool)
+    tool_name = Column(String(255))  # Specific tool name for MCP tools
+    custom_description = Column(Text)  # Agent-specific tool description override
+    require_approval = Column(Boolean, nullable=False, default=False)  # Tool approval setting
+    
+    # General tool configuration
     config = Column(JSONB)
     allowed_tools = Column(JSONB)
     execution_order = Column(Integer)
     enabled = Column(Boolean, nullable=False, default=True)
+    
+    # Timestamps
     created_at = Column(
         DateTime,
         default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+    )
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+        onupdate=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
     )
 
     # Constraints
@@ -307,58 +320,20 @@ class AgentTool(Base):
             "(tool_type <> 'mcp' OR mcp_server_id IS NOT NULL)",
             name="chk_agent_tools_mcp_server",
         ),
+        CheckConstraint(
+            "(tool_type <> 'mcp' OR tool_name IS NOT NULL)",
+            name="chk_agent_tools_mcp_tool_name",
+        ),
+        # Ensure unique tool per agent per server for MCP tools
+        UniqueConstraint('agent_id', 'mcp_server_id', 'tool_name', name='uq_agent_tool_mcp'),
+        # Indexes for performance
+        Index('idx_agent_tools_agent_id', 'agent_id'),
+        Index('idx_agent_tools_mcp_server_id', 'mcp_server_id'),
     )
 
     # Relationships
     agent = relationship("Agent", backref="agent_tools")
     mcp_server = relationship("McpServer", backref="agent_tools")
-
-
-class AgentMcpTool(Base):
-    """Agent-specific MCP tool configuration with custom descriptions and approval settings."""
-    __tablename__ = "agent_mcp_tools"
-
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    agent_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("agents.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    mcp_server_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("mcp_servers.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    tool_name = Column(String(255), nullable=False)
-    
-    # Agent-specific customizations
-    custom_description = Column(Text)  # Override MCP server's tool description
-    require_approval = Column(Boolean, nullable=False, default=False)
-    enabled = Column(Boolean, nullable=False, default=True)
-    
-    # Metadata
-    created_at = Column(
-        DateTime,
-        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
-    )
-    updated_at = Column(
-        DateTime,
-        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
-        onupdate=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
-    )
-
-    # Constraints
-    __table_args__ = (
-        # Ensure unique tool per agent per server
-        UniqueConstraint('agent_id', 'mcp_server_id', 'tool_name', name='uq_agent_mcp_tool'),
-        # Indexes for performance
-        Index('idx_agent_mcp_tools_agent_id', 'agent_id'),
-        Index('idx_agent_mcp_tools_mcp_server_id', 'mcp_server_id'),
-    )
-
-    # Relationships
-    agent = relationship("Agent", backref="agent_mcp_tools")
-    mcp_server = relationship("McpServer", backref="agent_mcp_tools")
 
 
 class Task(Base):
