@@ -33,6 +33,10 @@ with import_functions():
         mcp_tools_list,
         mcp_tools_list_direct,
     )
+    from src.functions.mcp_oauth_crud import (
+        get_oauth_token_for_mcp_server,
+        GetOAuthTokenForMcpServerInput,
+    )
 
 
 @workflow.defn()
@@ -162,6 +166,42 @@ class McpToolsListWorkflow:
         self, workflow_input: McpToolsListInput
     ) -> McpToolsListOutput:
         try:
+            # Prepare headers with authentication if available
+            headers = workflow_input.headers or {}
+
+            # If workspace_id and mcp_server_id are provided, try to get default token
+            if (
+                workflow_input.workspace_id
+                and workflow_input.mcp_server_id
+            ):
+                try:
+                    token = await workflow.step(
+                        function=get_oauth_token_for_mcp_server,
+                        function_input=GetOAuthTokenForMcpServerInput(
+                            mcp_server_id=workflow_input.mcp_server_id,
+                            workspace_id=workflow_input.workspace_id,
+                        ),
+                    )
+                    if token:
+                        headers["Authorization"] = (
+                            f"Bearer {token}"
+                        )
+                        log.info(
+                            "Using default OAuth token for MCP server authentication"
+                        )
+                    else:
+                        log.info(
+                            "No default token found for MCP server"
+                        )
+                except Exception as e:
+                    log.warning(
+                        f"Failed to get OAuth token for MCP server: {e}"
+                    )
+            elif workflow_input.workspace_id:
+                log.info(
+                    "Workspace ID provided but no MCP server ID - cannot use default token authentication"
+                )
+
             # First, always try initialization to check if session is needed
             log.info(
                 "Attempting MCP initialization to check session requirements"
@@ -170,7 +210,7 @@ class McpToolsListWorkflow:
                 function=mcp_session_init,
                 function_input=McpSessionInitInput(
                     server_url=workflow_input.server_url,
-                    headers=workflow_input.headers,
+                    headers=headers,
                     local=getattr(workflow_input, "local", False),
                 ),
                 start_to_close_timeout=timedelta(seconds=30),
@@ -189,7 +229,7 @@ class McpToolsListWorkflow:
                         mcp_endpoint=session_init_result.mcp_endpoint
                         or workflow_input.server_url,
                         session_id=session_init_result.session_id,
-                        headers=workflow_input.headers,
+                        headers=headers,
                     ),
                     start_to_close_timeout=timedelta(seconds=30),
                 )
@@ -198,10 +238,19 @@ class McpToolsListWorkflow:
                     log.error(
                         f"Session-based tools list retrieval failed: {tools_list_result.error}"
                     )
+
+                    # Check if it's an authentication error and suggest adding a token
+                    error_message = tools_list_result.error or ""
+                    if (
+                        "401" in error_message
+                        or "unauthorized" in error_message.lower()
+                    ):
+                        error_message = "Connection failed: Failed to get tools list: HTTP 401. Please add an authentication token for this integration."
+
                     return McpToolsListOutput(
                         success=False,
                         tools_list=[],
-                        error=tools_list_result.error,
+                        error=error_message,
                     )
 
                 return McpToolsListOutput(
@@ -216,7 +265,7 @@ class McpToolsListWorkflow:
                 function=mcp_tools_list_direct,
                 function_input=McpToolsListDirectInput(
                     server_url=workflow_input.server_url,
-                    headers=workflow_input.headers,
+                    headers=headers,
                     local=getattr(workflow_input, "local", False),
                 ),
                 start_to_close_timeout=timedelta(seconds=30),
@@ -226,10 +275,19 @@ class McpToolsListWorkflow:
                 log.error(
                     f"Direct tools list retrieval failed: {direct_result.error}"
                 )
+
+                # Check if it's an authentication error and suggest adding a token
+                error_message = direct_result.error or ""
+                if (
+                    "401" in error_message
+                    or "unauthorized" in error_message.lower()
+                ):
+                    error_message = "Connection failed: Failed to get tools list: HTTP 401. Please add an authentication token for this integration."
+
                 return McpToolsListOutput(
                     success=False,
                     tools_list=[],
-                    error=direct_result.error,
+                    error=error_message,
                 )
 
             return McpToolsListOutput(

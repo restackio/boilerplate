@@ -11,7 +11,9 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 def _get_encryption_key() -> bytes:
     """Generate encryption key from PASSWORD_SALT."""
     # Reuse the same salt mechanism as password hashing
-    salt = os.getenv("PASSWORD_SALT", "default_dev_salt_change_in_production")
+    salt = os.getenv(
+        "PASSWORD_SALT", "default_dev_salt_change_in_production"
+    )
 
     # Use PBKDF2 to derive a key from the salt
     kdf = PBKDF2HMAC(
@@ -22,7 +24,9 @@ def _get_encryption_key() -> bytes:
     )
 
     # Use a fixed password for key derivation (the salt provides the security)
-    return base64.urlsafe_b64encode(kdf.derive(b"oauth_token_encryption"))
+    return base64.urlsafe_b64encode(
+        kdf.derive(b"oauth_token_encryption")
+    )
 
 
 def encrypt_token(token: str) -> str:
@@ -38,7 +42,9 @@ def encrypt_token(token: str) -> str:
         encrypted_token = fernet.encrypt(token.encode("utf-8"))
 
         # Return base64 encoded for database storage
-        return base64.urlsafe_b64encode(encrypted_token).decode("utf-8")
+        return base64.urlsafe_b64encode(encrypted_token).decode(
+            "utf-8"
+        )
 
     except (ValueError, TypeError):
         # In case of encryption failure, log error but don't break the flow
@@ -57,7 +63,9 @@ def decrypt_token(encrypted_token: str) -> str:
         fernet = Fernet(key)
 
         # Decode from base64 and decrypt
-        encrypted_bytes = base64.urlsafe_b64decode(encrypted_token.encode("utf-8"))
+        encrypted_bytes = base64.urlsafe_b64decode(
+            encrypted_token.encode("utf-8")
+        )
         decrypted_token = fernet.decrypt(encrypted_bytes)
 
         return decrypted_token.decode("utf-8")
@@ -79,6 +87,9 @@ def is_token_encrypted(token: str) -> bool:
         # If it decodes and looks like Fernet format, it's likely encrypted
         # Fernet tokens are typically longer than 100 characters
         MIN_ENCRYPTED_TOKEN_LENGTH = 100
-        return len(token) > MIN_ENCRYPTED_TOKEN_LENGTH and token.replace("-", "").replace("_", "").isalnum()
+        return (
+            len(token) > MIN_ENCRYPTED_TOKEN_LENGTH
+            and token.replace("-", "").replace("_", "").isalnum()
+        )
     except (ValueError, TypeError):
         return False

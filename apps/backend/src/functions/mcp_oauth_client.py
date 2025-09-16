@@ -22,18 +22,71 @@ from restack_ai.function import NonRetryableError, function, log
 from .mcp_oauth_crud import GetOAuthTokenInput
 
 
+async def register_oauth_client(
+    client: httpx.AsyncClient,
+    oauth_metadata: OAuthMetadata,
+    base_url: str,
+    server_label: str,
+) -> OAuthClientInformationFull:
+    """Register OAuth client dynamically with the authorization server."""
+    registration_endpoint = oauth_metadata.registration_endpoint
+    
+    if not registration_endpoint:
+        raise OAuthRegistrationError("No registration endpoint found in OAuth metadata")
+    
+    # Prepare client registration data
+    registration_data = {
+        "client_name": f"MCP Client for {server_label}",
+        "redirect_uris": [f"{base_url}/oauth/callback"],
+        "grant_types": ["authorization_code", "refresh_token"],
+        "response_types": ["code"],
+        "token_endpoint_auth_method": "client_secret_basic",
+        "scope": "openid profile",
+    }
+    
+    try:
+        response = await client.post(
+            str(registration_endpoint),
+            json=registration_data,
+            headers={"Content-Type": "application/json"},
+            timeout=10.0,
+        )
+        response.raise_for_status()
+        
+        registration_response = response.json()
+        
+        return OAuthClientInformationFull(
+            client_id=registration_response["client_id"],
+            client_secret=registration_response.get("client_secret"),
+            registration_client_uri=registration_response.get("registration_client_uri"),
+            registration_access_token=registration_response.get("registration_access_token"),
+            client_id_issued_at=registration_response.get("client_id_issued_at"),
+            client_secret_expires_at=registration_response.get("client_secret_expires_at"),
+            redirect_uris=registration_response.get("redirect_uris", [f"{base_url}/oauth/callback"]),
+        )
+        
+    except httpx.HTTPStatusError as e:
+        raise OAuthRegistrationError(f"Failed to register OAuth client: HTTP {e.response.status_code}") from e
+    except Exception as e:
+        raise OAuthRegistrationError(f"OAuth client registration failed: {e}") from e
+
+
 # Custom exceptions for better error handling
 class OAuthValidationError(NonRetryableError):
     """Raised when OAuth input validation fails."""
 
+
 class OAuthDiscoveryError(NonRetryableError):
-    """Raised when OAuth discovery fails."""
+    """Raised when OAuth list fails."""
+
 
 class OAuthClientRegistrationError(NonRetryableError):
     """Raised when OAuth client registration fails."""
 
+
 class OAuthStateValidationError(NonRetryableError):
     """Raised when OAuth state validation fails."""
+
 
 # Pydantic models for OAuth flow operations
 class ParseCallbackInput(BaseModel):
@@ -57,10 +110,14 @@ class ExchangeCodeForTokenInput(BaseModel):
     code: str = Field(..., min_length=1)
     state: str | None = Field(None)
     redirect_uri: str = Field(..., min_length=1)
-    client_id: str | None = Field(None, description="OAuth client ID from authorization phase")
-    client_secret: str | None = Field(None, description="OAuth client secret from authorization phase")
-
-
+    client_id: str | None = Field(
+        None,
+        description="OAuth client ID from authorization phase",
+    )
+    client_secret: str | None = Field(
+        None,
+        description="OAuth client secret from authorization phase",
+    )
 
 
 # Output models
@@ -81,6 +138,9 @@ class TokenExchangeOutput(BaseModel):
     token_type: str
     expires_in: int | None
     scope: str | None
+    # Client credentials for future token refresh
+    client_id: str | None = None
+    client_secret: str | None = None
 
 
 # Response wrapper models
@@ -96,60 +156,87 @@ class TokenExchangeResultOutput(BaseModel):
     token_exchange: TokenExchangeOutput
 
 
-
-
-
-
 # Helper functions using MCP SDK utilities
+
 
 def sanitize_log_data(data: dict) -> dict:
     """Sanitize sensitive data for logging."""
     sanitized = data.copy()
-    sensitive_keys = ["access_token", "refresh_token", "client_secret", "code", "code_verifier"]
+    sensitive_keys = [
+        "access_token",
+        "refresh_token",
+        "client_secret",
+        "code",
+        "code_verifier",
+    ]
 
     for key in sensitive_keys:
         if key in sanitized:
             value = sanitized[key]
             if value and len(str(value)) > 8:
-                sanitized[key] = f"{str(value)[:4]}...{str(value)[-4:]}"
+                sanitized[key] = (
+                    f"{str(value)[:4]}...{str(value)[-4:]}"
+                )
             else:
                 sanitized[key] = "***"
 
     return sanitized
 
-def validate_oauth_callback_params(params: dict, expected_state: str | None = None) -> tuple[str, str | None]:
+
+def validate_oauth_callback_params(
+    params: dict, expected_state: str | None = None
+) -> tuple[str, str | None]:
     """Validate OAuth callback parameters and return code and state."""
     if "error" in params:
         error_desc = params.get("error_description", [""])[0]
-        raise NonRetryableError(f"OAuth error: {params['error'][0]} - {error_desc}")
+        raise NonRetryableError(
+            f"OAuth error: {params['error'][0]} - {error_desc}"
+        )
 
     if "code" not in params:
-        raise NonRetryableError("No authorization code found in callback URL")
+        raise NonRetryableError(
+            "No authorization code found in callback URL"
+        )
 
     code = params["code"][0]
     state = params.get("state", [None])[0]
 
     # Basic state validation - in production, you'd want to store and validate against expected states
     if expected_state and state != expected_state:
-        raise OAuthStateValidationError("OAuth state parameter mismatch - possible CSRF attack")
+        raise OAuthStateValidationError(
+            "OAuth state parameter mismatch - possible CSRF attack"
+        )
 
     # Basic validation of code format
-    if not code or len(code) < 10:  # OAuth codes are typically much longer
-        raise NonRetryableError("Invalid authorization code format")
+    if (
+        not code or len(code) < 10
+    ):  # OAuth codes are typically much longer
+        raise NonRetryableError(
+            "Invalid authorization code format"
+        )
 
     return code, state
 
-def create_client_metadata(user_id: str, workspace_id: str, server_label: str, redirect_uri: str) -> OAuthClientMetadata:
+
+def create_client_metadata(
+    user_id: str,
+    workspace_id: str,
+    server_label: str,
+    redirect_uri: str,
+) -> OAuthClientMetadata:
     """Create deterministic OAuth client metadata."""
-    deterministic_client_name = f"MCP-Client-{user_id}-{workspace_id}-{server_label}"
+    deterministic_client_name = (
+        f"MCP-Client-{user_id}-{workspace_id}-{server_label}"
+    )
 
     return OAuthClientMetadata(
         client_name=deterministic_client_name,
         redirect_uris=[AnyUrl(redirect_uri)],
         grant_types=["authorization_code", "refresh_token"],
         response_types=["code"],
-        scope="read_content update_content"
+        scope="read_content update_content",
     )
+
 
 def get_discovery_urls(server_url: str) -> list[str]:
     """Generate OAuth discovery URLs using MCP SDK logic."""
@@ -166,7 +253,11 @@ def get_discovery_urls(server_url: str) -> list[str]:
         urls.append(urljoin(base_url, oauth_path))
 
     # OAuth root fallback
-    urls.append(urljoin(base_url, "/.well-known/oauth-authorization-server"))
+    urls.append(
+        urljoin(
+            base_url, "/.well-known/oauth-authorization-server"
+        )
+    )
 
     # RFC 8414 section 5: Path-aware OIDC discovery
     if parsed.path and parsed.path != "/":
@@ -180,7 +271,9 @@ def get_discovery_urls(server_url: str) -> list[str]:
     return urls
 
 
-async def discover_oauth_metadata(server_url: str) -> OAuthMetadata:
+async def discover_oauth_metadata(
+    server_url: str,
+) -> OAuthMetadata:
     """Discover OAuth metadata using MCP SDK's discovery logic with proper fallbacks."""
     discovery_urls = get_discovery_urls(server_url)
     last_error = None
@@ -193,29 +286,49 @@ async def discover_oauth_metadata(server_url: str) -> OAuthMetadata:
 
                 if response.status_code == 200:
                     try:
-                        metadata = OAuthMetadata.model_validate_json(response.content)
-                        log.info(f"Successfully discovered OAuth metadata at: {url}")
+                        metadata = (
+                            OAuthMetadata.model_validate_json(
+                                response.content
+                            )
+                        )
+                        log.info(
+                            f"Successfully discovered OAuth metadata at: {url}"
+                        )
                         return metadata
                     except Exception as e:
-                        log.warning(f"Invalid OAuth metadata at {url}: {e}")
+                        log.warning(
+                            f"Invalid OAuth metadata at {url}: {e}"
+                        )
                         last_error = e
                         continue
 
                 elif response.status_code >= 500:
                     # Server error, stop trying other URLs
-                    log.error(f"Server error {response.status_code} at {url}")
-                    last_error = Exception(f"Server error: {response.status_code}")
+                    log.error(
+                        f"Server error {response.status_code} at {url}"
+                    )
+                    last_error = Exception(
+                        f"Server error: {response.status_code}"
+                    )
                     break
                 else:
-                    log.warning(f"OAuth discovery failed at {url}: {response.status_code}")
-                    last_error = Exception(f"HTTP {response.status_code}")
+                    log.warning(
+                        f"OAuth discovery failed at {url}: {response.status_code}"
+                    )
+                    last_error = Exception(
+                        f"HTTP {response.status_code}"
+                    )
 
             except httpx.TimeoutException as e:
-                log.warning(f"Timeout discovering OAuth metadata at {url}")
+                log.warning(
+                    f"Timeout discovering OAuth metadata at {url}"
+                )
                 last_error = e
                 continue
             except Exception as e:
-                log.warning(f"Error discovering OAuth metadata at {url}: {e}")
+                log.warning(
+                    f"Error discovering OAuth metadata at {url}: {e}"
+                )
                 last_error = e
                 continue
 
@@ -227,6 +340,7 @@ async def discover_oauth_metadata(server_url: str) -> OAuthMetadata:
 
 # OAuth Flow Functions
 
+
 @function.defn()
 async def oauth_generate_auth_url(
     function_input: GenerateAuthUrlInput,
@@ -235,41 +349,63 @@ async def oauth_generate_auth_url(
     try:
         # Generate PKCE parameters using MCP SDK
         pkce_params = PKCEParameters.generate()
-        log.info("Generated PKCE parameters", extra={
-            "code_verifier_length": len(pkce_params.code_verifier),
-            "code_challenge_length": len(pkce_params.code_challenge)
-        })
+        log.info(
+            "Generated PKCE parameters",
+            extra={
+                "code_verifier_length": len(
+                    pkce_params.code_verifier
+                ),
+                "code_challenge_length": len(
+                    pkce_params.code_challenge
+                ),
+            },
+        )
 
         # Create deterministic client metadata
         client_metadata = create_client_metadata(
             function_input.user_id,
             function_input.workspace_id,
             function_input.server_label,
-            function_input.redirect_uri
+            function_input.redirect_uri,
         )
 
         # Step 1: Discover OAuth metadata using MCP SDK logic
-        oauth_metadata = await discover_oauth_metadata(function_input.server_url)
+        oauth_metadata = await discover_oauth_metadata(
+            function_input.server_url
+        )
 
         # Get base URL for client registration
         parsed_url = urlparse(function_input.server_url)
         base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
 
         async with httpx.AsyncClient() as client:
-
             # Step 2: Register client
             registration_url = f"{base_url}/register"
-            registration_data = client_metadata.model_dump(by_alias=True, mode="json", exclude_none=True)
+            registration_data = client_metadata.model_dump(
+                by_alias=True, mode="json", exclude_none=True
+            )
 
-            reg_response = await client.post(registration_url, json=registration_data)
+            reg_response = await client.post(
+                registration_url, json=registration_data
+            )
             if reg_response.status_code not in (200, 201):
-                await reg_response.aread()  # MCP pattern: read before accessing text
-                raise OAuthRegistrationError(f"Registration failed: {reg_response.status_code} {reg_response.text}")
+                await (
+                    reg_response.aread()
+                )  # MCP pattern: read before accessing text
+                raise OAuthRegistrationError(
+                    f"Registration failed: {reg_response.status_code} {reg_response.text}"
+                )
 
-            client_info = OAuthClientInformationFull.model_validate_json(reg_response.content)
+            client_info = (
+                OAuthClientInformationFull.model_validate_json(
+                    reg_response.content
+                )
+            )
 
             # Step 3: Build authorization URL with our PKCE parameters
-            auth_endpoint = str(oauth_metadata.authorization_endpoint)
+            auth_endpoint = str(
+                oauth_metadata.authorization_endpoint
+            )
             state = secrets.token_urlsafe(32)
 
             auth_params = {
@@ -281,10 +417,14 @@ async def oauth_generate_auth_url(
                 "code_challenge_method": "S256",
                 "scope": "read_content update_content",
                 # RFC 8707: Include resource parameter for better authorization scoping
-                "resource": resource_url_from_server_url(function_input.server_url)
+                "resource": resource_url_from_server_url(
+                    function_input.server_url
+                ),
             }
 
-            authorization_url = f"{auth_endpoint}?{urlencode(auth_params)}"
+            authorization_url = (
+                f"{auth_endpoint}?{urlencode(auth_params)}"
+            )
 
         # Pack code_verifier with client_secret for token exchange phase
         # Format: "client_secret|code_verifier" - allows passing PKCE parameter between workflows
@@ -292,13 +432,15 @@ async def oauth_generate_auth_url(
             auth_url=AuthUrlOutput(
                 authorization_url=authorization_url,
                 state=state,
-                client_secret=f"{client_info.client_secret}|{pkce_params.code_verifier}"  # Pack both values
+                client_secret=f"{client_info.client_secret}|{pkce_params.code_verifier}",  # Pack both values
             )
         )
 
     except (OAuthRegistrationError, OAuthTokenError) as e:
         log.error(f"OAuth error: {e}")
-        raise NonRetryableError(message=f"OAuth flow failed: {e!s}") from e
+        raise NonRetryableError(
+            message=f"OAuth flow failed: {e!s}"
+        ) from e
     except Exception as e:
         log.error(f"OAuth auth URL generation error: {e}")
         raise NonRetryableError(
@@ -318,10 +460,7 @@ async def oauth_parse_callback(
         # Validate callback parameters with security checks
         code, state = validate_oauth_callback_params(params)
 
-        result = CallbackParseOutput(
-            code=code,
-            state=state
-        )
+        result = CallbackParseOutput(code=code, state=state)
 
         return CallbackParseResultOutput(callback=result)
 
@@ -334,17 +473,12 @@ async def oauth_parse_callback(
         ) from e
 
 
-
-
-
-
 @function.defn()
 async def oauth_exchange_code_for_token(
     function_input: ExchangeCodeForTokenInput,
 ) -> TokenExchangeResultOutput:
     """Exchange OAuth authorization code for access token using MCP SDK."""
     try:
-
         if not function_input.server_url:
             raise NonRetryableError(
                 message=f"MCP server {function_input.server_label} does not have a server URL configured"
@@ -359,28 +493,45 @@ async def oauth_exchange_code_for_token(
             redirect_uris=[AnyUrl(function_input.redirect_uri)],
             grant_types=["authorization_code", "refresh_token"],
             response_types=["code"],
-            scope="read_content update_content"
+            scope="read_content update_content",
         )
 
         # Direct token exchange using OAuth discovery and client credentials
         try:
             # Step 1: Discover OAuth metadata using MCP SDK logic
-            oauth_metadata = await discover_oauth_metadata(function_input.server_url)
+            oauth_metadata = await discover_oauth_metadata(
+                function_input.server_url
+            )
             token_endpoint = str(oauth_metadata.token_endpoint)
 
             # Get base URL for fallback client registration
             parsed_url = urlparse(function_input.server_url)
-            base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
+            base_url = (
+                f"{parsed_url.scheme}://{parsed_url.netloc}"
+            )
+
+            # Initialize variables for client credentials
+            client_secret = None
+            fallback_client_id = None
+            fallback_client_secret = None
 
             async with httpx.AsyncClient() as client:
-
                 # Step 2: Use client credentials and PKCE from authorization phase
-                if function_input.client_id and function_input.client_secret:
+                if (
+                    function_input.client_id
+                    and function_input.client_secret
+                ):
                     # Unpack client_secret and code_verifier (format: "secret|verifier")
                     if "|" in function_input.client_secret:
-                        client_secret, code_verifier = function_input.client_secret.split("|", 1)
+                        client_secret, code_verifier = (
+                            function_input.client_secret.split(
+                                "|", 1
+                            )
+                        )
                     else:
-                        client_secret = function_input.client_secret
+                        client_secret = (
+                            function_input.client_secret
+                        )
                         code_verifier = None
 
                     # Use the client credentials from the authorization phase
@@ -391,26 +542,50 @@ async def oauth_exchange_code_for_token(
                         "client_id": function_input.client_id,
                         "client_secret": client_secret,
                         # RFC 8707: Include resource parameter for token scoping
-                        "resource": resource_url_from_server_url(function_input.server_url)
+                        "resource": resource_url_from_server_url(
+                            function_input.server_url
+                        ),
                     }
 
                     # Add PKCE code_verifier if available
                     if code_verifier:
-                        token_data["code_verifier"] = code_verifier
-                        log.info("Using PKCE code_verifier for token exchange")
+                        token_data["code_verifier"] = (
+                            code_verifier
+                        )
+                        log.info(
+                            "Using PKCE code_verifier for token exchange"
+                        )
 
-                    log.info(f"Using client credentials from authorization phase: {function_input.client_id}")
+                    log.info(
+                        f"Using client credentials from authorization phase: {function_input.client_id}"
+                    )
                 else:
                     # Fallback: register a new client (this was causing the mismatch)
                     registration_url = f"{base_url}/register"
-                    registration_data = client_metadata.model_dump(by_alias=True, mode="json", exclude_none=True)
+                    registration_data = (
+                        client_metadata.model_dump(
+                            by_alias=True,
+                            mode="json",
+                            exclude_none=True,
+                        )
+                    )
 
-                    reg_response = await client.post(registration_url, json=registration_data)
+                    reg_response = await client.post(
+                        registration_url, json=registration_data
+                    )
                     if reg_response.status_code not in (200, 201):
                         await reg_response.aread()
-                        raise OAuthRegistrationError(f"Client registration failed: {reg_response.status_code}")
+                        raise OAuthRegistrationError(
+                            f"Client registration failed: {reg_response.status_code}"
+                        )
 
-                    client_info = OAuthClientInformationFull.model_validate_json(reg_response.content)
+                    client_info = OAuthClientInformationFull.model_validate_json(
+                        reg_response.content
+                    )
+                    
+                    # Store fallback credentials
+                    fallback_client_id = client_info.client_id
+                    fallback_client_secret = client_info.client_secret
 
                     token_data = {
                         "grant_type": "authorization_code",
@@ -418,38 +593,59 @@ async def oauth_exchange_code_for_token(
                         "redirect_uri": function_input.redirect_uri,
                         "client_id": client_info.client_id,
                         # RFC 8707: Include resource parameter for token scoping
-                        "resource": resource_url_from_server_url(function_input.server_url)
+                        "resource": resource_url_from_server_url(
+                            function_input.server_url
+                        ),
                     }
 
                     if client_info.client_secret:
-                        token_data["client_secret"] = client_info.client_secret
+                        token_data["client_secret"] = (
+                            client_info.client_secret
+                        )
 
                 token_response = await client.post(
                     token_endpoint,
                     data=token_data,
-                    headers={"Content-Type": "application/x-www-form-urlencoded"}
+                    headers={
+                        "Content-Type": "application/x-www-form-urlencoded"
+                    },
                 )
 
                 if token_response.status_code != 200:
-                    await token_response.aread()  # MCP pattern: read before accessing text
+                    await (
+                        token_response.aread()
+                    )  # MCP pattern: read before accessing text
                     error_message = f"Token exchange failed: {token_response.status_code} - {token_response.text}"
                     raise OAuthTokenError(error_message)
 
-                tokens = OAuthToken.model_validate_json(token_response.content)
+                tokens = OAuthToken.model_validate_json(
+                    token_response.content
+                )
+
+            # Determine which client credentials to return
+            final_client_id = function_input.client_id or fallback_client_id
+            final_client_secret = client_secret if client_secret else fallback_client_secret
 
             result = TokenExchangeOutput(
                 access_token=tokens.access_token,
                 refresh_token=tokens.refresh_token,
                 token_type=tokens.token_type,
                 expires_in=tokens.expires_in,
-                scope=tokens.scope
+                scope=tokens.scope,
+                # Include client credentials for storage
+                client_id=final_client_id,
+                client_secret=final_client_secret,
             )
 
-            return TokenExchangeResultOutput(token_exchange=result)
+            return TokenExchangeResultOutput(
+                token_exchange=result
+            )
 
         except (OAuthRegistrationError, OAuthTokenError) as e:
             log.error(f"OAuth error: {e}")
-            raise NonRetryableError(message=f"OAuth flow failed: {e!s}") from e
+            raise NonRetryableError(
+                message=f"OAuth flow failed: {e!s}"
+            ) from e
         except Exception as e:
             raise NonRetryableError(
                 message=f"OAuth token exchange failed: {e!s}"
@@ -467,59 +663,83 @@ async def oauth_refresh_token(
 ) -> TokenExchangeResultOutput:
     """Refresh OAuth access token using refresh token."""
     try:
-        log.info(f"Refreshing OAuth token for user {function_input.user_id}, server {function_input.mcp_server_id}")
-        
+        log.info(
+            f"Refreshing OAuth token for user {function_input.user_id}, server {function_input.mcp_server_id}"
+        )
+
         # Import here to avoid circular imports
         from src.functions.mcp_oauth_crud import (
             oauth_token_get_decrypted,
             mcp_server_get_by_id,
             GetMcpServerInput,
         )
-        
+
         # Step 1: Get stored refresh token from database
-        token_result = await oauth_token_get_decrypted(function_input)
+        token_result = await oauth_token_get_decrypted(
+            function_input
+        )
         if not token_result or not token_result.refresh_token:
             raise NonRetryableError(
                 message="No refresh token found for this user and MCP server"
             )
-        
+
         # Step 2: Get MCP server configuration
         server_result = await mcp_server_get_by_id(
-            GetMcpServerInput(mcp_server_id=function_input.mcp_server_id)
+            GetMcpServerInput(
+                mcp_server_id=function_input.mcp_server_id
+            )
         )
         if not server_result or not server_result.server:
             raise NonRetryableError(
                 message=f"MCP server not found: {function_input.mcp_server_id}"
             )
-        
+
         server = server_result.server
-        
+
         # Step 3: Discover OAuth metadata to get token endpoint
-        oauth_metadata = await discover_oauth_metadata(server.server_url)
+        oauth_metadata = await discover_oauth_metadata(
+            server.server_url
+        )
         token_endpoint = str(oauth_metadata.token_endpoint)
-        
+
         # Step 4: Get client credentials (stored in server headers or use dynamic registration)
         client_id = None
         client_secret = None
-        
+
         if server.headers and isinstance(server.headers, dict):
             # Check if client credentials are stored in server headers
             client_id = server.headers.get("oauth_client_id")
-            client_secret = server.headers.get("oauth_client_secret")
-        
+            client_secret = server.headers.get(
+                "oauth_client_secret"
+            )
+
         if not client_id or not client_secret:
             # Fall back to dynamic client registration if no stored credentials
-            log.info("No stored client credentials, attempting dynamic registration")
+            log.warning(
+                f"No stored client credentials found in MCP server headers for server {function_input.mcp_server_id}. "
+                f"Headers present: {list(server.headers.keys()) if server.headers else 'None'}. "
+                "Attempting dynamic registration, but this may cause client ID mismatch errors."
+            )
             parsed_url = urlparse(server.server_url)
-            base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
-            
+            base_url = (
+                f"{parsed_url.scheme}://{parsed_url.netloc}"
+            )
+
             async with httpx.AsyncClient() as client:
                 registration_result = await register_oauth_client(
-                    client, oauth_metadata, base_url, server.server_label
+                    client,
+                    oauth_metadata,
+                    base_url,
+                    server.server_label,
                 )
                 client_id = registration_result.client_id
                 client_secret = registration_result.client_secret
-        
+                
+                log.info(
+                    f"Dynamic registration successful. New client_id: {client_id}. "
+                    "Note: This may not match the original client used for token issuance."
+                )
+
         # Step 5: Make refresh token request
         async with httpx.AsyncClient() as client:
             token_data = {
@@ -528,22 +748,26 @@ async def oauth_refresh_token(
                 "client_id": client_id,
                 "client_secret": client_secret,
                 # RFC 8707: Include resource parameter for token scoping
-                "resource": resource_url_from_server_url(server.server_url)
+                "resource": resource_url_from_server_url(
+                    server.server_url
+                ),
             }
-            
+
             headers = {
                 "Content-Type": "application/x-www-form-urlencoded",
                 "Accept": "application/json",
             }
-            
-            log.info(f"Making refresh token request to {token_endpoint}")
+
+            log.info(
+                f"Making refresh token request to {token_endpoint}"
+            )
             response = await client.post(
                 token_endpoint,
                 data=token_data,
                 headers=headers,
                 timeout=30.0,
             )
-            
+
             if response.status_code != 200:
                 error_detail = f"HTTP {response.status_code}"
                 try:
@@ -551,29 +775,30 @@ async def oauth_refresh_token(
                     error_detail = f"HTTP {response.status_code}: {error_json.get('error', 'unknown_error')} - {error_json.get('error_description', 'No description')}"
                 except Exception:
                     error_detail = f"HTTP {response.status_code}: {response.text[:200]}"
-                
+
                 raise NonRetryableError(
                     message=f"Token refresh failed: {error_detail}"
                 )
-            
+
             tokens = response.json()
-            
+
             # Step 6: Return the refreshed tokens
             return TokenExchangeResultOutput(
-                token_exchange=TokenExchangeResult(
+                token_exchange=TokenExchangeOutput(
                     access_token=tokens["access_token"],
-                    refresh_token=tokens.get("refresh_token", token_result.refresh_token),  # Use new refresh token if provided, otherwise keep existing
+                    refresh_token=tokens.get(
+                        "refresh_token",
+                        token_result.refresh_token,
+                    ),  # Use new refresh token if provided, otherwise keep existing
                     token_type=tokens.get("token_type", "Bearer"),
                     expires_in=tokens.get("expires_in"),
                     scope=tokens.get("scope"),
                 )
             )
-            
+
     except NonRetryableError:
         raise
     except Exception as e:
         raise NonRetryableError(
             message=f"Failed to refresh token: {e!s}"
         ) from e
-
-

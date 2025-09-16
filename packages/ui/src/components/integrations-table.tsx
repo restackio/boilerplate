@@ -13,21 +13,12 @@ import {
   TableHeader,
   TableRow,
 } from "./ui/table";
-import { EmptyState } from "./ui/empty-state";
 import {
   Plug,
   Globe,
-  Lock,
-  CheckCircle,
-  AlertCircle,
-  Clock,
-  User,
-  Settings,
-  ExternalLink,
   Users,
-  Shield,
+  PencilRuler,
 } from "lucide-react";
-import Link from "next/link";
 
 export interface Integration {
   id: string;
@@ -44,8 +35,6 @@ export interface Integration {
 interface IntegrationsTableProps {
   data: Integration[];
   onEditIntegration?: (integrationId: string) => void;
-  onConnectIntegration?: (integrationId: string) => void;
-  onManageConnections?: (integrationId: string) => void;
 }
 
 // Column configuration helper
@@ -72,7 +61,7 @@ export const integrationColumnsConfig = [
     .id("tools_count")
     .accessor((row: Integration) => row.tools_count.toString())
     .displayName("Tools")
-    .icon(Settings)
+    .icon(PencilRuler)
     .build(),
   dtf
     .text()
@@ -95,8 +84,6 @@ const getIntegrationTypeBadge = (local: boolean) => {
 export function IntegrationsTable({ 
   data, 
   onEditIntegration, 
-  onConnectIntegration,
-  onManageConnections 
 }: IntegrationsTableProps) {
 
   // Create data table filters instance
@@ -157,22 +144,20 @@ export function IntegrationsTable({
                       <div className="space-y-1">
                         <div className="font-medium flex items-center gap-2">
                           <span>{integration.integration_name}</span>
-                          {getIntegrationTypeBadge(integration.local)}
                         </div>
                         {integration.server_description && (
-                          <div className="text-xs text-muted-foreground">
+                          <div className="text-xs text-muted-foreground line-clamp-1 truncate">
                             {integration.server_description}
                           </div>
                         )}
                         {/* Show additional info on mobile when columns are hidden */}
                         <div className="sm:hidden flex flex-col gap-1 mt-2 text-xs">
                           <div className="flex items-center gap-2 text-muted-foreground">
-                            <Globe className="h-3 w-3" />
                             <span>{integration.server_url || (integration.local ? "Local" : "N/A")}</span>
                           </div>
                           <div className="flex items-center gap-4">
                             <div className="flex items-center gap-1">
-                              <Settings className="h-3 w-3" />
+                              <PencilRuler className="h-3 w-3" />
                               <span>{integration.tools_count} tools</span>
                             </div>
                             <div className="flex items-center gap-1">
@@ -185,7 +170,6 @@ export function IntegrationsTable({
                     </TableCell>
                     <TableCell className="hidden sm:table-cell">
                       <div className="flex items-center gap-2">
-                        <Globe className="h-4 w-4 text-muted-foreground" />
                         <span className="text-sm truncate">
                           {integration.server_url || (integration.local ? "Local" : "N/A")}
                         </span>
@@ -193,7 +177,7 @@ export function IntegrationsTable({
                     </TableCell>
                     <TableCell className="hidden md:table-cell">
                       <div className="flex items-center gap-1">
-                        <Settings className="h-4 w-4 text-muted-foreground" />
+                        <PencilRuler className="h-4 w-4 text-muted-foreground" />
                         <span className="text-sm">{integration.tools_count}</span>
                       </div>
                     </TableCell>
@@ -213,19 +197,7 @@ export function IntegrationsTable({
                             onEditIntegration?.(integration.id);
                           }}
                         >
-                          <Settings className="h-4 w-4 sm:mr-2" />
                           <span className="hidden sm:inline">Settings</span>
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onManageConnections?.(integration.id);
-                          }}
-                        >
-                          <Users className="h-4 w-4 sm:mr-2" />
-                          <span className="hidden sm:inline">Connections</span>
                         </Button>
                       </div>
                     </TableCell>

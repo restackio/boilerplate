@@ -173,6 +173,8 @@ export function EditMcpServerDialog({ open, onOpenChange, mcpServer, onSuccess }
               onToolListChange={setToolList}
               isSubmitting={isSubmitting}
               isDeleting={isDeleting}
+              workspaceId={mcpServer?.workspace_id}
+              mcpServerId={mcpServer?.id}
             />
           </div>
 

@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS mcp_servers (
     local BOOLEAN NOT NULL DEFAULT FALSE,
     server_description TEXT,
     headers JSONB,
-    require_approval JSONB DEFAULT '{"never": {"tool_names": []}, "always": {"tool_names": []}}',
+    require_approval JSONB,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT chk_mcp_servers_url_or_local CHECK (
@@ -112,6 +112,29 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_agent_tools_simple
   ON agent_tools(agent_id, tool_type)
   WHERE tool_type NOT IN ('mcp');
 
+-- Create agent_mcp_tools table for agent-specific MCP tool configuration
+CREATE TABLE IF NOT EXISTS agent_mcp_tools (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    agent_id UUID NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+    mcp_server_id UUID NOT NULL REFERENCES mcp_servers(id) ON DELETE CASCADE,
+    tool_name VARCHAR(255) NOT NULL,
+    custom_description TEXT,
+    require_approval BOOLEAN NOT NULL DEFAULT FALSE,
+    enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Indexes for agent_mcp_tools
+CREATE UNIQUE INDEX IF NOT EXISTS ux_agent_mcp_tools_unique
+  ON agent_mcp_tools(agent_id, mcp_server_id, tool_name);
+
+CREATE INDEX IF NOT EXISTS idx_agent_mcp_tools_agent_id
+  ON agent_mcp_tools(agent_id);
+
+CREATE INDEX IF NOT EXISTS idx_agent_mcp_tools_mcp_server_id
+  ON agent_mcp_tools(mcp_server_id);
+
 -- Create user_oauth_connections table for individual user OAuth tokens
 CREATE TABLE IF NOT EXISTS user_oauth_connections (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -128,6 +151,8 @@ CREATE TABLE IF NOT EXISTS user_oauth_connections (
     -- OAuth 2.1 specific fields
     resource_server VARCHAR(500), -- RFC8707 resource parameter
     audience VARCHAR(500), -- Token audience for validation
+    -- Default token flag for workspace
+    is_default BOOLEAN NOT NULL DEFAULT FALSE,
     -- Connection metadata
     connected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     last_refreshed_at TIMESTAMP,

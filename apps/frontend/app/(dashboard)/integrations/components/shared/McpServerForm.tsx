@@ -36,6 +36,8 @@ interface McpServerFormProps {
   onToolListChange: (state: ToolListState) => void;
   isSubmitting?: boolean;
   isDeleting?: boolean;
+  workspaceId?: string;
+  mcpServerId?: string;
 }
 
 export function McpServerForm({
@@ -47,6 +49,8 @@ export function McpServerForm({
   onToolListChange,
   isSubmitting = false,
   isDeleting = false,
+  workspaceId,
+  mcpServerId,
 }: McpServerFormProps) {
   const listTools = async () => {
     // For local servers, we don't need to validate server_url since it uses MCP_URL environment variable
@@ -86,7 +90,13 @@ export function McpServerForm({
       // Use backend workflow to list tools
       // For local servers, pass a placeholder URL since the backend will use MCP_URL environment variable
       const serverUrl = formData.local ? "placeholder" : formData.server_url.trim();
-      const result = await listMcpServerTools(serverUrl, parsedHeaders, formData.local);
+      const result = await listMcpServerTools(
+        serverUrl, 
+        parsedHeaders, 
+        formData.local,
+        workspaceId,
+        mcpServerId
+      );
 
       if (result && typeof result === "object") {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

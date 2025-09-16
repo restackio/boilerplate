@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@workspace/ui/
 import { Button } from "@workspace/ui/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
+import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 import { McpServerForm, McpServerFormData, ToolListState } from "./shared/McpServerForm";
 import { validateMcpServerForm, parseHeaders } from "./shared/mcpServerValidation";
 
@@ -16,6 +17,7 @@ interface AddMcpServerDialogProps {
 
 export function AddMcpServerDialog({ open, onOpenChange, onSuccess }: AddMcpServerDialogProps) {
   const { createMcpServer } = useWorkspaceScopedActions();
+  const { workspaceId } = useDatabaseWorkspace();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<McpServerFormData>({
     server_label: "",
@@ -120,6 +122,7 @@ export function AddMcpServerDialog({ open, onOpenChange, onSuccess }: AddMcpServ
               toolList={toolList}
               onToolListChange={setToolList}
               isSubmitting={isSubmitting}
+              workspaceId={workspaceId || undefined}
             />
           </div>
           

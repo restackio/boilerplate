@@ -5,7 +5,7 @@ import { Button } from "@workspace/ui/components/ui/button";
 
 import { Badge } from "@workspace/ui/components/ui/badge";
 import { Skeleton } from "@workspace/ui/components/ui/skeleton";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Edit } from "lucide-react";
 import { McpServerDialog } from "./McpServerDialog";
 import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
 import { 
@@ -30,9 +30,13 @@ interface AgentToolRecord {
 
 interface Props {
   agentId: string;
+  workspaceId: string;
+  agent?: {
+    status: "published" | "draft" | "archived";
+  };
 }
 
-export function AgentToolsManager({ agentId }: Props) {
+export function AgentToolsManager({ agentId, workspaceId, agent }: Props) {
   const { mcpServers, fetchMcpServers } = useWorkspaceScopedActions();
   const [tools, setTools] = useState<AgentToolRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,8 +45,13 @@ export function AgentToolsManager({ agentId }: Props) {
 
   // Dialog state
   const [mcpDialogOpen, setMcpDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingTool, setEditingTool] = useState<AgentToolRecord | null>(null);
 
   const hasType = (type: ToolType) => tools.some(t => t.tool_type === type && type !== 'mcp');
+  
+  // Check if agent is published (read-only)
+  const isReadOnly = agent?.status === "published";
 
   const fetchTools = useCallback(async () => {
     try {
@@ -135,6 +144,38 @@ export function AgentToolsManager({ agentId }: Props) {
     }
   };
 
+  const handleEditTool = async (tool: AgentToolRecord) => {
+    if (tool.tool_type === 'mcp' && tool.mcp_server_id) {
+      // Load MCP servers if needed
+      await loadMcpServersIfNeeded();
+      setEditingTool(tool);
+      setEditDialogOpen(true);
+    }
+  };
+
+  const handleUpdateMcpTool = async (data: {
+    agent_id: string;
+    tool_type: 'mcp';
+    mcp_server_id: string;
+    allowed_tools?: string[];
+  }) => {
+    if (!editingTool) return;
+    
+    try {
+      setIsCreating(true);
+      // Delete the old tool and create a new one
+      await deleteAgentTool({ agent_tool_id: editingTool.id });
+      await createAgentTool(data);
+      await fetchTools();
+      setEditDialogOpen(false);
+      setEditingTool(null);
+    } catch (e) {
+      console.error("Failed to update MCP tool", e);
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="space-y-3">
@@ -182,48 +223,72 @@ export function AgentToolsManager({ agentId }: Props) {
                     </div>
                   )}
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleDelete(tool.id)}
-                  className="text-destructive hover:text-destructive"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                <div className="flex items-center gap-1">
+                  {tool.tool_type === 'mcp' && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleEditTool(tool)}
+                      disabled={isReadOnly}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDelete(tool.id)}
+                    className="text-destructive hover:text-destructive"
+                    disabled={isReadOnly}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             ))
           )}
         </div>
 
+        {/* Read-only message for published agents */}
+        {isReadOnly && (
+          <div className="p-4 bg-muted/50 rounded-lg border border-dashed">
+            <p className="text-sm text-muted-foreground text-center">
+              🔒 Tools cannot be modified for published agents. Create a new draft to make changes.
+            </p>
+          </div>
+        )}
+
         {/* Add Tool Section */}
-        <div className="space-y-3">
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-            {(['web_search_preview', 'code_interpreter', 'image_generation'] as const).map((type) => (
+        {!isReadOnly && (
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+              {(['web_search_preview', 'code_interpreter', 'image_generation'] as const).map((type) => (
+                <Button
+                  key={type}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onChooseType(type)}
+                  disabled={hasType(type)}
+                  className="justify-start"
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  {type.replace('_', ' ')}
+                </Button>
+              ))}
               <Button
-                key={type}
                 variant="outline"
                 size="sm"
-                onClick={() => onChooseType(type)}
-                disabled={hasType(type)}
+                onClick={() => onChooseType('mcp')}
                 className="justify-start"
               >
                 <Plus className="h-3 w-3 mr-1" />
-                {type.replace('_', ' ')}
+                tools from integration
               </Button>
-            ))}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onChooseType('mcp')}
-              className="justify-start"
-            >
-              <Plus className="h-3 w-3 mr-1" />
-              tool from MCP
-            </Button>
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* MCP Server Dialog */}
+        {/* MCP Server Dialog - Add New Tools */}
         <McpServerDialog
           open={mcpDialogOpen}
           onOpenChange={setMcpDialogOpen}
@@ -232,7 +297,29 @@ export function AgentToolsManager({ agentId }: Props) {
           onCreateTool={handleCreateMcpTool}
           agentId={agentId}
           isCreating={isCreating}
+          workspaceId={workspaceId}
         />
+
+        {/* MCP Server Dialog - Edit Existing Tool */}
+        {editingTool && (
+          <McpServerDialog
+            open={editDialogOpen}
+            onOpenChange={(open) => {
+              setEditDialogOpen(open);
+              if (!open) setEditingTool(null);
+            }}
+            mcpServers={mcpOptions}
+            loading={mcpServersLoading}
+            onCreateTool={handleUpdateMcpTool}
+            agentId={agentId}
+            isCreating={isCreating}
+            workspaceId={workspaceId}
+            editMode={{
+              serverId: editingTool.mcp_server_id || '',
+              selectedTools: editingTool.allowed_tools || []
+            }}
+          />
+        )}
     </>
   );
 }

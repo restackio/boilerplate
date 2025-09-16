@@ -1,6 +1,164 @@
 -- Agents and completed tasks seed data
 -- This file creates demo agents and completed tasks with realistic conversation history
 
+-- Insert MCP servers (OAuth will be discovered dynamically)
+INSERT INTO mcp_servers (id, workspace_id, server_label, server_url, local, server_description, headers) VALUES
+(
+  'a0123456-789a-123e-f012-456789012349',
+  'c926e979-1f16-46bf-a7cc-8aab70162d65',
+  'notion',
+  'https://mcp.notion.com/mcp',
+  FALSE,
+  'Notion MCP server for accessing and managing Notion workspaces, pages, and databases',
+  NULL
+),
+(
+  'b0123456-789a-123e-f012-456789012350',
+  'c926e979-1f16-46bf-a7cc-8aab70162d65',
+  'github-mcp',
+  'https://mcp.github.com/mcp',
+  FALSE,
+  'GitHub MCP server for repository management and issue tracking',
+  '{"Authorization": "Bearer ghp_demo_token"}'
+),
+(
+  'c0123456-789a-123e-f012-456789012351',
+  'c926e979-1f16-46bf-a7cc-8aab70162d65',
+  'slack-notifications',
+  'https://mcp.slack.com/mcp',
+  FALSE,
+  'Slack MCP server for sending notifications and managing channels',
+  '{"Authorization": "Bearer xoxb-slack-demo-token"}'
+),
+(
+  'f4567890-1234-5678-9abc-def012345678',
+  'c926e979-1f16-46bf-a7cc-8aab70162d65',
+  'zendesk-mcp',
+  'https://mcp.zendesk.com/mcp',
+  FALSE,
+  'Zendesk MCP server for ticket management and customer support',
+  '{"Authorization": "Bearer zendesk-demo-token"}'
+),
+(
+  '15678901-2345-6789-bcde-f01234567890',
+  'c926e979-1f16-46bf-a7cc-8aab70162d65',
+  'knowledge-base',
+  'https://mcp.knowledgebase.com/mcp',
+  FALSE,
+  'Knowledge base MCP server for documentation and knowledge management',
+  '{"Authorization": "Bearer kb-demo-token"}'
+),
+(
+  '26789012-3456-789a-cdef-012345678901',
+  'c926e979-1f16-46bf-a7cc-8aab70162d65',
+  'pagerduty',
+  'https://mcp.pagerduty.com/mcp',
+  FALSE,
+  'PagerDuty MCP server for incident management and monitoring',
+  '{"Authorization": "Bearer pd-demo-token"}'
+),
+(
+  '37890123-4567-890b-cdef-123456789012',
+  'c926e979-1f16-46bf-a7cc-8aab70162d65',
+  'datadog',
+  'https://mcp.datadog.com/mcp',
+  FALSE,
+  'Datadog MCP server for logs and metrics monitoring',
+  '{"Authorization": "Bearer dd-demo-token"}'
+),
+(
+  '48901234-5678-901c-def0-234567890123',
+  'c926e979-1f16-46bf-a7cc-8aab70162d65',
+  'linear',
+  'https://mcp.linear.app/mcp',
+  FALSE,
+  'Linear MCP server for issue and project management',
+  '{"Authorization": "Bearer linear-demo-token"}'
+),
+(
+  '59012345-6789-012d-ef01-345678901234',
+  'c926e979-1f16-46bf-a7cc-8aab70162d65',
+  'github-pr',
+  'https://mcp.github.com/pr',
+  FALSE,
+  'GitHub PR MCP server for pull request management',
+  '{"Authorization": "Bearer ghpr-demo-token"}'
+),
+(
+  '70123456-789a-123e-f012-456789012346',
+  'c926e979-1f16-46bf-a7cc-8aab70162d65',
+  'sales-crm',
+  'https://mcp.salesforce.com/mcp',
+  FALSE,
+  'Salesforce CRM MCP server for lead and opportunity management',
+  '{"Authorization": "Bearer sf-demo-token"}'
+),
+(
+  'd2e3f456-7890-0123-def0-456789012345',
+  'c926e979-1f16-46bf-a7cc-8aab70162d65',
+  'posthog',
+  'https://mcp.posthog.com/mcp',
+  FALSE,
+  'PostHog MCP server for analytics and insights',
+  '{"Authorization": "Bearer ph-demo-token"}'
+),
+(
+  'c1d2e3f4-5678-9012-cdef-345678901234',
+  'c926e979-1f16-46bf-a7cc-8aab70162d65',
+  'deepwiki',
+  'https://mcp.deepwiki.com/mcp',
+  FALSE,
+  'DeepWiki MCP server for internal documentation search',
+  '{"Authorization": "Bearer dw-demo-token"}'
+),
+(
+  '60123456-789a-123e-f012-456789012345',
+  'c926e979-1f16-46bf-a7cc-8aab70162d65',
+  'mintlify-docs',
+  'https://mcp.mintlify.com/mcp',
+  FALSE,
+  'Mintlify Docs MCP server for documentation search',
+  '{"Authorization": "Bearer mint-demo-token"}'
+),
+(
+  '80123456-789a-123e-f012-456789012347',
+  'c926e979-1f16-46bf-a7cc-8aab70162d65',
+  'hr-system',
+  'https://mcp.bamboohr.com/mcp',
+  FALSE,
+  'BambooHR MCP server for employee data management',
+  '{"Authorization": "Bearer bhr-demo-token"}'
+),
+(
+  '90123456-789a-123e-f012-456789012348',
+  'c926e979-1f16-46bf-a7cc-8aab70162d65',
+  'failing-mcp-test',
+  'https://mcp.test.com/failing',
+  FALSE,
+  'Failing MCP Test server for error handling testing',
+  '{"Authorization": "Bearer test-demo-token"}'
+)
+ON CONFLICT (id) DO NOTHING;
+
+-- Insert sample agent MCP tools to demonstrate the new agent-level tool management
+INSERT INTO agent_mcp_tools (id, agent_id, mcp_server_id, tool_name, custom_description, require_approval, enabled) VALUES
+-- Notion agent with search tool (from existing seed data)
+('a0000001-0001-0001-0001-000000000001', 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'a0123456-789a-123e-f012-456789012349', 'search', 'Search through Notion pages and databases for relevant information', FALSE, TRUE),
+
+-- Customer Support Agent tools
+('a0000002-0002-0002-0002-000000000002', '77777777-7777-7777-7777-777777777777', 'f4567890-1234-5678-9abc-def012345678', 'zendeskticket', 'Create and manage Zendesk support tickets', TRUE, TRUE),
+('a0000003-0003-0003-0003-000000000003', '77777777-7777-7777-7777-777777777777', '15678901-2345-6789-bcde-f01234567890', 'knowledgebase', 'Search internal knowledge base for solutions', FALSE, TRUE),
+
+-- Sales Agent tools  
+('a0000004-0004-0004-0004-000000000004', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '70123456-789a-123e-f012-456789012346', 'create_lead', 'Create new sales leads in CRM', TRUE, TRUE),
+('a0000005-0005-0005-0005-000000000005', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '70123456-789a-123e-f012-456789012346', 'update_opportunity', 'Update existing sales opportunities', FALSE, TRUE),
+
+-- Engineering Agent tools
+('a0000006-0006-0006-0006-000000000006', 'cccccccc-cccc-cccc-cccc-cccccccccccc', 'c1d2e3f4-5678-9012-cdef-345678901234', 'ask_question', 'Query internal documentation and wikis', FALSE, TRUE),
+('a0000007-0007-0007-0007-000000000007', 'cccccccc-cccc-cccc-cccc-cccccccccccc', '60123456-789a-123e-f012-456789012345', 'SearchRestack', 'Search Restack documentation for technical information', FALSE, TRUE)
+
+ON CONFLICT (id) DO NOTHING;
+
 -- Customer Support Agent - Zendesk orchestrator
 INSERT INTO agents (id, workspace_id, team_id, name, description, instructions, status, model, reasoning_effort)
 VALUES (

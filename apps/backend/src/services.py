@@ -15,6 +15,13 @@ from src.functions.agent_tools_crud import (
     agent_tools_read_records_by_agent,
     agent_tools_update,
 )
+from src.functions.agent_mcp_tools_crud import (
+    agent_mcp_tools_create,
+    agent_mcp_tools_delete,
+    agent_mcp_tools_list,
+    agent_mcp_tools_read_by_agent,
+    agent_mcp_tools_update,
+)
 from src.functions.agents_crud import (
     agents_archive,
     agents_create,
@@ -45,7 +52,10 @@ from src.functions.mcp_oauth_crud import (
     oauth_token_create_or_update,
     oauth_token_delete,
     oauth_token_get_by_user_and_server,
+    oauth_token_set_default,
+    oauth_token_set_default_by_id,
     oauth_tokens_get_by_workspace,
+    get_oauth_token_for_mcp_server
 )
 from src.functions.mcp_servers_crud import (
     mcp_servers_create,
@@ -107,12 +117,21 @@ from src.functions.workspaces_crud import (
     workspaces_read,
     workspaces_update,
 )
+
+
 from src.workflows.crud.agent_tools_crud import (
     AgentToolsCreateWorkflow,
     AgentToolsDeleteWorkflow,
     AgentToolsReadByAgentWorkflow,
     AgentToolsReadRecordsByAgentWorkflow,
     AgentToolsUpdateWorkflow,
+)
+from src.workflows.crud.agent_mcp_tools_crud import (
+    AgentMcpToolsCreateWorkflow,
+    AgentMcpToolsDeleteWorkflow,
+    AgentMcpToolsListWorkflow,
+    AgentMcpToolsReadByAgentWorkflow,
+    AgentMcpToolsUpdateWorkflow,
 )
 from src.workflows.crud.agents_crud import (
     AgentsArchiveWorkflow,
@@ -136,6 +155,8 @@ from src.workflows.crud.mcp_oauth_sdk import (
     McpOAuthInitializeWorkflow,
     OAuthTokenDeleteWorkflow,
     OAuthTokenRefreshWorkflow,
+    OAuthTokenSetDefaultByIdWorkflow,
+    OAuthTokenSetDefaultWorkflow,
     OAuthTokensGetByWorkspaceWorkflow,
 )
 from src.workflows.crud.mcp_servers_crud import (
@@ -250,6 +271,12 @@ async def run_restack_service() -> None:
             AgentToolsCreateWorkflow,
             AgentToolsUpdateWorkflow,
             AgentToolsDeleteWorkflow,
+            # Agent MCP tools workflows
+            AgentMcpToolsReadByAgentWorkflow,
+            AgentMcpToolsCreateWorkflow,
+            AgentMcpToolsUpdateWorkflow,
+            AgentMcpToolsDeleteWorkflow,
+            AgentMcpToolsListWorkflow,
             ScheduleCreateWorkflow,
             ScheduleUpdateWorkflow,
             ScheduleEditWorkflow,
@@ -260,7 +287,9 @@ async def run_restack_service() -> None:
             OAuthTokensGetByWorkspaceWorkflow,
             BearerTokenCreateWorkflow,
             OAuthTokenDeleteWorkflow,
-    OAuthTokenRefreshWorkflow,
+            OAuthTokenRefreshWorkflow,
+            OAuthTokenSetDefaultWorkflow,
+            OAuthTokenSetDefaultByIdWorkflow,
         ],
         functions=[
             send_agent_event,
@@ -327,6 +356,8 @@ async def run_restack_service() -> None:
             oauth_token_create_or_update,
             oauth_token_get_by_user_and_server,
             oauth_token_delete,
+            oauth_token_set_default,
+            oauth_token_set_default_by_id,
             oauth_tokens_get_by_workspace,
             # MCP OAuth client functions
             oauth_parse_callback,
@@ -339,6 +370,13 @@ async def run_restack_service() -> None:
             agent_tools_create,
             agent_tools_update,
             agent_tools_delete,
+            # Agent MCP tools functions
+            agent_mcp_tools_read_by_agent,
+            agent_mcp_tools_create,
+            agent_mcp_tools_update,
+            agent_mcp_tools_delete,
+            agent_mcp_tools_list,
+            get_oauth_token_for_mcp_server
         ],
     )
 

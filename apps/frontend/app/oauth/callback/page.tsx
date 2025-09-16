@@ -1,16 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@workspace/ui/components/ui/button";
 import { CheckCircle, AlertCircle, Loader2, ExternalLink } from "lucide-react";
 import Link from "next/link";
 
 export default function OAuthCallbackPage() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [message, setMessage] = useState('');
   const [provider, setProvider] = useState('');
+  const [tokenId, setTokenId] = useState<string | null>(null);
+  const [isSettingDefault, setIsSettingDefault] = useState(false);
 
   useEffect(() => {
     const handleOAuthCallback = async () => {
@@ -82,29 +85,80 @@ export default function OAuthCallbackPage() {
         
         if (result.success && result.data?.success) {
           setStatus('success');
-          setMessage(`Successfully connected your ${storedProvider} account! You can now close this window.`);
+          setMessage(`Successfully connected your ${storedProvider} account!`);
+          setTokenId(result.data?.token_id || null);
         } else {
           setStatus('error');
           setMessage(result.data?.error || 'Failed to complete OAuth connection');
+          // Clean up session storage on error since we won't need it
+          cleanupSessionStorage();
         }
-        
-        // Clean up session storage
-        sessionStorage.removeItem('oauth_mcp_server_id');
-        sessionStorage.removeItem('oauth_user_id');
-        sessionStorage.removeItem('oauth_workspace_id');
-        sessionStorage.removeItem('oauth_provider_name');
-        sessionStorage.removeItem('oauth_client_id');
-        sessionStorage.removeItem('oauth_client_secret');
 
       } catch (error) {
         console.error('OAuth callback error:', error);
         setStatus('error');
         setMessage('An unexpected error occurred during OAuth callback processing.');
+        // Clean up session storage on error since we won't need it
+        cleanupSessionStorage();
       }
     };
 
     handleOAuthCallback();
   }, [searchParams]);
+
+  const cleanupSessionStorage = () => {
+    sessionStorage.removeItem('oauth_mcp_server_id');
+    sessionStorage.removeItem('oauth_user_id');
+    sessionStorage.removeItem('oauth_workspace_id');
+    sessionStorage.removeItem('oauth_provider_name');
+    sessionStorage.removeItem('oauth_client_id');
+    sessionStorage.removeItem('oauth_client_secret');
+  };
+
+  const handleMakeDefault = async () => {
+    if (!tokenId) return;
+    
+    setIsSettingDefault(true);
+    try {
+      const response = await fetch('/api/oauth/callback', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          workflow: 'OAuthTokenSetDefaultByIdWorkflow',
+          input: {
+            token_id: tokenId,
+          }
+        }),
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        // Clean up session storage and redirect to integrations page
+        cleanupSessionStorage();
+        router.push('/integrations');
+      } else {
+        console.error('Failed to set token as default:', result);
+        // Still clean up and redirect to integrations page
+        cleanupSessionStorage();
+        router.push('/integrations');
+      }
+    } catch (error) {
+      console.error('Error setting token as default:', error);
+      // Still clean up and redirect to integrations page
+      cleanupSessionStorage();
+      router.push('/integrations');
+    } finally {
+      setIsSettingDefault(false);
+    }
+  };
+
+  const handleSkip = () => {
+    cleanupSessionStorage();
+    router.push('/integrations');
+  };
 
   const getProviderIcon = (provider: string) => {
     const lowerProvider = provider.toLowerCase();
@@ -147,20 +201,32 @@ export default function OAuthCallbackPage() {
             <h1 className="text-xl font-semibold text-green-800 mb-2">
               Connection Successful!
             </h1>
-            <p className="text-gray-600 mb-6">{message}</p>
+            <p className="text-gray-600 mb-2">{message}</p>
+            <p className="text-sm text-gray-500 mb-6">
+              Would you like to make this token the default for your workspace?
+            </p>
             <div className="space-y-3">
-              <Button asChild className="w-full">
-                <Link href="/integrations">
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  Back to Integrations
-                </Link>
+              <Button 
+                onClick={handleMakeDefault}
+                disabled={isSettingDefault}
+                className="w-full"
+              >
+                {isSettingDefault ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Setting as Default...
+                  </>
+                ) : (
+                  'Make Token Default'
+                )}
               </Button>
               <Button 
                 variant="outline" 
-                onClick={() => window.close()} 
+                onClick={handleSkip}
+                disabled={isSettingDefault}
                 className="w-full"
               >
-                Close Window
+                Skip
               </Button>
             </div>
           </>
@@ -174,15 +240,22 @@ export default function OAuthCallbackPage() {
             </h1>
             <p className="text-gray-600 mb-6">{message}</p>
             <div className="space-y-3">
-              <Button asChild className="w-full">
-                <Link href="/integrations">
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  Back to Integrations
-                </Link>
+              <Button 
+                onClick={() => {
+                  cleanupSessionStorage();
+                  router.push('/integrations');
+                }}
+                className="w-full"
+              >
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Back to Integrations
               </Button>
               <Button 
                 variant="outline" 
-                onClick={() => window.close()} 
+                onClick={() => {
+                  cleanupSessionStorage();
+                  window.close();
+                }} 
                 className="w-full"
               >
                 Close Window

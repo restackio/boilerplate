@@ -10,6 +10,12 @@ class McpToolsListInput(BaseModel):
     server_url: str = Field(..., min_length=1)
     headers: dict[str, str] | None = None
     local: bool = Field(default=False)
+    workspace_id: str | None = Field(
+        None, description="Workspace ID for default token lookup"
+    )
+    mcp_server_id: str | None = Field(
+        None, description="MCP Server ID for default token lookup"
+    )
 
 
 class McpToolsListOutput(BaseModel):
