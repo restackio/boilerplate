@@ -110,7 +110,7 @@ jobs:
       - name: Setup Vale
         uses: errata-ai/vale-action@reviewdog
         with:
-          files: '*.md'
+          files: 'README.md CONTRIBUTING.md apps/*/README.md packages/*/README.md'
           fail_on_error: true
           vale_flags: "--no-exit"
         env:
