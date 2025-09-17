@@ -273,17 +273,24 @@ class McpOAuthCallbackWorkflow:
 
             # Step 4: Save client credentials to MCP server headers
             if token_data.client_id and token_data.client_secret:
-                log.info("Step 4: Saving client credentials to MCP server")
-                from src.functions.mcp_servers_crud import mcp_servers_update, McpServerUpdateInput
-                
+                log.info(
+                    "Step 4: Saving client credentials to MCP server"
+                )
+                from src.functions.mcp_servers_crud import (
+                    McpServerUpdateInput,
+                    mcp_servers_update,
+                )
+
                 # Update MCP server headers with client credentials
-                current_headers = server_result.server.headers or {}
+                current_headers = (
+                    server_result.server.headers or {}
+                )
                 updated_headers = {
                     **current_headers,
                     "oauth_client_id": token_data.client_id,
                     "oauth_client_secret": token_data.client_secret,
                 }
-                
+
                 await workflow.step(
                     function=mcp_servers_update,
                     function_input=McpServerUpdateInput(
@@ -292,7 +299,9 @@ class McpOAuthCallbackWorkflow:
                     ),
                     start_to_close_timeout=timedelta(seconds=30),
                 )
-                log.info("Successfully stored client credentials in MCP server headers")
+                log.info(
+                    "Successfully stored client credentials in MCP server headers"
+                )
 
             # Step 5: Save tokens to database
             log.info("Step 5: Saving OAuth tokens to database")

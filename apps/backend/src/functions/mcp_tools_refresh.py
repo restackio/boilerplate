@@ -2,10 +2,13 @@ import json
 import os
 
 import aiohttp
-from pydantic import BaseModel, Field, field_validator
+from pydantic import (
+    BaseModel,
+    Field,
+    ValidationInfo,
+    field_validator,
+)
 from restack_ai.function import function
-
-
 
 
 def _extract_tools_from_result(result: dict) -> list[dict]:
@@ -16,9 +19,9 @@ def _extract_tools_from_result(result: dict) -> list[dict]:
             return [
                 {
                     "name": tool.get("name", ""),
-                    "description": tool.get("description", "")
+                    "description": tool.get("description", ""),
                 }
-                for tool in tools 
+                for tool in tools
                 if isinstance(tool, dict) and "name" in tool
             ]
     return []
@@ -34,12 +37,14 @@ class McpToolsListInput(BaseModel):
     mcp_server_id: str | None = Field(
         None, description="MCP Server ID for default token lookup"
     )
-    
-    @field_validator('server_url')
+
+    @field_validator("server_url")
     @classmethod
-    def validate_server_url(cls, v: str | None, info) -> str | None:
+    def validate_server_url(
+        cls, v: str | None, info: ValidationInfo
+    ) -> str | None:
         # Allow None/empty server_url if we have mcp_server_id (will be resolved by backend)
-        if not v and info.data and info.data.get('mcp_server_id'):
+        if not v and info.data and info.data.get("mcp_server_id"):
             return "placeholder"  # Will be resolved by backend
         # Allow None values - let the workflow handle the error gracefully
         if v is None:
@@ -52,13 +57,19 @@ class McpToolsListInput(BaseModel):
 
 class McpTool(BaseModel):
     """MCP tool with name and description."""
+
     name: str
     description: str | None = None
 
+
 class McpToolsListOutput(BaseModel):
     success: bool
-    tools_list: list[str] = Field(default_factory=list)  # Keep for backward compatibility
-    tools: list[McpTool] = Field(default_factory=list)   # New detailed format
+    tools_list: list[str] = Field(
+        default_factory=list
+    )  # Keep for backward compatibility
+    tools: list[McpTool] = Field(
+        default_factory=list
+    )  # New detailed format
     error: str | None = None
 
 
@@ -83,8 +94,12 @@ class McpToolsSessionInput(BaseModel):
 
 class McpToolsSessionOutput(BaseModel):
     success: bool
-    tools: list[str] = Field(default_factory=list)  # Keep for backward compatibility
-    tools_with_descriptions: list[dict] = Field(default_factory=list)  # New detailed format
+    tools: list[str] = Field(
+        default_factory=list
+    )  # Keep for backward compatibility
+    tools_with_descriptions: list[dict] = Field(
+        default_factory=list
+    )  # New detailed format
     error: str | None = None
 
 
@@ -96,8 +111,12 @@ class McpToolsListDirectInput(BaseModel):
 
 class McpToolsListDirectOutput(BaseModel):
     success: bool
-    tools: list[str] = Field(default_factory=list)  # Keep for backward compatibility
-    tools_with_descriptions: list[dict] = Field(default_factory=list)  # New detailed format
+    tools: list[str] = Field(
+        default_factory=list
+    )  # Keep for backward compatibility
+    tools_with_descriptions: list[dict] = Field(
+        default_factory=list
+    )  # New detailed format
     error: str | None = None
 
 
@@ -340,12 +359,14 @@ async def mcp_tools_list(
                                     result
                                 )
                             )
-                            tools_with_desc = _extract_tools_from_result(result)
+                            tools_with_desc = (
+                                _extract_tools_from_result(result)
+                            )
                             if tool_names:
                                 return McpToolsSessionOutput(
-                                    success=True, 
+                                    success=True,
                                     tools=tool_names,
-                                    tools_with_descriptions=tools_with_desc
+                                    tools_with_descriptions=tools_with_desc,
                                 )
 
                 return McpToolsSessionOutput(
@@ -425,9 +446,15 @@ async def mcp_tools_list_direct(
                                         )
                                         and "result" in tools_data
                                     ):
-                                        result = tools_data["result"]
-                                        tool_names = _extract_tool_names_from_result(result)
-                                        tools_with_desc = _extract_tools_from_result(result)
+                                        result = tools_data[
+                                            "result"
+                                        ]
+                                        tool_names = _extract_tool_names_from_result(
+                                            result
+                                        )
+                                        tools_with_desc = _extract_tools_from_result(
+                                            result
+                                        )
                                         return McpToolsListDirectOutput(
                                             success=True,
                                             tools=tool_names,
@@ -451,12 +478,18 @@ async def mcp_tools_list_direct(
                             and "result" in tools_data
                         ):
                             result = tools_data["result"]
-                            tool_names = _extract_tool_names_from_result(result)
-                            tools_with_desc = _extract_tools_from_result(result)
+                            tool_names = (
+                                _extract_tool_names_from_result(
+                                    result
+                                )
+                            )
+                            tools_with_desc = (
+                                _extract_tools_from_result(result)
+                            )
                             return McpToolsListDirectOutput(
-                                success=True, 
+                                success=True,
                                 tools=tool_names,
-                                tools_with_descriptions=tools_with_desc
+                                tools_with_descriptions=tools_with_desc,
                             )
 
                 return McpToolsListDirectOutput(

@@ -30,10 +30,12 @@ async def register_oauth_client(
 ) -> OAuthClientInformationFull:
     """Register OAuth client dynamically with the authorization server."""
     registration_endpoint = oauth_metadata.registration_endpoint
-    
+
     if not registration_endpoint:
-        raise OAuthRegistrationError("No registration endpoint found in OAuth metadata")
-    
+        raise OAuthRegistrationError(
+            "No registration endpoint found in OAuth metadata"
+        )
+
     # Prepare client registration data
     registration_data = {
         "client_name": f"MCP Client for {server_label}",
@@ -43,7 +45,7 @@ async def register_oauth_client(
         "token_endpoint_auth_method": "client_secret_basic",
         "scope": "openid profile",
     }
-    
+
     try:
         response = await client.post(
             str(registration_endpoint),
@@ -52,23 +54,39 @@ async def register_oauth_client(
             timeout=10.0,
         )
         response.raise_for_status()
-        
+
         registration_response = response.json()
-        
+
         return OAuthClientInformationFull(
             client_id=registration_response["client_id"],
-            client_secret=registration_response.get("client_secret"),
-            registration_client_uri=registration_response.get("registration_client_uri"),
-            registration_access_token=registration_response.get("registration_access_token"),
-            client_id_issued_at=registration_response.get("client_id_issued_at"),
-            client_secret_expires_at=registration_response.get("client_secret_expires_at"),
-            redirect_uris=registration_response.get("redirect_uris", [f"{base_url}/oauth/callback"]),
+            client_secret=registration_response.get(
+                "client_secret"
+            ),
+            registration_client_uri=registration_response.get(
+                "registration_client_uri"
+            ),
+            registration_access_token=registration_response.get(
+                "registration_access_token"
+            ),
+            client_id_issued_at=registration_response.get(
+                "client_id_issued_at"
+            ),
+            client_secret_expires_at=registration_response.get(
+                "client_secret_expires_at"
+            ),
+            redirect_uris=registration_response.get(
+                "redirect_uris", [f"{base_url}/oauth/callback"]
+            ),
         )
-        
+
     except httpx.HTTPStatusError as e:
-        raise OAuthRegistrationError(f"Failed to register OAuth client: HTTP {e.response.status_code}") from e
+        raise OAuthRegistrationError(
+            f"Failed to register OAuth client: HTTP {e.response.status_code}"
+        ) from e
     except Exception as e:
-        raise OAuthRegistrationError(f"OAuth client registration failed: {e}") from e
+        raise OAuthRegistrationError(
+            f"OAuth client registration failed: {e}"
+        ) from e
 
 
 # Custom exceptions for better error handling
@@ -173,7 +191,8 @@ def sanitize_log_data(data: dict) -> dict:
     for key in sensitive_keys:
         if key in sanitized:
             value = sanitized[key]
-            if value and len(str(value)) > 8:
+            min_length_for_truncation = 8
+            if value and len(str(value)) > min_length_for_truncation:
                 sanitized[key] = (
                     f"{str(value)[:4]}...{str(value)[-4:]}"
                 )
@@ -208,8 +227,9 @@ def validate_oauth_callback_params(
         )
 
     # Basic validation of code format
+    min_oauth_code_length = 10
     if (
-        not code or len(code) < 10
+        not code or len(code) < min_oauth_code_length
     ):  # OAuth codes are typically much longer
         raise NonRetryableError(
             "Invalid authorization code format"
@@ -582,10 +602,12 @@ async def oauth_exchange_code_for_token(
                     client_info = OAuthClientInformationFull.model_validate_json(
                         reg_response.content
                     )
-                    
+
                     # Store fallback credentials
                     fallback_client_id = client_info.client_id
-                    fallback_client_secret = client_info.client_secret
+                    fallback_client_secret = (
+                        client_info.client_secret
+                    )
 
                     token_data = {
                         "grant_type": "authorization_code",
@@ -623,8 +645,14 @@ async def oauth_exchange_code_for_token(
                 )
 
             # Determine which client credentials to return
-            final_client_id = function_input.client_id or fallback_client_id
-            final_client_secret = client_secret if client_secret else fallback_client_secret
+            final_client_id = (
+                function_input.client_id or fallback_client_id
+            )
+            final_client_secret = (
+                client_secret
+                if client_secret
+                else fallback_client_secret
+            )
 
             result = TokenExchangeOutput(
                 access_token=tokens.access_token,
@@ -669,9 +697,9 @@ async def oauth_refresh_token(
 
         # Import here to avoid circular imports
         from src.functions.mcp_oauth_crud import (
-            oauth_token_get_decrypted,
-            mcp_server_get_by_id,
             GetMcpServerInput,
+            mcp_server_get_by_id,
+            oauth_token_get_decrypted,
         )
 
         # Step 1: Get stored refresh token from database
@@ -734,7 +762,7 @@ async def oauth_refresh_token(
                 )
                 client_id = registration_result.client_id
                 client_secret = registration_result.client_secret
-                
+
                 log.info(
                     f"Dynamic registration successful. New client_id: {client_id}. "
                     "Note: This may not match the original client used for token issuance."

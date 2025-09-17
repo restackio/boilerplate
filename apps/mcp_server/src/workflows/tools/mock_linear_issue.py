@@ -128,7 +128,9 @@ Return the complete JSON structure following the Linear API format.""",
 
             issue_data = json.loads(response_text)
 
-            log.info("MockLinearIssue completed", issue=issue_data)
+            log.info(
+                "MockLinearIssue completed", issue=issue_data
+            )
             return LinearIssueOutput(issue=issue_data)
 
         except Exception as e:

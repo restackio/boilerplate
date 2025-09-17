@@ -86,9 +86,9 @@ def is_token_encrypted(token: str) -> bool:
         base64.urlsafe_b64decode(token.encode("utf-8"))
         # If it decodes and looks like Fernet format, it's likely encrypted
         # Fernet tokens are typically longer than 100 characters
-        MIN_ENCRYPTED_TOKEN_LENGTH = 100
+        min_encrypted_token_length = 100
         return (
-            len(token) > MIN_ENCRYPTED_TOKEN_LENGTH
+            len(token) > min_encrypted_token_length
             and token.replace("-", "").replace("_", "").isalnum()
         )
     except (ValueError, TypeError):

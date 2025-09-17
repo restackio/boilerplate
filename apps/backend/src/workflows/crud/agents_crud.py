@@ -278,7 +278,9 @@ class AgentsCloneWorkflow:
             return await workflow.step(
                 function=agents_clone,
                 function_input=workflow_input,
-                start_to_close_timeout=timedelta(seconds=60),  # Longer timeout for cloning
+                start_to_close_timeout=timedelta(
+                    seconds=60
+                ),  # Longer timeout for cloning
             )
 
         except Exception as e:

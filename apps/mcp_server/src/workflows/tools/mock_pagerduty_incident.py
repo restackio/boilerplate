@@ -126,6 +126,8 @@ Return the complete JSON structure following the PagerDuty API format.""",
             return PagerDutyIncidentOutput(incident=incident_data)
 
         except Exception as e:
-            error_message = f"Error during MockPagerDutyIncident: {e}"
+            error_message = (
+                f"Error during MockPagerDutyIncident: {e}"
+            )
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e

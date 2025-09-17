@@ -57,7 +57,9 @@ class MockZendeskTicket:
     async def run(
         self, workflow_input: ZendeskTicketInput
     ) -> ZendeskTicketOutput:
-        log.info("MockZendeskTicket started", input=workflow_input)
+        log.info(
+            "MockZendeskTicket started", input=workflow_input
+        )
 
         try:
             # Use LLM to generate a ticket based on user request and schema
@@ -110,7 +112,8 @@ Return the complete JSON structure following the Zendesk API format.""",
             generated_ticket = json.loads(response_text)
 
             log.info(
-                "MockZendeskTicket completed", ticket=generated_ticket
+                "MockZendeskTicket completed",
+                ticket=generated_ticket,
             )
             return ZendeskTicketOutput(ticket=generated_ticket)
 

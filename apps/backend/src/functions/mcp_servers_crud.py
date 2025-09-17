@@ -102,9 +102,15 @@ async def mcp_servers_read(
             mcp_servers_query = (
                 select(
                     McpServer,
-                    func.count(UserOAuthConnection.id).label('connections_count')
+                    func.count(UserOAuthConnection.id).label(
+                        "connections_count"
+                    ),
                 )
-                .outerjoin(UserOAuthConnection, McpServer.id == UserOAuthConnection.mcp_server_id)
+                .outerjoin(
+                    UserOAuthConnection,
+                    McpServer.id
+                    == UserOAuthConnection.mcp_server_id,
+                )
                 .where(
                     McpServer.workspace_id
                     == uuid.UUID(function_input.workspace_id)
@@ -216,9 +222,13 @@ async def mcp_servers_update(
             update_data = function_input.dict(
                 exclude_unset=True, exclude={"mcp_server_id"}
             )
-            
+
             # Filter out None values to avoid overwriting existing data
-            filtered_update_data = {k: v for k, v in update_data.items() if v is not None}
+            filtered_update_data = {
+                k: v
+                for k, v in update_data.items()
+                if v is not None
+            }
 
             for key, value in filtered_update_data.items():
                 if hasattr(mcp_server, key):
