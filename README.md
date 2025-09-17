@@ -241,4 +241,4 @@ Want to contribute or change the platform? See [CONTRIBUTING.md](./CONTRIBUTING.
 
 ## 📄 License
 
-MIT License - feel free to use this platform for your own projects.
+Licensed under the [Apache License, Version 2.0](LICENSE).

@@ -180,3 +180,7 @@ pnpm build && pnpm start
 - [`@workspace/ui`](../../packages/ui/) - Shared component library
 - [`@workspace/eslint-config`](../../packages/eslint-config/) - Linting rules
 - [`@workspace/typescript-config`](../../packages/typescript-config/) - TS config
+
+## License
+
+Licensed under the [Apache License, Version 2.0](../../LICENSE).

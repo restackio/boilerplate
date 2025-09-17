@@ -93,3 +93,7 @@ curl http://localhost:8000/health
 - **Stateless**: Delegates to backend via Restack
 - **Scalable**: Independent deployment and scaling
 - **Reliable**: Graceful error handling
+
+## License
+
+Licensed under the [Apache License, Version 2.0](../../LICENSE).

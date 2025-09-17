@@ -86,3 +86,7 @@ OPENAI_API_KEY=your_key
 SLACK_BOT_TOKEN=your_token
 WEATHER_API_KEY=your_key
 ```
+
+## License
+
+Licensed under the [Apache License, Version 2.0](../../LICENSE).

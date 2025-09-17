@@ -219,3 +219,7 @@ export const Button = ({ className, variant, ...props }) => (
 - [`apps/frontend`](../../apps/frontend/) - Main app using these components
 - [Radix UI](https://radix-ui.com) - Headless component primitives
 - [Tailwind CSS](https://tailwindcss.com) - Utility-first CSS framework
+
+## License
+
+Licensed under the [Apache License, Version 2.0](../../LICENSE).
