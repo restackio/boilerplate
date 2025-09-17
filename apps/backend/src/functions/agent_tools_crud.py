@@ -30,6 +30,13 @@ def _raise_agent_tool_not_found_error(agent_tool_id: str) -> None:
     )
 
 
+def _raise_tool_name_required_error() -> None:
+    """Raise error when tool_name is required but missing."""
+    raise NonRetryableError(
+        message="tool_name is required for MCP tools"
+    )
+
+
 def _convert_approval_config(
     require_approval: dict,
     allowed_tools: list[str],
@@ -265,7 +272,7 @@ class AgentMcpToolAvailableListOutput(BaseModel):
 
 
 @function.defn()
-async def agent_tools_read_by_agent(  # noqa: C901
+async def agent_tools_read_by_agent(  # noqa: C901, PLR0912
     function_input: AgentToolsGetByAgentInput,
 ) -> AgentToolsOutput:
     """Read agent tools formatted for workflow consumption."""
@@ -460,9 +467,7 @@ async def agent_tools_create(
                 function_input.tool_type == "mcp"
                 and not function_input.tool_name
             ):
-                raise NonRetryableError(
-                    message="tool_name is required for MCP tools"
-                )
+                _raise_tool_name_required_error()
 
             agent_uuid = uuid.UUID(function_input.agent_id)
             mcp_uuid = (

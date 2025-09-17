@@ -163,7 +163,7 @@ class McpToolsListWorkflow:
     """Simple workflow to disclistover tools from an MCP server URL."""
 
     @workflow.run
-    async def run(
+    async def run(  # noqa: C901, PLR0911, PLR0912, PLR0915
         self, workflow_input: McpToolsListInput
     ) -> McpToolsListOutput:
         try:
@@ -262,7 +262,11 @@ class McpToolsListWorkflow:
                         log.info(
                             "No default token found for MCP server"
                         )
-                except Exception as e:
+                except (
+                    ValueError,
+                    TypeError,
+                    AttributeError,
+                ) as e:
                     log.warning(
                         f"Failed to get OAuth token for MCP server: {e}"
                     )
@@ -327,17 +331,17 @@ class McpToolsListWorkflow:
                 if hasattr(
                     tools_list_result, "tools_with_descriptions"
                 ):
-                    for tool_dict in (
-                        tools_list_result.tools_with_descriptions
-                    ):
-                        tools_with_desc.append(
+                    tools_with_desc.extend(
+                        [
                             McpTool(
                                 name=tool_dict.get("name", ""),
                                 description=tool_dict.get(
                                     "description"
                                 ),
                             )
-                        )
+                            for tool_dict in tools_list_result.tools_with_descriptions
+                        ]
+                    )
 
                 return McpToolsListOutput(
                     success=True,

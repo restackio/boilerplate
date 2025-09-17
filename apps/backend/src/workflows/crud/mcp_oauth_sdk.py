@@ -149,7 +149,7 @@ class McpOAuthInitializeWorkflow:
             query_params = parse_qs(parsed_url.query)
             client_id = query_params.get("client_id", [None])[0]
 
-            return {
+            return {  # noqa: TRY300
                 "success": True,
                 "authorization_url": auth_url_result.auth_url.authorization_url,
                 "state": auth_url_result.auth_url.state,
@@ -159,7 +159,7 @@ class McpOAuthInitializeWorkflow:
                 "server_label": server.server_label,
             }
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             error_message = (
                 f"Error during MCP OAuth initialize workflow: {e}"
             )
@@ -330,14 +330,14 @@ class McpOAuthCallbackWorkflow:
                 }
 
             log.info("OAuth flow completed successfully")
-            return {
+            return {  # noqa: TRY300
                 "success": True,
                 "message": "OAuth connection established successfully",
                 "token_id": save_result.token.id,
                 "server_url": server_result.server.server_url,
             }
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             error_message = (
                 f"Error during MCP OAuth callback workflow: {e}"
             )
@@ -368,9 +368,9 @@ class OAuthTokensGetByWorkspaceWorkflow:
             log.info(
                 f"Successfully retrieved {len(result.tokens)} tokens"
             )
-            return result
+            return result  # noqa: TRY300
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             error_message = (
                 f"Error getting OAuth tokens by workspace: {e}"
             )
@@ -401,9 +401,9 @@ class BearerTokenCreateWorkflow:
             log.info(
                 f"Successfully created Bearer token with ID: {result.token.id}"
             )
-            return result
+            return result  # noqa: TRY300
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             error_message = f"Error creating Bearer token: {e}"
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e
@@ -432,9 +432,9 @@ class OAuthTokenDeleteWorkflow:
             log.info(
                 f"Successfully deleted OAuth token for user: {workflow_input.user_id}, server: {workflow_input.mcp_server_id}"
             )
-            return result
+            return result  # noqa: TRY300
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             error_message = f"Error deleting OAuth token: {e}"
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e
@@ -463,9 +463,9 @@ class OAuthTokenRefreshWorkflow:
             log.info(
                 f"Successfully refreshed OAuth token for user: {workflow_input.user_id}, server: {workflow_input.mcp_server_id}"
             )
-            return result
+            return result  # noqa: TRY300
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             error_message = f"Error refreshing OAuth token: {e}"
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e
@@ -500,13 +500,13 @@ class OAuthTokenSetDefaultWorkflow:
                 }
 
             log.info("Token set as default successfully")
-            return {
+            return {  # noqa: TRY300
                 "success": True,
                 "message": "Token set as default successfully",
                 "token": result.token,
             }
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             error_message = (
                 f"Error during set default token workflow: {e}"
             )
@@ -543,13 +543,13 @@ class OAuthTokenSetDefaultByIdWorkflow:
                 }
 
             log.info("Token set as default by ID successfully")
-            return {
+            return {  # noqa: TRY300
                 "success": True,
                 "message": "Token set as default successfully",
                 "token": result.token,
             }
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             error_message = f"Error during set default token by ID workflow: {e}"
             log.error(error_message)
             return {"success": False, "error": error_message}

@@ -32,9 +32,10 @@ async def register_oauth_client(
     registration_endpoint = oauth_metadata.registration_endpoint
 
     if not registration_endpoint:
-        raise OAuthRegistrationError(
+        error_message = (
             "No registration endpoint found in OAuth metadata"
         )
+        raise OAuthRegistrationError(error_message)
 
     # Prepare client registration data
     registration_data = {
@@ -80,13 +81,11 @@ async def register_oauth_client(
         )
 
     except httpx.HTTPStatusError as e:
-        raise OAuthRegistrationError(
-            f"Failed to register OAuth client: HTTP {e.response.status_code}"
-        ) from e
+        error_message = f"Failed to register OAuth client: HTTP {e.response.status_code}"
+        raise OAuthRegistrationError(error_message) from e
     except Exception as e:
-        raise OAuthRegistrationError(
-            f"OAuth client registration failed: {e}"
-        ) from e
+        error_message = f"OAuth client registration failed: {e}"
+        raise OAuthRegistrationError(error_message) from e
 
 
 # Custom exceptions for better error handling
@@ -192,7 +191,10 @@ def sanitize_log_data(data: dict) -> dict:
         if key in sanitized:
             value = sanitized[key]
             min_length_for_truncation = 8
-            if value and len(str(value)) > min_length_for_truncation:
+            if (
+                value
+                and len(str(value)) > min_length_for_truncation
+            ):
                 sanitized[key] = (
                     f"{str(value)[:4]}...{str(value)[-4:]}"
                 )
@@ -208,34 +210,86 @@ def validate_oauth_callback_params(
     """Validate OAuth callback parameters and return code and state."""
     if "error" in params:
         error_desc = params.get("error_description", [""])[0]
-        raise NonRetryableError(
+        error_message = (
             f"OAuth error: {params['error'][0]} - {error_desc}"
         )
+        raise NonRetryableError(error_message)
 
     if "code" not in params:
-        raise NonRetryableError(
+        error_message = (
             "No authorization code found in callback URL"
         )
+        raise NonRetryableError(error_message)
 
     code = params["code"][0]
     state = params.get("state", [None])[0]
 
     # Basic state validation - in production, you'd want to store and validate against expected states
     if expected_state and state != expected_state:
-        raise OAuthStateValidationError(
-            "OAuth state parameter mismatch - possible CSRF attack"
-        )
+        error_message = "OAuth state parameter mismatch - possible CSRF attack"
+        raise OAuthStateValidationError(error_message)
 
     # Basic validation of code format
     min_oauth_code_length = 10
     if (
         not code or len(code) < min_oauth_code_length
     ):  # OAuth codes are typically much longer
-        raise NonRetryableError(
-            "Invalid authorization code format"
-        )
+        error_message = "Invalid authorization code format"
+        raise NonRetryableError(error_message)
 
     return code, state
+
+
+def _raise_server_url_missing_error(server_label: str) -> None:
+    """Raise error when server URL is missing."""
+    error_message = f"MCP server {server_label} does not have a server URL configured"
+    raise NonRetryableError(message=error_message)
+
+
+def _raise_no_refresh_token_error() -> None:
+    """Raise error when no refresh token is found."""
+    error_message = (
+        "No refresh token found for this user and MCP server"
+    )
+    raise NonRetryableError(message=error_message)
+
+
+def _raise_server_not_found_error(mcp_server_id: str) -> None:
+    """Raise error when MCP server is not found."""
+    error_message = f"MCP server not found: {mcp_server_id}"
+    raise NonRetryableError(message=error_message)
+
+
+def _raise_token_refresh_failed_error(error_detail: str) -> None:
+    """Raise error when token refresh fails."""
+    error_message = f"Token refresh failed: {error_detail}"
+    raise NonRetryableError(message=error_message)
+
+
+def _raise_registration_failed_error(
+    status_code: int, text: str
+) -> None:
+    """Raise error when OAuth registration fails."""
+    error_message = f"Registration failed: {status_code} {text}"
+    raise OAuthRegistrationError(error_message)
+
+
+def _raise_client_registration_failed_error(
+    status_code: int,
+) -> None:
+    """Raise error when client registration fails."""
+    error_message = f"Client registration failed: {status_code}"
+    raise OAuthRegistrationError(error_message)
+
+
+def _raise_token_exchange_failed_error(
+    status_code: int, text: str
+) -> None:
+    """Raise error when token exchange fails."""
+    error_message = (
+        f"Token exchange failed: {status_code} - {text}"
+    )
+    raise OAuthTokenError(error_message)
 
 
 def create_client_metadata(
@@ -304,7 +358,10 @@ async def discover_oauth_metadata(
                 log.info(f"Attempting OAuth discovery at: {url}")
                 response = await client.get(url)
 
-                if response.status_code == 200:
+                http_ok = 200
+                http_server_error = 500
+
+                if response.status_code == http_ok:
                     try:
                         metadata = (
                             OAuthMetadata.model_validate_json(
@@ -314,15 +371,14 @@ async def discover_oauth_metadata(
                         log.info(
                             f"Successfully discovered OAuth metadata at: {url}"
                         )
-                        return metadata
-                    except Exception as e:
+                        return metadata  # noqa: TRY300
+                    except (ValueError, TypeError, KeyError) as e:
                         log.warning(
                             f"Invalid OAuth metadata at {url}: {e}"
                         )
                         last_error = e
                         continue
-
-                elif response.status_code >= 500:
+                elif response.status_code >= http_server_error:
                     # Server error, stop trying other URLs
                     log.error(
                         f"Server error {response.status_code} at {url}"
@@ -345,7 +401,11 @@ async def discover_oauth_metadata(
                 )
                 last_error = e
                 continue
-            except Exception as e:
+            except (
+                httpx.RequestError,
+                ValueError,
+                TypeError,
+            ) as e:
                 log.warning(
                     f"Error discovering OAuth metadata at {url}: {e}"
                 )
@@ -412,8 +472,8 @@ async def oauth_generate_auth_url(
                 await (
                     reg_response.aread()
                 )  # MCP pattern: read before accessing text
-                raise OAuthRegistrationError(
-                    f"Registration failed: {reg_response.status_code} {reg_response.text}"
+                _raise_registration_failed_error(
+                    reg_response.status_code, reg_response.text
                 )
 
             client_info = (
@@ -494,14 +554,14 @@ async def oauth_parse_callback(
 
 
 @function.defn()
-async def oauth_exchange_code_for_token(
+async def oauth_exchange_code_for_token(  # noqa: C901, PLR0915
     function_input: ExchangeCodeForTokenInput,
 ) -> TokenExchangeResultOutput:
     """Exchange OAuth authorization code for access token using MCP SDK."""
     try:
         if not function_input.server_url:
-            raise NonRetryableError(
-                message=f"MCP server {function_input.server_label} does not have a server URL configured"
+            _raise_server_url_missing_error(
+                function_input.server_label
             )
 
         # Create OAuth client metadata (same as during auth URL generation)
@@ -595,8 +655,8 @@ async def oauth_exchange_code_for_token(
                     )
                     if reg_response.status_code not in (200, 201):
                         await reg_response.aread()
-                        raise OAuthRegistrationError(
-                            f"Client registration failed: {reg_response.status_code}"
+                        _raise_client_registration_failed_error(
+                            reg_response.status_code
                         )
 
                     client_info = OAuthClientInformationFull.model_validate_json(
@@ -633,12 +693,15 @@ async def oauth_exchange_code_for_token(
                     },
                 )
 
-                if token_response.status_code != 200:
+                http_ok = 200
+                if token_response.status_code != http_ok:
                     await (
                         token_response.aread()
                     )  # MCP pattern: read before accessing text
-                    error_message = f"Token exchange failed: {token_response.status_code} - {token_response.text}"
-                    raise OAuthTokenError(error_message)
+                    _raise_token_exchange_failed_error(
+                        token_response.status_code,
+                        token_response.text,
+                    )
 
                 tokens = OAuthToken.model_validate_json(
                     token_response.content
@@ -707,9 +770,7 @@ async def oauth_refresh_token(
             function_input
         )
         if not token_result or not token_result.refresh_token:
-            raise NonRetryableError(
-                message="No refresh token found for this user and MCP server"
-            )
+            _raise_no_refresh_token_error()
 
         # Step 2: Get MCP server configuration
         server_result = await mcp_server_get_by_id(
@@ -718,8 +779,8 @@ async def oauth_refresh_token(
             )
         )
         if not server_result or not server_result.server:
-            raise NonRetryableError(
-                message=f"MCP server not found: {function_input.mcp_server_id}"
+            _raise_server_not_found_error(
+                function_input.mcp_server_id
             )
 
         server = server_result.server
@@ -796,17 +857,16 @@ async def oauth_refresh_token(
                 timeout=30.0,
             )
 
-            if response.status_code != 200:
+            http_ok = 200
+            if response.status_code != http_ok:
                 error_detail = f"HTTP {response.status_code}"
                 try:
                     error_json = response.json()
                     error_detail = f"HTTP {response.status_code}: {error_json.get('error', 'unknown_error')} - {error_json.get('error_description', 'No description')}"
-                except Exception:
+                except (ValueError, KeyError, TypeError):
                     error_detail = f"HTTP {response.status_code}: {response.text[:200]}"
 
-                raise NonRetryableError(
-                    message=f"Token refresh failed: {error_detail}"
-                )
+                _raise_token_refresh_failed_error(error_detail)
 
             tokens = response.json()
 

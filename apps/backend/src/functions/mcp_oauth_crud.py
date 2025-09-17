@@ -16,6 +16,18 @@ from src.utils.token_encryption import (
 )
 
 
+def _raise_refresh_token_failed_error() -> None:
+    """Raise error when OAuth token refresh fails."""
+    error_message = "Failed to refresh OAuth token"
+    raise NonRetryableError(message=error_message)
+
+
+def _raise_database_connection_failed_error() -> None:
+    """Raise error when database connection fails."""
+    error_message = "Database connection failed"
+    raise NonRetryableError(message=error_message)
+
+
 # Input models
 class GetMcpServerInput(BaseModel):
     mcp_server_id: str = Field(..., description="MCP Server ID")
@@ -378,15 +390,16 @@ async def oauth_token_get_by_user_and_server(
 
 
 @function.defn()
-async def get_oauth_token_for_mcp_server(
+async def get_oauth_token_for_mcp_server(  # noqa: C901
     function_input: GetOAuthTokenForMcpServerInput,
 ) -> str | None:
     """Get OAuth token for MCP server, refreshing if needed.
 
     Args:
-        mcp_server_id: The MCP server ID to get token for
-        user_id: Optional user ID. If not provided, uses the default token for the workspace
-        workspace_id: Optional workspace ID. Used to find default token when user_id is not provided
+        function_input: Input containing mcp_server_id, user_id, and workspace_id
+
+    Returns:
+        The decrypted access token if available and valid, None otherwise
     """
     try:
         async for db in get_async_db():
@@ -512,7 +525,11 @@ async def get_oauth_token_for_mcp_server(
                         )
                         return None
 
-                except Exception as e:
+                except (
+                    ValueError,
+                    TypeError,
+                    AttributeError,
+                ) as e:
                     log.error(
                         f"Error refreshing OAuth token for MCP server {function_input.mcp_server_id}: {e}"
                     )
@@ -526,7 +543,7 @@ async def get_oauth_token_for_mcp_server(
 
             return None
 
-    except Exception as e:
+    except (ValueError, TypeError, AttributeError) as e:
         log.error(
             f"Error getting OAuth token for MCP server {function_input.mcp_server_id}: {e}"
         )
@@ -638,9 +655,7 @@ async def oauth_token_refresh_and_update(
             not refresh_result
             or not refresh_result.token_exchange
         ):
-            raise NonRetryableError(
-                message="Failed to refresh OAuth token"
-            )
+            _raise_refresh_token_failed_error()
 
         token_data = refresh_result.token_exchange
 
@@ -746,9 +761,7 @@ async def oauth_token_refresh_and_update(
                 ) from e
 
         # This should never be reached due to async generator
-        raise NonRetryableError(
-            message="Database connection failed"
-        )
+        _raise_database_connection_failed_error()
 
     except NonRetryableError:
         raise

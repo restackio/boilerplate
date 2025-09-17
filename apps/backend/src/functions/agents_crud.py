@@ -10,6 +10,15 @@ from src.database.connection import get_async_db
 from src.database.models import Agent, AgentTool
 
 
+def _raise_source_agent_not_found_error(
+    source_agent_id: str,
+) -> None:
+    """Raise error when source agent is not found for cloning."""
+    raise NonRetryableError(
+        message=f"Source agent with ID {source_agent_id} not found"
+    )
+
+
 # Pydantic models for input validation
 class AgentCreateInput(BaseModel):
     workspace_id: str = Field(..., min_length=1)
@@ -1150,8 +1159,8 @@ async def agents_clone(
             source_agent = result.scalars().first()
 
             if not source_agent:
-                raise NonRetryableError(
-                    message=f"Source agent with ID {clone_data.source_agent_id} not found"
+                _raise_source_agent_not_found_error(
+                    clone_data.source_agent_id
                 )
 
             # Create the new agent
