@@ -7,8 +7,8 @@ on:
     branches: [main]
 
 jobs:
-  lint-and-typecheck:
-    name: Lint and Type Check
+  node-lint-and-typecheck:
+    name: Node Lint and Type Check
     runs-on: ubuntu-latest
     
     steps:
@@ -43,10 +43,10 @@ jobs:
         run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Run linting
-        run: pnpm lint --filter='!@boilerplate/backend' --filter='!@boilerplate/mcp_server' --filter='!@boilerplate/webhook'
+        run: pnpm lint --filter='boilerplate-frontend' --filter='@workspace/ui'
 
       - name: Run type checking
-        run: pnpm type-check
+        run: pnpm type-check --filter='boilerplate-frontend' --filter='@workspace/ui'
         continue-on-error: true
 
   python-lint:
