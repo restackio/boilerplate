@@ -2,9 +2,10 @@ import { useRef } from "react";
 import { ConversationItem } from "../types";
 import { EmptyState } from "@workspace/ui/components/empty-state";
 import { PromptInput } from "@workspace/ui/components/ai-elements/prompt-input";
-import { ConversationMessage } from "./conversation-message";
+import { Response } from "@workspace/ui/components/ai-elements/response";
 import { TaskCardMcp, TaskCardTool, TaskCardWebSearch, TaskCardError } from "./cards";
 import { Reasoning, ReasoningTrigger, ReasoningContent } from "@workspace/ui/components/ai-elements/reasoning";
+import { useConversationItem } from "../hooks/use-conversation-item";
 
 
 interface TaskChatInterfaceProps {
@@ -66,8 +67,6 @@ export function TaskChatInterface({
         placeholder="Request changes or ask a question"
         loadingPlaceholder="Agent is processing..."
         initializingPlaceholder="Waiting for agent to be ready..."
-        showLoadingSpinner={true}
-        showAIIndicator={true}
       />
     </div>
   );
@@ -145,8 +144,30 @@ function renderConversationItem(
         />
       );
         
-    case 'assistant':
-      return <ConversationMessage key={item.id} item={item} />;
+    case 'assistant': {
+      const { isUser, textContent, isReasoningType } = useConversationItem(item);
+      return (
+        <div key={item.id} className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
+          <div className="flex items-start space-x-2 max-w-[85%]">
+            <div
+              className={
+                isUser
+                  ? "p-3 rounded-lg bg-neutral-100 dark:bg-neutral-800"
+                  : isReasoningType
+                    ? "bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800"
+                    : "bg-transparent"
+              }
+            >
+              <div className="text-sm whitespace-pre-wrap break-words">
+                <Response>
+                  {textContent}
+                </Response>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
       
     case 'response_status': {
       const responseStatus = item.openai_event?.response?.status || item.openai_event?.type?.split('.').pop();
@@ -162,7 +183,29 @@ function renderConversationItem(
       );
     }
       
-    default:
-      return <ConversationMessage key={item.id} item={item} />;
+    default: {
+      const { isUser, textContent, isReasoningType } = useConversationItem(item);
+      return (
+        <div key={item.id} className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
+          <div className="flex items-start space-x-2 max-w-[85%]">
+            <div
+              className={
+                isUser
+                  ? "p-3 rounded-lg bg-neutral-100 dark:bg-neutral-800"
+                  : isReasoningType
+                    ? "bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800"
+                    : "bg-transparent"
+              }
+            >
+              <div className="text-sm whitespace-pre-wrap break-words">
+                <Response>
+                  {textContent}
+                </Response>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
   }
 } 

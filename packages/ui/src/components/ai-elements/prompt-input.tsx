@@ -44,8 +44,6 @@ export function PromptInput({
   placeholder = "Enter your prompt...",
   loadingPlaceholder = "AI is thinking...",
   initializingPlaceholder = "Initializing AI...",
-  showLoadingSpinner = true,
-  showAIIndicator = true,
   disabled = false,
   className = "",
   minHeight = "min-h-[40px]",
@@ -70,20 +68,7 @@ export function PromptInput({
 
   return (
     <div className={`p-4 border-t bg-background ${className}`}>
-      <div className="flex space-x-2">
-        {/* AI Indicator */}
-        {showAIIndicator && (
-          <div className="flex items-end pb-2">
-            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 text-white">
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Sparkles className="h-4 w-4" />
-              )}
-            </div>
-          </div>
-        )}
-        
+      <div className="flex space-x-2">       
         <Textarea
           placeholder={getPlaceholder()}
           value={prompt}
@@ -98,14 +83,10 @@ export function PromptInput({
         <Button 
           onClick={onSubmit}
           disabled={!prompt.trim() || isDisabled}
-          className="px-4 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
-          size="default"
+          className="p-5"
+          size="icon"
         >
-          {isLoading && showLoadingSpinner ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <ArrowUp className="h-4 w-4" />
-          )}
+          <ArrowUp className="h-4 w-4" />
         </Button>
       </div>
     </div>

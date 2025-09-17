@@ -1,341 +1,221 @@
 # UI component library
 
-A comprehensive React component library built with Radix UI primitives and Tailwind CSS, designed for the AI agent management platform.
+Shared React component library built with Radix UI + Tailwind CSS for the AI agent platform.
 
-## Overview
-
-This package provides a collection of reusable, accessible, and customizable UI components shared across the entire workspace. Built on top of Radix UI primitives with Tailwind CSS styling, it ensures consistency and maintainability across all applications.
-
-## Architecture
-
-- **Base**: Radix UI headless components for accessibility
-- **Styling**: Tailwind CSS with CSS-in-JS patterns
-- **Theming**: Dark/light mode support with `next-themes`
-- **Variants**: `class-variance-authority` for component variants
-- **Icons**: Lucide React icon library
-
-## Component categories
-
-### 🎨 UI primitives
-Core building blocks for the design system:
-
-- **Button** - Primary, secondary, outline, ghost variants
-- **Input** - Text inputs with validation states
-- **Label** - Accessible form labels
-- **Card** - Content containers with headers and footers
-- **Badge** - Status indicators and tags
-- **Avatar** - User profile images with fallbacks
-- **Separator** - Visual dividers
-
-### 📋 Data display
-Components for presenting information:
-
-- **Table** - Advanced data tables with sorting and filtering
-- **Progress** - Progress bars and loading indicators
-- **Skeleton** - Loading placeholders
-- **Empty State** - Placeholder for empty data sets
-- **Tooltip** - Contextual information on hover
-
-### 🗂️ Navigation
-Components for navigation and organization:
-
-- **Tabs** - Tab navigation with content panels
-- **Breadcrumb** - Hierarchical navigation
-- **Navigation Menu** - Complex navigation structures
-- **Sidebar** - Collapsible side navigation
-
-### 📝 Forms and inputs
-Interactive form components:
-
-- **Checkbox** - Multi-select options
-- **Switch** - Toggle controls
-- **Select** - Dropdown selection
-- **Slider** - Range input controls
-- **Textarea** - Multi-line text input
-- **Calendar** - Date selection
-- **Command** - Command palette interface
-
-### 🪟 Overlays
-Dialog and popup components:
-
-- **Dialog** - Dialog dialogs and confirmations
-- **Popover** - Contextual popovers
-- **Dropdown Menu** - Action menus
-- **Sheet** - Slide-out panels
-- **Drawer** - Mobile-optimized dialogs
-
-### 🤖 AI-specific components
-Specialized components for AI agent interfaces:
-
-- **Agent Flow** - Visual workflow representation
-- **Agent Status Badge** - Real-time status indicators
-- **AI Elements** - Reasoning display and response formatting
-- **Flow Components** - Node-based workflow visualization
-
-### 📊 Data tables
-Advanced table functionality:
-
-- **Data Table** - Sortable, filterable tables
-- **Filter Components** - Advanced filtering controls
-- **Active Filters** - Filter management interface
-- **Hooks** - Custom hooks for table state management
-
-### 🛠️ Specialized components
-Domain-specific components:
-
-- **Agents Table** - Agent management interface
-- **Tasks Table** - Task listing and management
-- **Schedules Table** - Schedule management
-- **Tokens Table** - API token management
-- **MCPs Table** - MCP server management
-- **Integrations Table** - Integration management
-- **Workspace Switcher** - Multi-workspace navigation
-- **Lucide Icon Picker** - Icon selection interface
-
-## Project structure
-
-```
-src/
-├── components/
-│   ├── ui/                    # Base UI primitives
-│   │   ├── button.tsx
-│   │   ├── input.tsx
-│   │   ├── card.tsx
-│   │   └── ...
-│   ├── table/                 # Advanced table components
-│   │   ├── components/        # Filter and control components
-│   │   ├── core/             # Table logic and types
-│   │   ├── hooks/            # Table-specific hooks
-│   │   ├── lib/              # Utility functions
-│   │   └── ui/               # Table UI components
-│   ├── flow/                  # Workflow visualization
-│   │   ├── baseNode.tsx
-│   │   ├── workflowEdge.tsx
-│   │   └── ...
-│   ├── ai-elements/           # AI-specific UI
-│   │   ├── reasoning.tsx
-│   │   └── response.tsx
-│   └── *.tsx                  # Domain-specific components
-├── hooks/
-│   └── use-mobile.ts          # Responsive design hooks
-├── lib/
-│   ├── utils.ts              # Utility functions
-│   ├── types.ts              # Shared type definitions
-│   └── get-lucide-icon.ts    # Icon utilities
-└── styles/
-    └── globals.css           # Global styles and CSS variables
-```
-
-## Installation and usage
-
-This internal workspace package becomes automatically available to other packages in the monorepo.
-
-### In frontend applications
+## Quick start
 
 ```tsx
-import { Button, Card, Badge } from "@workspace/ui/components/ui"
-import { AgentsTable } from "@workspace/ui/components/agents-table"
+// Import UI primitives
+import { Button, Card, Input, Dialog } from "@workspace/ui/components/ui"
 
-function MyComponent() {
-  return (
-    <Card>
-      <AgentsTable />
-      <Button variant="primary">
-        Action
-      </Button>
-    </Card>
-  )
-}
-```
+// Import specialized components
+import { AgentConfigForm } from "@workspace/ui/components/agent-config-form"
+import { StatusIndicator } from "@workspace/ui/components/status-indicators"
+import { WorkspaceSwitcher } from "@workspace/ui/components/workspace-switcher"
 
-### Styling
+// Import AI-specific components
+import { PromptInput, Reasoning, Response } from "@workspace/ui/components/ai-elements"
 
-Import the global styles in your app:
+// Import table system
+import { DataTable } from "@workspace/ui/components/table"
 
-```tsx
+// Don't forget global styles
 import "@workspace/ui/globals.css"
 ```
 
-## Development
+## Component categories
 
-### Prerequisites
+### UI primitives
+Core building blocks: `Button`, `Input`, `Card`, `Dialog`, `Badge`, `Avatar`, `Tabs`, `Select`, etc.
 
-- Node.js 18+
-- pnpm (package manager)
+### AI components
+- **Agent Config Form** - Complete agent setup interface
+- **AI Elements** - `PromptInput`, `Reasoning`, `Response` for chat interfaces
+- **Agent Flow** - Visual workflow representation with auto-layout
+- **Status Indicators** - Real-time status badges and displays
 
-### Scripts
+### Data and tables
+- **DataTable** - Advanced sortable/filterable tables
+- **Filter Components** - Search, date ranges, multi-select filters
+- **Empty States** - Consistent placeholder interfaces
 
-- `pnpm lint` - Run ESLint
-- `pnpm lint:fix` - Fix ESLint issues automatically
-- `pnpm type-check` - Run TypeScript type checking
-- `pnpm check` - Run both type checking and linting
+### Specialized
+- **Workspace Switcher** - Multi-workspace navigation
+- **Auth Form** - Login/signup with validation states
+- **Loading States** - Skeleton loaders and spinners
+- **Navigation** - Sidebar, breadcrumbs, tab navigation
+- **Form Dialog** - Modal forms with submission handling
 
-### Adding new components
+## Usage patterns
 
-1. **Create the component** in the appropriate directory
-2. **Export it** from the main index file
-3. **Add proper TypeScript types**
-4. **Follow accessibility guidelines**
-5. **Support theming** (dark/light mode)
-
-Example component structure:
-
+### Basic components
 ```tsx
-import * as React from "react"
-import { cn } from "@workspace/ui/lib/utils"
-import { cva, type VariantProps } from "class-variance-authority"
-
-const buttonVariants = cva(
-  "inline-flex items-center justify-center rounded-md text-sm font-medium",
-  {
-    variants: {
-      variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
-        secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-      },
-      size: {
-        default: "h-10 px-4 py-2",
-        sm: "h-9 rounded-md px-3",
-        lg: "h-11 rounded-md px-8",
-      },
-    },
-    defaultVariants: {
-      variant: "default",
-      size: "default",
-    },
-  }
-)
-
-export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {}
-
-const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, ...props }, ref) => {
-    return (
-      <button
-        className={cn(buttonVariants({ variant, size, className }))}
-        ref={ref}
-        {...props}
-      />
-    )
-  }
-)
-Button.displayName = "Button"
-
-export { Button, buttonVariants }
+<Card>
+  <CardHeader>
+    <CardTitle>Agent Configuration</CardTitle>
+  </CardHeader>
+  <CardContent>
+    <Input placeholder="Agent name" />
+    <Button variant="default">Save</Button>
+  </CardContent>
+</Card>
 ```
 
-## Design system
+### AI Interface
+```tsx
+<div className="space-y-4">
+  <PromptInput 
+    onSubmit={handlePrompt}
+    placeholder="Enter your prompt..."
+  />
+  <Reasoning content={reasoningData} />
+  <Response content={responseData} />
+</div>
+```
 
-### Colors
+### Data tables
+```tsx
+<DataTable
+  data={agents}
+  columns={agentColumns}
+  filters={[
+    { key: "status", type: "select", options: statusOptions },
+    { key: "name", type: "search" }
+  ]}
+  onRowClick={handleAgentClick}
+/>
+```
 
-The design system uses CSS custom properties for theming:
+### Status and loading
+```tsx
+<StatusIndicator 
+  status="active" 
+  label="Agent Running"
+/>
+
+<CenteredLoading message="Loading agents..." />
+
+<EmptyState
+  title="No agents found"
+  description="Create your first agent to get started"
+  action={<Button>Create Agent</Button>}
+/>
+```
+
+## Styling system
+
+### Variants
+Components use `class-variance-authority` for consistent variants:
+
+```tsx
+<Button variant="default" size="lg">Primary</Button>
+<Button variant="outline" size="sm">Secondary</Button>
+<Button variant="ghost">Minimal</Button>
+```
+
+### Theming
+Automatic dark/light mode support via CSS custom properties:
 
 ```css
 :root {
   --background: 0 0% 100%;
   --foreground: 222.2 84% 4.9%;
   --primary: 222.2 47.4% 11.2%;
-  /* ... */
 }
 
 .dark {
   --background: 222.2 84% 4.9%;
   --foreground: 210 40% 98%;
-  /* ... */
 }
 ```
 
-### Typography
+## Tech stack
 
-Font sizes and spacing follow a consistent scale defined in the Tailwind configuration.
+- **React 19** - Latest React features
+- **Radix UI** - Accessible headless components
+- **Tailwind CSS** - Utility-first styling
+- **@xyflow/react** - Flow diagrams for agent workflows
+- **cmdk** - Command palette interface
+- **zod** - Runtime validation
 
-### Spacing
+## Development
 
-Uses Tailwind's default spacing scale (4px base unit).
+```bash
+# Lint components
+pnpm lint
 
-## Key technologies
+# Type check
+pnpm type-check
 
-### Core dependencies
-- **React 19**: Latest React with concurrent features
-- **Radix UI**: Accessible headless components
-- **Tailwind CSS**: Utility-first styling
-- **class-variance-authority**: Component variant management
-- **clsx**: Conditional class name utility
+# Run both
+pnpm check
+```
 
-### Specialized libraries
-- **@xyflow/react**: Flow-based node visualization
-- **react-day-picker**: Calendar and date picker
-- **cmdk**: Command palette interface
-- **vaul**: Mobile drawer component
+### Adding components
 
-### Development tools
-- **TypeScript**: Type safety and developer experience
-- **ESLint**: Code quality and consistency
-- **Tailwind**: Responsive design utilities
+1. Create in appropriate directory (`ui/`, `ai-elements/`, etc.)
+2. Export from main index
+3. Use Radix primitives when available
+4. Support dark/light themes
+5. Include proper TypeScript types
+
+```tsx
+import { cn } from "@workspace/ui/lib/utils"
+import { cva, type VariantProps } from "class-variance-authority"
+
+const buttonVariants = cva(
+  "inline-flex items-center justify-center rounded-md",
+  {
+    variants: {
+      variant: {
+        default: "bg-primary text-primary-foreground",
+        outline: "border border-input bg-background"
+      }
+    }
+  }
+)
+
+export interface ButtonProps 
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+    VariantProps<typeof buttonVariants> {}
+
+export const Button = ({ className, variant, ...props }) => (
+  <button 
+    className={cn(buttonVariants({ variant, className }))}
+    {...props} 
+  />
+)
+```
+
+## What goes where
+
+**✅ Include in `@workspace/ui`:**
+- Pure UI primitives and patterns
+- Framework-agnostic components
+- Reusable AI interface elements
+- Generic data display components
+
+**❌ Keep in `apps/frontend`:**
+- Next.js-specific components
+- Business logic and domain forms
+- App-specific navigation
+- Authentication flows
 
 ## Exports
-
-The package exports components through a structured export system:
 
 ```json
 {
   "exports": {
     "./globals.css": "./src/styles/globals.css",
-    "./lib/*": "./src/lib/*.ts",
     "./components/*": "./src/components/*.tsx",
+    "./lib/*": "./src/lib/*.ts",
     "./hooks/*": "./src/hooks/*.ts"
   }
 }
 ```
 
-## Accessibility
+## Related
 
-All components follow WCAG guidelines and include:
-
-- Proper ARIA attributes
-- Keyboard navigation support
-- Screen reader compatibility
-- Focus management
-- High contrast support
-
-## Theming
-
-Components support both light and dark themes automatically through CSS custom properties and `next-themes` integration.
-
-## Contributing
-
-### What belongs in this package
-
-**✅ Include in `@workspace/ui`:**
-- **Pure UI primitives** (Button, Input, Card, etc.)
-- **Framework-agnostic components** (no Next.js, React Router dependencies)
-- **Reusable AI interface patterns** (ChatInput, ToolsList, ContentDisplay)
-- **Generic data display components** (Table infrastructure, filters)
-- **Design system components** (themes, icons, layouts)
-
-**❌ Keep in `apps/frontend`:**
-- **Domain-specific business logic** (AgentConfigurationForm, specific table implementations)
-- **Next.js-dependent components** (components using useRouter, Link, server actions)
-- **App-specific layouts and navigation** (app-sidebar, workspace-specific components)
-- **Authentication and authorization** (login forms, guards)
-- **Page-specific components** (components tied to specific routes)
-
-### Component contribution rules
-
-1. **Follow the established patterns** for component structure
-2. **Use Radix UI primitives** as the foundation when available
-3. **Use proper TypeScript types** with generic support
-4. **Support both light and dark themes**
-5. **Include proper ARIA attributes** for accessibility
-6. **Test across different screen sizes**
-7. **Document component props** and usage examples
-8. **No framework dependencies** - components must work with any React setup
-9. **Generic interfaces** - use generic props rather than specific data models
-
-## Related packages
-
-- [`apps/frontend`](../../apps/frontend/) - Main application using these components
-- [`@workspace/eslint-config`](../eslint-config/) - ESLint configuration
-- [`@workspace/typescript-config`](../typescript-config/) - TypeScript configuration
+- [`apps/frontend`](../../apps/frontend/) - Main app using these components
+- [Radix UI](https://radix-ui.com) - Headless component primitives
+- [Tailwind CSS](https://tailwindcss.com) - Utility-first CSS framework

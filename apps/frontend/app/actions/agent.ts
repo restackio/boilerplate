@@ -127,30 +127,3 @@ export async function sendMcpApproval({
     },
   });
 }
-
-export async function getAgentResult({
-  agentId,
-}: {
-  agentId: string;
-}): Promise<{ success: boolean; data?: unknown; error?: string }> {
-  try {
-    if (!agentId) {
-      throw new Error("Agent ID is required");
-    }
-
-    const result = await client.getAgentResult({
-      agentId,
-    });
-
-    return {
-      success: true,
-      data: result,
-    };
-  } catch (error) {
-    console.error("Error getting agent result:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to get agent result",
-    };
-  }
-} 
