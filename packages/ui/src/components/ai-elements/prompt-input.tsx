@@ -2,7 +2,7 @@
 
 import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
-import { ArrowUp, Loader2, Sparkles } from "lucide-react";
+import { ArrowUp, Loader2, Sparkles } from "lucide-react"; // eslint-disable-line @typescript-eslint/no-unused-vars
 
 export interface PromptInputProps {
   /** Current prompt value */
