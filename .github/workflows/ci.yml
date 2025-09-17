@@ -116,5 +116,16 @@ jobs:
       - name: Sync Vale packages
         run: vale sync
 
+      - name: Debug - Check files
+        run: |
+          echo "=== Current directory ==="
+          pwd
+          echo "=== Files in current directory ==="
+          ls -la
+          echo "=== First 10 lines of README.md ==="
+          head -10 README.md
+          echo "=== Search for problematic content ==="
+          grep -n "Sponsors\|Key Features\|Vale vs" README.md || echo "No problematic content found"
+
       - name: Run Vale
         run: vale --config=.vale.ini README.md CONTRIBUTING.md apps/*/README.md packages/*/README.md
