@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 import type { LucideIcon } from 'lucide-react'
 
 /*
@@ -123,9 +124,9 @@ export type ColumnConfig<
 }
 
 export type OptionColumnId<T> = T extends ColumnConfig<
-  infer TData,
+  infer _TData,
   'option' | 'multiOption',
-  infer TVal,
+  infer _TVal,
   infer TId
 >
   ? TId
@@ -138,9 +139,9 @@ export type OptionColumnIds<
 }[number]
 
 export type NumberColumnId<T> = T extends ColumnConfig<
-  infer TData,
+  infer _TData,
   'number',
-  infer TVal,
+  infer _TVal,
   infer TId
 >
   ? TId

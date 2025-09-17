@@ -22,6 +22,7 @@ export function DebouncedInput({
   }, [initialValue]);
 
   // Define the debounced function with useCallback
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const debouncedOnChange = useCallback(
     debounce((newValue: string | number) => {
       onChange(newValue);

@@ -1,0 +1,122 @@
+"use client";
+
+import { useState } from "react";
+import { ActionButtonGroup, commonActions, type ActionButton } from "@workspace/ui/components/action-button-group";
+import { AgentStatusBadge, type AgentStatus } from "@workspace/ui/components/agent-status-badge";
+import { Play } from "lucide-react";
+import { Agent } from "@/hooks/use-workspace-scoped-actions";
+import { DeleteAgentDialog, ArchiveAgentDialog, TestAgentDialog } from "./";
+
+interface AgentActionsProps {
+  agent: Agent;
+  onSave: () => void;
+  onPublish: () => void;
+  onDelete: () => void;
+  onArchive: () => void;
+  isSaving: boolean;
+  isPublishing: boolean;
+  isDeleting: boolean;
+  isArchiving: boolean;
+}
+
+export function AgentActions({
+  agent,
+  onSave,
+  onPublish,
+  onDelete,
+  onArchive,
+  isSaving,
+  isPublishing,
+  isDeleting,
+  isArchiving,
+}: AgentActionsProps) {
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showArchiveDialog, setShowArchiveDialog] = useState(false);
+  const [showTestDialog, setShowTestDialog] = useState(false);
+
+  const handleDeleteAgent = async () => {
+    await onDelete();
+    setShowDeleteDialog(false);
+  };
+
+  const handleArchiveAgent = async () => {
+    await onArchive();
+    setShowArchiveDialog(false);
+  };
+
+  // Define actions using our new ActionButton pattern
+  const actions: ActionButton[] = [
+    // Test action
+    {
+      key: "test",
+      label: "Test",
+      variant: "outline",
+      onClick: () => setShowTestDialog(true),
+    },
+    // Save/New version action
+    {
+      key: "save",
+      label: agent?.status === "published" ? "New version" : "Save",
+      variant: agent.status === "published" ? "default" : "outline",
+      isPrimary: true,
+      loading: isSaving,
+      loadingLabel: agent?.status === "published" ? "Creating version..." : "Saving...",
+      onClick: onSave,
+    },
+    // Publish action (only for drafts)
+    {
+      key: "publish",
+      label: "Publish",
+      icon: Play,
+      variant: "default",
+      isPrimary: true,
+      loading: isPublishing,
+      loadingLabel: "Publishing...",
+      onClick: onPublish,
+      show: agent.status === "draft",
+    },
+    // Archive action
+    commonActions.archive(() => setShowArchiveDialog(true), isArchiving),
+    // Delete action  
+    commonActions.delete(() => setShowDeleteDialog(true), isDeleting),
+  ];
+
+  return (
+    <>
+      <ActionButtonGroup
+        actions={actions}
+        statusBadge={<AgentStatusBadge status={agent.status as AgentStatus} size="sm" />}
+        loadingStates={{
+          save: isSaving,
+          publish: isPublishing,
+          archive: isArchiving,
+          delete: isDeleting,
+        }}
+        context={agent}
+      />
+
+      {/* Dialogs */}
+      <DeleteAgentDialog
+        isOpen={showDeleteDialog}
+        onClose={() => setShowDeleteDialog(false)}
+        onConfirm={handleDeleteAgent}
+        agent={agent}
+        isDeleting={isDeleting}
+      />
+
+      <ArchiveAgentDialog
+        isOpen={showArchiveDialog}
+        onClose={() => setShowArchiveDialog(false)}
+        onConfirm={handleArchiveAgent}
+        agent={agent}
+        isArchiving={isArchiving}
+      />
+
+      <TestAgentDialog
+        isOpen={showTestDialog}
+        onClose={() => setShowTestDialog(false)}
+        agent={agent}
+      />
+    </>
+  );
+}

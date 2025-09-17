@@ -3,14 +3,13 @@
 import { useEffect, useMemo } from "react";
 import {
   AgentsTable,
-} from "@workspace/ui/components/agents-table";
+} from "./components/agents-table";
 import { PageHeader } from "@workspace/ui/components/page-header";
 import { Button } from "@workspace/ui/components/ui/button";
 import { useRouter, useSearchParams } from "next/navigation";
 import { RefreshCw, Users } from "lucide-react";
-import AgentsTabs from "./AgentsTabs";
 import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
-import { CreateAgentModal } from "@/components/create-agent-modal";
+import { CreateAgentDialog } from "./components/create-agent-dialog";
 import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 
 export default function TechnicalSupportAgentsPage() {
@@ -83,14 +82,13 @@ export default function TechnicalSupportAgentsPage() {
         <RefreshCw className={`h-4 w-4 mr-1 ${agentsLoading.isLoading ? 'animate-spin' : ''}`} />
         Refresh
       </Button>
-      <CreateAgentModal onAgentCreated={() => fetchAgents()} />
+      <CreateAgentDialog onAgentCreated={() => fetchAgents()} />
     </div>
   );
 
   return (
     <div className="flex-1">
       <PageHeader breadcrumbs={breadcrumbs} actions={actions} />
-      <AgentsTabs />
       <div className="p-4">
         {agentsLoading.error && (
           <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">

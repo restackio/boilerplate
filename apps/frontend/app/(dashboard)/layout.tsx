@@ -1,6 +1,6 @@
 "use client";
 
-import { AppSidebar } from "@/components/app-sidebar";
+import { AppSidebar } from "@/components/layout/app-sidebar";
 import {
   SidebarInset,
   SidebarProvider,
@@ -8,8 +8,8 @@ import {
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { DatabaseWorkspaceProvider } from "@/lib/database-workspace-context";
-import { AuthGuard } from "@/components/auth-guard";
-import { WorkspaceGuard } from "@/components/workspace-guard";
+import { AuthGuard } from "@/components/auth/auth-guard";
+import { WorkspaceGuard } from "@/components/auth/workspace-guard";
 
 export default function DashboardLayout({
   children,

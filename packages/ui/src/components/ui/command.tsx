@@ -41,6 +41,7 @@ function CommandDialog({
   description?: string;
   className?: string;
   showCloseButton?: boolean;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   children?: any;
 }) {
   return (

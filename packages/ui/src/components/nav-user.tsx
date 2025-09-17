@@ -58,7 +58,6 @@ export function NavUser({
   const handleThemeChange = (newTheme: string) => {
     if (setTheme) {
       setTheme(newTheme);
-    } else {
     }
   };
 

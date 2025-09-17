@@ -1,15 +1,15 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { TasksTable } from "@workspace/ui/components/tasks-table";
+import { TasksTable } from "./components/tasks-table";
 import { PageHeader } from "@workspace/ui/components/page-header";
 import { Button } from "@workspace/ui/components/ui/button";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Plus, RefreshCw, Users } from "lucide-react";
 import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
-import { CreateTaskForm } from "@/components/create-task-form";
+import { CreateTaskForm } from "./components/create-task-form";
 import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
-import TasksTabs from "./TasksTabs";
+import TasksTabs from "./tasks-tabs";
 
 export default function TasksPage() {
   const router = useRouter();

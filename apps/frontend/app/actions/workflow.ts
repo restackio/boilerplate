@@ -322,17 +322,9 @@ export async function deleteAgentMcpServer(agentMcpServerId: string) {
   });
 }
 
-export async function getAgentMcpServerById() {
-  // This function is no longer needed as we use the unified agent_tools approach
-  // If needed, individual tools can be queried through getAgentTools and filtered
-  throw new Error("getAgentMcpServerById is deprecated - use getAgentTools and filter by tool_type='mcp'");
-}
-
-// Agent MCP Tools (now unified with regular agent tools)
-export async function getAgentMcpTools(agentId: string) {
-  // Use the unified agent tools system
-  return await getAgentTools(agentId);
-}
+// Removed deprecated functions:
+// - getAgentMcpServerById: Use getAgentTools and filter by tool_type='mcp'  
+// - getAgentMcpTools: Use getAgentTools directly
 
 export async function createAgentMcpTool(toolData: {
   agent_id: string;

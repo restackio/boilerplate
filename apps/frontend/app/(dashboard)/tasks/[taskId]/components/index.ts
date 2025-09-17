@@ -1,24 +1,12 @@
 // Core task components
-export { TaskDetailsTab } from "./TaskDetailsTab";
-export { DeleteTaskModal } from "./DeleteTaskModal";
-export { TaskHeader } from "./TaskHeader";
-export { TaskLoadingState } from "./TaskLoadingState";
-export { TaskErrorState } from "./TaskErrorState";
-export { TaskNotFoundState } from "./TaskNotFoundState";
-export { TaskChatInterface } from "./TaskChatInterface";
-export { TaskSplitView } from "./TaskSplitView";
+export { TaskDetailsTab } from "./task-details-tab";
+export { TaskHeader } from "./task-header";
+export { TaskChatInterface } from "./task-chat-interface";
+export { TaskSplitView } from "./task-split-view";
 
 // Conversation components
-export { ConversationMessage } from "./ConversationMessage";
-export { ChatInput } from "./ChatInput";
+export { ConversationMessage } from "./conversation-message";
 
 // Card components
-export { TaskCardTool } from "./TaskCardTool";
-export { TaskCardMcp } from "./TaskCardMcp";
-export { TaskCardWebSearch } from "./TaskCardWebSearch";
-
-
-
-// Base components
-export * from "./base";
+export * from "./cards";
  

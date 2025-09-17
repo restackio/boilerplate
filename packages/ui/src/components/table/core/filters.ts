@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { isAnyOf, uniq } from "../lib/array";
 import { isColumnOptionArray } from "../lib/helpers";
 import { memo } from "../lib/memo";

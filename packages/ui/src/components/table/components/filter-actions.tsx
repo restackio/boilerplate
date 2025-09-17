@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Button } from "@workspace/ui/components/ui/button";
 import { cn } from "@workspace/ui/lib/utils";
 import { FilterXIcon } from "lucide-react";

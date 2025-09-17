@@ -1,23 +1,11 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Button } from "@workspace/ui/components/ui/button";
-import { Input } from "@workspace/ui/components/ui/input";
-import { Label } from "@workspace/ui/components/ui/label";
-import { Textarea } from "@workspace/ui/components/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@workspace/ui/components/ui/dialog";
-import { TokensTable, TokenData } from "@workspace/ui/components/tokens-table";
+import { TokensTable, TokenData } from "../../components/tokens-table";
 import { useWorkspaceScopedActions, McpServer } from "../../../../../hooks/use-workspace-scoped-actions";
 import { useOAuthFlow } from "../../../../../hooks/use-oauth-flow";
 import { useDatabaseWorkspace } from "../../../../../lib/database-workspace-context";
-import { AddTokenDialog } from "../../../../../components/add-token-dialog";
+import { AddTokenDialog } from "../../components/add-token-dialog";
 
 
 interface IntegrationTokensTabProps {
@@ -84,7 +72,7 @@ export function IntegrationTokensTab({ server }: IntegrationTokensTabProps) {
     }
   };
 
-  const handleDeleteToken = async (_tokenId: string) => {
+  const handleDeleteToken = async () => {
     if (!currentUser?.id) {
       console.error("No current user available");
       return;

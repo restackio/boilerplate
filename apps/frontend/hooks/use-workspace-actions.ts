@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { runWorkflow, getWorkflowResult, testServerAction } from "@/app/actions/workflow";
-import { User } from "./use-user-actions";
+import { User } from "../types/user";
 
 interface ApiResponse<T = any> {
   success: boolean;

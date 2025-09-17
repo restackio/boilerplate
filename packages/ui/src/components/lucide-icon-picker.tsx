@@ -66,7 +66,8 @@ export function LucideIconPicker({
   value = "Building",
   onValueChange,
   label = "Icon",
-  placeholder = "Select an icon...",
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  placeholder: _placeholder = "Select an icon...",
   className,
   disabled = false,
 }: LucideIconPickerProps) {
@@ -157,7 +158,7 @@ export function LucideIconPicker({
               </div>
               {filteredIcons.length === 0 && (
                 <div className="text-center text-muted-foreground py-8">
-                  No icons found for "{search}"
+                  No icons found for &quot;{search}&quot;
                 </div>
               )}
             </div>

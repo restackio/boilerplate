@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
-"""
-Test script for the FailingMcpTest workflow.
+"""Test script for the FailingMcpTest workflow.
 This script demonstrates how the failing MCP tool works and tests different failure scenarios.
 """
 
 import asyncio
 import logging
-from src.workflows.tools.mock_failing_mcp_test import FailingMcpTest, FailingMcpTestInput
+
+from src.workflows.tools.mock_failing_mcp_test import (
+    FailingMcpTest,
+    FailingMcpTestInput,
+)
 
 # Configure logging
 logging.basicConfig(
@@ -17,9 +20,9 @@ logging.basicConfig(
 async def test_failing_scenarios():
     """Test different failure scenarios."""
     print("🧪 Testing FailingMcpTest workflow with different failure types...\n")
-    
+
     workflow = FailingMcpTest()
-    
+
     # Test scenarios
     test_cases = [
         {
@@ -87,36 +90,36 @@ async def test_failing_scenarios():
             )
         }
     ]
-    
+
     for i, test_case in enumerate(test_cases, 1):
         print(f"Test {i}: {test_case['name']}")
         print(f"Input: {test_case['input']}")
-        
+
         try:
             # This would normally be called by the Restack workflow engine
             # For testing purposes, we'll just show what would happen
             print(f"Expected: {'Success' if not test_case['input'].should_fail else 'Failure (' + test_case['input'].failure_type + ')'}")
             print("Test case configured correctly")
-            
+
         except Exception as e:
             print(f"Test case failed: {e}")
-        
+
         print("-" * 50)
 
 async def main():
     """Main test function."""
     print("🚀 FailingMcpTest Tool Testing Suite")
     print("=" * 50)
-    
+
     await test_failing_scenarios()
-    
+
     print("\n📋 Summary:")
     print("- Created FailingMcpTest workflow that simulates various MCP failures")
     print("- Registered in services.py for use by agents")
     print("- Added 'error-testing-agent' seed agent for easy testing")
     print("- Tool supports 6 different failure types plus success mode")
     print("- Ready to test OpenAI MCP call failure handling!")
-    
+
     print("\n🎯 Next Steps:")
     print("1. Run the MCP server: `uv run start` in apps/mcp_server/")
     print("2. Run the backend: `uv run start` in apps/backend/")

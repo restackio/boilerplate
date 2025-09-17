@@ -56,13 +56,13 @@ Interactive form components:
 - **Command** - Command palette interface
 
 ### 🪟 Overlays
-Modal and popup components:
+Dialog and popup components:
 
-- **Dialog** - Modal dialogs and confirmations
+- **Dialog** - Dialog dialogs and confirmations
 - **Popover** - Contextual popovers
 - **Dropdown Menu** - Action menus
 - **Sheet** - Slide-out panels
-- **Drawer** - Mobile-optimized modals
+- **Drawer** - Mobile-optimized dialogs
 
 ### 🤖 AI-specific components
 Specialized components for AI agent interfaces:

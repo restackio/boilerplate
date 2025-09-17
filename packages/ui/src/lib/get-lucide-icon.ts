@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import * as LucideIcons from "lucide-react";
 import { Building, type LucideIcon } from "lucide-react";
 

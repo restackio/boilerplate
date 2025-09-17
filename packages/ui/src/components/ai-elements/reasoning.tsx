@@ -119,7 +119,8 @@ export type ReasoningTriggerProps = ComponentProps<
 export const ReasoningTrigger = memo(
   ({
     className,
-    title = 'Reasoning',
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    title: _title = 'Reasoning',
     children,
     ...props
   }: ReasoningTriggerProps) => {

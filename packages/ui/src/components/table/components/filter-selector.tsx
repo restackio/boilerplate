@@ -45,9 +45,9 @@ interface FilterSelectorProps<TData> {
   locale?: Locale;
 }
 
-export const FilterSelector = memo(__FilterSelector) as typeof __FilterSelector;
+export const FilterSelector = memo(FilterSelectorComponent) as typeof FilterSelectorComponent;
 
-function __FilterSelector<TData>({
+function FilterSelectorComponent<TData>({
   filters,
   columns,
   actions,
@@ -126,7 +126,7 @@ function __FilterSelector<TData>({
           </CommandList>
         </Command>
       ),
-    [property, column, filter, filters, columns, actions, value]
+    [property, column, filter, filters, columns, actions, value, locale, strategy]
   );
 
   return (
@@ -228,19 +228,19 @@ interface QuickSearchFiltersProps<TData> {
 }
 
 export const QuickSearchFilters = memo(
-  __QuickSearchFilters
-) as typeof __QuickSearchFilters;
+  QuickSearchFiltersComponent
+) as typeof QuickSearchFiltersComponent;
 
-function __QuickSearchFilters<TData>({
+function QuickSearchFiltersComponent<TData>({
   search,
   filters,
   columns,
   actions,
-  strategy,
-  locale = "en",
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  strategy: _strategy,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  locale: _locale = "en",
 }: QuickSearchFiltersProps<TData>) {
-  if (!search || search.trim().length < 2) return null;
-
   const cols = useMemo(
     () =>
       columns.filter((c) =>
@@ -248,6 +248,8 @@ function __QuickSearchFilters<TData>({
       ),
     [columns]
   );
+
+  if (!search || search.trim().length < 2) return null;
 
   return (
     <>

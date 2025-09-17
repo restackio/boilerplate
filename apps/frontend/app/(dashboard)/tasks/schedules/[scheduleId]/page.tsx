@@ -5,8 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import { Button } from "@workspace/ui/components/ui/button";
 import { Badge } from "@workspace/ui/components/ui/badge";
 import { PageHeader } from "@workspace/ui/components/page-header";
-import { ScheduleSetupModal } from "@/components/schedule-setup-modal";
-import { TasksTable } from "@workspace/ui/components/tasks-table";
+import { ScheduleSetupDialog } from "../../components/schedule-setup-dialog";
+import { TasksTable } from "../../components/tasks-table";
 import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
 import { executeWorkflow } from "@/app/actions/workflow";
 import { 
@@ -290,7 +290,7 @@ export default function SchedulePage() {
         </Button>
       )}
 
-      <ScheduleSetupModal
+      <ScheduleSetupDialog
         trigger={
           <Button variant="default"
           size="sm" disabled={updating}>
