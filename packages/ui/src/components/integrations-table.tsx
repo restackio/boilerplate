@@ -1,6 +1,5 @@
 "use client";
 
-import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { DataTableFilter } from "./table/index";
 import { createColumnConfigHelper } from "./table/core/filters";
@@ -16,7 +15,7 @@ import {
 import {
   Plug,
   Globe,
-  Users,
+  Key,
 } from "lucide-react";
 
 export interface Integration {
@@ -60,18 +59,9 @@ export const integrationColumnsConfig = [
     .id("connected_users_count")
     .accessor((row: Integration) => (row.connected_users_count || 0).toString())
     .displayName("Connections")
-    .icon(Users)
+    .icon(Key)
     .build(),
 ] as const;
-
-// Integration type badges
-const getIntegrationTypeBadge = (local: boolean) => {
-  return local ? (
-    <Badge variant="secondary" className="text-xs">Local</Badge>
-  ) : (
-    <Badge variant="default" className="text-xs">Remote</Badge>
-  );
-};
 
 export function IntegrationsTable({ 
   data, 
@@ -148,7 +138,6 @@ export function IntegrationsTable({
                             <span>{integration.server_url || (integration.local ? "Local" : "N/A")}</span>
                           </div>
                           <div className="flex items-center gap-1">
-                            <Users className="h-3 w-3" />
                             <span>{integration.connected_users_count || 0} connections</span>
                           </div>
                         </div>
@@ -163,7 +152,6 @@ export function IntegrationsTable({
                     </TableCell>
                     <TableCell className="hidden lg:table-cell">
                       <div className="flex items-center gap-1">
-                        <Users className="h-4 w-4 text-muted-foreground" />
                         <span className="text-sm">{integration.connected_users_count || 0}</span>
                       </div>
                     </TableCell>
@@ -177,19 +165,20 @@ export function IntegrationsTable({
                             onConnectIntegration?.(integration.id);
                           }}
                         >
-                          <span className="hidden sm:inline">
+                          <span>
                             Connect
                           </span>
                         </Button>
                         <Button
                           variant="outline"
                           size="sm"
+                          className="hidden sm:block"
                           onClick={(e) => {
                             e.stopPropagation();
                             onEditIntegration?.(integration.id);
                           }}
                         >
-                          <span className="hidden sm:inline">Settings</span>
+                          <span>Settings</span>
                         </Button>
                       </div>
                     </TableCell>

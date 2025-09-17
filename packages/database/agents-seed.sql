@@ -513,7 +513,7 @@ ON CONFLICT (id) DO NOTHING;
 -- Insert sample agent MCP tools using the unified agent_tools table (after all agents are created)
 INSERT INTO agent_tools (id, agent_id, tool_type, mcp_server_id, tool_name, custom_description, require_approval, enabled) VALUES
 -- Notion agent with search tool (from existing seed data)
-('a0000001-0001-0001-0001-000000000001', 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'mcp', 'a0123456-789a-123e-f012-456789012349', 'search', 'Search through Notion pages and databases for relevant information', FALSE, TRUE),
+('a0000001-0001-0001-0001-000000000001', '11111111-2222-3333-4444-555555555555', 'mcp', 'a0123456-789a-123e-f012-456789012349', 'search', 'Search through Notion pages and databases for relevant information', FALSE, TRUE),
 
 -- Customer Support Agent tools (using mock servers)
 ('a0000002-0002-0002-0002-000000000002', '77777777-7777-7777-7777-777777777777', 'mcp', 'f4567890-1234-5678-9abc-def012345678', 'mockzendeskticket', 'Create and manage mock Zendesk support tickets', TRUE, TRUE),
