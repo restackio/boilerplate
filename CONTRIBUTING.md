@@ -1,321 +1,576 @@
-# Contributing to Boilerplate
+# Contributing to Restack Boilerplate
 
-Thank you for your interest in contributing to the Boilerplate project! This guide will help you set up a development environment and understand our development workflow.
+Welcome to the developer documentation. This guide covers the technical architecture, development setup with hot reloading, and contribution workflows.
 
-## 🛠️ Development Setup
+## Contribution scope
 
-### Prerequisites
+This repository focuses on the **orchestration platform** itself. This repository welcomes contributions for improvements to:
 
-- **Node 20+**
-- **Python 3.12+** 
-- **pnpm** (recommended package manager)
-- **Docker & Docker Compose**
-- **uv** (Python package manager)
+- Core platform functionality (agents, tasks, workflows)
+- Development experience and tooling
+- Documentation and examples
+- Performance and reliability improvements
+- Bug fixes and security enhancements
 
-### 1. Clone the Repository
+**What this repository does not accept:**
+- Specific MCP server integrations (create your own repository)
+- Production seed data (existing data serves as examples only)
+- Domain-specific business logic
 
-```bash
-git clone <repository-url>
-cd boilerplate
-```
+For integrations and custom tools, please create separate repositories and reference this boilerplate as your foundation.
 
-### 2. Start Infrastructure Services
+## Technical architecture
 
-Start the required infrastructure (PostgreSQL and Restack Engine):
+### Monorepo structure
 
-```bash
-# Start PostgreSQL and Restack Engine
-pnpm infra:start
-```
-
-### 3. Install Dependencies
-
-```bash
-# Install Node.js dependencies
-pnpm install
-
-# Install Python dependencies for backend
-cd apps/backend
-uv sync
-cd ../..
-
-# Install Python dependencies for MCP server  
-cd apps/mcp_server
-uv sync
-cd ../..
-```
-
-### 4. Set up Environment
-
-```bash
-# Copy environment file
-cp env.development.example .env
-
-# Update the values in .env with your actual API keys
-```
-
-### 5. Set up ngrok (Optional)
-
-To have OpenAI call local MCP servers, expose your local server using ngrok:
-
-```bash
-ngrok http 11233
-```
-
-Add the ngrok URL to your `.env` file:
-```
-MCP_URL=https://your-ngrok-url.ngrok-free.app/mcp
-```
-
-### 6. Initialize Database
-
-```bash
-# Set up database schema and seed data
-pnpm db:setup
-```
-
-### 7. Start Development Servers
-
-```bash
-# Start all applications in development mode
-pnpm dev
-```
-
-This will start:
-- **Frontend**: http://localhost:3000
-- **Backend**: http://localhost:8000  
-- **MCP Server**: http://localhost:8001
-
-## 📋 Development Commands
-
-### Infrastructure Management
-
-```bash
-pnpm infra:start    # Start PostgreSQL and Restack Engine
-pnpm infra:stop     # Stop infrastructure services
-pnpm infra:restart  # Restart infrastructure services
-pnpm infra:logs     # View infrastructure logs
-pnpm infra:reset    # Reset database and restart services
-pnpm infra:ps       # Show running services
-```
-
-### Database Management
-
-```bash
-pnpm db:connect     # Connect to PostgreSQL CLI
-pnpm db:reset       # Reset database schema
-pnpm db:seed        # Add seed data to database
-pnpm db:setup       # Reset and seed database
-pnpm db:clean       # Remove all data but keep schema
-```
-
-### Application Development
-
-```bash
-pnpm dev            # Start all applications in development mode
-pnpm build          # Build all applications
-pnpm start          # Start all applications in production mode
-pnpm lint           # Lint all applications
-pnpm lint:fix       # Fix linting issues
-pnpm type-check     # Run TypeScript type checking
-pnpm check          # Run type checking and linting
-```
-
-### Infrastructure Development
-
-For development, we use `docker-compose.dev.yml` to run infrastructure services (PostgreSQL and Restack Engine):
-
-```bash
-pnpm infra:start    # Start PostgreSQL and Restack Engine
-pnpm infra:stop     # Stop infrastructure services
-pnpm infra:restart  # Restart infrastructure services
-pnpm infra:logs     # View infrastructure logs
-pnpm infra:reset    # Reset database and restart services
-pnpm infra:ps       # Show running services
-```
-
-## 🏗️ Project Structure
+This Turborepo monorepo has the following architecture:
 
 ```
 boilerplate/
-├── apps/
-│   ├── frontend/          # Next.js frontend application
-│   ├── backend/           # Python backend with Restack AI
-│   ├── mcp_server/        # Model Context Protocol server
-│   └── webhook/           # Webhook handling service
-├── packages/
-│   ├── ui/               # Shared UI components
-│   ├── database/         # Database schema and seeds
-│   ├── eslint-config/    # Shared ESLint configuration
-│   └── typescript-config/ # Shared TypeScript configuration
-└── docker-compose.dev.yml # Development infrastructure
+├── apps/                        # Application services
+│   ├── frontend/               # Next.js 15 frontend
+│   ├── backend/                # Python + Restack AI workflows
+│   ├── mcp_server/             # Example MCP server (reference only)
+│   └── webhook/                # Webhook handling service
+├── packages/                    # Shared packages
+│   ├── ui/                     # Shared React components
+│   ├── database/               # Database schema, migrations, example seeds
+│   ├── eslint-config/          # Shared ESLint configurations
+│   └── typescript-config/      # Shared TypeScript configurations
+└── docker-compose.dev.yml      # Development infrastructure
 ```
 
-## 🧪 Testing
+### System architecture
 
-### Running Tests
-
-```bash
-# Run all tests
-pnpm test
-
-# Run tests for specific app
-cd apps/frontend && pnpm test
-cd apps/backend && uv run pytest
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                           Frontend Layer                            │
+├─────────────────────────────────────────────────────────────────────┤
+│  Next.js App Router  │  shadcn/ui  │  Tailwind CSS   │
+│                      │  Components │                 │
+└─────────────────────────────────────────────────────────────────────┘
+                                    │
+                              HTTP/WebSocket
+                                    │
+┌─────────────────────────────────────────────────────────────────────┐
+│                        Orchestration Layer                          │
+├─────────────────────────────────────────────────────────────────────┤
+│           Restack Engine          │       Python Backend            │
+│         (Workflow Engine)         │    (FastAPI + Functions)        │
+└─────────────────────────────────────────────────────────────────────┘
+                                    │
+                          MCP Protocol/HTTP
+                                    │
+┌─────────────────────────────────────────────────────────────────────┐
+│                         Integration Layer                           │
+├─────────────────────────────────────────────────────────────────────┤
+│    MCP Server     │    External APIs    │    LLM Providers          │
+│   (Tool Registry) │   (REST/GraphQL)    │  (OpenAI, Anthropic)      │
+└─────────────────────────────────────────────────────────────────────┘
+                                    │
+                                Database
+                                    │
+┌─────────────────────────────────────────────────────────────────────┐
+│                           Data Layer                                │
+├─────────────────────────────────────────────────────────────────────┤
+│                          PostgreSQL                                 │
+│              (Agents, Tasks, Runs, Users, Workspaces)               │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
-### Linting and Code Quality
+## Developer setup (hot reloading)
+
+### Prerequisites
+
+- **[Node.js 20+](https://nodejs.org/)**
+- **[Python 3.12+](https://www.python.org/downloads/)** 
+- **[pnpm](https://pnpm.io/installation)** (package manager)
+- **[Docker & Docker Compose](https://docs.docker.com/get-docker/)**
+- **[uv](https://docs.astral.sh/uv/getting-started/installation/)** (Python package manager)
+- **[ngrok](https://ngrok.com/download)** (for MCP external access)
+
+### Development environment setup
 
 ```bash
-# Lint all code
-pnpm lint
+# Clone and setup
+git clone <repository-url>
+cd boilerplate
 
-# Fix linting issues
-pnpm lint:fix
+# Install dependencies
+pnpm install
 
-# Type checking
+# Setup environment
+cp env.development.example .env
+# Edit .env with your API keys
+```
+
+### Start infrastructure (background services)
+
+```bash
+# Start PostgreSQL and Restack Engine in Docker
+pnpm infra:start
+
+# Initialize database
+pnpm db:setup
+```
+
+### Development with hot reloading
+
+**Option A: start all services (recommended)**
+```bash
+# Starts all apps with hot reloading
+pnpm dev
+```
+
+**Option B: start individual services**
+```bash
+# Terminal 1: Frontend (Next.js with hot reload)
+cd apps/frontend
+pnpm dev
+
+# Terminal 2: Backend (Python with auto-reload)
+cd apps/backend
+pnpm dev
+
+# Terminal 3: MCP Server (Python with auto-reload)
+cd apps/mcp_server
+pnpm dev
+
+# Terminal 4: Webhook Server (Python with auto-reload)
+cd apps/webhook
+pnpm dev
+```
+
+### Development URLs
+
+- **Frontend**: http://localhost:3000 (Next.js with HMR)
+- **Restack Engine**: http://localhost:5233 (Restack Developer Tracing)
+- **Webhook Server**: http://localhost:8000 (FastAPI with auto-reload)
+- **PostgreSQL**: localhost:5432
+
+### External access setup (optional)
+
+For OpenAI to access your local MCP server:
+
+```bash
+# Expose MCP server publicly
+ngrok http 8001
+
+# Add to .env
+MCP_URL=https://your-ngrok-url.ngrok-free.app
+```
+
+## Key development commands
+
+```bash
+# Start development environment
+pnpm dev            # Start all applications with hot reloading
+pnpm infra:start    # Start PostgreSQL and Restack Engine
+pnpm db:setup       # Initialize database with schema and seed data
+
+# Code quality
+pnpm lint           # Lint all applications
+pnpm type-check     # Run TypeScript type checking
+```
+
+For the complete list of available commands, check the `package.json` files in the root and individual app directories.
+
+## Technical deep dive
+
+### Frontend architecture (apps/frontend)
+
+**Tech stack**: next.js 15 + App Router + Tailwind + shadcn/ui
+
+```
+apps/frontend/
+├── app/                          # Next.js App Router
+│   ├── (dashboard)/             # Dashboard routes (protected)
+│   │   ├── agents/              # Agent management pages
+│   │   ├── tasks/               # Task management pages
+│   │   ├── integrations/        # Integration management
+│   │   └── layout.tsx           # Dashboard layout
+│   ├── actions/                 # Server actions (form handlers)
+│   ├── api/                     # API routes (minimal, prefer actions)
+│   └── page.tsx                 # Landing page
+├── components/                   # React components
+│   ├── shared/                  # Reusable components
+│   └── providers/               # Context providers
+├── hooks/                       # Custom React hooks
+└── lib/                         # Utilities and configurations
+```
+
+**Key Patterns**:
+- Server Components for data fetching
+- Server Actions for mutations (avoid API routes when possible)
+- Context for workspace scoping
+- Custom hooks for complex state management
+
+### Backend architecture (apps/backend)
+
+**Tech stack**: python + FastAPI + Restack AI + PostgreSQL
+
+```
+apps/backend/src/
+├── functions/                   # Restack functions (business logic)
+│   ├── agents_crud.py          # Agent CRUD operations
+│   ├── tasks_crud.py           # Task CRUD operations
+│   ├── llm_response_stream.py  # LLM streaming responses
+│   └── ...                     # Other business functions
+├── workflows/                   # Restack workflows (orchestration)
+│   └── crud/                   # CRUD workflow definitions
+├── database/                    # Database layer
+│   ├── models.py               # SQLAlchemy models
+│   ├── connection.py           # Database connection
+│   └── migrations/             # Database migrations
+├── agents/                     # Agent execution logic
+└── services.py                 # FastAPI app + Restack service registration
+```
+
+**Key Patterns**:
+- Functions handle single responsibilities (CRUD operations)
+- Workflows orchestrate complex multi-step operations
+- Database models use SQLAlchemy ORM
+- Async/await throughout for performance
+- Type hints for better developer experience
+
+### Model context protocol server architecture
+
+**Purpose**: example MCP server implementation (reference only)
+
+> **Note**: The included MCP server serves demonstration purposes only. For production use, create your own MCP server in a separate repository tailored to your specific integrations and tools.
+
+```
+apps/mcp_server/src/
+├── functions/                   # Example tool implementations
+│   ├── generate_random_data.py # Example: Random data generation
+│   └── llm_response.py         # Example: LLM response handling
+├── schemas/                     # Pydantic schemas for validation
+└── services.py                 # MCP protocol implementation
+```
+
+**Key Patterns**:
+- Each function becomes a tool available for workflows
+- Auto-discovery of functions through introspection
+- Pydantic schemas for input/output validation
+- Async functions for external API calls
+
+
+## Development patterns
+
+### Adding new backend functions
+
+1. **Create Function** (`apps/backend/src/functions/my_function.py`):
+```python
+from restack_ai import function
+
+@function.defn(name="my_function")
+async def my_function(data: dict) -> dict:
+    """Function description for UI"""
+    # Implementation
+    return {"result": "success"}
+```
+
+2. **Register in Services** (`apps/backend/src/services.py`):
+```python
+from .functions.my_function import my_function
+
+# Add to services list
+services = [my_function, ...]
+```
+
+3. **Create Workflow** (if needed):
+```python
+from restack_ai import workflow
+
+@workflow.defn(name="my_workflow")
+class MyWorkflow:
+    @workflow.run
+    async def run(self, input: dict) -> dict:
+        result = await workflow.step(my_function, input)
+        return result
+```
+
+### Adding model context protocol tools (reference only)
+
+> **Important**: This section serves as reference only. The boilerplate's MCP server provides an example implementation. For your own integrations, create a separate MCP server repository.
+
+**For your own MCP server implementation:**
+
+1. **Create Tool Function** (`your-mcp-server/src/functions/my_tool.py`):
+```python
+async def my_tool(param1: str, param2: int = 10) -> dict:
+    """Tool description for workflows"""
+    # External API call or business logic
+    return {"data": "result"}
+```
+
+2. **Auto-Discovery**: MCP servers automatically discover functions and expose them as tools.
+
+### Adding frontend components
+
+**First, decide where the component belongs:**
+
+**📱 Frontend App (`apps/frontend/components/`)** - for:
+- Domain-specific business logic (AgentConfigurationForm)
+- Next.js-dependent components (useRouter, Link, server actions)
+- App-specific layouts and navigation
+- Authentication and authorization components
+- Page-specific components
+
+**📦 Shared UI Package (`packages/ui/src/components/`)** - for:
+- Pure UI primitives (Button, Input, Card)
+- Framework-agnostic components
+- Reusable AI interface patterns (ChatInput, ToolsList)
+- Generic data display components
+- Design system components
+
+**Example - Frontend Component:**
+```tsx
+'use client'
+import { executeWorkflow } from "@/app/actions/workflow"
+import { Button } from "@workspace/ui/components/ui/button"
+
+interface AgentFormProps {
+  onAgentCreated: () => void
+}
+
+export function AgentForm({ onAgentCreated }: AgentFormProps) {
+  const handleSubmit = async () => {
+    await executeWorkflow("CreateAgent", data)
+    onAgentCreated()
+  }
+  return <form onSubmit={handleSubmit}>...</form>
+}
+```
+
+**Example - Shared UI Component:**
+```tsx
+import { Button } from "./ui/button"
+import { Textarea } from "./ui/textarea"
+
+interface ChatInputProps {
+  onSend: (message: string) => void
+  disabled?: boolean
+}
+
+export function ChatInput({ onSend, disabled }: ChatInputProps) {
+  return <div>...</div> // No Next.js or app-specific dependencies
+}
+```
+
+### Database schema changes
+
+1. **Update Models** (`apps/backend/src/database/models.py`)
+2. **Create Migration** (`packages/database/migrations/`)
+3. **Update Example Seed Data** (`packages/database/*-seed.sql`) - for development/testing only
+4. **Test Migration**:
+```bash
+pnpm db:reset  # Apply new schema
+pnpm db:seed   # Test with example seed data
+```
+
+> **Note**: Seed data serves development and testing purposes only. Do not add production-specific data to the boilerplate.
+
+## Git workflow and contribution
+
+### Branch strategy
+
+```bash
+# Create feature branch
+git checkout -b feature/new-feature
+git checkout -b fix/database-connection
+git checkout -b docs/api-documentation
+
+# Keep updated with main
+git fetch origin
+git rebase origin/main
+```
+
+### Commit convention
+
+Use [Conventional Commits](https://www.conventionalcommits.org/):
+
+```bash
+feat: add new agent functionality
+fix: resolve PostgreSQL connection pool exhaustion
+docs: update MCP integration guide
+refactor: simplify workflow orchestration logic
+perf: optimize database queries for large datasets
+```
+
+### Pull request process
+
+1. **Pre-PR Checklist**:
+```bash
+pnpm lint           # Fix all linting issues
+pnpm type-check     # Fix all type errors
+pnpm build          # Ensure clean build
+```
+
+2. **PR Template**:
+```markdown
+## Summary
+Brief description of changes
+
+## Technical Details
+- List specific changes made
+- Include any database schema updates
+- Note frontend modifications
+
+## Testing
+- [ ] Manual testing completed
+- [ ] Code quality checks pass
+
+## Breaking Changes
+List any breaking changes
+```
+
+3. **Review Process**:
+- Code review required
+- All CI checks must pass
+- Documentation updated
+
+### Code standards
+
+**TypeScript/React**:
+```typescript
+// ✅ Good: Explicit types, descriptive names
+interface AgentProps {
+  agentId: string
+  name: string
+  onUpdate: (data: AgentData) => void
+}
+
+// ✅ Good: Server Component pattern
+async function AgentList({ workspaceId }: { workspaceId: string }) {
+  const agents = await getAgents(workspaceId)
+  return <AgentSelector agents={agents} />
+}
+```
+
+**Python/Backend**:
+```python
+# ✅ Good: Type hints, async/await, descriptive names
+@function.defn(name="agent_create")
+async def agent_create(
+    workspace_id: str, 
+    agent_data: AgentData
+) -> Agent:
+    """Create a new agent with the provided data."""
+    async with get_db_session() as session:
+        agent = Agent(**agent_data.model_dump())
+        session.add(agent)
+        await session.commit()
+        return agent
+```
+
+## Debugging and troubleshooting
+
+### Common issues
+
+**1. Hot Reloading Not Working**
+```bash
+# Check if processes are running
+pnpm infra:ps
+ps aux | grep uvicorn
+
+# Restart development servers
+pnpm dev
+```
+
+**2. Database Connection Issues**
+```bash
+# Check PostgreSQL status
+pnpm infra:logs | grep postgres
+
+# Reset database
+pnpm db:reset
+```
+
+**3. MCP Server Not Responding**
+```bash
+# Check MCP server logs
+cd apps/mcp_server
+uv run uvicorn src.services:app --reload --log-level debug
+
+# Test MCP endpoint
+curl http://localhost:8001/health
+```
+
+**4. Frontend Build Errors**
+```bash
+# Clear Next.js cache
+cd apps/frontend
+rm -rf .next
+
+# Check TypeScript errors
 pnpm type-check
-
-# Format code
-pnpm format
 ```
 
-## 🔧 Backend Development
-
-### Python Backend Features
-
-The Python backend provides CRUD operations through Restack functions:
-
-#### Agent Operations
-- `agents_read()` - List all agents
-- `agents_create(agent_data)` - Create new agent  
-- `agents_update(agent_id, updates)` - Update agent
-- `agents_delete(agent_id)` - Delete agent
-- `agents_get_by_id(agent_id)` - Get specific agent
-- `agents_get_by_status(status)` - Get agents by status
-
-#### Task Operations  
-- `tasks_read()` - List all tasks
-- `tasks_create(task_data)` - Create new task
-- `tasks_update(task_id, updates)` - Update task
-- `tasks_delete(task_id)` - Delete task
-- `tasks_get_by_id(task_id)` - Get specific task
-- `tasks_get_by_status(status)` - Get tasks by status
-
-### Adding New Functions
-
-1. Create function in `apps/backend/src/functions/`
-2. Register function in `apps/backend/src/services.py`
-3. Add corresponding workflow if needed
-4. Update database models if required
-
-## 🎨 Frontend Development
-
-### Technology Stack
-
-- **Next.js 15** - React framework
-- **React Flow** - Node-based editor
-- **Tailwind CSS** - Styling
-- **shadcn/ui** - UI components
-- **TypeScript** - Type safety
-
-### Adding New Components
-
-1. Create component in `apps/frontend/components/`
-2. Export from `apps/frontend/components/index.ts`
-3. Add to UI package if reusable: `packages/ui/src/components/`
-
-## 🚀 Deployment
-
-### Local Production Build
+### Performance debugging
 
 ```bash
-# Build all services
-pnpm build
+# Profile database queries
+EXPLAIN ANALYZE SELECT * FROM agents WHERE workspace_id = 'xxx';
 
-# Start in production mode
-pnpm start
+# Monitor Restack workflows
+curl http://localhost:5233/workflows
+
+# Check memory usage
+docker stats
 ```
 
-### Docker Production Build
+### Advanced debugging
 
-```bash
-# Build and run with Docker (production setup)
-pnpm docker:prod:reset
+```python
+# Add logging to functions
+import logging
+logger = logging.getLogger(__name__)
 
-# Or use turbo setup for simplest deployment
-pnpm docker:turbo:reset
+@function.defn(name="debug_function")
+async def debug_function(data: dict) -> dict:
+    logger.info(f"Processing data: {data}")
+    # ... function logic
+    logger.info(f"Result: {result}")
+    return result
 ```
 
-## 📝 Code Style Guidelines
+## Learning resources
 
-### TypeScript/JavaScript
+### Technical documentation
+- [Restack AI Framework](https://docs.restack.io/)
+- [Next.js App Router](https://nextjs.org/docs/app)
+- [FastAPI](https://fastapi.tiangolo.com/)
+- [SQLAlchemy](https://docs.sqlalchemy.org/)
+- [Pydantic](https://docs.pydantic.dev/)
+- [shadcn/ui](https://ui.shadcn.com/)
+- [Tailwind CSS](https://tailwindcss.com/docs)
+- [PostgreSQL](https://www.postgresql.org/docs/)
 
-- Use TypeScript for all new code
-- Follow ESLint configuration
-- Use Prettier for formatting
-- Prefer functional components with hooks
+### Architecture patterns
+- [Model Context Protocol](https://modelcontextprotocol.io/)
+- [Turborepo](https://turbo.build/repo/docs)
+- [Monorepo Best Practices](https://nx.dev/concepts/more-concepts/why-monorepos)
 
-### Python
+### Platform-specific
+- [Vercel Deployment](https://vercel.com/docs)
+- [Docker Best Practices](https://docs.docker.com/develop/dev-best-practices/)
+- [PostgreSQL Performance](https://www.postgresql.org/docs/current/performance-tips.html)
 
-- Follow PEP 8 style guidelines
-- Use type hints
-- Follow Ruff linting rules
-- Use async/await for I/O operations
+### Development tools
+- [pnpm Documentation](https://pnpm.io/motivation)
+- [uv Documentation](https://docs.astral.sh/uv/)
+- [TypeScript Handbook](https://www.typescriptlang.org/docs/)
+- [ESLint Rules](https://eslint.org/docs/latest/rules/)
 
-### Git Workflow
+## Next steps for contributors
 
-1. Create feature branch from `main`
-2. Make changes with descriptive commits
-3. Run tests and linting
-4. Create pull request
-5. Address review feedback
-6. Merge after approval
+1. **Start Small**: Pick up "good first issue" labels
+2. **Read Code**: Explore existing functions and workflows
+3. **Setup Environment**: Ensure your development setup works correctly
+4. **Ask Questions**: Use [GitHub Discussions](../../discussions) for help
+5. **Share Ideas**: Propose improvements via [GitHub Issues](../../issues)
 
-### Commit Messages
+## License and contributor license agreement
 
-Use conventional commit format:
-```
-feat: add new agent creation workflow
-fix: resolve database connection issue  
-docs: update API documentation
-refactor: simplify task management logic
-```
-
-## 🐛 Debugging
-
-### Backend Debugging
-
-```bash
-# View backend logs
-pnpm infra:logs
-
-# Connect to database
-pnpm db:connect
-
-# Check Restack Engine status
-curl http://localhost:5233/health
-```
-
-### Frontend Debugging
-
-- Use browser developer tools
-- Check Next.js logs in terminal
-- Use React Developer Tools extension
-
-## 📚 Resources
-
-- [Restack Documentation](https://docs.restack.io/)
-- [Next.js Documentation](https://nextjs.org/docs)
-- [React Flow Documentation](https://reactflow.dev/)
-- [Tailwind CSS Documentation](https://tailwindcss.com/docs)
-
-## 🤝 Getting Help
-
-- Create an issue for bugs or feature requests
-- Join our community discussions
-- Check existing documentation and issues first
-
-## 📄 License
-
-By contributing, you agree that your contributions will be licensed under the MIT License.
+By contributing, you agree that your contributions get licensed under the MIT License. No CLA required.

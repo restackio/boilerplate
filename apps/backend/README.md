@@ -1,143 +1,96 @@
-# Restack AI - Backend Python Services
+# Backend service
 
-This repository contains the Python backend services for the Restack AI application.
-It demonstrates how to set up agents with tool calls, workflows, and database functions.
+Python backend using Restack AI workflow orchestration engine for agent management.
 
-## Prerequisites
-
-- Docker (for running Restack)
-- Python 3.10 or higher
-
-## Start Restack
-
-To start the Restack, use the following Docker command:
+## Quick start
 
 ```bash
-docker run -d --pull always --name restack -p 5233:5233 -p 6233:6233 -p 7233:7233 -p 9233:9233 -p 10233:10233 ghcr.io/restackio/restack:main
+# Development with hot reload
+pnpm dev
+
+# Production mode  
+pnpm start
 ```
 
-## Start python shell
+## Features
 
-If using uv:
+- **Agent Orchestration**: Restack workflows for AI agent management
+- **Task Management**: Multi-step workflow execution with full traceability  
+- **MCP Integration**: Model Context Protocol for external tool integration
+- **Real-time Streaming**: LLM response streaming with event handling
+- **Database ORM**: SQLAlchemy models with async PostgreSQL
+- **Developer UI**: Visual workflow debugging and replay at localhost:5233
 
-```bash
-uv venv && source .venv/bin/activate
+## Architecture
+
+```
+src/
+├── functions/          # Restack functions (business logic)
+├── workflows/          # Multi-step orchestration workflows  
+├── database/           # SQLAlchemy models and connections
+├── agents/             # Agent execution logic
+└── services.py         # Restack service registration
 ```
 
-If using pip:
+## Restack engine
 
+The backend runs on the **Restack Engine** which provides:
+
+- **Workflow Orchestration**: Reliable execution of multi-step agent tasks
+- **Developer UI**: Visual debugging interface at http://localhost:5233
+- **Function Registry**: Auto-discovery of Python functions as workflow steps
+- **Replay & Debug**: Step-by-step workflow replay for troubleshooting
+
+### Developer UI features
+- **Runs**: Replay entire workflows or restart from any step
+- **Functions**: Test individual functions with custom inputs
+- **Schedules**: Manage workflow schedules and cron jobs
+- **Timeline**: Visual execution flow with timing details
+
+Access the Developer UI at: http://localhost:5233
+
+## Development
+
+### Local setup
 ```bash
-python -m venv .venv && source .venv/bin/activate
-```
+# Install dependencies
+uv sync
 
-## Install dependencies and run
-
-**Development mode** (with file watching):
-```bash
+# Start development server (with file watching)
 uv run dev
-# or with pnpm from the monorepo root:
-pnpm --filter backend dev
+
+# Or start without file watching
+uv run start
 ```
 
-**Production mode** (runs Restack services):
+### Database
 ```bash
-uv run start  
-# or with pnpm from the monorepo root:
-pnpm --filter backend start
+# Connect to database
+pnpm db:connect
+
+# Reset and seed database
+pnpm db:setup
 ```
 
-**Alternative setup with pip:**
+### Debugging workflows
+
+Use the Developer UI at http://localhost:5233 to:
+
+1. **Test Functions**: Execute individual functions with custom inputs
+2. **Replay Workflows**: Debug failed runs step-by-step
+3. **View Schedules**: See upcoming and recent scheduled runs
+4. **Trace Execution**: Follow parent-child workflow relationships
+
+## Deployment
+
+Deploy on [Restack Cloud](https://console.restack.io) with:
+- **Dockerfile**: `apps/backend/Dockerfile`
+- **App folder**: `apps/backend`
+
+Or use the local Docker setup:
 ```bash
-pip install -e .
-python -c "from src.services import watch_services; watch_services()"  # dev mode
-python -c "from src.services import run_services; run_services()"  # start mode
+# Run Restack engine locally
+docker run -d --pull always --name restack \
+  -p 5233:5233 -p 6233:6233 -p 7233:7233 \
+  ghcr.io/restackio/restack:main
 ```
-
-## Run agents
-
-### from UI
-
-You can run agents from the UI by clicking the "Run" button.
-
-![Run agents from UI](./todo_put.png)
-
-### from API
-
-You can run agents from the API by using the generated endpoint:
-
-`POST http://localhost:6233/api/agents/AgentTask`
-
-### from any client
-
-You can run agents with any client connected to Restack, for example:
-
-If using uv:
-
-```bash
-uv run schedule
-```
-
-If using pip:
-
-```bash
-python -c "from schedule import run_schedule; run_schedule()"
-```
-
-executes `schedule.py` which will connect to Restack and execute the `AgentTask` agent.
-
-## Send an event to the agent
-
-In our example we will ask the AI agent to perform a task.
-
-### from UI
-
-```
-{
-  "agentId": "{agent_id}",
-  "runId": "{run_id}",
-  "eventName": "messages",
-  "eventInput": {
-    "messages": [{"role": "user", "content": "Help me analyze this data"}]
-  }
-}
-```
-
-![Send event to agent](./todo_first_message.png)
-
-You can send events to the agent by using the generated endpoint:
-
-`PUT http://localhost:6233/api/agents/AgentTask/:agentId/:runId`
-
-and the payload:
-
-```
-{
-  "eventName": "messages",
-  "eventInput": {
-    "messages": [{"role": "user", "content": "Help me analyze this data"}]
-  }
-}
-```
-
-## See the agent run
-
-The LLM will use tool calls to interact with various services and MCP servers.
-The agent can perform database operations, call external APIs, and execute workflows.
-
-You can replay and follow the agent run in the UI.
-
-![Replay agent run](./todo_llm_answer.png)
-
-Now, you can simply trigger more events from the Developer UI.
-
-The agent can process messages, handle MCP tool approvals, and execute complex workflows.
-
-![Send confirmation to agent](./todo_second_message.png)
-
-When using MCP tools that require approval, the agent will wait for confirmation before proceeding.
-
-![Execute workflows](./todo_child_workflow.png)
-
-## Deploy on Restack Cloud
-
-To deploy the application on Restack, you can create an account at [https://console.restack.io](https://console.restack.io)
