@@ -110,22 +110,13 @@ jobs:
       - name: Install Vale
         run: |
           wget -O vale.tar.gz https://github.com/errata-ai/vale/releases/download/v3.7.1/vale_3.7.1_Linux_64-bit.tar.gz
-          tar -xzf vale.tar.gz
-          sudo mv vale /usr/local/bin/
+          mkdir -p /tmp/vale
+          tar -xzf vale.tar.gz -C /tmp/vale
+          sudo mv /tmp/vale/vale /usr/local/bin/
+          rm -rf /tmp/vale vale.tar.gz
 
       - name: Sync Vale packages
         run: vale sync
-
-      - name: Debug - Check files
-        run: |
-          echo "=== Current directory ==="
-          pwd
-          echo "=== Files in current directory ==="
-          ls -la
-          echo "=== First 10 lines of README.md ==="
-          head -10 README.md
-          echo "=== Search for problematic content ==="
-          grep -n "Sponsors\|Key Features\|Vale vs" README.md || echo "No problematic content found"
 
       - name: Run Vale
         run: vale --config=.vale.ini README.md CONTRIBUTING.md apps/*/README.md packages/*/README.md
