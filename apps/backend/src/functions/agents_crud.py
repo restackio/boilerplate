@@ -181,7 +181,8 @@ def get_latest_agent_versions(
             # Sort by created_at descending and take the first (latest)
             latest_agent = max(
                 group_agents,
-                key=lambda x: x.created_at or datetime.min,
+                key=lambda x: x.created_at
+                or datetime.min.replace(tzinfo=UTC),
             )
 
             # Calculate version count
@@ -388,7 +389,8 @@ def _process_agent_group(
         if published_agent
         else max(
             group_agents,
-            key=lambda x: x.created_at or datetime.min,
+            key=lambda x: x.created_at
+            or datetime.min.replace(tzinfo=UTC),
         )
     )
 
@@ -403,7 +405,8 @@ def _process_agent_group(
     if draft_agents:
         latest_draft_agent = max(
             draft_agents,
-            key=lambda x: x.created_at or datetime.min,
+            key=lambda x: x.created_at
+            or datetime.min.replace(tzinfo=UTC),
         )
         latest_draft_version_short = str(latest_draft_agent.id)[
             -5:

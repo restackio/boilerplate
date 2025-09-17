@@ -198,6 +198,9 @@ from src.workflows.crud.workspaces_crud import (
     WorkspacesUpdateWorkflow,
 )
 
+# Create logger for this module
+logger = logging.getLogger(__name__)
+
 
 async def run_restack_service() -> None:
     """Run the Restack service."""
@@ -359,9 +362,9 @@ async def main() -> None:
     """Main function to run Restack services."""
     # Initialize database
     await init_async_db()
-    logging.info("Database initialized")
+    logger.info("Database initialized")
 
-    logging.info(
+    logger.info(
         "Starting Restack services on default port (5233)"
     )
     await run_restack_service()
@@ -377,7 +380,7 @@ def start() -> None:
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        logging.info(
+        logger.info(
             "Services interrupted by user. Exiting gracefully."
         )
 
@@ -390,7 +393,7 @@ def dev_watch() -> None:
     )
 
     watch_path = Path.cwd()
-    logging.info(
+    logger.info(
         "Watching %s and its subdirectories for changes...",
         watch_path,
     )

@@ -6,6 +6,9 @@ import uvicorn
 
 from .app import create_webhook_app
 
+# Create logger for this module
+logger = logging.getLogger(__name__)
+
 
 def start() -> None:
     """Start webhook server (production mode)."""
@@ -14,7 +17,7 @@ def start() -> None:
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
 
-    logging.info("Starting Webhook Server on http://0.0.0.0:8000")
+    logger.info("Starting Webhook Server on http://0.0.0.0:8000")
 
     app = create_webhook_app()
 
@@ -34,14 +37,14 @@ def dev() -> None:
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
 
-    logging.info("Starting Webhook Server in development mode on http://127.0.0.1:8000")
-    logging.info("Auto-reload enabled - server will restart on file changes")
+    logger.info("Starting Webhook Server in development mode on http://127.0.0.1:8000")
+    logger.info("Auto-reload enabled - server will restart on file changes")
 
     # Open webhook server docs in browser
     try:
         webbrowser.open("http://localhost:8000/docs")
     except OSError as e:
-        logging.warning("Could not open browser: %s", e)
+        logger.warning("Could not open browser: %s", e)
 
     # Use uvicorn's built-in reload functionality
     uvicorn.run(

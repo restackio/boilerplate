@@ -13,13 +13,16 @@ from .client import client
 from .formatters import format_webhook_payload_as_task_description
 from .models import TaskCreateInput, WebhookTaskInput
 
+# Create logger for this module
+logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     """FastAPI lifespan manager."""
-    logging.info("Webhook server initialized")
+    logger.info("Webhook server initialized")
     yield
-    logging.info("Webhook server shut down")
+    logger.info("Webhook server shut down")
 
 
 def create_webhook_app() -> FastAPI:
@@ -101,7 +104,7 @@ def create_webhook_app() -> FastAPI:
                 )
             )
 
-            logging.info("Created task from webhook for agent %s in workspace %s", agent_name, workspace_id)
+            logger.info("Created task from webhook for agent %s in workspace %s", agent_name, workspace_id)
 
             return {
                 "status": "success",
@@ -110,7 +113,7 @@ def create_webhook_app() -> FastAPI:
                 "task_url": f"http://localhost:3000/tasks/{result}",
             }
         except Exception as e:
-            logging.exception("Error creating task from webhook for agent %s", agent_name)
+            logger.exception("Error creating task from webhook for agent %s", agent_name)
             raise HTTPException(status_code=500, detail=str(e)) from e
 
     return app

@@ -26,6 +26,9 @@ from src.workflows.tools.mock_zendesk_ticket import (
     MockZendeskTicket,
 )
 
+# Create logger for this module
+logger = logging.getLogger(__name__)
+
 
 async def run_restack_service() -> None:
     """Run the Restack service."""
@@ -49,7 +52,7 @@ async def run_restack_service() -> None:
 
 
 async def main() -> None:
-    logging.info("Starting MCP server")
+    logger.info("Starting MCP server")
     await run_restack_service()
 
 
@@ -63,7 +66,7 @@ def start() -> None:
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        logging.info(
+        logger.info(
             "Services interrupted by user. Exiting gracefully."
         )
 
@@ -76,7 +79,7 @@ def dev_watch() -> None:
     )
 
     watch_path = Path.cwd()
-    logging.info(
+    logger.info(
         "Watching %s and its subdirectories for changes...",
         watch_path,
     )

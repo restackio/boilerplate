@@ -2,6 +2,7 @@
 
 from datetime import timedelta
 from typing import Any
+from urllib.parse import parse_qs, urlparse
 
 from restack_ai.workflow import (
     NonRetryableError,
@@ -12,6 +13,7 @@ from restack_ai.workflow import (
 
 with import_functions():
     from src.functions.mcp_oauth_client import (
+        ExchangeCodeForTokenInput,
         ParseCallbackInput,
         oauth_exchange_code_for_token,
         oauth_generate_auth_url,
@@ -35,6 +37,10 @@ with import_functions():
         oauth_token_set_default,
         oauth_token_set_default_by_id,
         oauth_tokens_get_by_workspace,
+    )
+    from src.functions.mcp_servers_crud import (
+        McpServerUpdateInput,
+        mcp_servers_update,
     )
 
 
@@ -141,8 +147,6 @@ class McpOAuthInitializeWorkflow:
             )
 
             # Extract client_id from the authorization URL for use in callback
-            from urllib.parse import parse_qs, urlparse
-
             parsed_url = urlparse(
                 auth_url_result.auth_url.authorization_url
             )
@@ -235,9 +239,6 @@ class McpOAuthCallbackWorkflow:
             log.info(
                 "Step 3: Exchanging authorization code for tokens"
             )
-            from src.functions.mcp_oauth_client import (
-                ExchangeCodeForTokenInput,
-            )
 
             token_result = await workflow.step(
                 function=oauth_exchange_code_for_token,
@@ -275,10 +276,6 @@ class McpOAuthCallbackWorkflow:
             if token_data.client_id and token_data.client_secret:
                 log.info(
                     "Step 4: Saving client credentials to MCP server"
-                )
-                from src.functions.mcp_servers_crud import (
-                    McpServerUpdateInput,
-                    mcp_servers_update,
                 )
 
                 # Update MCP server headers with client credentials

@@ -1,7 +1,7 @@
 """MCP OAuth client operations for handling OAuth flows."""
 
 import secrets
-from urllib.parse import parse_qs, urlencode, urlparse
+from urllib.parse import parse_qs, urlencode, urljoin, urlparse
 
 import httpx
 from mcp.client.auth import (
@@ -314,8 +314,6 @@ def create_client_metadata(
 
 def get_discovery_urls(server_url: str) -> list[str]:
     """Generate OAuth discovery URLs using MCP SDK logic."""
-    from urllib.parse import urljoin, urlparse
-
     parsed = urlparse(server_url)
     base_url = f"{parsed.scheme}://{parsed.netloc}"
 
