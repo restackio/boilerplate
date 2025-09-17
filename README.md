@@ -235,9 +235,6 @@ Want to contribute or change the platform? See [CONTRIBUTING.md](./CONTRIBUTING.
 
 - [Restack Documentation](https://docs.restack.io)
 - [Model Context Protocol](https://modelcontextprotocol.io)
-- [Temporal Workflows](https://docs.temporal.io)
-- [Python Integration Examples](https://github.com/restackio/examples-python)
-- [Community Discord](https://discord.gg/restack)
 
 ## 📄 License
 
