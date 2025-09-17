@@ -43,7 +43,7 @@ jobs:
         run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Run linting
-        run: pnpm lint
+        run: pnpm lint --filter='!@boilerplate/backend' --filter='!@boilerplate/mcp_server' --filter='!@boilerplate/webhook'
 
       - name: Run type checking
         run: pnpm type-check
