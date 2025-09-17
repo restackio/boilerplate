@@ -19,7 +19,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -111,7 +110,7 @@ jobs:
       - name: Setup Vale
         uses: errata-ai/vale-action@reviewdog
         with:
-          files: README.md CONTRIBUTING.md apps/*/README.md packages/*/README.md
+          files: '*.md'
           fail_on_error: true
           vale_flags: "--no-exit"
         env:

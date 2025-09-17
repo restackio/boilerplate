@@ -19,6 +19,7 @@ dependencies = [
     "bcrypt>=4.0.1",
     "mcp>=1.13.1",
     "cryptography>=45.0.7",
+    "ruff>=0.8.0",
 ]
 
 [project.scripts]
