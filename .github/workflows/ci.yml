@@ -123,4 +123,4 @@ jobs:
         run: vale sync
 
       - name: Run Vale
-        run: pnpm run vale
+        run: vale README.md CONTRIBUTING.md apps/*/README.md packages/*/README.md
