@@ -107,11 +107,20 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Vale
-        uses: errata-ai/vale-action@reviewdog
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
         with:
-          files: 'README.md CONTRIBUTING.md apps/*/README.md packages/*/README.md'
-          fail_on_error: true
-          vale_flags: "--no-exit"
-        env:
-          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+          version: '10.15.1'
+          run_install: false
+
+      - name: Install Vale
+        run: |
+          wget -O vale.tar.gz https://github.com/errata-ai/vale/releases/download/v3.7.1/vale_3.7.1_Linux_64-bit.tar.gz
+          tar -xzf vale.tar.gz
+          sudo mv vale /usr/local/bin/
+
+      - name: Sync Vale packages
+        run: vale sync
+
+      - name: Run Vale
+        run: pnpm run vale
