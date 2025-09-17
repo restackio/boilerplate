@@ -6,9 +6,9 @@ This project uses [Restack](https://restack.io), the open source AI agent orches
 
 Restack has helped enterprise companies build AI agents at large scale where product teams often sit between domain experts (customer service, marketing, sales) and engineering teams.
 
-**The challenge:** product wants to iterate quickly with domain experts to craft agent behavior and experience. But every change requires engineering coordination, creating bottlenecks that slow innovation.
+- **The challenge:** product teams wants to iterate quickly with domain experts to craft agent behavior and experience. But every change requires engineering coordination, creating bottlenecks that slow innovation.
 
-**Restack approach:** empowers product teams with full autonomy from engineering. Product collaborates directly with domain experts to refine agent behavior. Engineering focuses on what they do best: building reliable integrations with 99.99% SLAs.
+- **Restack approach:** empowers product teams with full autonomy from engineering. Product collaborates directly with domain experts to refine agent behavior. Engineering focuses on what they do best: building reliable integrations with 99.99% SLAs.
 
 Built on Python + Kubernetes because enterprises already run AI workloads this way. Works with your existing infrastructure and team expertise.
 
@@ -18,8 +18,8 @@ Built on Python + Kubernetes because enterprises already run AI workloads this w
 cp .env.example .env
 ```
 
-Set `OPENAI_API_KEY` with a valid OpenAI API key
-Set `MCP_URL` for ngrok tunnel with `ngrok http 112233`
+- Set `OPENAI_API_KEY` with a valid OpenAI API key
+- Set `MCP_URL` for ngrok tunnel with `ngrok http 112233`
 
 ```bash
 pnpm quickstart
@@ -34,28 +34,28 @@ pnpm quickstart
 
 ## What can you build?
 
-**Customer Support Agents** (Zendesk, Intercom, Slack)  
+- **Customer Support Agents** (Zendesk, Intercom, Slack)  
 Engineering connects support platforms. Product teams iterate on escalation rules, response tone, and handoff triggers.
 
-**Product Intelligence Agents** (PostHog, Linear, Slack)  
+- **Product Intelligence Agents** (PostHog, Linear, Slack)  
 Engineering builds analytics and project management pipelines. Product teams adjust feature prioritization logic and user feedback analysis.
 
-**DevOps Monitoring Agents** (Sentry, Datadog, Kubernetes, GitHub, OpenAI Codex)  
+- **DevOps Monitoring Agents** (Sentry, Datadog, Kubernetes, GitHub, OpenAI Codex)  
 Engineering integrates monitoring and development tools. Product teams define alert thresholds, incident response workflows, and automated troubleshooting.
 
-**Performance Marketing Agents** (Google Ads, Facebook Ads, PostHog, Slack)  
+- **Performance Marketing Agents** (Google Ads, Facebook Ads, PostHog, Slack)  
 Engineering establishes advertising and analytics connections. Product teams optimize campaign strategies, bidding algorithms, and performance reporting.
 
-**Sales Intelligence Agents** (Salesforce, HubSpot, Slack)  
+- **Sales Intelligence Agents** (Salesforce, HubSpot, Slack)  
 Engineering connects CRM and communication platforms. Product teams refine lead scoring, follow-up sequences, and sales forecasting models.
 
 ## Platform architecture
 
-**Product interface:** web-based agent management with version control, testing playground, and deployment controls. Product teams change agent behavior without code dependencies.
+- **Product interface:** web-based agent management with version control, testing playground, and deployment controls. Product teams change agent behavior without code dependencies.
 
-**Engineering infrastructure:** python-based integration layer with [Temporal](https://temporal.io) workflow orchestration. [Kubernetes](https://kubernetes.io) deployment with enterprise-grade reliability and observability.
+- **Engineering infrastructure:** python-based integration layer with [Temporal](https://temporal.io) workflow orchestration. [Kubernetes](https://kubernetes.io) deployment with enterprise-grade reliability and observability.
 
-**Integration protocol:** [mCP (Model Context Protocol)](https://modelcontextprotocol.io) automatically exposes Python functions as agent tools, enabling seamless tool discovery and use across agent workflows.
+- **Integration protocol:** [Model Context Protocol](https://modelcontextprotocol.io) automatically exposes Python functions as agent tools, enabling seamless tool discovery and use across agent workflows.
 
 ```
 ┌─────────────────────────────────────┐
