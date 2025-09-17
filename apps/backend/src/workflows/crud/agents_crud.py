@@ -11,6 +11,7 @@ with import_functions():
     from src.functions.agents_crud import (
         AgentArchiveInput,
         AgentArchiveOutput,
+        AgentCloneInput,
         AgentCreateInput,
         AgentDeleteOutput,
         AgentGetByStatusInput,
@@ -24,6 +25,7 @@ with import_functions():
         AgentUpdateStatusInput,
         AgentUpdateStatusOutput,
         agents_archive,
+        agents_clone,
         agents_create,
         agents_delete,
         agents_get_by_id,
@@ -259,5 +261,27 @@ class AgentsUpdateStatusWorkflow:
             error_message = (
                 f"Error during agents_update_status: {e}"
             )
+            log.error(error_message)
+            raise NonRetryableError(message=error_message) from e
+
+
+@workflow.defn()
+class AgentsCloneWorkflow:
+    """Workflow to clone an agent with all its tools."""
+
+    @workflow.run
+    async def run(
+        self, workflow_input: AgentCloneInput
+    ) -> AgentSingleOutput:
+        log.info("AgentsCloneWorkflow started")
+        try:
+            return await workflow.step(
+                function=agents_clone,
+                function_input=workflow_input,
+                start_to_close_timeout=timedelta(seconds=60),  # Longer timeout for cloning
+            )
+
+        except Exception as e:
+            error_message = f"Error during agents_clone: {e}"
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e

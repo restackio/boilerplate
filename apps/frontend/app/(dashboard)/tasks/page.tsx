@@ -141,7 +141,6 @@ export default function TasksPage() {
         Refresh
       </Button>
       <Button 
-        variant="ghost" 
         size="sm"
         onClick={() => setShowCreateForm(!showCreateForm)}
       >

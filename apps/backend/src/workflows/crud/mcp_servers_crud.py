@@ -25,6 +25,7 @@ with import_functions():
     )
     from src.functions.mcp_tools_refresh import (
         McpSessionInitInput,
+        McpTool,
         McpToolsListDirectInput,
         McpToolsListInput,
         McpToolsListOutput,
@@ -32,6 +33,10 @@ with import_functions():
         mcp_session_init,
         mcp_tools_list,
         mcp_tools_list_direct,
+    )
+    from src.functions.mcp_oauth_crud import (
+        get_oauth_token_for_mcp_server,
+        GetOAuthTokenForMcpServerInput,
     )
 
 
@@ -162,6 +167,96 @@ class McpToolsListWorkflow:
         self, workflow_input: McpToolsListInput
     ) -> McpToolsListOutput:
         try:
+            # Validate that we have either server_url or mcp_server_id
+            if not workflow_input.server_url and not workflow_input.mcp_server_id:
+                return McpToolsListOutput(
+                    success=False,
+                    error="Either server_url or mcp_server_id must be provided"
+                )
+            
+            # Resolve server URL if it's a placeholder and we have mcp_server_id
+            server_url = workflow_input.server_url
+            if (server_url == "placeholder" and workflow_input.mcp_server_id):
+                # Get the actual server URL from the MCP server record
+                server_result = await workflow.step(
+                    function=mcp_servers_get_by_id,
+                    function_input=McpServerIdInput(
+                        mcp_server_id=workflow_input.mcp_server_id
+                    ),
+                )
+                if server_result and server_result.mcp_server:
+                    server_url = server_result.mcp_server.server_url
+                    log.info(f"Resolved server URL from MCP server: {server_url}")
+                else:
+                    return McpToolsListOutput(
+                        success=False,
+                        error=f"Could not resolve server URL for MCP server {workflow_input.mcp_server_id}"
+                    )
+            elif not server_url and workflow_input.mcp_server_id:
+                # Handle case where server_url is None but mcp_server_id is provided
+                server_result = await workflow.step(
+                    function=mcp_servers_get_by_id,
+                    function_input=McpServerIdInput(
+                        mcp_server_id=workflow_input.mcp_server_id
+                    ),
+                )
+                if server_result and server_result.mcp_server:
+                    server_url = server_result.mcp_server.server_url
+                    log.info(f"Resolved server URL from MCP server: {server_url}")
+                else:
+                    return McpToolsListOutput(
+                        success=False,
+                        error=f"Could not resolve server URL for MCP server {workflow_input.mcp_server_id}"
+                    )
+            elif not server_url:
+                return McpToolsListOutput(
+                    success=False,
+                    error="Server URL is required when mcp_server_id is not provided"
+                )
+            
+            # Check if this is a local MCP server (server_url is None)
+            if server_url is None:
+                return McpToolsListOutput(
+                    success=False,
+                    error="Cannot list tools for local MCP servers - server_url is required for remote MCP servers"
+                )
+            
+            # Prepare headers with authentication if available
+            headers = workflow_input.headers or {}
+
+            # If workspace_id and mcp_server_id are provided, try to get default token
+            if (
+                workflow_input.workspace_id
+                and workflow_input.mcp_server_id
+            ):
+                try:
+                    token = await workflow.step(
+                        function=get_oauth_token_for_mcp_server,
+                        function_input=GetOAuthTokenForMcpServerInput(
+                            mcp_server_id=workflow_input.mcp_server_id,
+                            workspace_id=workflow_input.workspace_id,
+                        ),
+                    )
+                    if token:
+                        headers["Authorization"] = (
+                            f"Bearer {token}"
+                        )
+                        log.info(
+                            "Using default OAuth token for MCP server authentication"
+                        )
+                    else:
+                        log.info(
+                            "No default token found for MCP server"
+                        )
+                except Exception as e:
+                    log.warning(
+                        f"Failed to get OAuth token for MCP server: {e}"
+                    )
+            elif workflow_input.workspace_id:
+                log.info(
+                    "Workspace ID provided but no MCP server ID - cannot use default token authentication"
+                )
+
             # First, always try initialization to check if session is needed
             log.info(
                 "Attempting MCP initialization to check session requirements"
@@ -169,8 +264,8 @@ class McpToolsListWorkflow:
             session_init_result = await workflow.step(
                 function=mcp_session_init,
                 function_input=McpSessionInitInput(
-                    server_url=workflow_input.server_url,
-                    headers=workflow_input.headers,
+                    server_url=server_url,
+                    headers=headers,
                     local=getattr(workflow_input, "local", False),
                 ),
                 start_to_close_timeout=timedelta(seconds=30),
@@ -187,9 +282,9 @@ class McpToolsListWorkflow:
                     function=mcp_tools_list,
                     function_input=McpToolsSessionInput(
                         mcp_endpoint=session_init_result.mcp_endpoint
-                        or workflow_input.server_url,
+                        or server_url,
                         session_id=session_init_result.session_id,
-                        headers=workflow_input.headers,
+                        headers=headers,
                     ),
                     start_to_close_timeout=timedelta(seconds=30),
                 )
@@ -198,15 +293,34 @@ class McpToolsListWorkflow:
                     log.error(
                         f"Session-based tools list retrieval failed: {tools_list_result.error}"
                     )
+
+                    # Check if it's an authentication error and suggest adding a token
+                    error_message = tools_list_result.error or ""
+                    if (
+                        "401" in error_message
+                        or "unauthorized" in error_message.lower()
+                    ):
+                        error_message = "Connection failed: Failed to get tools list: HTTP 401. Please add an authentication token for this integration."
+
                     return McpToolsListOutput(
                         success=False,
                         tools_list=[],
-                        error=tools_list_result.error,
+                        error=error_message,
                     )
 
+                # Convert tools_with_descriptions to McpTool objects
+                tools_with_desc = []
+                if hasattr(tools_list_result, 'tools_with_descriptions'):
+                    for tool_dict in tools_list_result.tools_with_descriptions:
+                        tools_with_desc.append(McpTool(
+                            name=tool_dict.get("name", ""),
+                            description=tool_dict.get("description")
+                        ))
+                
                 return McpToolsListOutput(
                     success=True,
                     tools_list=tools_list_result.tools,
+                    tools=tools_with_desc,
                 )
             log.info(
                 "Server does not require session management, using direct tool listing"
@@ -215,8 +329,8 @@ class McpToolsListWorkflow:
             direct_result = await workflow.step(
                 function=mcp_tools_list_direct,
                 function_input=McpToolsListDirectInput(
-                    server_url=workflow_input.server_url,
-                    headers=workflow_input.headers,
+                    server_url=server_url,
+                    headers=headers,
                     local=getattr(workflow_input, "local", False),
                 ),
                 start_to_close_timeout=timedelta(seconds=30),
@@ -226,14 +340,34 @@ class McpToolsListWorkflow:
                 log.error(
                     f"Direct tools list retrieval failed: {direct_result.error}"
                 )
+
+                # Check if it's an authentication error and suggest adding a token
+                error_message = direct_result.error or ""
+                if (
+                    "401" in error_message
+                    or "unauthorized" in error_message.lower()
+                ):
+                    error_message = "Connection failed: Failed to get tools list: HTTP 401. Please add an authentication token for this integration."
+
                 return McpToolsListOutput(
                     success=False,
                     tools_list=[],
-                    error=direct_result.error,
+                    error=error_message,
                 )
 
+            # Convert tools_with_descriptions to McpTool objects for direct result
+            tools_with_desc = []
+            if hasattr(direct_result, 'tools_with_descriptions'):
+                for tool_dict in direct_result.tools_with_descriptions:
+                    tools_with_desc.append(McpTool(
+                        name=tool_dict.get("name", ""),
+                        description=tool_dict.get("description")
+                    ))
+            
             return McpToolsListOutput(
-                success=True, tools_list=direct_result.tools
+                success=True, 
+                tools_list=direct_result.tools,
+                tools=tools_with_desc,
             )
 
         except Exception as e:  # noqa: BLE001

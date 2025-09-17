@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS mcp_servers (
     local BOOLEAN NOT NULL DEFAULT FALSE,
     server_description TEXT,
     headers JSONB,
-    require_approval JSONB DEFAULT '{"never": {"tool_names": []}, "always": {"tool_names": []}}',
+    require_approval JSONB,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT chk_mcp_servers_url_or_local CHECK (
@@ -93,24 +93,61 @@ CREATE TABLE IF NOT EXISTS agent_tools (
         'file_search','web_search_preview','mcp','code_interpreter','image_generation','local_shell'
     )),
     mcp_server_id UUID REFERENCES mcp_servers(id) ON DELETE CASCADE,
+    -- MCP-specific fields (merged from agent_mcp_tools)
+    tool_name VARCHAR(255),  -- Required for MCP tools
+    custom_description TEXT,  -- Agent-specific tool description override
+    require_approval BOOLEAN NOT NULL DEFAULT FALSE,  -- Tool approval setting
+    -- General fields
     config JSONB,
     allowed_tools JSONB,
     execution_order INTEGER,
     enabled BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     -- Validation via CHECK constraints (no triggers)
     CONSTRAINT chk_agent_tools_mcp_server
-        CHECK (tool_type <> 'mcp' OR mcp_server_id IS NOT NULL)
+        CHECK (tool_type <> 'mcp' OR mcp_server_id IS NOT NULL),
+    CONSTRAINT chk_agent_tools_mcp_tool_name
+        CHECK (tool_type <> 'mcp' OR tool_name IS NOT NULL)
 );
 
 -- Uniqueness constraints per tool type
 CREATE UNIQUE INDEX IF NOT EXISTS ux_agent_tools_mcp
-  ON agent_tools(agent_id, tool_type, mcp_server_id)
+  ON agent_tools(agent_id, mcp_server_id, tool_name)
   WHERE tool_type = 'mcp';
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_agent_tools_simple
   ON agent_tools(agent_id, tool_type)
   WHERE tool_type NOT IN ('mcp');
+
+
+-- Create user_oauth_connections table for individual user OAuth tokens
+CREATE TABLE IF NOT EXISTS user_oauth_connections (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    mcp_server_id UUID NOT NULL REFERENCES mcp_servers(id) ON DELETE CASCADE,
+    -- Authentication type and token data (encrypted in application)
+    auth_type VARCHAR(20) NOT NULL DEFAULT 'oauth' CHECK (auth_type IN ('oauth', 'bearer')),
+    access_token VARCHAR(2000) NOT NULL,
+    refresh_token VARCHAR(2000),
+    token_type VARCHAR(50) NOT NULL DEFAULT 'Bearer',
+    expires_at TIMESTAMP,
+    scope TEXT[],
+    -- OAuth 2.1 specific fields
+    resource_server VARCHAR(500), -- RFC8707 resource parameter
+    audience VARCHAR(500), -- Token audience for validation
+    -- Default token flag for workspace
+    is_default BOOLEAN NOT NULL DEFAULT FALSE,
+    -- Connection metadata
+    connected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_refreshed_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    -- Ensure one connection per user per MCP server
+    CONSTRAINT unique_user_mcp_oauth UNIQUE(user_id, mcp_server_id)
+);
+
 
 -- Create tasks table
 CREATE TABLE IF NOT EXISTS tasks (
@@ -165,6 +202,12 @@ CREATE INDEX IF NOT EXISTS idx_tasks_is_scheduled ON tasks(is_scheduled);
 CREATE INDEX IF NOT EXISTS idx_tasks_schedule_status ON tasks(schedule_status);
 CREATE INDEX IF NOT EXISTS idx_tasks_restack_schedule_id ON tasks(restack_schedule_id);
 
+-- OAuth-related indexes
+CREATE INDEX IF NOT EXISTS idx_user_oauth_connections_user_id ON user_oauth_connections(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_oauth_connections_workspace_id ON user_oauth_connections(workspace_id);
+CREATE INDEX IF NOT EXISTS idx_user_oauth_connections_mcp_server_id ON user_oauth_connections(mcp_server_id);
+CREATE INDEX IF NOT EXISTS idx_user_oauth_connections_expires_at ON user_oauth_connections(expires_at);
+
 -- Performance-critical composite indexes for common query patterns
 CREATE INDEX IF NOT EXISTS idx_agents_workspace_status_created ON agents(workspace_id, status, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_agents_workspace_name_parent ON agents(workspace_id, name, parent_agent_id);
@@ -198,8 +241,10 @@ $$ language 'plpgsql';
 
 -- Create triggers for updated_at
 CREATE TRIGGER update_agents_updated_at BEFORE UPDATE ON agents FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_agent_tools_updated_at BEFORE UPDATE ON agent_tools FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_tasks_updated_at BEFORE UPDATE ON tasks FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_workspaces_updated_at BEFORE UPDATE ON workspaces FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_teams_updated_at BEFORE UPDATE ON teams FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_mcp_servers_updated_at BEFORE UPDATE ON mcp_servers FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_user_oauth_connections_updated_at BEFORE UPDATE ON user_oauth_connections FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

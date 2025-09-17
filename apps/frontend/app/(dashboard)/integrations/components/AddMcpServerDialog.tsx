@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@workspace/ui/
 import { Button } from "@workspace/ui/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
+import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 import { McpServerForm, McpServerFormData, ToolListState } from "./shared/McpServerForm";
 import { validateMcpServerForm, parseHeaders } from "./shared/mcpServerValidation";
 
@@ -16,13 +17,14 @@ interface AddMcpServerDialogProps {
 
 export function AddMcpServerDialog({ open, onOpenChange, onSuccess }: AddMcpServerDialogProps) {
   const { createMcpServer } = useWorkspaceScopedActions();
+  const { workspaceId } = useDatabaseWorkspace();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<McpServerFormData>({
     server_label: "",
     server_url: "",
     local: false,
     server_description: "",
-    headers: {}
+    headers: {},
   });
   const [headerInput, setHeaderInput] = useState("");
   const [toolList, setToolList] = useState<ToolListState>({
@@ -30,59 +32,66 @@ export function AddMcpServerDialog({ open, onOpenChange, onSuccess }: AddMcpServ
     listedTools: [],
     error: null,
     hasListed: false,
-    approvalSettings: { never: [], always: [] }
+    approvalSettings: { never: [], always: [] },
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
+    const validation = validateMcpServerForm(formData, headerInput);
+    if (!validation.isValid) {
+      console.error("Validation error:", validation.error);
+      return;
+    }
+
     setIsSubmitting(true);
-
     try {
-      // Validate form
-      const validation = validateMcpServerForm(formData, headerInput);
-      if (!validation.isValid) {
-        alert(validation.error);
-        setIsSubmitting(false);
-        return;
-      }
-
-      // Parse headers
-      const parsedHeaders = parseHeaders(headerInput);
-
+      const headers = parseHeaders(headerInput);
       const result = await createMcpServer({
         server_label: formData.server_label,
-        server_url: formData.local ? undefined : formData.server_url,
+        server_url: formData.server_url,
         local: formData.local,
-        server_description: formData.server_description || undefined,
-        headers: Object.keys(parsedHeaders).length > 0 ? parsedHeaders : undefined,
-        require_approval: {
-          never: { tool_names: toolList.approvalSettings.never },
-          always: { tool_names: toolList.approvalSettings.always }
-        }
+        server_description: formData.server_description,
+        headers,
+        require_approval: toolList.approvalSettings,
       });
 
-      if (result?.success) {
+      if (result.success) {
         onSuccess?.();
         onOpenChange(false);
-        resetForm();
+        // Reset form
+        setFormData({
+          server_label: "",
+          server_url: "",
+          local: false,
+          server_description: "",
+          headers: {},
+        });
+        setHeaderInput("");
+        setToolList({
+          isListing: false,
+          listedTools: [],
+          error: null,
+          hasListed: false,
+          approvalSettings: { never: [], always: [] },
+        });
       } else {
-        alert(result?.error || "Failed to create MCP server");
+        console.error("Failed to create MCP server:", result.error);
       }
     } catch (error) {
-      console.error("Failed to create MCP server:", error);
-      alert("Failed to create MCP server");
+      console.error("Error creating MCP server:", error);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const resetForm = () => {
+  const handleCancel = () => {
+    onOpenChange(false);
+    // Reset form
     setFormData({
       server_label: "",
       server_url: "",
       local: false,
       server_description: "",
-      headers: {}
+      headers: {},
     });
     setHeaderInput("");
     setToolList({
@@ -90,20 +99,20 @@ export function AddMcpServerDialog({ open, onOpenChange, onSuccess }: AddMcpServ
       listedTools: [],
       error: null,
       hasListed: false,
-      approvalSettings: { never: [], always: [] }
+      approvalSettings: { never: [], always: [] },
     });
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] max-h-[90vh] flex flex-col">
+      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
-            Add MCP Server
+            Add New Integration
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
+        <div className="flex-1 flex flex-col min-h-0 space-y-6">
           <div className="flex-1 overflow-y-auto px-1">
             <McpServerForm
               formData={formData}
@@ -113,32 +122,26 @@ export function AddMcpServerDialog({ open, onOpenChange, onSuccess }: AddMcpServ
               toolList={toolList}
               onToolListChange={setToolList}
               isSubmitting={isSubmitting}
+              workspaceId={workspaceId || undefined}
             />
           </div>
-
-          <div className="flex justify-end gap-2 pt-4 mt-4 border-t flex-shrink-0">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={isSubmitting}
-            >
+          
+          <div className="flex justify-end gap-3 pt-4 border-t flex-shrink-0">
+            <Button variant="outline" onClick={handleCancel} disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button onClick={handleSubmit} disabled={isSubmitting}>
               {isSubmitting ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Saving...
+                  Creating...
                 </>
               ) : (
-                <>
-                  Save
-                </>
+                "Create Integration"
               )}
             </Button>
           </div>
-        </form>
+        </div>
       </DialogContent>
     </Dialog>
   );

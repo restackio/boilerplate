@@ -120,17 +120,8 @@ export default function PlaygroundPage() {
       });
 
       if (!updateResult.success) {
-        console.error("❌ Failed to save draft agent:", updateResult.error);
         throw new Error(`Failed to save draft agent changes: ${updateResult.error}`);
       }
-
-      console.log("✅ Draft agent configuration saved successfully");
-      
-      // Note: Tools are automatically saved when modified in the playground
-      // via PlaygroundToolsDisplay component's immediate persistence
-      console.log("🔧 Tools are already persisted (managed by PlaygroundToolsDisplay)");
-      
-      console.log("🚀 Creating comparison tasks...");
       
       // Call our Python backend workflow to create dual tasks
       const result = await executeWorkflow("PlaygroundCreateDualTasksWorkflow", {
@@ -143,16 +134,11 @@ export default function PlaygroundPage() {
       if (result.success && result.data) {
         setLeftTaskId(result.data.draft_task_id);
         setRightTaskId(result.data.comparison_task_id);
-        console.log("✅ Tasks created successfully:", {
-          draftTaskId: result.data.draft_task_id,
-          comparisonTaskId: result.data.comparison_task_id,
-        });
       } else {
         throw new Error(`Task creation failed: ${result.error || 'Unknown error'}`);
       }
       
     } catch (error) {
-      console.error("❌ Error in task creation process:", error);
       // Reset the left panel collapse state on error
       setIsLeftPanelCollapsed(false);
       
@@ -198,6 +184,7 @@ export default function PlaygroundPage() {
           onAgentChange={handleDraftAgentChange}
           isCollapsed={isLeftPanelCollapsed}
           onToggleCollapse={() => setIsLeftPanelCollapsed(!isLeftPanelCollapsed)}
+          workspaceId={workspaceId}
         />
 
         {/* Middle Panel - Draft Agent Execution */}

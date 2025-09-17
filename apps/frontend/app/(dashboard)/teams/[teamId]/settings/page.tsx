@@ -9,9 +9,10 @@ import { Label } from "@workspace/ui/components/ui/label";
 import { Textarea } from "@workspace/ui/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/ui/card";
 
-import { ArrowLeft, Save, Trash2, RefreshCw, Building, Users, Briefcase, Target, Zap, Shield, Globe } from "lucide-react";
+import { ArrowLeft, Save, Trash2, RefreshCw } from "lucide-react";
 import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
 import { Team } from "@/hooks/use-workspace-scoped-actions";
+import { LucideIconPicker } from "@workspace/ui/components/lucide-icon-picker";
 
 export default function TeamSettingsPage() {
   const router = useRouter();
@@ -31,15 +32,6 @@ export default function TeamSettingsPage() {
     icon: "Building",
   });
 
-  const availableIcons = [
-    { name: "Building", component: Building },
-    { name: "Users", component: Users },
-    { name: "Briefcase", component: Briefcase },
-    { name: "Target", component: Target },
-    { name: "Zap", component: Zap },
-    { name: "Shield", component: Shield },
-    { name: "Globe", component: Globe },
-  ];
 
   useEffect(() => {
     const fetchTeam = async () => {
@@ -105,19 +97,17 @@ export default function TeamSettingsPage() {
     <div className="flex gap-2">
       <Button 
         size="sm" 
-        variant="outline" 
-        onClick={handleBack}
+        variant="ghost" 
+        onClick={handleDelete}
       >
-        <ArrowLeft className="h-4 w-4 mr-1" />
-        Back
+        <Trash2 className="h-4 w-4 mr-1" />
       </Button>
       <Button 
         size="sm" 
         onClick={handleSave}
         disabled={saving || loading}
       >
-        <Save className="h-4 w-4 mr-1" />
-        {saving ? "Saving..." : "Save Changes"}
+        {saving ? "Saving..." : "Save"}
       </Button>
     </div>
   );
@@ -158,21 +148,15 @@ export default function TeamSettingsPage() {
       
       <div className="px-4">
         <div className="mb-6">
-          <h1 className="text-2xl font-semibold">Team Settings</h1>
+          <h1 className="text-2xl font-semibold">Team settings</h1>
           <p className="text-muted-foreground">Edit team information and configuration</p>
         </div>
 
         <div className="max-w-2xl space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Team Information</CardTitle>
-              <CardDescription>
-                Update your team&apos;s name and description
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
+
+
               <div className="space-y-2">
-                <Label htmlFor="name">Team Name</Label>
+                <Label htmlFor="name">Name</Label>
                 <Input
                   id="name"
                   value={formData.name}
@@ -192,52 +176,12 @@ export default function TeamSettingsPage() {
                 />
               </div>
               
-              <div className="space-y-2">
-                <Label>Team Icon</Label>
-                <div className="grid grid-cols-7 gap-2">
-                  {availableIcons.map((icon) => (
-                    <button
-                      key={icon.name}
-                      type="button"
-                      onClick={() => setFormData(prev => ({ ...prev, icon: icon.name }))}
-                      className={`p-3 border rounded-lg hover:bg-muted transition-colors ${
-                        formData.icon === icon.name ? 'border-primary bg-primary/10' : 'border-border'
-                      }`}
-                    >
-                      <icon.component className="h-5 w-5" />
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-destructive">Danger Zone</CardTitle>
-              <CardDescription>
-                Irreversible and destructive actions
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between p-4 border border-destructive/20 rounded-lg">
-                <div>
-                  <h3 className="font-medium text-destructive">Delete Team</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Permanently delete this team and all associated data
-                  </p>
-                </div>
-                <Button
-                  variant="destructive"
-                  onClick={handleDelete}
-                  disabled={deleting}
-                >
-                  <Trash2 className="h-4 w-4 mr-1" />
-                  {deleting ? "Deleting..." : "Delete Team"}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+              <LucideIconPicker
+                label="Icon"
+                value={formData.icon}
+                onValueChange={(iconName) => setFormData(prev => ({ ...prev, icon: iconName }))}
+                placeholder="Choose an icon for your team"
+              />
         </div>
       </div>
     </div>

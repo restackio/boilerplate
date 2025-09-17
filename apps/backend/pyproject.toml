@@ -9,7 +9,7 @@ dependencies = [
     "pydantic[email]>=2.11.7",
     "watchfiles>=1.1.0",
     "python-dotenv>=1.1.1",
-    "openai[aiohttp]>=1.99.5",
+    "openai[aiohttp]==1.107.1",
     "restack-ai>=0.0.112",
     "psycopg2-binary>=2.9.9",
     "asyncpg>=0.29.0",
@@ -17,6 +17,8 @@ dependencies = [
     "greenlet>=3.0.0",
     "alembic>=1.13.0",
     "bcrypt>=4.0.1",
+    "mcp>=1.13.1",
+    "cryptography>=45.0.7",
 ]
 
 [project.scripts]

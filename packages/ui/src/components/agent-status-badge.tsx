@@ -2,7 +2,7 @@
 
 import { CheckCircle, FileText, Archive } from "lucide-react";
 import { Badge } from "./ui/badge";
-import { cn } from "../lib/utils";
+import { cn } from "@workspace/ui/lib/utils";
 
 export type AgentStatus = "published" | "draft" | "archived";
 

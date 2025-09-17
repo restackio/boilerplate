@@ -18,6 +18,7 @@ interface PlaygroundLeftPanelProps {
   onAgentChange: (updates: Partial<Agent>) => void;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
+  workspaceId: string;
 }
 
 export function PlaygroundLeftPanel({
@@ -25,6 +26,7 @@ export function PlaygroundLeftPanel({
   onAgentChange,
   isCollapsed,
   onToggleCollapse,
+  workspaceId,
 }: PlaygroundLeftPanelProps) {
   const [activeTab, setActiveTab] = useState("instructions");
 
@@ -142,7 +144,7 @@ export function PlaygroundLeftPanel({
                     <CardTitle className="text-sm">Available Tools</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <PlaygroundToolsDisplay agentId={agent.id} />
+                    <PlaygroundToolsDisplay agentId={agent.id} workspaceId={workspaceId} />
                   </CardContent>
                 </Card>
               </TabsContent>

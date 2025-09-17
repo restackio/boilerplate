@@ -1,7 +1,7 @@
 import { forwardRef, HTMLAttributes, ReactNode } from "react";
 import { EllipsisVertical } from "lucide-react";
 
-import { cn } from "../../lib/utils";
+import { cn } from "@workspace/ui/lib/utils";
 import { Slot } from "@radix-ui/react-slot";
 import { Button } from "../ui/button";
 import { ComponentProps } from "react";

@@ -59,7 +59,9 @@ class TaskUpdateInput(BaseModel):
         mode="before",
     )
     @classmethod
-    def validate_optional_string_fields(cls, v: str | None) -> str | None:
+    def validate_optional_string_fields(
+        cls, v: str | None
+    ) -> str | None:
         """Convert empty strings to None for optional UUID fields."""
         if v == "":
             return None
@@ -315,17 +317,21 @@ async def tasks_update(
                         or (key == "schedule_task_id" and value)
                     ):
                         setattr(task, key, uuid.UUID(value))
-                    elif (key == "messages" and value is not None) or (
-                        key == "schedule_spec"
-                        and value is not None
-                    ) or (
-                        key
-                        in [
-                            "is_scheduled",
-                            "schedule_status",
-                            "restack_schedule_id",
-                        ]
-                        and value is not None
+                    elif (
+                        (key == "messages" and value is not None)
+                        or (
+                            key == "schedule_spec"
+                            and value is not None
+                        )
+                        or (
+                            key
+                            in [
+                                "is_scheduled",
+                                "schedule_status",
+                                "restack_schedule_id",
+                            ]
+                            and value is not None
+                        )
                     ):
                         setattr(task, key, value)
                     else:

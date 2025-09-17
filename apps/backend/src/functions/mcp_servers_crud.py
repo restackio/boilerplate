@@ -2,10 +2,14 @@ import uuid
 
 from pydantic import BaseModel, Field
 from restack_ai.function import NonRetryableError, function
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 
 from src.database.connection import get_async_db
-from src.database.models import AgentTool, McpServer
+from src.database.models import (
+    AgentTool,
+    McpServer,
+    UserOAuthConnection,
+)
 
 
 # Pydantic models for approval structure
@@ -65,6 +69,7 @@ class McpServerOutput(BaseModel):
     server_description: str | None
     headers: dict[str, str] | None
     require_approval: McpRequireApproval
+    connections_count: int = 0
     created_at: str | None
     updated_at: str | None
 
@@ -93,16 +98,22 @@ async def mcp_servers_read(
     """Read all MCP servers from database for a specific workspace."""
     async for db in get_async_db():
         try:
+            # Query MCP servers with connection counts
             mcp_servers_query = (
-                select(McpServer)
+                select(
+                    McpServer,
+                    func.count(UserOAuthConnection.id).label('connections_count')
+                )
+                .outerjoin(UserOAuthConnection, McpServer.id == UserOAuthConnection.mcp_server_id)
                 .where(
                     McpServer.workspace_id
                     == uuid.UUID(function_input.workspace_id)
                 )
+                .group_by(McpServer.id)
                 .order_by(McpServer.server_label.asc())
             )
             result = await db.execute(mcp_servers_query)
-            mcp_servers = result.scalars().all()
+            mcp_servers_with_counts = result.all()
 
             output_result = [
                 McpServerOutput(
@@ -114,8 +125,9 @@ async def mcp_servers_read(
                     server_description=mcp_server.server_description,
                     headers=mcp_server.headers,
                     require_approval=McpRequireApproval.model_validate(
-                        mcp_server.require_approval
+                        mcp_server.require_approval or {}
                     ),
+                    connections_count=connections_count,
                     created_at=mcp_server.created_at.isoformat()
                     if mcp_server.created_at
                     else None,
@@ -123,7 +135,7 @@ async def mcp_servers_read(
                     if mcp_server.updated_at
                     else None,
                 )
-                for mcp_server in mcp_servers
+                for mcp_server, connections_count in mcp_servers_with_counts
             ]
 
             return McpServerListOutput(mcp_servers=output_result)
@@ -165,7 +177,7 @@ async def mcp_servers_create(
                 server_description=mcp_server.server_description,
                 headers=mcp_server.headers,
                 require_approval=McpRequireApproval.model_validate(
-                    mcp_server.require_approval
+                    mcp_server.require_approval or {}
                 ),
                 created_at=mcp_server.created_at.isoformat()
                 if mcp_server.created_at
@@ -204,8 +216,11 @@ async def mcp_servers_update(
             update_data = function_input.dict(
                 exclude_unset=True, exclude={"mcp_server_id"}
             )
+            
+            # Filter out None values to avoid overwriting existing data
+            filtered_update_data = {k: v for k, v in update_data.items() if v is not None}
 
-            for key, value in update_data.items():
+            for key, value in filtered_update_data.items():
                 if hasattr(mcp_server, key):
                     # Special handling for require_approval to convert to dict
                     if key == "require_approval" and isinstance(
@@ -228,7 +243,7 @@ async def mcp_servers_update(
                 server_description=mcp_server.server_description,
                 headers=mcp_server.headers,
                 require_approval=McpRequireApproval.model_validate(
-                    mcp_server.require_approval
+                    mcp_server.require_approval or {}
                 ),
                 created_at=mcp_server.created_at.isoformat()
                 if mcp_server.created_at
@@ -311,7 +326,7 @@ async def mcp_servers_get_by_id(
                 server_description=mcp_server.server_description,
                 headers=mcp_server.headers,
                 require_approval=McpRequireApproval.model_validate(
-                    mcp_server.require_approval
+                    mcp_server.require_approval or {}
                 ),
                 created_at=mcp_server.created_at.isoformat()
                 if mcp_server.created_at

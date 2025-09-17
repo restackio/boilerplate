@@ -79,6 +79,7 @@ class AgentTaskInput(BaseModel):
     agent_id: str
     assigned_to_id: str | None = None
     task_id: str | None = None
+    user_id: str | None = None
 
 
 @agent.defn()
@@ -366,6 +367,7 @@ class AgentTask:
             function=agent_tools_read_by_agent,
             function_input=AgentToolsGetByAgentInput(
                 agent_id=self.agent_id,
+                user_id=agent_input.user_id,
                 convert_approval_to_string=True,
             ),
             start_to_close_timeout=timedelta(seconds=30),

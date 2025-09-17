@@ -7,15 +7,10 @@ from sqlalchemy import and_, func, select
 from sqlalchemy.orm import selectinload
 
 from src.database.connection import get_async_db
-from src.database.models import Agent
+from src.database.models import Agent, AgentTool
 
 
 # Pydantic models for input validation
-class AgentMcpRelationshipInput(BaseModel):
-    mcp_server_id: str = Field(..., min_length=1)
-    allowed_tools: list[str] | None = None
-
-
 class AgentCreateInput(BaseModel):
     workspace_id: str = Field(..., min_length=1)
     name: str = Field(
@@ -39,11 +34,31 @@ class AgentCreateInput(BaseModel):
         default="medium", pattern="^(minimal|low|medium|high)$"
     )
 
-    mcp_relationships: list[AgentMcpRelationshipInput] | None = (
-        Field(
-            default=None,
-            description="MCP server relationships to create for this agent",
-        )
+    # Note: MCP relationships are now created through the agent tools workflow
+    # which requires specific tool names, not through agent creation
+
+
+class AgentCloneInput(BaseModel):
+    source_agent_id: str = Field(..., min_length=1)
+    workspace_id: str = Field(..., min_length=1)
+    name: str = Field(
+        ...,
+        min_length=1,
+        max_length=255,
+        pattern=r"^[a-z0-9-_]+$",
+    )
+    description: str | None = None
+    instructions: str | None = None
+    status: str = Field(
+        default="draft", pattern="^(published|draft|archived)$"
+    )
+    # New GPT-5 model configuration fields
+    model: str = Field(
+        default="gpt-5",
+        pattern=r"^(gpt-5|gpt-5-mini|gpt-5-nano|gpt-5-2025-08-07|gpt-5-mini-2025-08-07|gpt-5-nano-2025-08-07|gpt-4\.1|gpt-4\.1-mini|gpt-4\.1-nano|gpt-4o|gpt-4o-mini)$",
+    )
+    reasoning_effort: str = Field(
+        default="medium", pattern="^(minimal|low|medium|high)$"
     )
 
 
@@ -335,6 +350,8 @@ class AgentTableOutput(BaseModel):
     published_version_id: str | None = None
     published_version_short: str | None = None
     draft_count: int = 0
+    latest_draft_version_id: str | None = None
+    latest_draft_version_short: str | None = None
 
 
 class AgentTableListOutput(BaseModel):
@@ -371,6 +388,16 @@ def _process_agent_group(
     if published_agent:
         published_version_short = str(published_agent.id)[-5:]
 
+    # Find latest draft version
+    latest_draft_agent = None
+    latest_draft_version_short = None
+    if draft_agents:
+        latest_draft_agent = max(
+            draft_agents,
+            key=lambda x: x.created_at or datetime.min,
+        )
+        latest_draft_version_short = str(latest_draft_agent.id)[-5:]
+
     return AgentTableOutput(
         id=str(display_agent.id),
         workspace_id=str(display_agent.workspace_id),
@@ -402,6 +429,10 @@ def _process_agent_group(
         else None,
         published_version_short=published_version_short,
         draft_count=len(draft_agents),
+        latest_draft_version_id=str(latest_draft_agent.id)
+        if latest_draft_agent
+        else None,
+        latest_draft_version_short=latest_draft_version_short,
     )
 
 
@@ -493,25 +524,10 @@ async def agents_create(
             await db.commit()
             await db.refresh(agent)
 
-            # Create MCP server relationships if provided
-            if agent_data.mcp_relationships:
-                from src.database.models import AgentTool
-
-                for mcp_rel in agent_data.mcp_relationships:
-                    agent_tool = AgentTool(
-                        id=uuid.uuid4(),
-                        agent_id=agent.id,
-                        tool_type="mcp",
-                        mcp_server_id=uuid.UUID(
-                            mcp_rel.mcp_server_id
-                        ),
-                        allowed_tools=mcp_rel.allowed_tools,
-                        enabled=True,
-                    )
-                    db.add(agent_tool)
-
-                # Commit the MCP server relationships
-                await db.commit()
+            # Note: MCP server relationships are now created through the proper
+            # agent tools workflow which requires specific tool names.
+            # Generic MCP server relationships without tool names are not supported
+            # due to database constraints requiring tool_name for MCP tools.
             result = AgentOutput(
                 id=str(agent.id),
                 workspace_id=str(agent.workspace_id),
@@ -888,15 +904,6 @@ async def agents_get_versions(
     return None
 
 
-class AgentPublishInput(BaseModel):
-    agent_id: str = Field(..., min_length=1)
-
-
-class AgentPublishOutput(BaseModel):
-    agent: AgentOutput
-    archived_agent_id: str | None = None
-
-
 class AgentUpdateStatusInput(BaseModel):
     agent_id: str = Field(..., min_length=1)
     status: str = Field(
@@ -1040,20 +1047,6 @@ async def agents_archive(
     return AgentArchiveOutput(agent=result.agent)
 
 
-@function.defn()
-async def agents_publish(
-    function_input: AgentPublishInput,
-) -> AgentPublishOutput:
-    """Publish an agent - legacy wrapper for agents_update_status."""
-    result = await agents_update_status(
-        AgentUpdateStatusInput(
-            agent_id=function_input.agent_id, status="published"
-        )
-    )
-    return AgentPublishOutput(
-        agent=result.agent,
-        archived_agent_id=result.archived_agent_id,
-    )
 
 
 class AgentResolveInput(BaseModel):
@@ -1135,5 +1128,93 @@ async def agents_resolve_by_name(
         except Exception as e:
             raise NonRetryableError(
                 message=f"Failed to resolve agent by name: {e!s}"
+            ) from e
+    return None
+
+
+@function.defn()
+async def agents_clone(
+    clone_data: AgentCloneInput,
+) -> AgentSingleOutput:
+    """Clone an agent with all its tools."""
+    async for db in get_async_db():
+        try:
+            # Get the source agent
+            source_agent_id = uuid.UUID(clone_data.source_agent_id)
+            source_agent_query = select(Agent).where(Agent.id == source_agent_id)
+            result = await db.execute(source_agent_query)
+            source_agent = result.scalars().first()
+            
+            if not source_agent:
+                raise NonRetryableError(
+                    message=f"Source agent with ID {clone_data.source_agent_id} not found"
+                )
+
+            # Create the new agent
+            new_agent = Agent(
+                id=uuid.uuid4(),
+                workspace_id=uuid.UUID(clone_data.workspace_id),
+                name=clone_data.name,
+                description=clone_data.description or source_agent.description,
+                instructions=clone_data.instructions or source_agent.instructions,
+                status=clone_data.status,
+                parent_agent_id=source_agent_id,  # Set the source as parent
+                model=clone_data.model,
+                reasoning_effort=clone_data.reasoning_effort,
+            )
+            db.add(new_agent)
+            await db.flush()  # Get the ID without committing
+
+            # Get all tools from the source agent
+            tools_query = select(AgentTool).where(AgentTool.agent_id == source_agent_id)
+            tools_result = await db.execute(tools_query)
+            source_tools = tools_result.scalars().all()
+
+            # Clone each tool
+            for source_tool in source_tools:
+                new_tool = AgentTool(
+                    id=uuid.uuid4(),
+                    agent_id=new_agent.id,
+                    tool_type=source_tool.tool_type,
+                    mcp_server_id=source_tool.mcp_server_id,
+                    tool_name=source_tool.tool_name,
+                    custom_description=source_tool.custom_description,
+                    require_approval=source_tool.require_approval,
+                    config=source_tool.config,
+                    allowed_tools=source_tool.allowed_tools,
+                    execution_order=source_tool.execution_order,
+                    enabled=source_tool.enabled,
+                )
+                db.add(new_tool)
+
+            await db.commit()
+            await db.refresh(new_agent)
+
+            # Return the new agent
+            result = AgentOutput(
+                id=str(new_agent.id),
+                workspace_id=str(new_agent.workspace_id),
+                name=new_agent.name,
+                description=new_agent.description,
+                instructions=new_agent.instructions,
+                status=new_agent.status,
+                parent_agent_id=str(new_agent.parent_agent_id)
+                if new_agent.parent_agent_id
+                else None,
+                model=new_agent.model or "gpt-5",
+                reasoning_effort=new_agent.reasoning_effort or "medium",
+                created_at=new_agent.created_at.isoformat()
+                if new_agent.created_at
+                else None,
+                updated_at=new_agent.updated_at.isoformat()
+                if new_agent.updated_at
+                else None,
+            )
+            return AgentSingleOutput(agent=result)
+
+        except Exception as e:
+            await db.rollback()
+            raise NonRetryableError(
+                message=f"Failed to clone agent: {e!s}"
             ) from e
     return None

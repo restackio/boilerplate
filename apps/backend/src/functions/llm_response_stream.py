@@ -38,7 +38,7 @@ warnings.filterwarnings(
     "ignore",
     message=".*PydanticSerializationUnexpectedValue.*",
     category=UserWarning,
-    module="pydantic"
+    module="pydantic",
 )
 
 

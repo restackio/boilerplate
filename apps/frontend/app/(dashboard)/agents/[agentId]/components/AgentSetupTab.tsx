@@ -18,8 +18,7 @@ interface Agent {
   name?: string;
   description?: string;
   instructions?: string;
-  status?: "published" | "draft" | "archived";
-  // New GPT-5 model configuration fields
+  status: "published" | "draft" | "archived";
   model?: string;
   reasoning_effort?: string;
 }
@@ -32,7 +31,7 @@ interface AgentSetupTabProps {
   onChange?: (agentData: AgentConfigData) => void;
 }
 
-export function AgentSetupTab({ agent, onChange }: AgentSetupTabProps) {
+export function AgentSetupTab({ agent, onChange, workspaceId }: AgentSetupTabProps) {
   const [nameError, setNameError] = useState("");
   const [currentInstructions, setCurrentInstructions] = useState("");
   
@@ -98,7 +97,7 @@ export function AgentSetupTab({ agent, onChange }: AgentSetupTabProps) {
       <div className="space-y-4">
         <Label>Tools</Label>
         {agent?.id && (
-          <AgentToolsManager agentId={agent.id} />
+          <AgentToolsManager agentId={agent.id} workspaceId={workspaceId} agent={agent} />
         )}
       </div>
 

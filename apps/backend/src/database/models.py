@@ -1,14 +1,18 @@
+import uuid
 from datetime import UTC, datetime
 
 from sqlalchemy import (
+    ARRAY,
     Boolean,
     CheckConstraint,
     Column,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.ext.declarative import declarative_base
@@ -41,6 +45,11 @@ class Workspace(Base):
     teams = relationship("Team", back_populates="workspace")
     mcp_servers = relationship(
         "McpServer", back_populates="workspace"
+    )
+    user_oauth_connections = relationship(
+        "UserOAuthConnection",
+        back_populates="workspace",
+        cascade="all, delete-orphan",
     )
 
 
@@ -123,14 +132,8 @@ class McpServer(Base):
     local = Column(Boolean, nullable=False, default=False)
     server_description = Column(Text)
     headers = Column(JSONB)
-    require_approval = Column(
-        JSONB,
-        nullable=False,
-        default={
-            "never": {"tool_names": []},
-            "always": {"tool_names": []},
-        },
-    )
+    require_approval = Column(JSONB)
+
     created_at = Column(
         DateTime,
         default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
@@ -146,6 +149,11 @@ class McpServer(Base):
     # Relationships
     workspace = relationship(
         "Workspace", back_populates="mcp_servers"
+    )
+    user_oauth_connections = relationship(
+        "UserOAuthConnection",
+        back_populates="mcp_server",
+        cascade="all, delete-orphan",
     )
 
 
@@ -271,13 +279,26 @@ class AgentTool(Base):
         UUID(as_uuid=True),
         ForeignKey("mcp_servers.id", ondelete="CASCADE"),
     )
+    # MCP-specific fields (merged from AgentMcpTool)
+    tool_name = Column(String(255))  # Specific tool name for MCP tools
+    custom_description = Column(Text)  # Agent-specific tool description override
+    require_approval = Column(Boolean, nullable=False, default=False)  # Tool approval setting
+    
+    # General tool configuration
     config = Column(JSONB)
     allowed_tools = Column(JSONB)
     execution_order = Column(Integer)
     enabled = Column(Boolean, nullable=False, default=True)
+    
+    # Timestamps
     created_at = Column(
         DateTime,
         default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+    )
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+        onupdate=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
     )
 
     # Constraints
@@ -299,6 +320,15 @@ class AgentTool(Base):
             "(tool_type <> 'mcp' OR mcp_server_id IS NOT NULL)",
             name="chk_agent_tools_mcp_server",
         ),
+        CheckConstraint(
+            "(tool_type <> 'mcp' OR tool_name IS NOT NULL)",
+            name="chk_agent_tools_mcp_tool_name",
+        ),
+        # Ensure unique tool per agent per server for MCP tools
+        UniqueConstraint('agent_id', 'mcp_server_id', 'tool_name', name='uq_agent_tool_mcp'),
+        # Indexes for performance
+        Index('idx_agent_tools_agent_id', 'agent_id'),
+        Index('idx_agent_tools_mcp_server_id', 'mcp_server_id'),
     )
 
     # Relationships
@@ -410,4 +440,63 @@ class Task(Base):
         "Task",
         back_populates="schedule_task",
         foreign_keys=[schedule_task_id],
+    )
+
+
+class UserOAuthConnection(Base):
+    __tablename__ = "user_oauth_connections"
+
+    id = Column(UUID(as_uuid=True), primary_key=True)
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    workspace_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    mcp_server_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("mcp_servers.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    # Token storage - supports both OAuth and Bearer tokens
+    auth_type = Column(
+        String(20), nullable=False, default="oauth"
+    )  # "oauth" or "bearer"
+    access_token = Column(String(2000), nullable=False)
+    refresh_token = Column(String(2000))
+    token_type = Column(
+        String(50), nullable=False, default="Bearer"
+    )
+    expires_at = Column(DateTime)
+    scope = Column(ARRAY(String))
+    # Default token flag for workspace
+    is_default = Column(Boolean, nullable=False, default=False)
+    last_refreshed_at = Column(DateTime)
+    connected_at = Column(
+        DateTime,
+        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+    )
+    created_at = Column(
+        DateTime,
+        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+    )
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+        onupdate=lambda: datetime.now(tz=UTC).replace(
+            tzinfo=None
+        ),
+    )
+
+    # Relationships
+    user = relationship("User")
+    workspace = relationship(
+        "Workspace", back_populates="user_oauth_connections"
+    )
+    mcp_server = relationship(
+        "McpServer", back_populates="user_oauth_connections"
     )

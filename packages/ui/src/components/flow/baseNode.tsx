@@ -1,6 +1,6 @@
 import { forwardRef, HTMLAttributes } from "react";
  
-import { cn } from "../../lib/utils";
+import { cn } from "@workspace/ui/lib/utils";
  
 export const BaseNode = forwardRef<
   HTMLDivElement,

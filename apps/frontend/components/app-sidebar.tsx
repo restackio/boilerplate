@@ -7,14 +7,10 @@ import {
   Home,
   CopyCheck,
   Building,
-  Users,
-  Briefcase,
-  Target,
-  Zap,
-  Shield,
-  Globe,
+  Plug,
   type LucideIcon,
 } from "lucide-react";
+import { getLucideIcon } from "@workspace/ui/lib/get-lucide-icon";
 
 import { NavMain } from "@workspace/ui/components/nav-main";
 import { NavTeams } from "@workspace/ui/components/nav-teams";
@@ -67,19 +63,9 @@ function formatUserForUI(user: RawUser) {
   };
 }
 
-// Helper function to get icon component by name
+// Helper function to get icon component by name - supports any Lucide icon
 function getIconByName(iconName?: string): LucideIcon {
-  const iconMap: Record<string, LucideIcon> = {
-    Building,
-    Users,
-    Briefcase,
-    Target,
-    Zap,
-    Shield,
-    Globe,
-  };
-  
-  return iconMap[iconName || 'Building'] || Building;
+  return getLucideIcon(iconName);
 }
 
 // Helper function to format team data for UI components
@@ -154,6 +140,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         title: "Agents",
         url: "/agents",
         icon: Bot,
+      },
+      {
+        title: "Integrations",
+        url: "/integrations",
+        icon: Plug,
       },
     ],
     teams: teams.map(formatTeamForUI),

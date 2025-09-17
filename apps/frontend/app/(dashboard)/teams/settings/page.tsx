@@ -10,7 +10,7 @@ import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions"
 import { Input } from "@workspace/ui/components/ui/input";
 import { Label } from "@workspace/ui/components/ui/label";
 import { Textarea } from "@workspace/ui/components/ui/textarea";
-import { Building, Users, Briefcase, Target, Zap, Shield, Globe } from "lucide-react";
+import { LucideIconPicker } from "@workspace/ui/components/lucide-icon-picker";
 
 export default function TeamsSettingsPage() {
   const router = useRouter();
@@ -23,15 +23,6 @@ export default function TeamsSettingsPage() {
     icon: "Building",
   });
 
-  const availableIcons = [
-    { name: "Building", component: Building },
-    { name: "Users", component: Users },
-    { name: "Briefcase", component: Briefcase },
-    { name: "Target", component: Target },
-    { name: "Zap", component: Zap },
-    { name: "Shield", component: Shield },
-    { name: "Globe", component: Globe },
-  ];
 
   useEffect(() => {
     fetchTeams();
@@ -184,23 +175,12 @@ export default function TeamsSettingsPage() {
                 />
               </div>
               
-              <div className="space-y-2">
-                <Label>Team Icon</Label>
-                <div className="grid grid-cols-7 gap-2">
-                  {availableIcons.map((icon) => (
-                    <button
-                      key={icon.name}
-                      type="button"
-                      onClick={() => setCreateFormData(prev => ({ ...prev, icon: icon.name }))}
-                      className={`p-3 border rounded-lg hover:bg-muted transition-colors ${
-                        createFormData.icon === icon.name ? 'border-primary bg-primary/10' : 'border-border'
-                      }`}
-                    >
-                      <icon.component className="h-5 w-5" />
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <LucideIconPicker
+                label="Team Icon"
+                value={createFormData.icon}
+                onValueChange={(iconName) => setCreateFormData(prev => ({ ...prev, icon: iconName }))}
+                placeholder="Choose an icon for your team"
+              />
             </div>
             
             <div className="flex gap-2 justify-end mt-6">
