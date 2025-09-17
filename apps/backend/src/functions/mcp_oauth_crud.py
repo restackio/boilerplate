@@ -1,7 +1,7 @@
 """MCP OAuth CRUD operations for token management."""
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 from pydantic import BaseModel, Field
 from restack_ai.function import NonRetryableError, function, log
@@ -186,8 +186,10 @@ async def oauth_token_create_or_update(
     function_input: SaveOAuthTokenInput,
 ) -> SaveOAuthTokenOutput:
     """Create or update OAuth token."""
-    log.info(f"Starting oauth_token_create_or_update with input: {function_input}")
-    
+    log.info(
+        f"Starting oauth_token_create_or_update with input: {function_input}"
+    )
+
     async for db in get_async_db():
         log.info("Database connection established")
         try:
@@ -232,7 +234,7 @@ async def oauth_token_create_or_update(
             expires_at = None
             if function_input.expires_in:
                 expires_at = (
-                    datetime.now(timezone.utc)
+                    datetime.now(datetime.UTC)
                     + timedelta(seconds=function_input.expires_in)
                 ).replace(tzinfo=None)
 
@@ -274,7 +276,7 @@ async def oauth_token_create_or_update(
                 )
                 existing_token.is_default = should_be_default
                 existing_token.updated_at = datetime.now(
-                    timezone.utc
+                    datetime.UTC
                 ).replace(tzinfo=None)
                 token = existing_token
             else:
@@ -319,12 +321,16 @@ async def oauth_token_create_or_update(
             )
 
         except SQLAlchemyError as e:
-            log.error(f"SQLAlchemy error in oauth_token_create_or_update: {e}")
+            log.error(
+                f"SQLAlchemy error in oauth_token_create_or_update: {e}"
+            )
             raise NonRetryableError(
                 message=f"Database error saving OAuth token: {e}"
             ) from e
         except Exception as e:
-            log.error(f"Unexpected error in oauth_token_create_or_update: {e}")
+            log.error(
+                f"Unexpected error in oauth_token_create_or_update: {e}"
+            )
             log.error(f"Error type: {type(e)}")
             raise NonRetryableError(
                 message=f"Unexpected error saving OAuth token: {e}"
@@ -486,7 +492,7 @@ async def get_oauth_token_for_mcp_server(  # noqa: C901
                 return None
 
             # Check if token is expired or about to expire (within 5 minutes)
-            now = datetime.now(timezone.utc).replace(tzinfo=None)
+            now = datetime.now(datetime.UTC).replace(tzinfo=None)
             if (
                 oauth_connection.expires_at
                 and oauth_connection.expires_at <= now
@@ -705,7 +711,7 @@ async def oauth_token_refresh_and_update(
                     expires_at = None
                     if token_data.expires_in:
                         expires_at = (
-                            datetime.now(timezone.utc)
+                            datetime.now(datetime.UTC)
                             + timedelta(
                                 seconds=token_data.expires_in
                             )
@@ -731,12 +737,12 @@ async def oauth_token_refresh_and_update(
                         else None
                     )
                     existing_token.last_refreshed_at = (
-                        datetime.now(timezone.utc).replace(
+                        datetime.now(datetime.UTC).replace(
                             tzinfo=None
                         )
                     )
                     existing_token.updated_at = datetime.now(
-                        timezone.utc
+                        datetime.UTC
                     ).replace(tzinfo=None)
 
                     await db.commit()
@@ -910,7 +916,7 @@ async def oauth_token_set_default(
 
             # Set this token as default
             token.is_default = True
-            token.updated_at = datetime.now(timezone.utc).replace(
+            token.updated_at = datetime.now(datetime.UTC).replace(
                 tzinfo=None
             )
 
@@ -976,7 +982,7 @@ async def oauth_token_set_default_by_id(
 
             # Set this token as default
             token.is_default = True
-            token.updated_at = datetime.now(timezone.utc).replace(
+            token.updated_at = datetime.now(datetime.UTC).replace(
                 tzinfo=None
             )
 
