@@ -1,4 +1,4 @@
-# MCP Server
+# Mcp server
 
 Model Context Protocol server for external tool integrations and API connections.
 

@@ -1,4 +1,4 @@
-# Webhook Server
+# Webhook server
 
 FastAPI server that converts webhook events from external services into agent tasks.
 
@@ -49,7 +49,7 @@ POST /webhook/workspace/{workspace_id}/agent/{agent_name}
 
 ## Examples
 
-### GitHub pull request
+### Github pull request
 ```bash
 curl -X POST "http://localhost:8000/webhook/workspace/ws-123/agent/github-pr" \
   -H "Content-Type: application/json" \

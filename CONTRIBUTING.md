@@ -1,4 +1,4 @@
-# Contributing to Restack Boilerplate
+# Contributing to restack boilerplate
 
 Welcome to the developer documentation. This guide covers the technical architecture, development setup with hot reloading, and contribution workflows.
 

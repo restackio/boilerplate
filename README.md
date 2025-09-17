@@ -86,7 +86,7 @@ cp env.development.example .env
 OPENAI_API_KEY=sk-your-key-here
 ```
 
-### MCP server public access
+### Mcp server public access
 OpenAI needs a public URL to call your MCP server tools:
 
 ```bash
