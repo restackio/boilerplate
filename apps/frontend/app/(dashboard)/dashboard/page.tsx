@@ -2,10 +2,10 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { TasksTable, type Task as UITask } from "@workspace/ui/components/tasks-table";
+import { TasksTable, type Task as UITask } from "../tasks/components/tasks-table";
+import { CenteredLoading, ErrorNotification } from "@workspace/ui/components";
 import { useWorkspaceScopedActions, type Task as HookTask } from "@/hooks/use-workspace-scoped-actions";
-import { CreateTaskForm } from "@/components/create-task-form";
-import { Loader2 } from "lucide-react";
+import { CreateTaskForm } from "../tasks/components/create-task-form";
 
 function convertHookTaskToUITask(hookTask: HookTask): UITask {
   return {
@@ -84,13 +84,9 @@ export default function DashboardPage() {
 
       {/* My tasks */}
       {tasksLoading.isLoading ? (
-        <div className="flex items-center justify-center h-32">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
+        <CenteredLoading message="Loading tasks..." height="h-32" />
       ) : tasksLoading.error ? (
-        <div className="text-center py-8">
-          <p className="text-muted-foreground">Failed to load tasks: {tasksLoading.error}</p>
-        </div>
+        <ErrorNotification error={`Failed to load tasks: ${tasksLoading.error}`} />
       ) : (
         <div className="space-y-4">
           <div className="flex items-center justify-between">

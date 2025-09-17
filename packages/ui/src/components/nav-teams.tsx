@@ -2,7 +2,6 @@
 
 import {
   ChevronRight,
-  Settings,
   type LucideIcon,
 } from "lucide-react";
 

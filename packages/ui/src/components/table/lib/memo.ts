@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 export function memo<TDeps extends readonly any[], TResult>(
   getDeps: () => TDeps,
   compute: (deps: TDeps) => TResult,

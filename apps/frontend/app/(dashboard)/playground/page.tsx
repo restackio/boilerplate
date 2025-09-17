@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
 import { executeWorkflow } from "@/app/actions/workflow";
+import { EmptyState } from "@workspace/ui/components/empty-state";
 import { 
   PlaygroundHeader,
   PlaygroundLeftPanel,
@@ -149,23 +150,18 @@ export default function PlaygroundPage() {
     }
   };
 
+  // Note: Loading state is now handled by loading.tsx
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading playground...</p>
-        </div>
-      </div>
-    );
+    return null; // Next.js loading.tsx will handle the loading state
   }
 
   if (!draftAgent) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <p className="text-muted-foreground">Agent not found</p>
-        </div>
+        <EmptyState
+          title="Agent not found"
+          description="The agent you're looking for could not be loaded."
+        />
       </div>
     );
   }

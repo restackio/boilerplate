@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 import { Button } from "@workspace/ui/components/ui/button";
 import { Calendar } from "@workspace/ui/components/ui/calendar";
 import { Checkbox } from "@workspace/ui/components/ui/checkbox";
@@ -500,7 +501,7 @@ export function FilterValueOptionController<TData>({
       initialSelected: filter?.values.includes(o.value),
       count: counts?.get(o.value) ?? 0,
     }));
-  }, []);
+  }, [column, filter?.values]);
 
   const [options, setOptions] = useState(initialOptions);
 
@@ -579,7 +580,7 @@ export function FilterValueMultiOptionController<TData>({
         count: counts?.get(o.value) ?? 0,
       };
     });
-  }, []);
+  }, [column, filter?.values]);
 
   const [options, setOptions] = useState(initialOptions);
 
@@ -809,7 +810,7 @@ export function FilterValueNumberController<TData>({
       actions.setFilterOperator(column.id, newOperator);
       actions.setFilterValue(column, newValues);
     },
-    [values, column, actions, minMax]
+    [values, column, actions, minMax, setFilterOperatorDebounced, setFilterValueDebounced]
   );
 
   return (

@@ -1,6 +1,4 @@
-import json
 import random
-from datetime import timedelta
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -54,10 +52,7 @@ def _raise_activity_failure() -> None:
 
 
 with import_functions():
-    from src.functions.llm_response import (
-        LlmResponseInput,
-        llm_response,
-    )
+    pass
 
 
 class FailingMcpTestInput(BaseModel):
@@ -102,7 +97,7 @@ class MockFailingMcpTest:
                     "user_request": workflow_input.user_request,
                     "timestamp": "2024-01-01T12:00:00Z",
                 }
-                
+
                 log.info("MockFailingMcpTest completed successfully", result=success_result)
                 return FailingMcpTestOutput(
                     result=success_result,
@@ -114,7 +109,7 @@ class MockFailingMcpTest:
             if failure_type == "random":
                 failure_types = [
                     "timeout",
-                    "invalid_params", 
+                    "invalid_params",
                     "tool_not_found",
                     "permission_denied",
                     "network_error",
@@ -151,6 +146,6 @@ class MockFailingMcpTest:
         except Exception as e:
             error_message = f"MockFailingMcpTest simulated error ({failure_type}): {e}"
             log.error(error_message)
-            
+
             # Re-raise as NonRetryableError to simulate MCP tool failure
             raise NonRetryableError(error_message) from e

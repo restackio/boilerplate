@@ -4,12 +4,11 @@ import { useParams } from "next/navigation";
 import { TooltipProvider } from "@workspace/ui/components/ui/tooltip";
 import { PageHeader } from "@workspace/ui/components/page-header";
 import { 
-  AgentPageSkeleton,
   AgentActions,
   AgentNotFound,
   AgentTabNavigation
 } from "./components";
-import { useAgentPage } from "./hooks/useAgentPage";
+import { useAgentPage } from "./hooks/use-agent-page";
 
 export default function AgentEditPage() {
   const params = useParams();
@@ -17,7 +16,6 @@ export default function AgentEditPage() {
   
   const {
     agent,
-    isLoading,
     isReady,
     workspaceId,
     activeTab,
@@ -34,13 +32,10 @@ export default function AgentEditPage() {
     getAgentVersions,
   } = useAgentPage(agentId);
 
-  // Show loading state
-  if (!isReady || isLoading) {
-    return (
-      <TooltipProvider>
-        <AgentPageSkeleton />
-      </TooltipProvider>
-    );
+  // Note: Loading state is now handled by loading.tsx
+  // Only check if data is ready, not if it's loading
+  if (!isReady) {
+    return null; // Next.js loading.tsx will handle the loading state
   }
 
   // Show not found state

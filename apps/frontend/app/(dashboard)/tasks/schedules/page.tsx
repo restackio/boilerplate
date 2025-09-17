@@ -2,19 +2,20 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@workspace/ui/components/ui/button";
+import { ActionButtonGroup, type ActionButton } from "@workspace/ui/components/action-button-group";
 import { PageHeader } from "@workspace/ui/components/page-header";
 import { SchedulesTable } from "@workspace/ui/components/schedules-table";
+import { CenteredLoading } from "@workspace/ui/components/loading-states";
+import { NotificationBanner } from "@workspace/ui/components/notification-banner";
+import { QuickActionDialog, useQuickActionDialog } from "@workspace/ui/components/quick-action-dialog";
 import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
 import { executeWorkflow } from "@/app/actions/workflow";
-import { CreateTaskForm } from "@/components/create-task-form";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@workspace/ui/components/ui/dialog";
-import TasksTabs from "../TasksTabs";
+import { CreateTaskForm } from "../components/create-task-form";
+import TasksTabs from "../tasks-tabs";
 import { 
   Bot,
   Plus,
-  RefreshCw,
-  Clock
+  RefreshCw
 } from "lucide-react";
 
 interface ScheduleOverview {
@@ -34,7 +35,7 @@ interface ScheduleOverview {
 export default function SchedulesPage() {
   const router = useRouter();
   const [updating, setUpdating] = useState<string | null>(null);
-  const [showCreateModal, setShowCreateModal] = useState(false);
+  const { isOpen, open, close } = useQuickActionDialog();
   
   const { tasks: allTasks, teams, agents, tasksLoading, fetchTasks, fetchTeams, fetchAgents, createTask, isReady } = useWorkspaceScopedActions();
 
@@ -117,9 +118,9 @@ export default function SchedulesPage() {
     return result;
   };
 
-  const handleTaskCreated = async (taskData: { id: string }) => {
-    // Close the modal
-    setShowCreateModal(false);
+  const handleTaskCreated = async () => {
+    // Close the dialog
+    close();
     // The CreateTaskForm will navigate to the schedule page automatically
   };
 
@@ -138,45 +139,27 @@ export default function SchedulesPage() {
 
   const breadcrumbs = [{ label: "Schedules" }];
 
+  // Define action buttons using our ActionButtonGroup
+  const actionButtons: ActionButton[] = [
+    {
+      key: "refresh",
+      label: "Refresh",
+      icon: RefreshCw,
+      variant: "outline",
+      loading: tasksLoading.isLoading || updating !== null,
+      onClick: handleRefresh,
+    },
+    {
+      key: "create",
+      label: "New Schedule",
+      icon: Plus,
+      variant: "ghost",
+      onClick: open,
+    },
+  ];
+
   const actions = (
-    <div className="flex gap-2">
-      <Button 
-        size="sm" 
-        variant="outline" 
-        onClick={handleRefresh}
-        disabled={tasksLoading.isLoading || updating !== null}
-      >
-        <RefreshCw className={`h-4 w-4 mr-1 ${tasksLoading.isLoading || updating !== null ? 'animate-spin' : ''}`} />
-        Refresh
-      </Button>
-      <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
-        <DialogTrigger asChild>
-          <Button 
-            variant="ghost" 
-            size="sm"
-          >
-            <Plus className="h-4 w-4 mr-1" />
-            New Schedule
-          </Button>
-        </DialogTrigger>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5" />
-              Create New Schedule
-            </DialogTitle>
-          </DialogHeader>
-          <div className="mt-4">
-            <CreateTaskForm
-              onSubmit={handleCreateTask}
-              onTaskCreated={handleTaskCreated}
-              placeholder="Describe the task to be scheduled..."
-              buttonText="Create task"
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
+    <ActionButtonGroup actions={actionButtons} />
   );
 
   return (
@@ -186,19 +169,17 @@ export default function SchedulesPage() {
       <div className="p-4 space-y-4">
         {/* Error state */}
         {tasksLoading.error && (
-          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
-            <p className="text-red-800 text-sm">Error: {tasksLoading.error}</p>
-          </div>
+          <NotificationBanner
+            variant="error"
+            title="Error"
+            description={`Failed to load schedules: ${tasksLoading.error}`}
+            dismissible={false}
+          />
         )}
 
         {/* Loading state */}
         {tasksLoading.isLoading && allTasks.length === 0 ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="text-center">
-              <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-2 text-muted-foreground" />
-              <p className="text-muted-foreground">Loading schedules...</p>
-            </div>
-          </div>
+          <CenteredLoading message="Loading schedules..." height="h-64" />
         ) : (
           <SchedulesTable
             data={schedules}
@@ -211,6 +192,22 @@ export default function SchedulesPage() {
           />
         )}
       </div>
+
+      {/* Create Schedule Dialog */}
+      <QuickActionDialog
+        isOpen={isOpen}
+        onClose={close}
+        title="Create New Schedule"
+        description="Create a new scheduled task that will run automatically"
+        size="xl"
+      >
+        <CreateTaskForm
+          onSubmit={handleCreateTask}
+          onTaskCreated={handleTaskCreated}
+          placeholder="Describe the task to be scheduled..."
+          buttonText="Create schedule"
+        />
+      </QuickActionDialog>
     </div>
   );
 }

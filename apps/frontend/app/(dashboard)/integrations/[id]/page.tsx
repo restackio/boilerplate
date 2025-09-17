@@ -14,7 +14,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useWorkspaceScopedActions, McpServer } from "../../../../hooks/use-workspace-scoped-actions";
-import { IntegrationSetupTabSimplified } from "./components/integration-setup-tab-simplified";
+import { IntegrationSetupTab } from "./components/integration-setup-tab";
 import { IntegrationTokensTab } from "./components/integration-tokens-tab";
 
 
@@ -27,8 +27,16 @@ export default function IntegrationDetailPage() {
   const [activeTab, setActiveTab] = useState("setup");
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  interface McpServerFormData {
+    server_label: string;
+    server_url: string;
+    local: boolean;
+    server_description: string;
+    headers: Record<string, string>;
+  }
+
   const [setupData, setSetupData] = useState<{
-    formData?: any;
+    formData?: McpServerFormData;
     headerInput?: string;
   }>({});
 
@@ -94,7 +102,7 @@ export default function IntegrationDetailPage() {
                   <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                   <h3 className="text-lg font-semibold mb-2">Integration not found</h3>
                   <p className="text-muted-foreground mb-4">
-                    The integration you're looking for doesn't exist or you don't have access to it.
+                    The integration you&apos;re looking for doesn&apos;t exist or you don&apos;t have access to it.
                   </p>
                   <Button onClick={() => router.push("/integrations")}>
                     Back to Integrations
@@ -250,7 +258,7 @@ export default function IntegrationDetailPage() {
                 </div>
 
                 <TabsContent value="setup" className="p-6 space-y-6">
-                  <IntegrationSetupTabSimplified 
+                  <IntegrationSetupTab 
                     server={server} 
                     onDataChange={setSetupData}
                   />

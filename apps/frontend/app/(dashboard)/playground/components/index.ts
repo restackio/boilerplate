@@ -1,6 +1,6 @@
-export { PlaygroundHeader } from './PlaygroundHeader';
-export { PlaygroundLeftPanel } from './PlaygroundLeftPanel';
-export { PlaygroundMiddlePanel } from './PlaygroundMiddlePanel';
-export { PlaygroundRightPanel } from './PlaygroundRightPanel';
-export { PlaygroundToolsDisplay } from './PlaygroundToolsDisplay';
-export { PlaygroundTaskExecution } from './PlaygroundTaskExecution';
+export { PlaygroundHeader } from './playground-header';
+export { PlaygroundLeftPanel } from './playground-left-panel';
+export { PlaygroundMiddlePanel } from './playground-middle-panel';
+export { PlaygroundRightPanel } from './playground-right-panel';
+export { PlaygroundToolsDisplay } from './playground-tools-display';
+export { PlaygroundTaskExecution } from './playground-task-execution';

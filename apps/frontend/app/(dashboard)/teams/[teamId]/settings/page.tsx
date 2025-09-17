@@ -7,9 +7,9 @@ import { Button } from "@workspace/ui/components/ui/button";
 import { Input } from "@workspace/ui/components/ui/input";
 import { Label } from "@workspace/ui/components/ui/label";
 import { Textarea } from "@workspace/ui/components/ui/textarea";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/ui/card";
+// Card components not currently used but available for future UI improvements
 
-import { ArrowLeft, Save, Trash2, RefreshCw } from "lucide-react";
+import { Trash2, RefreshCw } from "lucide-react";
 import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
 import { Team } from "@/hooks/use-workspace-scoped-actions";
 import { LucideIconPicker } from "@workspace/ui/components/lucide-icon-picker";
@@ -24,7 +24,7 @@ export default function TeamSettingsPage() {
   const [team, setTeam] = useState<Team | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+  const [_deleting, setDeleting] = useState(false);
   
   const [formData, setFormData] = useState({
     name: "",

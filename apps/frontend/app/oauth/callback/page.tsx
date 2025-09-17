@@ -240,14 +240,6 @@ export default function OAuthCallbackPage() {
                 Close Window
               </Button>
             </div>
-            
-            {/* Debug information */}
-            <div className="mt-6 p-3 bg-gray-100 rounded text-left text-sm">
-              <p className="font-medium mb-1">Debug Information:</p>
-              <p className="text-gray-600">
-                Check the browser console for more details, and see OAUTH_SETUP.md for configuration help.
-              </p>
-            </div>
           </>
         )}
       </div>

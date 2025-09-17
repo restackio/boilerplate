@@ -4,6 +4,7 @@ import type React from "react";
 import { useMemo, useState } from "react";
 import { createColumns } from "../core/filters";
 import { DEFAULT_OPERATORS, determineNewOperator } from "../core/operators";
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import type {
   ColumnConfig,
   ColumnDataType,

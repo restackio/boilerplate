@@ -19,7 +19,7 @@ export function useRxjsConversation({
   agentResponses = [],
   taskAgentTaskId,
   persistedMessages,
-  storeKey = 'default'
+  storeKey = 'default' // Note: currently unused but kept for future store differentiation
 }: UseRxjsConversationProps) {
   const [conversation, setConversation] = useState<ConversationItem[]>([]);
 
@@ -43,20 +43,20 @@ export function useRxjsConversation({
     if (persistedMessages?.length && !responseState) {
       // Use persisted messages when no active responseState
       const items: ConversationItem[] = persistedMessages
-        // @ts-ignore - persistedMessages has unknown type but we're filtering for required properties
+        // @ts-expect-error - persistedMessages has unknown type but we're filtering for required properties
         .filter(msg => msg.id && msg.type)
         .map(msg => ({
-          // @ts-ignore - msg properties are unknown but filtered above
+          // @ts-expect-error - msg properties are unknown but filtered above
           id: msg.id,
-          // @ts-ignore
+          // @ts-expect-error - msg type property is unknown
           type: msg.type,
-          // @ts-ignore
+          // @ts-expect-error - msg timestamp property is unknown
           timestamp: msg.timestamp || new Date().toISOString(),
-          // @ts-ignore
+          // @ts-expect-error - msg output property is unknown
           openai_output: msg.openai_output || msg,
-          // @ts-ignore
+          // @ts-expect-error - msg event property is unknown
           openai_event: msg.openai_event || { sequence_number: 0 },
-          // @ts-ignore - Preserve error property for error items
+          // @ts-expect-error - Preserve error property for error items
           error: msg.error,
           isStreaming: false,
         }));
@@ -85,7 +85,14 @@ export function useRxjsConversation({
           timestamp: event.timestamp || new Date().toISOString(),
           openai_output: null,
           openai_event: event,
-          error: errorEvent.error,
+          error: {
+            id: errorEvent.error.id as string,
+            type: (errorEvent.error.type as string) || 'error',
+            error_type: (errorEvent.error.error_type as string) || 'unknown',
+            error_message: (errorEvent.error.message as string) || 'An error occurred',
+            error_source: (errorEvent.error.error_source as "openai" | "mcp" | "backend" | "network") || 'backend',
+            error_details: errorEvent.error
+          },
           isStreaming: false,
         });
       }
@@ -249,7 +256,7 @@ export function useRxjsConversation({
     }
 
     // Convert to simple StreamEvent format
-    // @ts-ignore - agentResponses has unknown properties but we're mapping to expected StreamEvent format
+    // @ts-expect-error - agentResponses has unknown properties but we're mapping to expected StreamEvent format
     const streamEvents: StreamEvent[] = agentResponses
       .map(response => ({
         type: response.type,

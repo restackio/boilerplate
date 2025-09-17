@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useWorkspaceActions } from "../hooks/use-workspace-actions";
-import { User } from "../hooks/use-user-actions";
+import { User } from "../types/user";
 import { Workspace } from "../hooks/use-workspace-actions";
 
 interface DatabaseWorkspaceContextType {

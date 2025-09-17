@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-this-alias */
 type ControlFunctions = {
   cancel: () => void
   flush: () => void

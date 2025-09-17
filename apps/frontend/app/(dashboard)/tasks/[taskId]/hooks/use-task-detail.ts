@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useWorkspaceScopedActions, Task } from "@/hooks/use-workspace-scoped-actions";
-import { useAgentState } from "@/hooks/use-agent-state";
-import { ConversationItem } from "../types";
+import { useAgentState } from "@/app/(dashboard)/agents/[agentId]/hooks/use-agent-state";
+import { ConversationItem, OpenAIEvent } from "../types";
 // Remove unused import
 import { useRxjsConversation } from "./use-rxjs-conversation";
 
@@ -14,7 +14,7 @@ export function useTaskDetail() {
   const [task, setTask] = useState<Task | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [chatMessage, setChatMessage] = useState("");
@@ -33,8 +33,8 @@ export function useTaskDetail() {
   });
 
   const { conversation, updateConversationItemStatus } = useRxjsConversation({
-    responseState: responseState,
-    agentResponses: agentResponses,
+    responseState: responseState as { events: OpenAIEvent[]; [key: string]: unknown } | false,
+    agentResponses: agentResponses as { events?: OpenAIEvent[]; [key: string]: unknown }[],
     taskAgentTaskId: task?.agent_task_id,
     persistedMessages: task?.messages,
     storeKey: taskId, // Use taskId as unique store key
@@ -112,7 +112,7 @@ export function useTaskDetail() {
       console.error("Failed to delete task:", error);
     } finally {
       setIsDeleting(false);
-      setShowDeleteModal(false);
+      setShowDeleteDialog(false);
     }
   };
 
@@ -166,7 +166,7 @@ export function useTaskDetail() {
     task,
     isLoading,
     error,
-    showDeleteModal,
+    showDeleteDialog,
     isUpdating,
     isDeleting,
     chatMessage,
@@ -175,7 +175,7 @@ export function useTaskDetail() {
     selectedCard,
     conversation,
     agentLoading,
-    setShowDeleteModal,
+    setShowDeleteDialog,
     setChatMessage,
     setActiveTab,
     handleUpdateTask,

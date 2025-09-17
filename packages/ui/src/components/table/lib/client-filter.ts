@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { Column, FiltersState } from "../core/types";
 import {
   optionFilterFn,

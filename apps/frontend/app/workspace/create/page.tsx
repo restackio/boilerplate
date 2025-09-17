@@ -1,50 +1,42 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@workspace/ui/components/ui/card";
+// MultiStepWizard component would need to be implemented for future wizard functionality
+// CenteredLoading available for enhanced loading states
+// NotificationBanner available for enhanced error handling
 import { Button } from "@workspace/ui/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/ui/card";
 import { Input } from "@workspace/ui/components/ui/input";
 import { Label } from "@workspace/ui/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@workspace/ui/components/ui/select";
 import { Textarea } from "@workspace/ui/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@workspace/ui/components/ui/select";
-import {
-  ArrowRight,
-  ArrowLeft,
-  Building,
-  CheckCircle,
-  Loader2,
-} from "lucide-react";
+import { Building, CheckCircle, ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { executeWorkflow } from "@/app/actions/workflow";
 
+interface FormData {
+  companyName: string;
+  companySize: string;
+  industry: string;
+  contactRole: string;
+  useCase: string;
+  description: string;
+}
+
 export default function CreateWorkspacePage() {
-  const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
-  const router = useRouter();
-  const [formData, setFormData] = useState({
+  const [currentStep, setCurrentStep] = useState(1);
+  const [formData, setFormData] = useState<FormData>({
     companyName: "",
     companySize: "",
     industry: "",
-    useCase: "",
-    timeline: "",
-    contactName: "",
-    contactEmail: "",
     contactRole: "",
+    useCase: "",
+    description: "",
   });
+  const router = useRouter();
 
   // Check authentication on mount
   useEffect(() => {

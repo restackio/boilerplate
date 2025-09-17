@@ -147,7 +147,7 @@ export default function TeamsSettingsPage() {
         </div>
       </div>
 
-      {/* Create team modal */}
+      {/* Create team dialog */}
       {showCreateForm && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
           <div className="bg-card border rounded-lg p-6 w-full max-w-md">

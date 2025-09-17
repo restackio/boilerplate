@@ -5,13 +5,16 @@ import { useTaskDetail } from "./hooks/use-task-detail";
 import { sendMcpApproval } from "@/app/actions/agent";
 import {
   TaskHeader,
-  TaskLoadingState,
-  TaskErrorState,
-  TaskNotFoundState,
   TaskChatInterface,
   TaskSplitView,
-  DeleteTaskModal,
 } from "./components";
+import {
+  EntityLoadingState,
+  EntityErrorState,
+  EntityNotFoundState,
+  ConfirmationDialog,
+  createConfirmationConfig,
+} from "@workspace/ui/components";
 // Back to original interface
 
 export default function TaskDetailPage() {
@@ -19,7 +22,7 @@ export default function TaskDetailPage() {
     task,
     isLoading,
     error,
-    showDeleteModal,
+    showDeleteDialog,
     isUpdating,
     isDeleting,
     chatMessage,
@@ -28,7 +31,7 @@ export default function TaskDetailPage() {
     selectedCard,
     conversation,
     agentLoading,
-    setShowDeleteModal,
+    setShowDeleteDialog,
     setChatMessage,
     setActiveTab,
     handleUpdateTask,
@@ -95,22 +98,22 @@ export default function TaskDetailPage() {
   const taskId = useParams()?.taskId as string;
 
   if (isLoading) {
-    return <TaskLoadingState taskId={taskId} />;
+    return <EntityLoadingState entityId={taskId} entityType="task" />;
   }
 
   if (error) {
-    return <TaskErrorState error={error} taskId={taskId} onBack={handleBack} />;
+    return <EntityErrorState error={error} entityId={taskId} entityType="task" onBack={handleBack} />;
   }
 
   if (!task) {
-    return <TaskNotFoundState taskId={taskId} onBack={handleBack} />;
+    return <EntityNotFoundState entityId={taskId} entityType="task" onBack={handleBack} />;
   }
 
   return (
     <div>
       <TaskHeader 
         task={task} 
-        onDelete={() => setShowDeleteModal(true)} 
+        onDelete={() => setShowDeleteDialog(true)} 
         onUpdateTask={handleUpdateTask} 
       />
       
@@ -139,12 +142,12 @@ export default function TaskDetailPage() {
         />
       </div>
 
-      <DeleteTaskModal
-        isOpen={showDeleteModal}
-        onClose={() => setShowDeleteModal(false)}
+      <ConfirmationDialog
+        isOpen={showDeleteDialog}
+        onClose={() => setShowDeleteDialog(false)}
         onConfirm={handleDeleteTask}
-        taskTitle={task.title}
         isLoading={isDeleting}
+        {...createConfirmationConfig.delete(task.title, "task")}
       />
     </div>
   );

@@ -25,6 +25,7 @@ export function EmptyState({
   return (
     <Card className={`border-dashed border-2 ${className}`}>
       <CardContent className="flex flex-col items-center justify-center py-12 px-6 text-center">
+        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
         <div className="mb-4 opacity-50">{icon as any}</div>
         <h3 className="text-lg font-semibold mb-2">{title}</h3>
         <p className="text-muted-foreground mb-6 max-w-md">{description}</p>

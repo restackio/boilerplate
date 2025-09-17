@@ -23,9 +23,9 @@ import {
   Download,
   RotateCcw,
 } from "lucide-react";
-import { nodeTypes, NodeData } from "./flow/workflowNode";
-import { edgeTypes } from "./flow/baseEdge";
-import { createNode, getLayoutedElements } from "./flow/autoLayout";
+import { nodeTypes, NodeData } from "./flow/workflow-node";
+import { edgeTypes } from "./flow/base-edge";
+import { createNode, getLayoutedElements } from "./flow/auto-layout";
 
 // Initial nodes for the agent flow
 const initialNodes: Node[] = [
@@ -267,6 +267,7 @@ export default function AgentFlow() {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(initialEdges);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
   const [isLayouting, setIsLayouting] = useState(false);
 

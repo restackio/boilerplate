@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { runWorkflow, getWorkflowResult, testServerAction } from "@/app/actions/workflow";
-import { User } from "./use-user-actions";
+import { runWorkflow, getWorkflowResult } from "@/app/actions/workflow";
+import { User } from "../types/user";
 
 interface ApiResponse<T = any> {
   success: boolean;
@@ -111,12 +111,6 @@ export function useWorkspaceActions(currentUser?: User | null, currentWorkspaceI
     }
     
     try {
-      try {
-        await testServerAction();
-      } catch (testError) {
-        console.error("Test server action failed:", testError);
-      }
-      
       const result = await executeWorkflow<Workspace[]>("WorkspacesReadWorkflow", {
         user_id: user.id
       });

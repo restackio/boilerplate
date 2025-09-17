@@ -2,15 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { IntegrationsTable } from "@workspace/ui/components/integrations-table";
+import { IntegrationsTable } from "./components/integrations-table";
 import { PageHeader } from "@workspace/ui/components/page-header";
 import { Button } from "@workspace/ui/components/ui/button";
 import { RefreshCw, Plus } from "lucide-react";
 import { useWorkspaceScopedActions, McpServer } from "../../../hooks/use-workspace-scoped-actions";
 import { useOAuthFlow } from "../../../hooks/use-oauth-flow";
 import { useDatabaseWorkspace } from "../../../lib/database-workspace-context";
-import { AddMcpServerDialog } from "./components/AddMcpServerDialog";
-import { AddTokenDialog } from "../../../components/add-token-dialog";
+import { AddMcpServerDialog } from "./components/add-mcp-server-dialog";
+import { AddTokenDialog } from "./components/add-token-dialog";
 
 // Map McpServer to Integration format for the table component
 const mapServerToIntegration = (server: McpServer) => ({

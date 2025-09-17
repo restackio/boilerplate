@@ -41,9 +41,6 @@ export async function runWorkflow({
   }
 }
 
-export async function testServerAction() {
-  return { success: true, message: "Server action working" };
-}
 
 // Helper function for executing workflows and getting results
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -322,18 +319,6 @@ export async function deleteAgentMcpServer(agentMcpServerId: string) {
   });
 }
 
-export async function getAgentMcpServerById() {
-  // This function is no longer needed as we use the unified agent_tools approach
-  // If needed, individual tools can be queried through getAgentTools and filtered
-  throw new Error("getAgentMcpServerById is deprecated - use getAgentTools and filter by tool_type='mcp'");
-}
-
-// Agent MCP Tools (now unified with regular agent tools)
-export async function getAgentMcpTools(agentId: string) {
-  // Use the unified agent tools system
-  return await getAgentTools(agentId);
-}
-
 export async function createAgentMcpTool(toolData: {
   agent_id: string;
   mcp_server_id: string;
@@ -374,20 +359,3 @@ export async function deleteAgentMcpTool(toolId: string) {
   return await deleteAgentTool({ agent_tool_id: toolId });
 }
 
-
-// Zendesk Ticket Workflow
-export async function generateZendeskTicket(ticketData: {
-  user_request: string;
-  priority?: string;
-  ticket_type?: string;
-}) {
-  const { workflowId, runId } = await runWorkflow({
-    workflowName: "ZendeskTicketWorkflow",
-    input: ticketData
-  });
-  
-  return await getWorkflowResult({
-    workflowId,
-    runId
-  });
-}
