@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 import { AgentStatusBadge, type AgentStatus } from "@workspace/ui/components/agent-status-badge";
 import { History } from "lucide-react";
@@ -38,9 +39,16 @@ interface AgentVersionsTabProps {
 }
 
 export function AgentVersionsTab({ agentId, getAgentVersions }: AgentVersionsTabProps) {
+  const router = useRouter();
+  
   // Agent versions state
   const [agentVersions, setAgentVersions] = useState<AgentVersion[]>([]);
   const [versionsLoading, setVersionsLoading] = useState(false);
+
+  // Handle version row click
+  const handleVersionClick = (versionId: string) => {
+    router.push(`/agents/${versionId}`);
+  };
 
   // Fetch agent versions when component mounts
   useEffect(() => {
@@ -109,7 +117,11 @@ export function AgentVersionsTab({ agentId, getAgentVersions }: AgentVersionsTab
                 </thead>
                 <tbody>
                   {agentVersions.map((version) => (
-                    <tr key={version.id} className="border-b hover:bg-muted/30">
+                    <tr 
+                      key={version.id} 
+                      className="border-b hover:bg-muted/30 cursor-pointer transition-colors"
+                      onClick={() => handleVersionClick(version.id)}
+                    >
                       <td className="p-3">
                         <div className="font-medium">{version.name}</div>
                       </td>

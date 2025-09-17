@@ -14,11 +14,10 @@ import {
   DialogTitle,
 } from "@workspace/ui/components/ui/dialog";
 import { TokensTable, TokenData } from "@workspace/ui/components/tokens-table";
-import {
-  ExternalLink,
-} from "lucide-react";
 import { useWorkspaceScopedActions, McpServer } from "../../../../../hooks/use-workspace-scoped-actions";
+import { useOAuthFlow } from "../../../../../hooks/use-oauth-flow";
 import { useDatabaseWorkspace } from "../../../../../lib/database-workspace-context";
+import { AddTokenDialog } from "../../../../../components/add-token-dialog";
 
 
 interface IntegrationTokensTabProps {
@@ -27,13 +26,11 @@ interface IntegrationTokensTabProps {
 
 export function IntegrationTokensTab({ server }: IntegrationTokensTabProps) {
   const { executeWorkflow } = useWorkspaceScopedActions();
+  const { startOAuthFlow } = useOAuthFlow();
   const { currentUser } = useDatabaseWorkspace();
   const [tokens, setTokens] = useState<TokenData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showOAuthDialog, setShowOAuthDialog] = useState(false);
-  const [showBearerDialog, setShowBearerDialog] = useState(false);
-  const [bearerToken, setBearerToken] = useState("");
-  const [tokenName, setTokenName] = useState("");
+  const [showAddTokenDialog, setShowAddTokenDialog] = useState(false);
 
   const loadTokens = useCallback(async () => {
     try {
@@ -61,46 +58,10 @@ export function IntegrationTokensTab({ server }: IntegrationTokensTabProps) {
 
 
   const handleOAuthConnect = async () => {
-    if (!currentUser?.id) {
-      console.error("No current user available");
-      return;
-    }
-
-    try {
-      // Start OAuth flow
-      const result = await executeWorkflow("McpOAuthInitializeWorkflow", {
-        user_id: currentUser.id,
-        workspace_id: server.workspace_id,
-        mcp_server_id: server.id,
-      });
-      
-      if (result.success && result.data && typeof result.data === 'object' && 'authorization_url' in result.data) {
-        const data = result.data as { authorization_url: string; client_id?: string; client_secret?: string };
-        
-        // Store OAuth session data for callback
-        sessionStorage.setItem('oauth_mcp_server_id', server.id);
-        sessionStorage.setItem('oauth_user_id', currentUser.id);
-        sessionStorage.setItem('oauth_workspace_id', server.workspace_id);
-        
-        // Store client credentials if available
-        if (data.client_id) {
-          sessionStorage.setItem('oauth_client_id', data.client_id);
-        }
-        if (data.client_secret) {
-          sessionStorage.setItem('oauth_client_secret', data.client_secret);
-        }
-        
-        // Redirect to OAuth authorization URL
-        window.location.href = data.authorization_url;
-      }
-    } catch (error) {
-      console.error("Failed to start OAuth flow:", error);
-    }
-    setShowOAuthDialog(false);
+    await startOAuthFlow(server);
   };
 
-  const handleBearerTokenSave = async () => {
-    if (!bearerToken.trim()) return;
+  const handleBearerTokenSave = async (token: string, name: string) => {
     if (!currentUser?.id) {
       console.error("No current user available");
       return;
@@ -111,15 +72,12 @@ export function IntegrationTokensTab({ server }: IntegrationTokensTabProps) {
         user_id: currentUser.id,
         workspace_id: server.workspace_id,
         mcp_server_id: server.id,
-        bearer_token: bearerToken,
-        token_name: tokenName || undefined,
+        bearer_token: token,
+        token_name: name || undefined,
       });
       
       if (result.success) {
         await loadTokens();
-        setBearerToken("");
-        setTokenName("");
-        setShowBearerDialog(false);
       }
     } catch (error) {
       console.error("Failed to save bearer token:", error);
@@ -171,76 +129,18 @@ export function IntegrationTokensTab({ server }: IntegrationTokensTabProps) {
         data={tokens}
         onDeleteToken={handleDeleteToken}
         onMakeDefault={handleMakeDefault}
-        onAddOAuth={server.server_url ? () => setShowOAuthDialog(true) : undefined}
-        onAddBearerToken={() => setShowBearerDialog(true)}
+        onAddToken={() => setShowAddTokenDialog(true)}
         isLoading={loading}
       />
 
-      {/* OAuth Dialog */}
-      {server.server_url && (
-        <Dialog open={showOAuthDialog} onOpenChange={setShowOAuthDialog}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Connect with OAuth</DialogTitle>
-              <DialogDescription>
-                You'll be redirected to {server.server_label} to authorize this connection.
-                This is the recommended secure method for connecting to remote services.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowOAuthDialog(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleOAuthConnect}>
-                <ExternalLink className="h-4 w-4 mr-2" />
-                Start OAuth Flow
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
-
-      {/* Bearer Token Dialog */}
-      <Dialog open={showBearerDialog} onOpenChange={setShowBearerDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add Bearer Token</DialogTitle>
-            <DialogDescription>
-              Enter a Bearer token for direct API authentication. This token will be
-              encrypted and stored securely.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="token-name">Token Name (Optional)</Label>
-              <Input
-                id="token-name"
-                value={tokenName}
-                onChange={(e) => setTokenName(e.target.value)}
-                placeholder="e.g., Production API Key"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="bearer-token">Bearer Token</Label>
-              <Textarea
-                id="bearer-token"
-                value={bearerToken}
-                onChange={(e) => setBearerToken(e.target.value)}
-                placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
-                rows={3}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowBearerDialog(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleBearerTokenSave} disabled={!bearerToken.trim()}>
-              Save Token
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Add Token Dialog */}
+      <AddTokenDialog
+        open={showAddTokenDialog}
+        onOpenChange={setShowAddTokenDialog}
+        server={server}
+        onStartOAuth={handleOAuthConnect}
+        onSaveBearerToken={handleBearerTokenSave}
+      />
     </div>
   );
 }

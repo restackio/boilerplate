@@ -3,6 +3,7 @@
 
 -- Insert MCP servers (OAuth will be discovered dynamically)
 INSERT INTO mcp_servers (id, workspace_id, server_label, server_url, local, server_description, headers) VALUES
+-- Remote MCP servers (external APIs)
 (
   'a0123456-789a-123e-f012-456789012349',
   'c926e979-1f16-46bf-a7cc-8aab70162d65',
@@ -16,7 +17,7 @@ INSERT INTO mcp_servers (id, workspace_id, server_label, server_url, local, serv
   'b0123456-789a-123e-f012-456789012350',
   'c926e979-1f16-46bf-a7cc-8aab70162d65',
   'github-mcp',
-  'https://mcp.github.com/mcp',
+  'https://api.githubcopilot.com/mcp/',
   FALSE,
   'GitHub MCP server for repository management and issue tracking',
   '{"Authorization": "Bearer ghp_demo_token"}'
@@ -29,69 +30,6 @@ INSERT INTO mcp_servers (id, workspace_id, server_label, server_url, local, serv
   FALSE,
   'Slack MCP server for sending notifications and managing channels',
   '{"Authorization": "Bearer xoxb-slack-demo-token"}'
-),
-(
-  'f4567890-1234-5678-9abc-def012345678',
-  'c926e979-1f16-46bf-a7cc-8aab70162d65',
-  'zendesk-mcp',
-  'https://mcp.zendesk.com/mcp',
-  FALSE,
-  'Zendesk MCP server for ticket management and customer support',
-  '{"Authorization": "Bearer zendesk-demo-token"}'
-),
-(
-  '15678901-2345-6789-bcde-f01234567890',
-  'c926e979-1f16-46bf-a7cc-8aab70162d65',
-  'knowledge-base',
-  'https://mcp.knowledgebase.com/mcp',
-  FALSE,
-  'Knowledge base MCP server for documentation and knowledge management',
-  '{"Authorization": "Bearer kb-demo-token"}'
-),
-(
-  '26789012-3456-789a-cdef-012345678901',
-  'c926e979-1f16-46bf-a7cc-8aab70162d65',
-  'pagerduty',
-  'https://mcp.pagerduty.com/mcp',
-  FALSE,
-  'PagerDuty MCP server for incident management and monitoring',
-  '{"Authorization": "Bearer pd-demo-token"}'
-),
-(
-  '37890123-4567-890b-cdef-123456789012',
-  'c926e979-1f16-46bf-a7cc-8aab70162d65',
-  'datadog',
-  'https://mcp.datadog.com/mcp',
-  FALSE,
-  'Datadog MCP server for logs and metrics monitoring',
-  '{"Authorization": "Bearer dd-demo-token"}'
-),
-(
-  '48901234-5678-901c-def0-234567890123',
-  'c926e979-1f16-46bf-a7cc-8aab70162d65',
-  'linear',
-  'https://mcp.linear.app/mcp',
-  FALSE,
-  'Linear MCP server for issue and project management',
-  '{"Authorization": "Bearer linear-demo-token"}'
-),
-(
-  '59012345-6789-012d-ef01-345678901234',
-  'c926e979-1f16-46bf-a7cc-8aab70162d65',
-  'github-pr',
-  'https://mcp.github.com/pr',
-  FALSE,
-  'GitHub PR MCP server for pull request management',
-  '{"Authorization": "Bearer ghpr-demo-token"}'
-),
-(
-  '70123456-789a-123e-f012-456789012346',
-  'c926e979-1f16-46bf-a7cc-8aab70162d65',
-  'sales-crm',
-  'https://mcp.salesforce.com/mcp',
-  FALSE,
-  'Salesforce CRM MCP server for lead and opportunity management',
-  '{"Authorization": "Bearer sf-demo-token"}'
 ),
 (
   'd2e3f456-7890-0123-def0-456789012345',
@@ -115,28 +53,92 @@ INSERT INTO mcp_servers (id, workspace_id, server_label, server_url, local, serv
   '60123456-789a-123e-f012-456789012345',
   'c926e979-1f16-46bf-a7cc-8aab70162d65',
   'mintlify-docs',
-  'https://mcp.mintlify.com/mcp',
+  'https://docs.restack.io/mcp',
   FALSE,
   'Mintlify Docs MCP server for documentation search',
   '{"Authorization": "Bearer mint-demo-token"}'
 ),
 (
-  '80123456-789a-123e-f012-456789012347',
+  'e1f2a3b4-5678-9012-cdef-456789012346',
   'c926e979-1f16-46bf-a7cc-8aab70162d65',
-  'hr-system',
-  'https://mcp.bamboohr.com/mcp',
+  'intercom',
+  'https://mcp.intercom.com/mcp',
   FALSE,
-  'BambooHR MCP server for employee data management',
-  '{"Authorization": "Bearer bhr-demo-token"}'
+  'Intercom MCP server for customer support and messaging',
+  '{"Authorization": "Bearer ic-demo-token"}'
+),
+-- Local MCP servers (mock implementations)
+(
+  'f4567890-1234-5678-9abc-def012345678',
+  'c926e979-1f16-46bf-a7cc-8aab70162d65',
+  'mock-zendesk',
+  NULL,
+  TRUE,
+  'Mock Zendesk MCP server for ticket management and customer support',
+  NULL
+),
+(
+  '15678901-2345-6789-bcde-f01234567890',
+  'c926e979-1f16-46bf-a7cc-8aab70162d65',
+  'mock-knowledge-base',
+  NULL,
+  TRUE,
+  'Mock Knowledge base MCP server for documentation and knowledge management',
+  NULL
+),
+(
+  '26789012-3456-789a-cdef-012345678901',
+  'c926e979-1f16-46bf-a7cc-8aab70162d65',
+  'mock-pagerduty',
+  NULL,
+  TRUE,
+  'Mock PagerDuty MCP server for incident management and monitoring',
+  NULL
+),
+(
+  '37890123-4567-890b-cdef-123456789012',
+  'c926e979-1f16-46bf-a7cc-8aab70162d65',
+  'mock-datadog',
+  NULL,
+  TRUE,
+  'Mock Datadog MCP server for logs and metrics monitoring',
+  NULL
+),
+(
+  '48901234-5678-901c-def0-234567890123',
+  'c926e979-1f16-46bf-a7cc-8aab70162d65',
+  'mock-linear',
+  NULL,
+  TRUE,
+  'Mock Linear MCP server for issue and project management',
+  NULL
+),
+(
+  '59012345-6789-012d-ef01-345678901234',
+  'c926e979-1f16-46bf-a7cc-8aab70162d65',
+  'mock-github-pr',
+  NULL,
+  TRUE,
+  'Mock GitHub PR MCP server for pull request management',
+  NULL
 ),
 (
   '90123456-789a-123e-f012-456789012348',
   'c926e979-1f16-46bf-a7cc-8aab70162d65',
-  'failing-mcp-test',
-  'https://mcp.test.com/failing',
-  FALSE,
-  'Failing MCP Test server for error handling testing',
-  '{"Authorization": "Bearer test-demo-token"}'
+  'mock-failing-test',
+  NULL,
+  TRUE,
+  'Mock Failing MCP Test server for error handling testing',
+  NULL
+),
+(
+  'a1b2c3d4-5678-9012-cdef-567890123456',
+  'c926e979-1f16-46bf-a7cc-8aab70162d65',
+  'mock-hello-world',
+  NULL,
+  TRUE,
+  'Mock Hello World MCP server for simple greeting messages',
+  NULL
 )
 ON CONFLICT (id) DO NOTHING;
 
@@ -156,20 +158,20 @@ Process incoming support tickets from Zendesk, classifying and managing each acc
 
 ## Available Tools
 You have access to the following tools that you MUST use for the corresponding actions:
-- **ZendeskTicket**: Create, update, or query Zendesk tickets
-- **KnowledgeBase**: Search documentation and knowledge base for solutions
-- **PagerDutyIncident**: Check incidents and monitoring data from PagerDuty
-- **DatadogLogs**: Query logs and metrics from Datadog for investigation
-- **LinearIssue**: Create and manage Linear tickets for engineering tasks
-- **GitHubPR**: Create GitHub issues and pull requests for code changes
+- **mockzendeskticket**: Create, update, or query mock Zendesk tickets
+- **mockknowledgebase**: Search mock documentation and knowledge base for solutions
+- **mockpagerdutyincident**: Check mock incidents and monitoring data from PagerDuty
+- **mockdatadoglogs**: Query mock logs and metrics from Datadog for investigation
+- **mocklinearissue**: Create and manage mock Linear tickets for engineering tasks
+- **mockgithubpr**: Create mock GitHub issues and pull requests for code changes
 
 ## Checklist
 Begin with a concise checklist (3–7 bullets) outlining your approach:
-- Review the Zendesk ticket for required information using ZendeskTicket
+- Review the Zendesk ticket for required information using mockzendeskticket
 - Classify ticket as L1, L2, L3, or 'Incomplete Data'
-- For L1: use KnowledgeBase to consult documentation and draft a solution response
-- For L2: use PagerDutyIncident and DatadogLogs to investigate; summarize findings and respond
-- For L3: notify user, use LinearIssue to create ticket, and if code change needed, use GitHubPR to open issue and PR, then follow up post-merge
+- For L1: use mockknowledgebase to consult documentation and draft a solution response
+- For L2: use mockpagerdutyincident and mockdatadoglogs to investigate; summarize findings and respond
+- For L3: notify user, use mocklinearissue to create ticket, and if code change needed, use mockgithubpr to open issue and PR, then follow up post-merge
 - Document all actions, artifact references, and communications
 - Return structured output as specified
 
@@ -179,17 +181,17 @@ Begin with a concise checklist (3–7 bullets) outlining your approach:
    - **L2:** Requires deeper investigation with monitoring tools.
    - **L3:** Needs engineering intervention.
 2. **L1 Tickets:**
-   - Use KnowledgeBase to search documentation for possible solutions.
+   - Use mockknowledgebase to search documentation for possible solutions.
    - Draft a response for the user referencing any documentation or solutions used.
 3. **L2 Tickets:**
-   - Use PagerDutyIncident to check for related incidents.
-   - Use DatadogLogs to investigate logs and metrics.
+   - Use mockpagerdutyincident to check for related incidents.
+   - Use mockdatadoglogs to investigate logs and metrics.
    - Summarize findings.
    - Draft a user response outlining investigation results and next steps.
 4. **L3 Tickets:**
    - Notify the user that the engineering team will handle the issue.
-   - Use LinearIssue to create a Linear ticket summarizing the problem and include the reference.
-   - If a code change is required, use GitHubPR to create a GitHub issue and PR. Include references for both.
+   - Use mocklinearissue to create a Linear ticket summarizing the problem and include the reference.
+   - If a code change is required, use mockgithubpr to create a GitHub issue and PR. Include references for both.
    - After the PR is merged, send a follow-up response to the user about the resolution.
 5. **Error Handling:**
    - If any required data is missing from the ticket, note this in the output and flag the ticket as 'Incomplete Data'.
@@ -200,7 +202,7 @@ Begin with a concise checklist (3–7 bullets) outlining your approach:
 - **ALWAYS use the appropriate tool** for each action - do not attempt to perform actions manually
 - Call tools in the logical sequence needed to complete the ticket processing
 - If a tool call fails, try again with adjusted parameters or explain the limitation
-- Use multiple tools in parallel when gathering information (e.g., PagerDutyIncident and DatadogLogs for L2 tickets)
+- Use multiple tools in parallel when gathering information (e.g., mockpagerdutyincident and mockdatadoglogs for L2 tickets)
 
 ## Validation
 After processing each ticket, briefly validate that all actions match the ticket's classification and required references are included. If output is incomplete or a reference is missing, self-correct or explain in output.
@@ -513,17 +515,23 @@ INSERT INTO agent_tools (id, agent_id, tool_type, mcp_server_id, tool_name, cust
 -- Notion agent with search tool (from existing seed data)
 ('a0000001-0001-0001-0001-000000000001', 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'mcp', 'a0123456-789a-123e-f012-456789012349', 'search', 'Search through Notion pages and databases for relevant information', FALSE, TRUE),
 
--- Customer Support Agent tools
-('a0000002-0002-0002-0002-000000000002', '77777777-7777-7777-7777-777777777777', 'mcp', 'f4567890-1234-5678-9abc-def012345678', 'zendeskticket', 'Create and manage Zendesk support tickets', TRUE, TRUE),
-('a0000003-0003-0003-0003-000000000003', '77777777-7777-7777-7777-777777777777', 'mcp', '15678901-2345-6789-bcde-f01234567890', 'knowledgebase', 'Search internal knowledge base for solutions', FALSE, TRUE),
-
--- Sales Agent tools  
-('a0000004-0004-0004-0004-000000000004', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'mcp', '70123456-789a-123e-f012-456789012346', 'create_lead', 'Create new sales leads in CRM', TRUE, TRUE),
-('a0000005-0005-0005-0005-000000000005', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'mcp', '70123456-789a-123e-f012-456789012346', 'update_opportunity', 'Update existing sales opportunities', FALSE, TRUE),
+-- Customer Support Agent tools (using mock servers)
+('a0000002-0002-0002-0002-000000000002', '77777777-7777-7777-7777-777777777777', 'mcp', 'f4567890-1234-5678-9abc-def012345678', 'mockzendeskticket', 'Create and manage mock Zendesk support tickets', TRUE, TRUE),
+('a0000003-0003-0003-0003-000000000003', '77777777-7777-7777-7777-777777777777', 'mcp', '15678901-2345-6789-bcde-f01234567890', 'mockknowledgebase', 'Search mock internal knowledge base for solutions', FALSE, TRUE),
+('a0000008-0008-0008-0008-000000000008', '77777777-7777-7777-7777-777777777777', 'mcp', '26789012-3456-789a-cdef-012345678901', 'mockpagerdutyincident', 'Retrieve mock PagerDuty incident information', FALSE, TRUE),
+('a0000009-0009-0009-0009-000000000009', '77777777-7777-7777-7777-777777777777', 'mcp', '37890123-4567-890b-cdef-123456789012', 'mockdatadoglogs', 'Query mock Datadog logs and metrics', FALSE, TRUE),
+('a0000010-0010-0010-0010-000000000010', '77777777-7777-7777-7777-777777777777', 'mcp', '48901234-5678-901c-def0-234567890123', 'mocklinearissue', 'Create mock Linear issues for engineering tasks', FALSE, TRUE),
+('a0000011-0011-0011-0011-000000000011', '77777777-7777-7777-7777-777777777777', 'mcp', '59012345-6789-012d-ef01-345678901234', 'mockgithubpr', 'Create mock GitHub pull requests', FALSE, TRUE),
 
 -- Engineering Agent tools
 ('a0000006-0006-0006-0006-000000000006', 'cccccccc-cccc-cccc-cccc-cccccccccccc', 'mcp', 'c1d2e3f4-5678-9012-cdef-345678901234', 'ask_question', 'Query internal documentation and wikis', FALSE, TRUE),
-('a0000007-0007-0007-0007-000000000007', 'cccccccc-cccc-cccc-cccc-cccccccccccc', 'mcp', '60123456-789a-123e-f012-456789012345', 'SearchRestack', 'Search Restack documentation for technical information', FALSE, TRUE)
+('a0000007-0007-0007-0007-000000000007', 'cccccccc-cccc-cccc-cccc-cccccccccccc', 'mcp', '60123456-789a-123e-f012-456789012345', 'SearchRestack', 'Search Restack documentation for technical information', FALSE, TRUE),
+
+-- Error Testing Agent tools
+('a0000012-0012-0012-0012-000000000012', 'ffffffff-ffff-ffff-ffff-ffffffffffff', 'mcp', '90123456-789a-123e-f012-456789012348', 'mockfailingmcptest', 'Mock MCP tool that fails for testing error handling', FALSE, TRUE),
+
+-- Demo Hello World tool
+('a0000013-0013-0013-0013-000000000013', 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'mcp', 'a1b2c3d4-5678-9012-cdef-567890123456', 'mockhelloworld', 'Simple mock hello world greeting tool', FALSE, TRUE)
 
 ON CONFLICT (id) DO NOTHING;
 
@@ -572,8 +580,8 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
         "openai_output": {
           "id": "msg-003",
           "type": "mcp_call",
-          "name": "zendeskticket",
-          "server_label": "zendesk",
+          "name": "mockzendeskticket",
+          "server_label": "mock-zendesk",
           "status": "completed",
           "arguments": {"query": "login authentication errors", "timeframe": "24h"},
           "output": "Found 3 related tickets in the past 24 hours with similar authentication errors"
@@ -586,8 +594,8 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
         "openai_output": {
           "id": "msg-004",
           "type": "mcp_call",
-          "name": "pagerdutyincident",
-          "server_label": "pagerduty",
+          "name": "mockpagerdutyincident",
+          "server_label": "mock-pagerduty",
           "status": "completed",
           "arguments": {"service": "authentication", "status": "open"},
           "output": "No active incidents found for authentication services"
@@ -600,8 +608,8 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
         "openai_output": {
           "id": "msg-005",
           "type": "mcp_call",
-          "name": "datadoglogs",
-          "server_label": "datadog",
+          "name": "mockdatadoglogs",
+          "server_label": "mock-datadog",
           "status": "completed",
           "arguments": {"user": "john.doe@example.com", "service": "authentication", "timeframe": "1h"},
           "output": "Found account lockout due to 5 failed login attempts in 10 minutes. Account status: LOCKED"
@@ -626,8 +634,8 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
         "openai_output": {
           "id": "msg-007",
           "type": "mcp_call",
-          "name": "zendeskticket",
-          "server_label": "zendesk",
+          "name": "mockzendeskticket",
+          "server_label": "mock-zendesk",
           "status": "completed",
           "arguments": {"action": "create", "subject": "Login issue resolved", "status": "resolved"},
           "output": "Ticket #ZD-12345 created and marked as resolved"
@@ -636,7 +644,7 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
       {
         "id": "msg-008",
         "type": "assistant",
-        "content": "✅ **Issue Resolved Successfully**\n\n**Root Cause**: Account lockout due to failed login attempts\n**Solution**: Unlocked account and sent password reset email\n**Documentation**: Zendesk ticket #ZD-12345\n**Status**: Customer can now log in normally\n\nThe security lockout was working as intended to protect the account from potential unauthorized access attempts.",
+        "content": "**Issue Resolved Successfully**\n\n**Root Cause**: Account lockout due to failed login attempts\n**Solution**: Unlocked account and sent password reset email\n**Documentation**: Zendesk ticket #ZD-12345\n**Status**: Customer can now log in normally\n\nThe security lockout was working as intended to protect the account from potential unauthorized access attempts.",
         "timestamp": "2024-01-15T10:33:00Z"
       }
     ]'
@@ -673,8 +681,8 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
         "openai_output": {
           "id": "msg-103",
           "type": "mcp_approval_request",
-          "name": "datadoglogs",
-          "server_label": "datadog",
+          "name": "mockdatadoglogs",
+          "server_label": "mock-datadog",
           "status": "failed",
           "arguments": {"service": "payment", "log_level": "error", "timeframe": "1h"},
           "output": "Access denied - Security investigation requires manual approval from Security team",
@@ -694,8 +702,8 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
         "openai_output": {
           "id": "msg-105",
           "type": "mcp_call",
-          "name": "linearissue",
-          "server_label": "linear",
+          "name": "mocklinearissue",
+          "server_label": "mock-linear",
           "status": "completed",
           "arguments": {"priority": "high", "team": "security", "title": "Payment fraud investigation", "description": "Suspicious payment patterns detected"},
           "output": "High-priority security ticket LIN-SEC-789 created and assigned to Security team"
@@ -708,8 +716,8 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
         "openai_output": {
           "id": "msg-106",
           "type": "mcp_call",
-          "name": "pagerdutyincident",
-          "server_label": "pagerduty",
+          "name": "mockpagerdutyincident",
+          "server_label": "mock-pagerduty",
           "status": "completed",
           "arguments": {"category": "security", "status": "resolved", "timeframe": "7d"},
           "output": "Found similar incident PD-INC-456 from last week, marked as resolved - card testing attack"
@@ -728,8 +736,8 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
         "openai_output": {
           "id": "msg-108",
           "type": "mcp_call",
-          "name": "zendeskticket",
-          "server_label": "zendesk",
+          "name": "mockzendeskticket",
+          "server_label": "mock-zendesk",
           "status": "completed",
           "arguments": {"action": "create", "subject": "Security escalation - Payment fraud", "priority": "high"},
           "output": "Security escalation ticket #ZD-SEC-123 created"
@@ -799,7 +807,7 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
       {
         "id": "msg-205",
         "type": "assistant",
-        "content": "Based on my qualification analysis:\n\n**Budget**: ✅ Strong ($100K-500K range)\n**Authority**: ✅ CTO has decision-making power\n**Need**: ✅ Developer platform for 200+ team\n**Timeline**: ⏳ To be determined\n\nThis is a high-quality enterprise lead. Creating opportunity now.",
+        "content": "Based on my qualification analysis:\n\n**Budget**:  Strong ($100K-500K range)\n**Authority**:  CTO has decision-making power\n**Need**:  Developer platform for 200+ team\n**Timeline**: ⏳ To be determined\n\nThis is a high-quality enterprise lead. Creating opportunity now.",
         "timestamp": "2024-01-17T09:18:00Z"
       },
       {
@@ -1130,14 +1138,14 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
           "name": "update_page",
           "server_label": "notion",
           "status": "completed",
-          "arguments": {"page_id": "page_project_overview_22222", "properties": {"Last Updated": {"date": {"start": "2024-01-21"}}}, "children": [{"object": "block", "type": "heading_2", "heading_2": {"rich_text": [{"type": "text", "text": {"content": "Recent Updates"}}]}}, {"object": "block", "type": "paragraph", "paragraph": {"rich_text": [{"type": "text", "text": {"content": "✅ Created Project Milestones database for better tracking\\n✅ Added MVP Release milestone (Due: Feb 15, 2024)\\n✅ Added Beta Testing milestone (Due: Mar 1, 2024)\\n✅ Refreshed OAuth tokens for continuous API access"}}]}}]},
+          "arguments": {"page_id": "page_project_overview_22222", "properties": {"Last Updated": {"date": {"start": "2024-01-21"}}}, "children": [{"object": "block", "type": "heading_2", "heading_2": {"rich_text": [{"type": "text", "text": {"content": "Recent Updates"}}]}}, {"object": "block", "type": "paragraph", "paragraph": {"rich_text": [{"type": "text", "text": {"content": " Created Project Milestones database for better tracking\\n Added MVP Release milestone (Due: Feb 15, 2024)\\n Added Beta Testing milestone (Due: Mar 1, 2024)\\n Refreshed OAuth tokens for continuous API access"}}]}}]},
           "output": "Updated Project Overview page with latest progress and milestone information"
         }
       },
       {
         "id": "msg-610",
         "type": "assistant",
-        "content": "📚 **Project Documentation Successfully Organized**\\n\\n**Existing Documentation Found**:\\n- Project Overview (updated with latest progress)\\n- API Documentation\\n- User Guide\\n- Development Setup\\n- Release Notes\\n\\n**New Milestone Database Created**:\\n- Database ID: db_milestone_12345\\n- Properties: Milestone, Status, Due Date, Owner, Priority\\n\\n**Initial Milestones Added**:\\n1. **MVP Release** - In Progress (Due: Feb 15, 2024) - High Priority\\n2. **Beta Testing** - Not Started (Due: Mar 1, 2024) - Medium Priority\\n\\n**OAuth Token Management**:\\n✅ Tokens automatically refreshed during API calls\\n✅ Continuous access maintained without interruption\\n✅ Secure token storage with encryption\\n\\n**Next Steps**:\\n- Add team members as owners to specific milestones\\n- Create additional documentation pages as needed\\n- Set up automated progress tracking\\n\\nYour Notion workspace is now well-organized with proper milestone tracking and up-to-date documentation!",
+        "content": "📚 **Project Documentation Successfully Organized**\\n\\n**Existing Documentation Found**:\\n- Project Overview (updated with latest progress)\\n- API Documentation\\n- User Guide\\n- Development Setup\\n- Release Notes\\n\\n**New Milestone Database Created**:\\n- Database ID: db_milestone_12345\\n- Properties: Milestone, Status, Due Date, Owner, Priority\\n\\n**Initial Milestones Added**:\\n1. **MVP Release** - In Progress (Due: Feb 15, 2024) - High Priority\\n2. **Beta Testing** - Not Started (Due: Mar 1, 2024) - Medium Priority\\n\\n**OAuth Token Management**:\\n Tokens automatically refreshed during API calls\\n Continuous access maintained without interruption\\n Secure token storage with encryption\\n\\n**Next Steps**:\\n- Add team members as owners to specific milestones\\n- Create additional documentation pages as needed\\n- Set up automated progress tracking\\n\\nYour Notion workspace is now well-organized with proper milestone tracking and up-to-date documentation!",
         "timestamp": "2024-01-21T09:06:00Z"
       }
     ]'

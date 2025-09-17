@@ -7,7 +7,10 @@ import { PageHeader } from "@workspace/ui/components/page-header";
 import { Button } from "@workspace/ui/components/ui/button";
 import { RefreshCw, Plus } from "lucide-react";
 import { useWorkspaceScopedActions, McpServer } from "../../../hooks/use-workspace-scoped-actions";
+import { useOAuthFlow } from "../../../hooks/use-oauth-flow";
+import { useDatabaseWorkspace } from "../../../lib/database-workspace-context";
 import { AddMcpServerDialog } from "./components/AddMcpServerDialog";
+import { AddTokenDialog } from "../../../components/add-token-dialog";
 
 // Map McpServer to Integration format for the table component
 const mapServerToIntegration = (server: McpServer) => ({
@@ -16,16 +19,19 @@ const mapServerToIntegration = (server: McpServer) => ({
   server_description: server.server_description,
   server_url: server.server_url,
   local: server.local,
-  tools_count: server.require_approval.always.tool_names.length + server.require_approval.never.tool_names.length,
-  connected_users_count: 0, // This will be populated by the table component if needed
+  connected_users_count: server.connections_count || 0,
   created_at: server.created_at || "",
   updated_at: server.updated_at || "",
 });
 
 export default function IntegrationsPage() {
   const router = useRouter();
-  const { mcpServers, mcpServersLoading, fetchMcpServers } = useWorkspaceScopedActions();
+  const { mcpServers, mcpServersLoading, fetchMcpServers, executeWorkflow } = useWorkspaceScopedActions();
+  const { startOAuthFlow } = useOAuthFlow();
+  const { currentUser } = useDatabaseWorkspace();
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [addTokenDialogOpen, setAddTokenDialogOpen] = useState(false);
+  const [selectedServer, setSelectedServer] = useState<McpServer | null>(null);
 
   useEffect(() => {
     fetchMcpServers();
@@ -36,11 +42,16 @@ export default function IntegrationsPage() {
   };
 
   const handleConnectIntegration = (integrationId: string) => {
-    router.push(`/integrations/${integrationId}?tab=tokens`);
-  };
+    // Find the server
+    const server = mcpServers.find(s => s.id === integrationId);
+    if (!server) {
+      console.error("Server not found");
+      return;
+    }
 
-  const handleManageConnections = (integrationId: string) => {
-    router.push(`/integrations/${integrationId}?tab=tokens`);
+    // Open the unified token dialog
+    setSelectedServer(server);
+    setAddTokenDialogOpen(true);
   };
 
   const handleRefresh = () => {
@@ -54,6 +65,38 @@ export default function IntegrationsPage() {
   const handleDialogSuccess = () => {
     fetchMcpServers(); // Refresh the list
   };
+
+  const handleOAuthConnect = async () => {
+    if (!selectedServer) {
+      console.error("No server selected");
+      return;
+    }
+    await startOAuthFlow(selectedServer);
+  };
+
+  const handleBearerTokenSave = async (token: string, name: string) => {
+    if (!currentUser?.id || !selectedServer) {
+      console.error("No current user or server available");
+      return;
+    }
+
+    try {
+      const result = await executeWorkflow("BearerTokenCreateWorkflow", {
+        user_id: currentUser.id,
+        workspace_id: selectedServer.workspace_id,
+        mcp_server_id: selectedServer.id,
+        bearer_token: token,
+        token_name: name || undefined,
+      });
+      
+      if (result.success) {
+        fetchMcpServers(); // Refresh the list to update connection counts
+      }
+    } catch (error) {
+      console.error("Failed to save bearer token:", error);
+    }
+  };
+
 
   // Convert servers to integration format for the table
   const integrationData = mcpServers.map(mapServerToIntegration);
@@ -71,7 +114,7 @@ export default function IntegrationsPage() {
         <RefreshCw className={`h-4 w-4 mr-1 ${mcpServersLoading.isLoading ? 'animate-spin' : ''}`} />
         Refresh
       </Button>
-      <Button size="sm" variant="ghost" onClick={handleAddIntegration}>
+      <Button size="sm" onClick={handleAddIntegration}>
         <Plus className="h-4 w-4 mr-1" />
         New Integration
       </Button>
@@ -103,7 +146,6 @@ export default function IntegrationsPage() {
             data={integrationData} 
             onEditIntegration={handleEditIntegration}
             onConnectIntegration={handleConnectIntegration}
-            onManageConnections={handleManageConnections}
           />
         )}
       </div>
@@ -114,6 +156,17 @@ export default function IntegrationsPage() {
         onOpenChange={setAddDialogOpen}
         onSuccess={handleDialogSuccess}
       />
+
+      {/* Add Token Dialog */}
+      <AddTokenDialog
+        open={addTokenDialogOpen}
+        onOpenChange={setAddTokenDialogOpen}
+        server={selectedServer}
+        onStartOAuth={handleOAuthConnect}
+        onSaveBearerToken={handleBearerTokenSave}
+        defaultTab="oauth"
+      />
+
     </div>
   );
 }

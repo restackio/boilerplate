@@ -17,12 +17,12 @@ from src.functions.agent_tools_crud import (
 )
 from src.functions.agents_crud import (
     agents_archive,
+    agents_clone,
     agents_create,
     agents_delete,
     agents_get_by_id,
     agents_get_by_status,
     agents_get_versions,
-    agents_publish,
     agents_read,
     agents_read_table,
     agents_resolve_by_name,
@@ -121,6 +121,7 @@ from src.workflows.crud.agent_tools_crud import (
 )
 from src.workflows.crud.agents_crud import (
     AgentsArchiveWorkflow,
+    AgentsCloneWorkflow,
     AgentsCreateWorkflow,
     AgentsDeleteWorkflow,
     AgentsGetByIdWorkflow,
@@ -208,6 +209,7 @@ async def run_restack_service() -> None:
             AgentsReadWorkflow,
             AgentsReadTableWorkflow,
             AgentsCreateWorkflow,
+            AgentsCloneWorkflow,
             AgentsUpdateWorkflow,
             AgentsDeleteWorkflow,
             AgentsArchiveWorkflow,
@@ -278,6 +280,7 @@ async def run_restack_service() -> None:
             agents_read,
             agents_read_table,
             agents_create,
+            agents_clone,
             agents_update,
             agents_delete,
             agents_archive,
@@ -285,7 +288,6 @@ async def run_restack_service() -> None:
             agents_get_by_status,
             agents_get_versions,
             agents_resolve_by_name,
-            agents_publish,
             agents_update_status,
             tasks_read,
             tasks_create,

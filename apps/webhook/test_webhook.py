@@ -38,14 +38,14 @@ def test_github_webhook():
 
     try:
         response = requests.post(url, json=payload, headers=headers, timeout=10)
-        print(f"✅ Status: {response.status_code}")
-        print(f"📄 Response: {response.json()}")
+        print(f"Status: {response.status_code}")
+        print(f"Response: {response.json()}")
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"Error: {e}")
 
 def test_linear_webhook():
     """Test Linear issue webhook."""
-    print("\n🔄 Testing Linear webhook...")
+    print("\nTesting Linear webhook...")
 
     url = f"{WEBHOOK_BASE_URL}/webhook/workspace/{WORKSPACE_ID}/agent/{AGENT_NAME}"
 
@@ -72,14 +72,14 @@ def test_linear_webhook():
 
     try:
         response = requests.post(url, json=payload, headers=headers, timeout=10)
-        print(f"✅ Status: {response.status_code}")
-        print(f"📄 Response: {response.json()}")
+        print(f"Status: {response.status_code}")
+        print(f"Response: {response.json()}")
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"Error: {e}")
 
 def test_custom_webhook():
     """Test custom webhook with title and description."""
-    print("\n🔄 Testing custom webhook...")
+    print("\n Testing custom webhook...")
 
     url = f"{WEBHOOK_BASE_URL}/webhook/workspace/{WORKSPACE_ID}/agent/{AGENT_NAME}"
 
@@ -94,29 +94,29 @@ def test_custom_webhook():
 
     try:
         response = requests.post(url, json=payload, headers=headers, timeout=10)
-        print(f"✅ Status: {response.status_code}")
-        print(f"📄 Response: {response.json()}")
+        print(f"Status: {response.status_code}")
+        print(f"Response: {response.json()}")
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"Error: {e}")
 
 def test_health_check():
     """Test health check endpoint."""
-    print("\n🔄 Testing health check...")
+    print("\nTesting health check...")
 
     url = f"{WEBHOOK_BASE_URL}/health"
 
     try:
         response = requests.get(url, timeout=10)
-        print(f"✅ Status: {response.status_code}")
-        print(f"📄 Response: {response.json()}")
+        print(f"Status: {response.status_code}")
+        print(f"Response: {response.json()}")
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"Error: {e}")
 
 if __name__ == "__main__":
-    print("🚀 Testing Webhook Server")
-    print(f"📍 Base URL: {WEBHOOK_BASE_URL}")
-    print(f"🏢 Workspace: {WORKSPACE_ID}")
-    print(f"🤖 Agent: {AGENT_NAME}")
+    print("Testing Webhook Server")
+    print(f"Base URL: {WEBHOOK_BASE_URL}")
+    print(f"Workspace: {WORKSPACE_ID}")
+    print(f"Agent: {AGENT_NAME}")
     print("="*50)
 
     test_health_check()

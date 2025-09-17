@@ -6,7 +6,7 @@ This script demonstrates how the failing MCP tool works and tests different fail
 
 import asyncio
 import logging
-from src.workflows.tools.failing_mcp_test import FailingMcpTest, FailingMcpTestInput
+from src.workflows.tools.mock_failing_mcp_test import FailingMcpTest, FailingMcpTestInput
 
 # Configure logging
 logging.basicConfig(
@@ -96,10 +96,10 @@ async def test_failing_scenarios():
             # This would normally be called by the Restack workflow engine
             # For testing purposes, we'll just show what would happen
             print(f"Expected: {'Success' if not test_case['input'].should_fail else 'Failure (' + test_case['input'].failure_type + ')'}")
-            print("✅ Test case configured correctly")
+            print("Test case configured correctly")
             
         except Exception as e:
-            print(f"❌ Test case failed: {e}")
+            print(f"Test case failed: {e}")
         
         print("-" * 50)
 

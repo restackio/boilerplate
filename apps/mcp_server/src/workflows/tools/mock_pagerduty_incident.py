@@ -54,17 +54,17 @@ class PagerDutyIncidentOutput(BaseModel):
 
 
 @workflow.defn(
-    description="Retrieve PagerDuty incident information"
+    description="Mock PagerDuty incident information retrieval"
 )
-class PagerDutyIncident:
-    """to retrieve PagerDuty incident information."""
+class MockPagerDutyIncident:
+    """Mock tool to retrieve PagerDuty incident information using LLM-generated data."""
 
     @workflow.run
     async def run(
         self, workflow_input: PagerDutyIncidentInput
     ) -> PagerDutyIncidentOutput:
         log.info(
-            "PagerDutyIncident started", input=workflow_input
+            "MockPagerDutyIncident started", input=workflow_input
         )
 
         try:
@@ -120,12 +120,12 @@ Return the complete JSON structure following the PagerDuty API format.""",
             incident_data = json.loads(response_text)
 
             log.info(
-                "PagerDutyIncident completed",
+                "MockPagerDutyIncident completed",
                 incident=incident_data,
             )
             return PagerDutyIncidentOutput(incident=incident_data)
 
         except Exception as e:
-            error_message = f"Error during PagerDutyIncident: {e}"
+            error_message = f"Error during MockPagerDutyIncident: {e}"
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e

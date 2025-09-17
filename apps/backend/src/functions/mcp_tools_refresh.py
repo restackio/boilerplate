@@ -6,13 +6,6 @@ from pydantic import BaseModel, Field, field_validator
 from restack_ai.function import function
 
 
-def _extract_tool_names_from_result(result: dict) -> list[str]:
-    """Extract tool names from MCP result for backward compatibility."""
-    if isinstance(result, dict) and "tools" in result:
-        tools = result["tools"]
-        if isinstance(tools, list):
-            return [tool.get("name", "") for tool in tools if isinstance(tool, dict) and "name" in tool]
-    return []
 
 
 def _extract_tools_from_result(result: dict) -> list[dict]:
@@ -32,7 +25,7 @@ def _extract_tools_from_result(result: dict) -> list[dict]:
 
 
 class McpToolsListInput(BaseModel):
-    server_url: str = Field(...)
+    server_url: str | None = Field(None)
     headers: dict[str, str] | None = None
     local: bool = Field(default=False)
     workspace_id: str | None = Field(
@@ -44,12 +37,16 @@ class McpToolsListInput(BaseModel):
     
     @field_validator('server_url')
     @classmethod
-    def validate_server_url(cls, v: str, info) -> str:
-        # Allow empty server_url if we have mcp_server_id (will be resolved by backend)
+    def validate_server_url(cls, v: str | None, info) -> str | None:
+        # Allow None/empty server_url if we have mcp_server_id (will be resolved by backend)
         if not v and info.data and info.data.get('mcp_server_id'):
             return "placeholder"  # Will be resolved by backend
-        if not v or len(v.strip()) == 0:
-            raise ValueError("server_url must have at least 1 character when mcp_server_id is not provided")
+        # Allow None values - let the workflow handle the error gracefully
+        if v is None:
+            return None
+        # If server_url is provided but empty string, convert to None
+        if isinstance(v, str) and len(v.strip()) == 0:
+            return None
         return v
 
 

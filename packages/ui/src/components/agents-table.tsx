@@ -96,6 +96,16 @@ interface AgentsTableProps {
   defaultFilters?: any[];
 }
 
+// Helper function to get the correct agent ID for navigation
+function getAgentNavigationId(agent: Agent): string {
+  // For draft agents, use the latest draft version ID if available
+  if (agent.status === 'draft' && agent.latest_draft_version_id) {
+    return agent.latest_draft_version_id;
+  }
+  // For published/archived agents, use the main agent ID
+  return agent.id;
+}
+
 export function AgentsTable({ data, onRowClick, onViewAgent, teams = [], defaultFilters = [] }: AgentsTableProps) {
   const router = useRouter();
 
@@ -154,7 +164,7 @@ export function AgentsTable({ data, onRowClick, onViewAgent, teams = [], default
                   className="hover:bg-muted/50 transition-colors group"
                 >
                   <TableCell>
-                    <Link href={`/agents/${agent.id}`} className="block">
+                    <Link href={`/agents/${getAgentNavigationId(agent)}`} className="block">
                       <div className="space-y-1">
                         <div className="font-medium flex items-center gap-2 hover:underline">
                           {agent.name}
@@ -277,7 +287,7 @@ export function AgentsTable({ data, onRowClick, onViewAgent, teams = [], default
                     {new Date(agent.updated_at || "").toLocaleDateString()}
                   </TableCell>
                   <TableCell>
-                    <Link href={`/agents/${agent.id}`}>
+                    <Link href={`/agents/${getAgentNavigationId(agent)}`}>
                       <Button
                         variant="outline"
                         size="sm"

@@ -13,7 +13,6 @@ import {
   TableHeader,
   TableRow,
 } from "./ui/table";
-import { EmptyState } from "./ui/empty-state";
 import {
   Key,
   Shield,
@@ -47,6 +46,7 @@ interface TokensTableProps {
   onMakeDefault?: (tokenId: string) => void;
   onAddOAuth?: () => void;
   onAddBearerToken?: () => void;
+  onAddToken?: () => void; // New unified prop
   isLoading?: boolean;
 }
 
@@ -143,6 +143,7 @@ export function TokensTable({
   onMakeDefault,
   onAddOAuth,
   onAddBearerToken,
+  onAddToken,
   isLoading = false
 }: TokensTableProps) {
 
@@ -167,23 +168,31 @@ export function TokensTable({
   if (data.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
-        <Key className="h-12 w-12 text-muted-foreground mb-4" />
         <h3 className="text-lg font-semibold mb-2">No tokens found</h3>
         <p className="text-muted-foreground mb-4 max-w-md">
-          Connect to this integration using OAuth or add a Bearer token to get started.
+          Add a token to authenticate with this integration and start using its tools.
         </p>
         <div className="flex gap-2">
-          {onAddOAuth && (
-            <Button onClick={onAddOAuth}>
-              <Shield className="h-4 w-4 mr-2" />
-              Connect with OAuth
+          {onAddToken ? (
+            <Button onClick={onAddToken}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Token
             </Button>
-          )}
-          {onAddBearerToken && (
-            <Button variant="outline" onClick={onAddBearerToken}>
-              <Key className="h-4 w-4 mr-2" />
-              Add Bearer Token
-            </Button>
+          ) : (
+            <>
+              {onAddOAuth && (
+                <Button onClick={onAddOAuth}>
+                  <Shield className="h-4 w-4 mr-2" />
+                  Connect with OAuth
+                </Button>
+              )}
+              {onAddBearerToken && (
+                <Button variant="outline" onClick={onAddBearerToken}>
+                  <Key className="h-4 w-4 mr-2" />
+                  Add Bearer Token
+                </Button>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -201,17 +210,26 @@ export function TokensTable({
         />
         
         <div className="flex gap-2 shrink-0">
-          {onAddOAuth && (
-            <Button onClick={onAddOAuth} size="sm">
-              <Shield className="h-4 w-4 mr-2" />
-              Connect with OAuth
-            </Button>
-          )}
-          {onAddBearerToken && (
-            <Button variant="outline" onClick={onAddBearerToken} size="sm">
+          {onAddToken ? (
+            <Button onClick={onAddToken} size="sm">
               <Key className="h-4 w-4 mr-2" />
-              Add Bearer Token
+              Add Token
             </Button>
+          ) : (
+            <>
+              {onAddOAuth && (
+                <Button onClick={onAddOAuth} size="sm">
+                  <Shield className="h-4 w-4 mr-2" />
+                  Connect with OAuth
+                </Button>
+              )}
+              {onAddBearerToken && (
+                <Button variant="outline" onClick={onAddBearerToken} size="sm">
+                  <Key className="h-4 w-4 mr-2" />
+                  Add Bearer Token
+                </Button>
+              )}
+            </>
           )}
         </div>
       </div>

@@ -167,6 +167,13 @@ class McpToolsListWorkflow:
         self, workflow_input: McpToolsListInput
     ) -> McpToolsListOutput:
         try:
+            # Validate that we have either server_url or mcp_server_id
+            if not workflow_input.server_url and not workflow_input.mcp_server_id:
+                return McpToolsListOutput(
+                    success=False,
+                    error="Either server_url or mcp_server_id must be provided"
+                )
+            
             # Resolve server URL if it's a placeholder and we have mcp_server_id
             server_url = workflow_input.server_url
             if (server_url == "placeholder" and workflow_input.mcp_server_id):
@@ -177,13 +184,42 @@ class McpToolsListWorkflow:
                         mcp_server_id=workflow_input.mcp_server_id
                     ),
                 )
-                if server_result.success and server_result.mcp_server:
+                if server_result and server_result.mcp_server:
                     server_url = server_result.mcp_server.server_url
                     log.info(f"Resolved server URL from MCP server: {server_url}")
                 else:
-                    raise NonRetryableError(
-                        message=f"Could not resolve server URL for MCP server {workflow_input.mcp_server_id}"
+                    return McpToolsListOutput(
+                        success=False,
+                        error=f"Could not resolve server URL for MCP server {workflow_input.mcp_server_id}"
                     )
+            elif not server_url and workflow_input.mcp_server_id:
+                # Handle case where server_url is None but mcp_server_id is provided
+                server_result = await workflow.step(
+                    function=mcp_servers_get_by_id,
+                    function_input=McpServerIdInput(
+                        mcp_server_id=workflow_input.mcp_server_id
+                    ),
+                )
+                if server_result and server_result.mcp_server:
+                    server_url = server_result.mcp_server.server_url
+                    log.info(f"Resolved server URL from MCP server: {server_url}")
+                else:
+                    return McpToolsListOutput(
+                        success=False,
+                        error=f"Could not resolve server URL for MCP server {workflow_input.mcp_server_id}"
+                    )
+            elif not server_url:
+                return McpToolsListOutput(
+                    success=False,
+                    error="Server URL is required when mcp_server_id is not provided"
+                )
+            
+            # Check if this is a local MCP server (server_url is None)
+            if server_url is None:
+                return McpToolsListOutput(
+                    success=False,
+                    error="Cannot list tools for local MCP servers - server_url is required for remote MCP servers"
+                )
             
             # Prepare headers with authentication if available
             headers = workflow_input.headers or {}

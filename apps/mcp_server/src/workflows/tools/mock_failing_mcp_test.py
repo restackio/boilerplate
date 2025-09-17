@@ -83,15 +83,15 @@ class FailingMcpTestOutput(BaseModel):
     failure_type: str | None = None
 
 
-@workflow.defn(description="MCP tool that fails on purpose for testing error handling")
-class FailingMcpTest:
-    """MCP tool designed to fail in various ways to test error handling."""
+@workflow.defn(description="Mock MCP tool that fails on purpose for testing error handling")
+class MockFailingMcpTest:
+    """Mock MCP tool designed to fail in various ways to test error handling."""
 
     @workflow.run
     async def run(
         self, workflow_input: FailingMcpTestInput
     ) -> FailingMcpTestOutput:
-        log.info("FailingMcpTest started", input=workflow_input)
+        log.info("MockFailingMcpTest started", input=workflow_input)
 
         try:
             # If should_fail is False, return a successful response
@@ -103,7 +103,7 @@ class FailingMcpTest:
                     "timestamp": "2024-01-01T12:00:00Z",
                 }
                 
-                log.info("FailingMcpTest completed successfully", result=success_result)
+                log.info("MockFailingMcpTest completed successfully", result=success_result)
                 return FailingMcpTestOutput(
                     result=success_result,
                     failure_simulated=False,
@@ -149,7 +149,7 @@ class FailingMcpTest:
                 raise NonRetryableError(error_message)
 
         except Exception as e:
-            error_message = f"FailingMcpTest simulated error ({failure_type}): {e}"
+            error_message = f"MockFailingMcpTest simulated error ({failure_type}): {e}"
             log.error(error_message)
             
             # Re-raise as NonRetryableError to simulate MCP tool failure

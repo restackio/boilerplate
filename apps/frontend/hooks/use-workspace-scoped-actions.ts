@@ -92,6 +92,7 @@ export interface McpServer {
   server_description?: string;
   headers?: Record<string, string>;
   require_approval: McpRequireApproval;
+  connections_count?: number;
   created_at?: string;
   updated_at?: string;
 }
@@ -319,6 +320,36 @@ export function useWorkspaceScopedActions() {
     } catch (error) {
       console.error("[createAgent] Exception in createAgent:", error);
       setAgentsLoading({ isLoading: false, error: "Failed to create agent" });
+    }
+    setAgentsLoading({ isLoading: false, error: null });
+    
+    return result;
+  }, [currentWorkspaceId, isReady, fetchAgents]);
+
+  const cloneAgent = useCallback(async (sourceAgentId: string, agentData: any) => {
+    if (!isReady || !currentWorkspaceId) {
+      console.error("Cannot clone agent: no valid workspace context");
+      return { success: false, error: "No valid workspace context" };
+    }
+
+    setAgentsLoading({ isLoading: true, error: null });
+    let result;
+    try {
+      result = await executeWorkflow<Agent>("AgentsCloneWorkflow", {
+        source_agent_id: sourceAgentId,
+        workspace_id: currentWorkspaceId,
+        ...agentData
+      });
+      
+      if (result.success) {
+        await fetchAgents();
+      } else {
+        console.error("[cloneAgent] Workflow failed:", result.error);
+        setAgentsLoading({ isLoading: false, error: result.error || "Failed to clone agent" });
+      }
+    } catch (error) {
+      console.error("[cloneAgent] Exception in cloneAgent:", error);
+      setAgentsLoading({ isLoading: false, error: "Failed to clone agent" });
     }
     setAgentsLoading({ isLoading: false, error: null });
     
@@ -921,6 +952,7 @@ export function useWorkspaceScopedActions() {
     agentsLoading,
     fetchAgents,
     createAgent,
+    cloneAgent,
     updateAgent,
     deleteAgent,
     getAgentById,

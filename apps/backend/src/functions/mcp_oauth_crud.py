@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 
 from pydantic import BaseModel, Field
 from restack_ai.function import NonRetryableError, function, log
-from sqlalchemy import select, update
+from sqlalchemy import select, update, func
 from sqlalchemy.exc import SQLAlchemyError
 
 from src.database.connection import get_async_db
@@ -176,8 +176,19 @@ async def oauth_token_create_or_update(
     """Create or update OAuth token."""
     async for db in get_async_db():
         try:
+            # Check if there are any existing connections for this MCP server in this workspace
+            existing_connections_query = select(func.count(UserOAuthConnection.id)).where(
+                UserOAuthConnection.workspace_id == uuid.UUID(function_input.workspace_id),
+                UserOAuthConnection.mcp_server_id == uuid.UUID(function_input.mcp_server_id),
+            )
+            existing_connections_result = await db.execute(existing_connections_query)
+            existing_connections_count = existing_connections_result.scalar()
+            
+            # Auto-default if this is the first connection for this MCP server
+            should_be_default = function_input.is_default or existing_connections_count == 0
+            
             # If this token should be default, unmark any existing default tokens for this workspace and MCP server
-            if function_input.is_default:
+            if should_be_default:
                 await db.execute(
                     update(UserOAuthConnection)
                     .where(
@@ -236,9 +247,7 @@ async def oauth_token_create_or_update(
                 existing_token.auth_type = (
                     function_input.auth_type
                 )
-                existing_token.is_default = (
-                    function_input.is_default
-                )
+                existing_token.is_default = should_be_default
                 existing_token.updated_at = datetime.now(
                     timezone.utc
                 ).replace(tzinfo=None)
@@ -260,7 +269,7 @@ async def oauth_token_create_or_update(
                     expires_at=expires_at,
                     scope=function_input.scope,
                     auth_type=function_input.auth_type,
-                    is_default=function_input.is_default,
+                    is_default=should_be_default,
                 )
                 db.add(token)
 

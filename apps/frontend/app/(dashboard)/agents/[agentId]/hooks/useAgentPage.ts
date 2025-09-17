@@ -12,7 +12,8 @@ export function useAgentPage(agentId: string) {
   const { isReady, workspaceId } = useDatabaseWorkspace();
   const { 
     updateAgent, 
-    createAgent, 
+    createAgent,
+    cloneAgent, 
     deleteAgent, 
     getAgentVersions, 
     getAgentById, 
@@ -86,52 +87,19 @@ export function useAgentPage(agentId: string) {
       if (agent.status === "published") {
         const rootAgentId = agent.parent_agent_id || agentId;
         
-        const newAgentData = {
-          workspace_id: workspaceId,
+        const cloneData = {
           name: latest.name,
           description: latest.description,
           instructions: latest.instructions,
           model: latest.model,
           reasoning_effort: latest.reasoning_effort,
           status: "draft" as const,
-          parent_agent_id: rootAgentId,
         };
 
-        const result = await createAgent(newAgentData);
+        const result = await cloneAgent(agentId, cloneData);
         if (result.success) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const newAgent: any = result.data;
-          
-          // Clone tools from current agent to new version
-          try {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const toolsRes: any = await getAgentTools(agentId);
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const tools: any[] = toolsRes?.agent_tools || [];
-            if (newAgent?.id && Array.isArray(tools) && tools.length > 0) {
-              await Promise.all(
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                tools.map((t: any) => {
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  const payload: any = {
-                    agent_id: newAgent.id,
-                    tool_type: t.tool_type,
-                  };
-                  if (t.tool_type === "mcp") {
-                    if (t.mcp_server_id) payload.mcp_server_id = t.mcp_server_id;
-                    if (t.allowed_tools?.length) payload.allowed_tools = t.allowed_tools;
-                  }
-                  if (t.tool_type === "custom") {
-                    if (t.config) payload.config = t.config;
-                  }
-                  if (typeof t.execution_order === "number") payload.execution_order = t.execution_order;
-                  return createAgentTool(payload);
-                })
-              );
-            }
-          } catch (e) {
-            console.error("Failed to clone tools to new version", e);
-          }
           
           // Navigate to the new agent (draft version)
           if (newAgent?.id) {

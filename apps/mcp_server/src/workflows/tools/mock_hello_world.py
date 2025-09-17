@@ -42,16 +42,16 @@ with import_functions():
 
 
 @workflow.defn(
-    description="Generate a hello world message with random number"
+    description="Mock hello world message generator"
 )
-class HelloWorld:
-    """Simple hello world tool that returns a greeting with a random number."""
+class MockHelloWorld:
+    """Mock hello world tool that returns a greeting with a random number."""
 
     @workflow.run
     async def run(
         self, workflow_input: HelloWorldInput
     ) -> HelloWorldOutput:
-        log.info("HelloWorld started", input=workflow_input)
+        log.info("MockHelloWorld started", input=workflow_input)
 
         try:
             # Generate random data using function (non-deterministic operations)
@@ -75,6 +75,6 @@ class HelloWorld:
             )
 
         except Exception as e:
-            error_message = f"Error during HelloWorld: {e}"
+            error_message = f"Error during MockHelloWorld: {e}"
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e

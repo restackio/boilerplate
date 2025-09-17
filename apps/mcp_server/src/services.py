@@ -9,16 +9,16 @@ from src.functions.generate_random_data import (
     generate_random_data,
 )
 from src.functions.llm_response import llm_response
-from src.workflows.tools.datadog_logs import DatadogLogs
-from src.workflows.tools.github_pr import GitHubPR
-from src.workflows.tools.hello_world import HelloWorld
-from src.workflows.tools.knowledge_base import KnowledgeBase
-from src.workflows.tools.linear_issue import LinearIssue
-from src.workflows.tools.pagerduty_incident import (
-    PagerDutyIncident,
+from src.workflows.tools.mock_datadog_logs import MockDatadogLogs
+from src.workflows.tools.mock_github_pr import MockGitHubPR
+from src.workflows.tools.mock_hello_world import MockHelloWorld
+from src.workflows.tools.mock_knowledge_base import MockKnowledgeBase
+from src.workflows.tools.mock_linear_issue import MockLinearIssue
+from src.workflows.tools.mock_pagerduty_incident import (
+    MockPagerDutyIncident,
 )
-from src.workflows.tools.zendesk_ticket import ZendeskTicket
-from src.workflows.tools.failing_mcp_test import FailingMcpTest
+from src.workflows.tools.mock_zendesk_ticket import MockZendeskTicket
+from src.workflows.tools.mock_failing_mcp_test import MockFailingMcpTest
 
 
 async def run_restack_service() -> None:
@@ -26,14 +26,14 @@ async def run_restack_service() -> None:
     await client.start_service(
         task_queue="mcp_server",
         workflows=[
-            ZendeskTicket,
-            DatadogLogs,
-            LinearIssue,
-            GitHubPR,
-            KnowledgeBase,
-            PagerDutyIncident,
-            HelloWorld,
-            FailingMcpTest,
+            MockZendeskTicket,
+            MockDatadogLogs,
+            MockLinearIssue,
+            MockGitHubPR,
+            MockKnowledgeBase,
+            MockPagerDutyIncident,
+            MockHelloWorld,
+            MockFailingMcpTest,
         ],
         functions=[
             llm_response,

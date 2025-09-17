@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@workspace/ui/components/ui/button";
 import { CheckCircle, AlertCircle, Loader2, ExternalLink } from "lucide-react";
-import Link from "next/link";
 
 export default function OAuthCallbackPage() {
   const searchParams = useSearchParams();
@@ -160,25 +159,6 @@ export default function OAuthCallbackPage() {
     router.push('/integrations');
   };
 
-  const getProviderIcon = (provider: string) => {
-    const lowerProvider = provider.toLowerCase();
-    
-    // Common service icons
-    if (lowerProvider.includes('notion')) return '📋';
-    if (lowerProvider.includes('github')) return '🐙';
-    if (lowerProvider.includes('slack')) return '💬';
-    if (lowerProvider.includes('google')) return '🔍';
-    if (lowerProvider.includes('microsoft')) return '🏢';
-    if (lowerProvider.includes('linear')) return '📊';
-    if (lowerProvider.includes('figma')) return '🎨';
-    if (lowerProvider.includes('trello')) return '📋';
-    if (lowerProvider.includes('asana')) return '✅';
-    if (lowerProvider.includes('jira')) return '🎫';
-    
-    // Default for any OAuth service
-    return '🔗';
-  };
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
@@ -195,7 +175,6 @@ export default function OAuthCallbackPage() {
         {status === 'success' && (
           <>
             <div className="flex items-center justify-center mb-4">
-              <span className="text-4xl mr-2">{getProviderIcon(provider)}</span>
               <CheckCircle className="h-12 w-12 text-green-600" />
             </div>
             <h1 className="text-xl font-semibold text-green-800 mb-2">
