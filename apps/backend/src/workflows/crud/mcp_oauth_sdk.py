@@ -318,6 +318,8 @@ class McpOAuthCallbackWorkflow:
                     scope=token_data.scope.split()
                     if token_data.scope
                     else None,
+                    auth_type="oauth",
+                    is_default=False,
                 ),
                 start_to_close_timeout=timedelta(seconds=30),
             )
