@@ -1,7 +1,7 @@
 """MCP OAuth CRUD operations for token management."""
 
 import uuid
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from pydantic import BaseModel, Field
 from restack_ai.function import NonRetryableError, function, log
@@ -234,7 +234,7 @@ async def oauth_token_create_or_update(
             expires_at = None
             if function_input.expires_in:
                 expires_at = (
-                    datetime.now(datetime.UTC)
+                    datetime.now(UTC)
                     + timedelta(seconds=function_input.expires_in)
                 ).replace(tzinfo=None)
 
@@ -276,7 +276,7 @@ async def oauth_token_create_or_update(
                 )
                 existing_token.is_default = should_be_default
                 existing_token.updated_at = datetime.now(
-                    datetime.UTC
+                    UTC
                 ).replace(tzinfo=None)
                 token = existing_token
             else:
@@ -492,7 +492,7 @@ async def get_oauth_token_for_mcp_server(  # noqa: C901
                 return None
 
             # Check if token is expired or about to expire (within 5 minutes)
-            now = datetime.now(datetime.UTC).replace(tzinfo=None)
+            now = datetime.now(UTC).replace(tzinfo=None)
             if (
                 oauth_connection.expires_at
                 and oauth_connection.expires_at <= now
@@ -711,7 +711,7 @@ async def oauth_token_refresh_and_update(
                     expires_at = None
                     if token_data.expires_in:
                         expires_at = (
-                            datetime.now(datetime.UTC)
+                            datetime.now(UTC)
                             + timedelta(
                                 seconds=token_data.expires_in
                             )
@@ -737,12 +737,12 @@ async def oauth_token_refresh_and_update(
                         else None
                     )
                     existing_token.last_refreshed_at = (
-                        datetime.now(datetime.UTC).replace(
+                        datetime.now(UTC).replace(
                             tzinfo=None
                         )
                     )
                     existing_token.updated_at = datetime.now(
-                        datetime.UTC
+                        UTC
                     ).replace(tzinfo=None)
 
                     await db.commit()
@@ -916,7 +916,7 @@ async def oauth_token_set_default(
 
             # Set this token as default
             token.is_default = True
-            token.updated_at = datetime.now(datetime.UTC).replace(
+            token.updated_at = datetime.now(UTC).replace(
                 tzinfo=None
             )
 
@@ -982,7 +982,7 @@ async def oauth_token_set_default_by_id(
 
             # Set this token as default
             token.is_default = True
-            token.updated_at = datetime.now(datetime.UTC).replace(
+            token.updated_at = datetime.now(UTC).replace(
                 tzinfo=None
             )
 
