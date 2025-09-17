@@ -46,7 +46,7 @@ jobs:
         run: pnpm lint --filter='boilerplate-frontend' --filter='@workspace/ui'
 
       - name: Run type checking
-        run: pnpm type-check --filter='boilerplate-frontend' --filter='@workspace/ui'
+        run: turbo type-check --filter='boilerplate-frontend' --filter='@workspace/ui'
         continue-on-error: true
 
   python-lint:
