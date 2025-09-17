@@ -3,6 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
+    "quickstart": "pnpm infra:start && pnpm db:setup && pnpm dev",
     "build": "turbo build",
     "dev": "turbo dev",
     "start": "turbo start",
@@ -11,6 +12,7 @@
     "type-check": "tsc --noEmit",
     "check": "npm run type-check && npm run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+    "vale": "vale README.md CONTRIBUTING.md apps/*/README.md packages/*/README.md",
     "clean": "rm -rf node_modules && rm -rf apps/*/node_modules && rm -rf packages/*/node_modules",
     "infra:start": "docker-compose -f docker-compose.dev.yml up -d",
     "infra:stop": "docker-compose -f docker-compose.dev.yml down",

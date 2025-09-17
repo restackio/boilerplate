@@ -1,71 +1,47 @@
 # Webhook Server
 
-A dedicated FastAPI webhook server that receives webhook events from external services and creates tasks for specific agents in workspaces.
+FastAPI server that converts webhook events from external services into agent tasks.
+
+## Quick start
+
+```bash
+# Development with hot reload
+pnpm dev
+
+# Production mode
+pnpm start
+```
 
 ## Features
 
-- **Webhook to Task Creation**: Converts webhook events into tasks
-- **Agent-Specific Routing**: Routes webhooks to specific agents based on URL path
-- **Workspace Isolation**: Tasks are created within specific workspaces
-- **Auto-Formatted Tasks**: Intelligently formats webhook payloads into meaningful task descriptions
-- **Support for Multiple Services**: GitHub, Linear, Zendesk, Datadog, PagerDuty, and more
+- **Webhook to Task**: Converts webhook events into agent tasks
+- **Smart Routing**: Routes webhooks to specific agents by URL path
+- **Auto-Formatting**: Intelligently formats payloads into task descriptions
+- **Multi-Service**: GitHub, Linear, Zendesk, Datadog, PagerDuty support
 
-## Quick Start
+## API
 
-### Development
-
-```bash
-# Install dependencies
-uv sync
-
-# Start development server with auto-reload (uses uvicorn --reload)
-pnpm dev
-# or
-uv run dev
-```
-
-The development server uses uvicorn's built-in `--reload` feature which automatically restarts the server when Python files change.
-
-### Production
-
-```bash
-# Start production server
-pnpm start
-# or
-uv run start
-```
-
-## API Endpoints
-
-### Health Check
-```
-GET /health
-```
-
-### Create Task from Webhook
+### Create task from webhook
 ```
 POST /webhook/workspace/{workspace_id}/agent/{agent_name}
 ```
 
-**URL Parameters:**
-- `workspace_id`: The workspace UUID where the task should be created
-- `agent_name`: The slug name of the agent that should handle the task
+**Parameters:**
+- `workspace_id`: Target workspace UUID
+- `agent_name`: Target agent slug name
 
-**Request Body:**
+**Body** (optional):
 ```json
 {
-  "title": "Optional custom title",
-  "description": "Optional custom description"
+  "title": "Custom title",
+  "description": "Custom description"  
 }
 ```
-
-If title/description are not provided, they will be auto-generated from the webhook payload.
 
 **Response:**
 ```json
 {
   "status": "success",
-  "message": "Task created for agent {agent_name} in workspace {workspace_id}",
   "task_id": "task-uuid",
   "task_url": "http://localhost:3000/tasks/{task_id}"
 }
@@ -73,50 +49,47 @@ If title/description are not provided, they will be auto-generated from the webh
 
 ## Examples
 
-### GitHub Webhook
+### GitHub pull request
 ```bash
 curl -X POST "http://localhost:8000/webhook/workspace/ws-123/agent/github-pr" \
   -H "Content-Type: application/json" \
   -H "X-GitHub-Event: pull_request" \
-  -d '{
-    "action": "opened",
-    "number": 123,
-    "pull_request": {
-      "title": "Add new feature"
-    }
-  }'
+  -d '{"action": "opened", "pull_request": {"title": "Add feature"}}'
 ```
 
-### Linear Webhook
+### Linear issue  
 ```bash
 curl -X POST "http://localhost:8000/webhook/workspace/ws-123/agent/linear-issues" \
   -H "Content-Type: application/json" \
-  -d '{
-    "type": "Issue",
-    "data": {
-      "title": "Bug: Login not working"
-    }
-  }'
+  -d '{"type": "Issue", "data": {"title": "Bug: Login broken"}}'
 ```
 
-## Supported Webhook Sources
+## Supported services
 
-The server automatically detects and formats webhooks from:
+Auto-detects and formats webhooks from:
 - **GitHub**: Pull requests, pushes, issues
-- **Linear**: Issues, projects
+- **Linear**: Issues, projects  
 - **Zendesk**: Tickets, updates
-- **Datadog**: Alerts, monitoring events
+- **Datadog**: Alerts, monitoring
 - **PagerDuty**: Incidents, alerts
 - **Generic**: Any JSON webhook
 
-## Configuration
+## Development
 
-The server runs on port 8000 by default and connects to the same Restack services as the main backend.
+```bash
+# Install dependencies
+uv sync
+
+# Start development server
+uv run dev
+
+# Health check
+curl http://localhost:8000/health
+```
 
 ## Architecture
 
-This webhook server is designed to be:
-- **Lightweight**: Only handles webhook ingestion and task creation
-- **Stateless**: No data persistence, delegates to main backend via Restack workflows
-- **Scalable**: Can be deployed independently and scaled separately from main backend
-- **Reliable**: Graceful error handling and proper HTTP status codes
+- **Lightweight**: Webhook ingestion only
+- **Stateless**: Delegates to backend via Restack
+- **Scalable**: Independent deployment and scaling
+- **Reliable**: Graceful error handling
