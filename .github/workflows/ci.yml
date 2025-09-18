@@ -90,5 +90,6 @@ jobs:
       - name: Run Vale
         uses: errata-ai/vale-action@v2.1.1
         with:
-          files: '["README.md", "CONTRIBUTING.md", "apps/*/README.md", "packages/*/README.md"]'
+          files: all
+          vale_flags: "--glob=README.md --glob=CONTRIBUTING.md --glob=apps/*/README.md --glob=packages/*/README.md"
           fail_on_error: true
