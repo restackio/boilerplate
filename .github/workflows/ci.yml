@@ -9,38 +9,27 @@ on:
 jobs:
   node-lint-and-typecheck:
     name: Node Lint and Type Check
+    timeout-minutes: 15
     runs-on: ubuntu-latest
     
     steps:
-      - name: Checkout code
+      - name: Check out code
         uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'pnpm'
+          fetch-depth: 2
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: '10.15.1'
-          run_install: false
+          version: 10
 
-      - name: Get pnpm store directory
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-
-      - name: Setup pnpm cache
-        uses: actions/cache@v4
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v4
         with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
+          node-version: 20
+          cache: 'pnpm'
 
-      - name: Setup Turbo cache
+      - name: Cache turbo build setup
         uses: actions/cache@v4
         with:
           path: .turbo
@@ -49,63 +38,48 @@ jobs:
             ${{ runner.os }}-turbo-
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --ignore-scripts
+        run: pnpm install
 
-      - name: Run linting and type checking in parallel
-        run: |
-          pnpm lint --filter='boilerplate-frontend' --filter='@workspace/ui' &
-          turbo type-check --filter='boilerplate-frontend' --filter='@workspace/ui' &
-          wait
+      - name: Lint
+        run: turbo lint --filter='boilerplate-frontend' --filter='@workspace/ui'
+
+      - name: Type check
+        run: turbo type-check --filter='boilerplate-frontend' --filter='@workspace/ui'
 
   python-lint:
     name: Python Lint
+    timeout-minutes: 10
     runs-on: ubuntu-latest
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
       - name: Install uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@v6
         with:
-          version: "latest"
+          enable-cache: true
 
-      - name: Cache uv
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/uv
-          key: ${{ runner.os }}-uv-${{ hashFiles('**/uv.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-uv-
+      - name: Set up Python
+        run: uv python install
 
-      - name: Install Python dependencies (Backend)
+      - name: Install and lint Backend
         working-directory: ./apps/backend
-        run: uv sync --frozen
+        run: |
+          uv sync --frozen
+          uv run ruff check .
 
-      - name: Lint Backend
-        working-directory: ./apps/backend
-        run: uv run ruff check .
-
-      - name: Install Python dependencies (MCP Server)
+      - name: Install and lint MCP Server
         working-directory: ./apps/mcp_server
-        run: uv sync --frozen
+        run: |
+          uv sync --frozen
+          uv run ruff check .
 
-      - name: Lint MCP Server
-        working-directory: ./apps/mcp_server
-        run: uv run ruff check .
-
-      - name: Install Python dependencies (Webhook)
+      - name: Install and lint Webhook
         working-directory: ./apps/webhook
-        run: uv sync --frozen
-
-      - name: Lint Webhook
-        working-directory: ./apps/webhook
-        run: uv run ruff check src
+        run: |
+          uv sync --frozen
+          uv run ruff check src
 
   documentation-lint:
     name: Documentation Lint (Vale)
@@ -115,16 +89,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install Vale
-        run: |
-          wget -O vale.tar.gz https://github.com/errata-ai/vale/releases/download/v3.7.1/vale_3.7.1_Linux_64-bit.tar.gz
-          mkdir -p /tmp/vale
-          tar -xzf vale.tar.gz -C /tmp/vale
-          sudo mv /tmp/vale/vale /usr/local/bin/
-          rm -rf /tmp/vale vale.tar.gz
-
-      - name: Sync Vale packages
-        run: vale sync
-
       - name: Run Vale
-        run: vale --config=.vale.ini README.md CONTRIBUTING.md apps/*/README.md packages/*/README.md
+        uses: errata-ai/vale-action@v2.1.1
+        with:
+          files: 'README.md CONTRIBUTING.md apps/*/README.md packages/*/README.md'
+          fail_on_error: true
