@@ -39,10 +39,10 @@ jobs:
         run: pnpm install --ignore-scripts
 
       - name: Lint
-        run: turbo lint --filter='boilerplate-frontend' --filter='@workspace/ui'
+        run: pnpm lint --filter='boilerplate-frontend' --filter='@workspace/ui'
 
       - name: Type check
-        run: turbo type-check --filter='boilerplate-frontend' --filter='@workspace/ui'
+        run: pnpm type-check --filter='boilerplate-frontend' --filter='@workspace/ui'
 
   python-lint:
     name: Python Lint
