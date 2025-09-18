@@ -83,6 +83,42 @@ interface ServerConfigFormProps {
   };
 }
 
+// Form field wrapper component
+const FormField = ({
+  children,
+  title,
+  error,
+  variant,
+}: {
+  children: React.ReactNode;
+  title?: string;
+  error?: string;
+  variant: "full" | "compact";
+}) => {
+  if (variant === "compact") {
+    return (
+      <div className="space-y-2">
+        {children}
+        {error && <p className="text-sm text-destructive">{error}</p>}
+      </div>
+    );
+  }
+
+  return (
+    <Card>
+      {title && (
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm">{title}</CardTitle>
+        </CardHeader>
+      )}
+      <CardContent>
+        {children}
+        {error && <p className="text-sm text-destructive mt-2">{error}</p>}
+      </CardContent>
+    </Card>
+  );
+};
+
 export function ServerConfigForm({
   formData,
   onFormDataChange,
@@ -229,48 +265,14 @@ export function ServerConfigForm({
     }
   };
 
-  // Form field wrapper component
-  const FormField = ({ 
-    children, 
-    title, 
-    error 
-  }: { 
-    children: React.ReactNode; 
-    title?: string; 
-    error?: string;
-  }) => {
-    if (variant === "compact") {
-      return (
-        <div className="space-y-2">
-          {children}
-          {error && (
-            <p className="text-sm text-destructive">{error}</p>
-          )}
-        </div>
-      );
-    }
-    
-    return (
-      <Card>
-        {title && (
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm">{title}</CardTitle>
-          </CardHeader>
-        )}
-        <CardContent>
-          {children}
-          {error && (
-            <p className="text-sm text-destructive mt-2">{error}</p>
-          )}
-        </CardContent>
-      </Card>
-    );
-  };
-
   return (
     <div className="space-y-4">
       {/* Server Name */}
-      <FormField title={variant === "full" ? "Server Information" : undefined} error={validationErrors.server_label}>
+      <FormField
+        title={variant === "full" ? "Server Information" : undefined}
+        error={validationErrors.server_label}
+        variant={variant}
+      >
         <div className="space-y-4">
           <div>
             <Label htmlFor="server_label">{defaultLabels.name} *</Label>
@@ -302,7 +304,7 @@ export function ServerConfigForm({
 
       {/* Server URL (only for non-local servers) */}
       {!formData.local && (
-        <FormField error={validationErrors.server_url}>
+        <FormField error={validationErrors.server_url} variant={variant}>
           <div>
             <Label htmlFor="server_url">{defaultLabels.url} *</Label>
             <Input
@@ -326,7 +328,7 @@ export function ServerConfigForm({
       )}
 
       {/* Description */}
-      <FormField error={validationErrors.server_description}>
+      <FormField error={validationErrors.server_description} variant={variant}>
         <div>
           <Label htmlFor="server_description">{defaultLabels.description}</Label>
           <Textarea
@@ -342,7 +344,7 @@ export function ServerConfigForm({
       </FormField>
 
       {/* Headers */}
-      <FormField error={validationErrors.headers}>
+      <FormField error={validationErrors.headers} variant={variant}>
         <div>
           <Label htmlFor="headers">{defaultLabels.headers}</Label>
           <Textarea
@@ -365,7 +367,7 @@ export function ServerConfigForm({
 
       {/* Tools Section */}
       {onListTools && (formData.local || formData.server_url.trim()) && (
-        <FormField title={variant === "full" ? "Tools Configuration" : undefined}>
+        <FormField title={variant === "full" ? "Tools Configuration" : undefined} variant={variant}>
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <Label>Tools</Label>
@@ -489,20 +491,23 @@ export function useServerConfig(initialData?: Partial<ServerConfigData>) {
     setConfig(prev => ({ ...prev, ...updates }));
   };
 
-  const validateConfig = (): ServerValidation => {
+  const validateConfig = (
+    data: ServerConfigData = config,
+    headers: string = headerInput
+  ): ServerValidation => {
     const errors: Record<string, string> = {};
 
-    if (!config.server_label.trim()) {
+    if (!data.server_label.trim()) {
       errors.server_label = "Server name is required";
     }
 
-    if (!config.local && !config.server_url.trim()) {
+    if (!data.local && !data.server_url.trim()) {
       errors.server_url = "Server URL is required for non-local servers";
     }
 
-    if (headerInput.trim()) {
+    if (headers.trim()) {
       try {
-        JSON.parse(headerInput);
+        JSON.parse(headers);
       } catch {
         errors.headers = "Invalid JSON format";
       }
