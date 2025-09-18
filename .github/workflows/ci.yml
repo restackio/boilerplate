@@ -36,7 +36,7 @@ jobs:
             ${{ runner.os }}-turbo-
 
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --ignore-scripts
 
       - name: Lint
         run: turbo lint --filter='boilerplate-frontend' --filter='@workspace/ui'
