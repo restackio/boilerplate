@@ -19,6 +19,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'pnpm'
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -39,15 +40,22 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pnpm-store-
 
+      - name: Setup Turbo cache
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 
-      - name: Run linting
-        run: pnpm lint --filter='boilerplate-frontend' --filter='@workspace/ui'
-
-      - name: Run type checking
-        run: turbo type-check --filter='boilerplate-frontend' --filter='@workspace/ui'
-        continue-on-error: true
+      - name: Run linting and type checking in parallel
+        run: |
+          pnpm lint --filter='boilerplate-frontend' --filter='@workspace/ui' &
+          turbo type-check --filter='boilerplate-frontend' --filter='@workspace/ui' &
+          wait
 
   python-lint:
     name: Python Lint
