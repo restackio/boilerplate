@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
@@ -80,18 +80,18 @@ export default function PlaygroundPage() {
     loadAgentData();
   }, [isReady, agentId, getAgentById, fetchAgents]);
 
-  const handleDraftAgentChange = (updates: Partial<Agent>) => {
+  const handleDraftAgentChange = useCallback((updates: Partial<Agent>) => {
     if (draftAgent) {
       setDraftAgent({ ...draftAgent, ...updates });
     }
-  };
+  }, [draftAgent]);
 
-  const handleComparisonAgentChange = (agentId: string) => {
+  const handleComparisonAgentChange = useCallback((agentId: string) => {
     const selectedAgent = availableAgents.find(agent => agent.id === agentId);
     if (selectedAgent) {
       setComparisonAgent(selectedAgent);
     }
-  };
+  }, [availableAgents]);
 
   const handleResetTasks = () => {
     setLeftTaskId(null);
