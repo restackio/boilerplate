@@ -1,3 +1,4 @@
+import json
 import os
 from typing import Any
 
@@ -69,8 +70,6 @@ def _get_specific_error_message(
 
     # Generic error handling
     try:
-        import json
-
         error_data = json.loads(response_text)
     except (ValueError, KeyError):
         return f"Failed to {action} schedule via Restack API (HTTP {status_code}): {response_text}"

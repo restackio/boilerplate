@@ -1,4 +1,4 @@
-# Database Schema
+# Database schema
 
 PostgreSQL database schema and seed data for the agent orchestration platform.
 
@@ -50,7 +50,7 @@ pnpm db:connect
 - **Email**: `demo@example.com`
 - **Password**: `password`
 
-### What's included
+### Seed data
 - **1 Workspace**: Demo Company
 - **5 Teams**: Customer Support, Sales, Marketing, Engineering, HR  
 - **1 User**: Demo User (assigned to all teams)

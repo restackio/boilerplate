@@ -21,6 +21,7 @@ export function useRxjsConversation({
   persistedMessages,
   storeKey = 'default' // Note: currently unused but kept for future store differentiation
 }: UseRxjsConversationProps) {
+  void storeKey; // Suppress unused parameter warning
   const [conversation, setConversation] = useState<ConversationItem[]>([]);
 
   // Create a unique conversation store instance for this component
@@ -77,8 +78,8 @@ export function useRxjsConversation({
     
     // Step 0: Collect error events first
     responseState.events.forEach((event: OpenAIEvent) => {
-      if (event.type === 'error' && (event as any).error) {
-        const errorEvent = event as any;
+      if (event.type === 'error' && (event as any).error) { // eslint-disable-line @typescript-eslint/no-explicit-any
+        const errorEvent = event as any; // eslint-disable-line @typescript-eslint/no-explicit-any
         aiResponses.push({
           id: errorEvent.error.id,
           type: 'error',

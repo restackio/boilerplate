@@ -3,7 +3,7 @@ import uuid
 
 from pydantic import BaseModel, Field
 from restack_ai.function import NonRetryableError, function, log
-from sqlalchemy import select, and_
+from sqlalchemy import and_, select
 
 from src.database.connection import get_async_db
 from src.database.models import (
@@ -11,9 +11,10 @@ from src.database.models import (
     McpServer,
 )
 from src.functions.mcp_oauth_crud import (
-    get_oauth_token_for_mcp_server,
     GetOAuthTokenForMcpServerInput,
+    get_oauth_token_for_mcp_server,
 )
+
 
 def _raise_mcp_server_required_error() -> None:
     """Raise error when mcp_server_id is required but missing."""
@@ -26,6 +27,13 @@ def _raise_agent_tool_not_found_error(agent_tool_id: str) -> None:
     """Raise error when agent tool is not found."""
     raise NonRetryableError(
         message=f"Agent tool with id {agent_tool_id} not found"
+    )
+
+
+def _raise_tool_name_required_error() -> None:
+    """Raise error when tool_name is required but missing."""
+    raise NonRetryableError(
+        message="tool_name is required for MCP tools"
     )
 
 
@@ -104,7 +112,9 @@ class AgentToolCreateInput(BaseModel):
     mcp_server_id: str | None = None
     # MCP-specific fields
     tool_name: str | None = None  # Required for MCP tools
-    custom_description: str | None = None  # Agent-specific tool description
+    custom_description: str | None = (
+        None  # Agent-specific tool description
+    )
     require_approval: bool = False  # Tool approval setting
     # General fields
     config: dict | None = None
@@ -174,6 +184,7 @@ class AgentToolDeleteOutput(BaseModel):
 # MCP-specific models (merged from agent_mcp_tools_crud.py)
 class AgentMcpToolCreateInput(BaseModel):
     """Input for creating an agent MCP tool."""
+
     agent_id: str = Field(..., min_length=1)
     mcp_server_id: str = Field(..., min_length=1)
     tool_name: str = Field(..., min_length=1)
@@ -184,6 +195,7 @@ class AgentMcpToolCreateInput(BaseModel):
 
 class AgentMcpToolUpdateInput(BaseModel):
     """Input for updating an agent MCP tool."""
+
     id: str = Field(..., min_length=1)
     custom_description: str | None = None
     require_approval: bool | None = None
@@ -192,16 +204,19 @@ class AgentMcpToolUpdateInput(BaseModel):
 
 class AgentMcpToolDeleteInput(BaseModel):
     """Input for deleting an agent MCP tool."""
+
     id: str = Field(..., min_length=1)
 
 
 class AgentMcpToolsByAgentInput(BaseModel):
     """Input for getting agent MCP tools by agent ID."""
+
     agent_id: str = Field(..., min_length=1)
 
 
 class AgentMcpToolListInput(BaseModel):
     """Input for listing available tools from an MCP server."""
+
     agent_id: str = Field(..., min_length=1)
     mcp_server_id: str = Field(..., min_length=1)
     workspace_id: str = Field(..., min_length=1)
@@ -209,6 +224,7 @@ class AgentMcpToolListInput(BaseModel):
 
 class AgentMcpToolData(BaseModel):
     """Agent MCP tool data."""
+
     id: str
     agent_id: str
     mcp_server_id: str
@@ -225,6 +241,7 @@ class AgentMcpToolData(BaseModel):
 
 class AgentMcpToolSingleOutput(BaseModel):
     """Output for single agent MCP tool operations."""
+
     success: bool
     data: AgentMcpToolData | None = None
     error: str | None = None
@@ -232,6 +249,7 @@ class AgentMcpToolSingleOutput(BaseModel):
 
 class AgentMcpToolListOutput(BaseModel):
     """Output for agent MCP tool list operations."""
+
     success: bool
     data: list[AgentMcpToolData] = Field(default_factory=list)
     error: str | None = None
@@ -239,6 +257,7 @@ class AgentMcpToolListOutput(BaseModel):
 
 class ListedTool(BaseModel):
     """A tool listed from an MCP server."""
+
     name: str
     description: str | None = None
     already_added: bool = False
@@ -246,13 +265,14 @@ class ListedTool(BaseModel):
 
 class AgentMcpToolAvailableListOutput(BaseModel):
     """Output for tool list operations."""
+
     success: bool
     tools: list[ListedTool] = Field(default_factory=list)
     error: str | None = None
 
 
 @function.defn()
-async def agent_tools_read_by_agent(  # noqa: C901
+async def agent_tools_read_by_agent(  # noqa: C901, PLR0912
     function_input: AgentToolsGetByAgentInput,
 ) -> AgentToolsOutput:
     """Read agent tools formatted for workflow consumption."""
@@ -305,13 +325,11 @@ async def agent_tools_read_by_agent(  # noqa: C901
                             "headers": ms.headers or {},
                             "require_approval": require_approval,
                         }
-                        
-                        oauth_token = (
-                            await get_oauth_token_for_mcp_server(
-                                GetOAuthTokenForMcpServerInput(
-                                    mcp_server_id=str(ms.id),
-                                    user_id=function_input.user_id,
-                                )
+
+                        oauth_token = await get_oauth_token_for_mcp_server(
+                            GetOAuthTokenForMcpServerInput(
+                                mcp_server_id=str(ms.id),
+                                user_id=function_input.user_id,
                             )
                         )
                         if oauth_token:
@@ -326,22 +344,21 @@ async def agent_tools_read_by_agent(  # noqa: C901
                             log.info(
                                 f"Added OAuth authorization for MCP server {ms.server_label} using {user_context}"
                             )
-                        else:
-                            # Only log if we expect OAuth (don't spam logs for non-OAuth servers)
-                            if ms.server_url and (
-                                "oauth"
-                                in (ms.server_url or "").lower()
-                                or "api."
-                                in (ms.server_url or "").lower()
-                            ):
-                                user_context = (
-                                    f"user {function_input.user_id}"
-                                    if function_input.user_id
-                                    else "any user"
-                                )
-                                log.debug(
-                                    f"No OAuth token found for MCP server {ms.server_label} for {user_context}"
-                                )
+                        # Only log if we expect OAuth (don't spam logs for non-OAuth servers)
+                        elif ms.server_url and (
+                            "oauth"
+                            in (ms.server_url or "").lower()
+                            or "api."
+                            in (ms.server_url or "").lower()
+                        ):
+                            user_context = (
+                                f"user {function_input.user_id}"
+                                if function_input.user_id
+                                else "any user"
+                            )
+                            log.debug(
+                                f"No OAuth token found for MCP server {ms.server_label} for {user_context}"
+                            )
                         if r.allowed_tools:
                             tool_obj["allowed_tools"] = (
                                 r.allowed_tools
@@ -444,15 +461,13 @@ async def agent_tools_create(
                 and not function_input.mcp_server_id
             ):
                 _raise_mcp_server_required_error()
-            
+
             # For MCP tools, tool_name is required
             if (
                 function_input.tool_type == "mcp"
                 and not function_input.tool_name
             ):
-                raise NonRetryableError(
-                    message="tool_name is required for MCP tools"
-                )
+                _raise_tool_name_required_error()
 
             agent_uuid = uuid.UUID(function_input.agent_id)
             mcp_uuid = (
@@ -463,32 +478,49 @@ async def agent_tools_create(
 
             # Check for existing record if it's an MCP tool
             existing_record = None
-            if function_input.tool_type == "mcp" and mcp_uuid and function_input.tool_name:
+            if (
+                function_input.tool_type == "mcp"
+                and mcp_uuid
+                and function_input.tool_name
+            ):
                 existing_query = select(AgentTool).where(
                     and_(
                         AgentTool.agent_id == agent_uuid,
                         AgentTool.tool_type == "mcp",
                         AgentTool.mcp_server_id == mcp_uuid,
-                        AgentTool.tool_name == function_input.tool_name
+                        AgentTool.tool_name
+                        == function_input.tool_name,
                     )
                 )
                 existing_result = await db.execute(existing_query)
-                existing_record = existing_result.scalar_one_or_none()
+                existing_record = (
+                    existing_result.scalar_one_or_none()
+                )
 
             if existing_record:
                 # Update existing record
                 existing_record.config = function_input.config
-                existing_record.allowed_tools = function_input.allowed_tools
-                existing_record.execution_order = function_input.execution_order
+                existing_record.allowed_tools = (
+                    function_input.allowed_tools
+                )
+                existing_record.execution_order = (
+                    function_input.execution_order
+                )
                 existing_record.enabled = (
                     function_input.enabled
                     if function_input.enabled is not None
                     else True
                 )
                 # Update MCP-specific fields
-                existing_record.tool_name = function_input.tool_name
-                existing_record.custom_description = function_input.custom_description
-                existing_record.require_approval = function_input.require_approval
+                existing_record.tool_name = (
+                    function_input.tool_name
+                )
+                existing_record.custom_description = (
+                    function_input.custom_description
+                )
+                existing_record.require_approval = (
+                    function_input.require_approval
+                )
                 record = existing_record
             else:
                 # Create new tool record

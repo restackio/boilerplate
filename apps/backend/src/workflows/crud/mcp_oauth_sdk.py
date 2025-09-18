@@ -2,6 +2,7 @@
 
 from datetime import timedelta
 from typing import Any
+from urllib.parse import parse_qs, urlparse
 
 from restack_ai.workflow import (
     NonRetryableError,
@@ -12,6 +13,7 @@ from restack_ai.workflow import (
 
 with import_functions():
     from src.functions.mcp_oauth_client import (
+        ExchangeCodeForTokenInput,
         ParseCallbackInput,
         oauth_exchange_code_for_token,
         oauth_generate_auth_url,
@@ -35,6 +37,10 @@ with import_functions():
         oauth_token_set_default,
         oauth_token_set_default_by_id,
         oauth_tokens_get_by_workspace,
+    )
+    from src.functions.mcp_servers_crud import (
+        McpServerUpdateInput,
+        mcp_servers_update,
     )
 
 
@@ -141,15 +147,13 @@ class McpOAuthInitializeWorkflow:
             )
 
             # Extract client_id from the authorization URL for use in callback
-            from urllib.parse import parse_qs, urlparse
-
             parsed_url = urlparse(
                 auth_url_result.auth_url.authorization_url
             )
             query_params = parse_qs(parsed_url.query)
             client_id = query_params.get("client_id", [None])[0]
 
-            return {
+            return {  # noqa: TRY300
                 "success": True,
                 "authorization_url": auth_url_result.auth_url.authorization_url,
                 "state": auth_url_result.auth_url.state,
@@ -159,7 +163,7 @@ class McpOAuthInitializeWorkflow:
                 "server_label": server.server_label,
             }
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             error_message = (
                 f"Error during MCP OAuth initialize workflow: {e}"
             )
@@ -235,9 +239,6 @@ class McpOAuthCallbackWorkflow:
             log.info(
                 "Step 3: Exchanging authorization code for tokens"
             )
-            from src.functions.mcp_oauth_client import (
-                ExchangeCodeForTokenInput,
-            )
 
             token_result = await workflow.step(
                 function=oauth_exchange_code_for_token,
@@ -273,17 +274,20 @@ class McpOAuthCallbackWorkflow:
 
             # Step 4: Save client credentials to MCP server headers
             if token_data.client_id and token_data.client_secret:
-                log.info("Step 4: Saving client credentials to MCP server")
-                from src.functions.mcp_servers_crud import mcp_servers_update, McpServerUpdateInput
-                
+                log.info(
+                    "Step 4: Saving client credentials to MCP server"
+                )
+
                 # Update MCP server headers with client credentials
-                current_headers = server_result.server.headers or {}
+                current_headers = (
+                    server_result.server.headers or {}
+                )
                 updated_headers = {
                     **current_headers,
                     "oauth_client_id": token_data.client_id,
                     "oauth_client_secret": token_data.client_secret,
                 }
-                
+
                 await workflow.step(
                     function=mcp_servers_update,
                     function_input=McpServerUpdateInput(
@@ -292,7 +296,9 @@ class McpOAuthCallbackWorkflow:
                     ),
                     start_to_close_timeout=timedelta(seconds=30),
                 )
-                log.info("Successfully stored client credentials in MCP server headers")
+                log.info(
+                    "Successfully stored client credentials in MCP server headers"
+                )
 
             # Step 5: Save tokens to database
             log.info("Step 5: Saving OAuth tokens to database")
@@ -309,6 +315,8 @@ class McpOAuthCallbackWorkflow:
                     scope=token_data.scope.split()
                     if token_data.scope
                     else None,
+                    auth_type="oauth",
+                    is_default=False,
                 ),
                 start_to_close_timeout=timedelta(seconds=30),
             )
@@ -321,14 +329,14 @@ class McpOAuthCallbackWorkflow:
                 }
 
             log.info("OAuth flow completed successfully")
-            return {
+            return {  # noqa: TRY300
                 "success": True,
                 "message": "OAuth connection established successfully",
                 "token_id": save_result.token.id,
                 "server_url": server_result.server.server_url,
             }
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             error_message = (
                 f"Error during MCP OAuth callback workflow: {e}"
             )
@@ -359,9 +367,9 @@ class OAuthTokensGetByWorkspaceWorkflow:
             log.info(
                 f"Successfully retrieved {len(result.tokens)} tokens"
             )
-            return result
+            return result  # noqa: TRY300
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             error_message = (
                 f"Error getting OAuth tokens by workspace: {e}"
             )
@@ -392,9 +400,9 @@ class BearerTokenCreateWorkflow:
             log.info(
                 f"Successfully created Bearer token with ID: {result.token.id}"
             )
-            return result
+            return result  # noqa: TRY300
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             error_message = f"Error creating Bearer token: {e}"
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e
@@ -423,9 +431,9 @@ class OAuthTokenDeleteWorkflow:
             log.info(
                 f"Successfully deleted OAuth token for user: {workflow_input.user_id}, server: {workflow_input.mcp_server_id}"
             )
-            return result
+            return result  # noqa: TRY300
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             error_message = f"Error deleting OAuth token: {e}"
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e
@@ -454,9 +462,9 @@ class OAuthTokenRefreshWorkflow:
             log.info(
                 f"Successfully refreshed OAuth token for user: {workflow_input.user_id}, server: {workflow_input.mcp_server_id}"
             )
-            return result
+            return result  # noqa: TRY300
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             error_message = f"Error refreshing OAuth token: {e}"
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e
@@ -491,13 +499,13 @@ class OAuthTokenSetDefaultWorkflow:
                 }
 
             log.info("Token set as default successfully")
-            return {
+            return {  # noqa: TRY300
                 "success": True,
                 "message": "Token set as default successfully",
                 "token": result.token,
             }
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             error_message = (
                 f"Error during set default token workflow: {e}"
             )
@@ -534,13 +542,13 @@ class OAuthTokenSetDefaultByIdWorkflow:
                 }
 
             log.info("Token set as default by ID successfully")
-            return {
+            return {  # noqa: TRY300
                 "success": True,
                 "message": "Token set as default successfully",
                 "token": result.token,
             }
 
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             error_message = f"Error during set default token by ID workflow: {e}"
             log.error(error_message)
             return {"success": False, "error": error_message}

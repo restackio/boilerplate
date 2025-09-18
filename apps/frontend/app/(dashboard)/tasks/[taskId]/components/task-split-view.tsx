@@ -52,7 +52,7 @@ export function TaskSplitView({
         <div>
           <label className="text-sm font-medium text-muted-foreground">Status</label>
           <div className="flex items-center space-x-2">
-            <StatusIcon status={(item.openai_output?.status as any) || 'pending'} />
+            <StatusIcon status={(item.openai_output?.status as any) || 'pending'} /> {/* eslint-disable-line @typescript-eslint/no-explicit-any */}
             <span className="text-sm">{item.openai_output?.status || 'unknown'}</span>
           </div>
         </div>

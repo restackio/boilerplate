@@ -41,9 +41,7 @@ with import_functions():
     )
 
 
-@workflow.defn(
-    description="Mock hello world message generator"
-)
+@workflow.defn(description="Mock hello world message generator")
 class MockHelloWorld:
     """Mock hello world tool that returns a greeting with a random number."""
 

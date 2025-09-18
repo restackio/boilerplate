@@ -5,7 +5,7 @@ import { useWorkspaceScopedActions, Task } from "@/hooks/use-workspace-scoped-ac
 import { useAgentState } from "@/app/(dashboard)/agents/[agentId]/hooks/use-agent-state";
 import { useRxjsConversation } from "@/app/(dashboard)/tasks/[taskId]/hooks/use-rxjs-conversation";
 import { sendMcpApproval } from "@/app/actions/agent";
-import { ConversationItem, OpenAIEvent } from "@/app/(dashboard)/tasks/[taskId]/types";
+import { OpenAIEvent, ConversationItem } from "@/app/(dashboard)/tasks/[taskId]/types";
 import { TaskChatInterface } from "@/app/(dashboard)/tasks/[taskId]/components";
 import {
   EntityLoadingState,
@@ -29,7 +29,6 @@ export function PlaygroundTaskExecution({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [chatMessage, setChatMessage] = useState("");
-  const [selectedCard, setSelectedCard] = useState<ConversationItem | null>(null);
 
   const { getTaskById } = useWorkspaceScopedActions();
 
@@ -87,9 +86,6 @@ export function PlaygroundTaskExecution({
     }
   };
 
-  const handleCardClick = (item: ConversationItem) => {
-    setSelectedCard(item);
-  };
 
   const handleApproveRequest = async (itemId: string) => {
     if (!task?.agent_task_id) {
@@ -141,6 +137,11 @@ export function PlaygroundTaskExecution({
       // Revert the optimistic update on error
       updateConversationItemStatus(itemId, "waiting-approval");
     }
+  };
+
+  const handleCardClick = (item: ConversationItem) => {
+    // Handle card click - could be used for showing details or expanding content
+    console.log("Card clicked:", item);
   };
 
   if (!taskId) {

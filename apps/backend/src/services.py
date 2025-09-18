@@ -41,6 +41,7 @@ from src.functions.mcp_oauth_client import (
     oauth_refresh_token,
 )
 from src.functions.mcp_oauth_crud import (
+    get_oauth_token_for_mcp_server,
     mcp_server_get_by_id,
     oauth_token_create_or_update,
     oauth_token_delete,
@@ -48,7 +49,6 @@ from src.functions.mcp_oauth_crud import (
     oauth_token_set_default,
     oauth_token_set_default_by_id,
     oauth_tokens_get_by_workspace,
-    get_oauth_token_for_mcp_server
 )
 from src.functions.mcp_servers_crud import (
     mcp_servers_create,
@@ -110,8 +110,6 @@ from src.functions.workspaces_crud import (
     workspaces_read,
     workspaces_update,
 )
-
-
 from src.workflows.crud.agent_tools_crud import (
     AgentToolsCreateWorkflow,
     AgentToolsDeleteWorkflow,
@@ -199,6 +197,9 @@ from src.workflows.crud.workspaces_crud import (
     WorkspacesReadWorkflow,
     WorkspacesUpdateWorkflow,
 )
+
+# Create logger for this module
+logger = logging.getLogger(__name__)
 
 
 async def run_restack_service() -> None:
@@ -352,7 +353,7 @@ async def run_restack_service() -> None:
             agent_tools_create,
             agent_tools_update,
             agent_tools_delete,
-            get_oauth_token_for_mcp_server
+            get_oauth_token_for_mcp_server,
         ],
     )
 
@@ -361,9 +362,9 @@ async def main() -> None:
     """Main function to run Restack services."""
     # Initialize database
     await init_async_db()
-    logging.info("Database initialized")
+    logger.info("Database initialized")
 
-    logging.info(
+    logger.info(
         "Starting Restack services on default port (5233)"
     )
     await run_restack_service()
@@ -379,7 +380,7 @@ def start() -> None:
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        logging.info(
+        logger.info(
             "Services interrupted by user. Exiting gracefully."
         )
 
@@ -392,7 +393,7 @@ def dev_watch() -> None:
     )
 
     watch_path = Path.cwd()
-    logging.info(
+    logger.info(
         "Watching %s and its subdirectories for changes...",
         watch_path,
     )

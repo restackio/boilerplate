@@ -24,7 +24,7 @@ export default function TeamSettingsPage() {
   const [team, setTeam] = useState<Team | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [_deleting, setDeleting] = useState(false);
+  const [, setDeleting] = useState(false);
   
   const [formData, setFormData] = useState({
     name: "",

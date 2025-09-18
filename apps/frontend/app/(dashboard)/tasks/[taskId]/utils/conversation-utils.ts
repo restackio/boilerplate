@@ -59,9 +59,9 @@ export const extractTextContent = (item: ConversationItem): string => {
 
   // Handle MCP call errors
   if (item.openai_output?.error) {
-    const error = item.openai_output.error as any;
+    const error = item.openai_output.error as any; // eslint-disable-line @typescript-eslint/no-explicit-any
     if (error.content && Array.isArray(error.content)) {
-      return error.content.map((c: any) => c.text || c).join('\n');
+      return error.content.map((c: any) => c.text || c).join('\n'); // eslint-disable-line @typescript-eslint/no-explicit-any
     }
     if (error.message) {
       return `${error.type || 'Error'}: ${error.message}`;
@@ -72,7 +72,7 @@ export const extractTextContent = (item: ConversationItem): string => {
   // Handle failed MCP calls from response.mcp_call.failed events
   if (item.openai_event?.type === "response.mcp_call.failed") {
     // Extract error information from the event
-    const eventData = item.openai_event as any;
+    const eventData = item.openai_event as any; // eslint-disable-line @typescript-eslint/no-explicit-any
     return `MCP Call Failed: ${eventData.item_id || 'Unknown tool'} - ${eventData.error?.message || 'Unknown error'}`;
   }
 
@@ -137,7 +137,7 @@ export const extractToolOutput = (item: ConversationItem): unknown => {
   
   // Handle failed MCP calls from response.mcp_call.failed events
   if (item.openai_event?.type === "response.mcp_call.failed") {
-    const eventData = item.openai_event as any;
+    const eventData = item.openai_event as any; // eslint-disable-line @typescript-eslint/no-explicit-any
     return {
       error: true,
       message: eventData.error?.message || 'MCP call failed',

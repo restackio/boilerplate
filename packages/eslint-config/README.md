@@ -1,4 +1,4 @@
-# ESLint Config
+# Eslint config
 
 Shared ESLint configuration for the monorepo workspace.
 

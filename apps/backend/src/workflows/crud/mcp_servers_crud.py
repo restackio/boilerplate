@@ -9,6 +9,10 @@ from restack_ai.workflow import (
 )
 
 with import_functions():
+    from src.functions.mcp_oauth_crud import (
+        GetOAuthTokenForMcpServerInput,
+        get_oauth_token_for_mcp_server,
+    )
     from src.functions.mcp_servers_crud import (
         McpServerCreateInput,
         McpServerDeleteOutput,
@@ -33,10 +37,6 @@ with import_functions():
         mcp_session_init,
         mcp_tools_list,
         mcp_tools_list_direct,
-    )
-    from src.functions.mcp_oauth_crud import (
-        get_oauth_token_for_mcp_server,
-        GetOAuthTokenForMcpServerInput,
     )
 
 
@@ -163,20 +163,26 @@ class McpToolsListWorkflow:
     """Simple workflow to disclistover tools from an MCP server URL."""
 
     @workflow.run
-    async def run(
+    async def run(  # noqa: C901, PLR0911, PLR0912, PLR0915
         self, workflow_input: McpToolsListInput
     ) -> McpToolsListOutput:
         try:
             # Validate that we have either server_url or mcp_server_id
-            if not workflow_input.server_url and not workflow_input.mcp_server_id:
+            if (
+                not workflow_input.server_url
+                and not workflow_input.mcp_server_id
+            ):
                 return McpToolsListOutput(
                     success=False,
-                    error="Either server_url or mcp_server_id must be provided"
+                    error="Either server_url or mcp_server_id must be provided",
                 )
-            
+
             # Resolve server URL if it's a placeholder and we have mcp_server_id
             server_url = workflow_input.server_url
-            if (server_url == "placeholder" and workflow_input.mcp_server_id):
+            if (
+                server_url == "placeholder"
+                and workflow_input.mcp_server_id
+            ):
                 # Get the actual server URL from the MCP server record
                 server_result = await workflow.step(
                     function=mcp_servers_get_by_id,
@@ -185,12 +191,16 @@ class McpToolsListWorkflow:
                     ),
                 )
                 if server_result and server_result.mcp_server:
-                    server_url = server_result.mcp_server.server_url
-                    log.info(f"Resolved server URL from MCP server: {server_url}")
+                    server_url = (
+                        server_result.mcp_server.server_url
+                    )
+                    log.info(
+                        f"Resolved server URL from MCP server: {server_url}"
+                    )
                 else:
                     return McpToolsListOutput(
                         success=False,
-                        error=f"Could not resolve server URL for MCP server {workflow_input.mcp_server_id}"
+                        error=f"Could not resolve server URL for MCP server {workflow_input.mcp_server_id}",
                     )
             elif not server_url and workflow_input.mcp_server_id:
                 # Handle case where server_url is None but mcp_server_id is provided
@@ -201,26 +211,30 @@ class McpToolsListWorkflow:
                     ),
                 )
                 if server_result and server_result.mcp_server:
-                    server_url = server_result.mcp_server.server_url
-                    log.info(f"Resolved server URL from MCP server: {server_url}")
+                    server_url = (
+                        server_result.mcp_server.server_url
+                    )
+                    log.info(
+                        f"Resolved server URL from MCP server: {server_url}"
+                    )
                 else:
                     return McpToolsListOutput(
                         success=False,
-                        error=f"Could not resolve server URL for MCP server {workflow_input.mcp_server_id}"
+                        error=f"Could not resolve server URL for MCP server {workflow_input.mcp_server_id}",
                     )
             elif not server_url:
                 return McpToolsListOutput(
                     success=False,
-                    error="Server URL is required when mcp_server_id is not provided"
+                    error="Server URL is required when mcp_server_id is not provided",
                 )
-            
+
             # Check if this is a local MCP server (server_url is None)
             if server_url is None:
                 return McpToolsListOutput(
                     success=False,
-                    error="Cannot list tools for local MCP servers - server_url is required for remote MCP servers"
+                    error="Cannot list tools for local MCP servers - server_url is required for remote MCP servers",
                 )
-            
+
             # Prepare headers with authentication if available
             headers = workflow_input.headers or {}
 
@@ -248,7 +262,11 @@ class McpToolsListWorkflow:
                         log.info(
                             "No default token found for MCP server"
                         )
-                except Exception as e:
+                except (
+                    ValueError,
+                    TypeError,
+                    AttributeError,
+                ) as e:
                     log.warning(
                         f"Failed to get OAuth token for MCP server: {e}"
                     )
@@ -310,13 +328,21 @@ class McpToolsListWorkflow:
 
                 # Convert tools_with_descriptions to McpTool objects
                 tools_with_desc = []
-                if hasattr(tools_list_result, 'tools_with_descriptions'):
-                    for tool_dict in tools_list_result.tools_with_descriptions:
-                        tools_with_desc.append(McpTool(
-                            name=tool_dict.get("name", ""),
-                            description=tool_dict.get("description")
-                        ))
-                
+                if hasattr(
+                    tools_list_result, "tools_with_descriptions"
+                ):
+                    tools_with_desc.extend(
+                        [
+                            McpTool(
+                                name=tool_dict.get("name", ""),
+                                description=tool_dict.get(
+                                    "description"
+                                ),
+                            )
+                            for tool_dict in tools_list_result.tools_with_descriptions
+                        ]
+                    )
+
                 return McpToolsListOutput(
                     success=True,
                     tools_list=tools_list_result.tools,
@@ -357,15 +383,21 @@ class McpToolsListWorkflow:
 
             # Convert tools_with_descriptions to McpTool objects for direct result
             tools_with_desc = []
-            if hasattr(direct_result, 'tools_with_descriptions'):
-                for tool_dict in direct_result.tools_with_descriptions:
-                    tools_with_desc.append(McpTool(
-                        name=tool_dict.get("name", ""),
-                        description=tool_dict.get("description")
-                    ))
-            
+            if hasattr(direct_result, "tools_with_descriptions"):
+                for (
+                    tool_dict
+                ) in direct_result.tools_with_descriptions:
+                    tools_with_desc.append(
+                        McpTool(
+                            name=tool_dict.get("name", ""),
+                            description=tool_dict.get(
+                                "description"
+                            ),
+                        )
+                    )
+
             return McpToolsListOutput(
-                success=True, 
+                success=True,
                 tools_list=direct_result.tools,
                 tools=tools_with_desc,
             )

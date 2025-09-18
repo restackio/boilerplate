@@ -48,7 +48,12 @@ export function TaskChatInterface({
             {/* Render conversation items from RxJS store */}
             {conversation.map((item) => (
               <div key={item.id}>
-                {renderConversationItem(item, onApproveRequest, onDenyRequest, onCardClick)}
+                <RenderConversationItem
+                  item={item}
+                  onApproveRequest={onApproveRequest}
+                  onDenyRequest={onDenyRequest}
+                  onCardClick={onCardClick}
+                />
               </div>
             ))}
             
@@ -73,12 +78,18 @@ export function TaskChatInterface({
 }
 
 // Render conversation items based on their type
-function renderConversationItem(
-  item: ConversationItem,
-  onApproveRequest?: (itemId: string) => void,
-  onDenyRequest?: (itemId: string) => void,
-  onCardClick?: (item: ConversationItem) => void,
-) {
+function RenderConversationItem({
+  item,
+  onApproveRequest,
+  onDenyRequest,
+  onCardClick,
+}: {
+  item: ConversationItem;
+  onApproveRequest?: (itemId: string) => void;
+  onDenyRequest?: (itemId: string) => void;
+  onCardClick?: (item: ConversationItem) => void;
+}) {
+  const conversationItemData = useConversationItem(item);
   switch (item.type) {
     case 'error':
       return (
@@ -145,7 +156,7 @@ function renderConversationItem(
       );
         
     case 'assistant': {
-      const { isUser, textContent, isReasoningType } = useConversationItem(item);
+      const { isUser, textContent, isReasoningType } = conversationItemData;
       return (
         <div key={item.id} className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
           <div className="flex items-start space-x-2 max-w-[85%]">
@@ -184,7 +195,7 @@ function renderConversationItem(
     }
       
     default: {
-      const { isUser, textContent, isReasoningType } = useConversationItem(item);
+      const { isUser, textContent, isReasoningType } = conversationItemData;
       return (
         <div key={item.id} className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
           <div className="flex items-start space-x-2 max-w-[85%]">

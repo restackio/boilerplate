@@ -10,6 +10,15 @@ from src.database.connection import get_async_db
 from src.database.models import Agent, AgentTool
 
 
+def _raise_source_agent_not_found_error(
+    source_agent_id: str,
+) -> None:
+    """Raise error when source agent is not found for cloning."""
+    raise NonRetryableError(
+        message=f"Source agent with ID {source_agent_id} not found"
+    )
+
+
 # Pydantic models for input validation
 class AgentCreateInput(BaseModel):
     workspace_id: str = Field(..., min_length=1)
@@ -172,7 +181,8 @@ def get_latest_agent_versions(
             # Sort by created_at descending and take the first (latest)
             latest_agent = max(
                 group_agents,
-                key=lambda x: x.created_at or datetime.min,
+                key=lambda x: x.created_at
+                or datetime.min.replace(tzinfo=UTC),
             )
 
             # Calculate version count
@@ -379,7 +389,8 @@ def _process_agent_group(
         if published_agent
         else max(
             group_agents,
-            key=lambda x: x.created_at or datetime.min,
+            key=lambda x: x.created_at
+            or datetime.min.replace(tzinfo=UTC),
         )
     )
 
@@ -394,9 +405,12 @@ def _process_agent_group(
     if draft_agents:
         latest_draft_agent = max(
             draft_agents,
-            key=lambda x: x.created_at or datetime.min,
+            key=lambda x: x.created_at
+            or datetime.min.replace(tzinfo=UTC),
         )
-        latest_draft_version_short = str(latest_draft_agent.id)[-5:]
+        latest_draft_version_short = str(latest_draft_agent.id)[
+            -5:
+        ]
 
     return AgentTableOutput(
         id=str(display_agent.id),
@@ -1047,8 +1061,6 @@ async def agents_archive(
     return AgentArchiveOutput(agent=result.agent)
 
 
-
-
 class AgentResolveInput(BaseModel):
     workspace_id: str = Field(..., min_length=1)
     agent_name: str = Field(
@@ -1140,14 +1152,18 @@ async def agents_clone(
     async for db in get_async_db():
         try:
             # Get the source agent
-            source_agent_id = uuid.UUID(clone_data.source_agent_id)
-            source_agent_query = select(Agent).where(Agent.id == source_agent_id)
+            source_agent_id = uuid.UUID(
+                clone_data.source_agent_id
+            )
+            source_agent_query = select(Agent).where(
+                Agent.id == source_agent_id
+            )
             result = await db.execute(source_agent_query)
             source_agent = result.scalars().first()
-            
+
             if not source_agent:
-                raise NonRetryableError(
-                    message=f"Source agent with ID {clone_data.source_agent_id} not found"
+                _raise_source_agent_not_found_error(
+                    clone_data.source_agent_id
                 )
 
             # Create the new agent
@@ -1155,8 +1171,10 @@ async def agents_clone(
                 id=uuid.uuid4(),
                 workspace_id=uuid.UUID(clone_data.workspace_id),
                 name=clone_data.name,
-                description=clone_data.description or source_agent.description,
-                instructions=clone_data.instructions or source_agent.instructions,
+                description=clone_data.description
+                or source_agent.description,
+                instructions=clone_data.instructions
+                or source_agent.instructions,
                 status=clone_data.status,
                 parent_agent_id=source_agent_id,  # Set the source as parent
                 model=clone_data.model,
@@ -1166,7 +1184,9 @@ async def agents_clone(
             await db.flush()  # Get the ID without committing
 
             # Get all tools from the source agent
-            tools_query = select(AgentTool).where(AgentTool.agent_id == source_agent_id)
+            tools_query = select(AgentTool).where(
+                AgentTool.agent_id == source_agent_id
+            )
             tools_result = await db.execute(tools_query)
             source_tools = tools_result.scalars().all()
 
@@ -1202,7 +1222,8 @@ async def agents_clone(
                 if new_agent.parent_agent_id
                 else None,
                 model=new_agent.model or "gpt-5",
-                reasoning_effort=new_agent.reasoning_effort or "medium",
+                reasoning_effort=new_agent.reasoning_effort
+                or "medium",
                 created_at=new_agent.created_at.isoformat()
                 if new_agent.created_at
                 else None,

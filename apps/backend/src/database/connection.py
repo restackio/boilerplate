@@ -12,6 +12,9 @@ from sqlalchemy.ext.asyncio import (
 
 from .models import Base
 
+# Create logger for this module
+logger = logging.getLogger(__name__)
+
 # Only load .env file if we're not in Docker (no NODE_ENV=production)
 if os.getenv("NODE_ENV") != "production":
     load_dotenv()
@@ -65,15 +68,15 @@ async def init_async_db() -> None:
     try:
         async with async_engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-        logging.info("Database initialized successfully")
+        logger.info("Database initialized successfully")
     except DisconnectionError as e:
-        logging.warning("Database connection failed: %s", e)
-        logging.info(
+        logger.warning("Database connection failed: %s", e)
+        logger.info(
             "SQLAlchemy will handle reconnection automatically via pool_pre_ping"
         )
         raise
     except Exception:
-        logging.exception("Database initialization failed")
+        logger.exception("Database initialization failed")
         raise
 
 

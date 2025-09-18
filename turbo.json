@@ -13,8 +13,8 @@
       "dependsOn": ["^lint"],
       "env": ["RESTACK_ENGINE_ID", "RESTACK_ENGINE_ADDRESS", "RESTACK_ENGINE_API_KEY", "NODE_ENV"]
     },
-    "check-types": {
-      "dependsOn": ["^check-types"],
+    "type-check": {
+      "dependsOn": ["^type-check"],
       "env": ["RESTACK_ENGINE_ID", "RESTACK_ENGINE_ADDRESS", "RESTACK_ENGINE_API_KEY", "NODE_ENV"]
     },
     "dev": {

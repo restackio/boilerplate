@@ -1,4 +1,3 @@
-import uuid
 from datetime import UTC, datetime
 
 from sqlalchemy import (
@@ -280,16 +279,22 @@ class AgentTool(Base):
         ForeignKey("mcp_servers.id", ondelete="CASCADE"),
     )
     # MCP-specific fields (merged from AgentMcpTool)
-    tool_name = Column(String(255))  # Specific tool name for MCP tools
-    custom_description = Column(Text)  # Agent-specific tool description override
-    require_approval = Column(Boolean, nullable=False, default=False)  # Tool approval setting
-    
+    tool_name = Column(
+        String(255)
+    )  # Specific tool name for MCP tools
+    custom_description = Column(
+        Text
+    )  # Agent-specific tool description override
+    require_approval = Column(
+        Boolean, nullable=False, default=False
+    )  # Tool approval setting
+
     # General tool configuration
     config = Column(JSONB)
     allowed_tools = Column(JSONB)
     execution_order = Column(Integer)
     enabled = Column(Boolean, nullable=False, default=True)
-    
+
     # Timestamps
     created_at = Column(
         DateTime,
@@ -298,7 +303,9 @@ class AgentTool(Base):
     updated_at = Column(
         DateTime,
         default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
-        onupdate=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+        onupdate=lambda: datetime.now(tz=UTC).replace(
+            tzinfo=None
+        ),
     )
 
     # Constraints
@@ -325,10 +332,15 @@ class AgentTool(Base):
             name="chk_agent_tools_mcp_tool_name",
         ),
         # Ensure unique tool per agent per server for MCP tools
-        UniqueConstraint('agent_id', 'mcp_server_id', 'tool_name', name='uq_agent_tool_mcp'),
+        UniqueConstraint(
+            "agent_id",
+            "mcp_server_id",
+            "tool_name",
+            name="uq_agent_tool_mcp",
+        ),
         # Indexes for performance
-        Index('idx_agent_tools_agent_id', 'agent_id'),
-        Index('idx_agent_tools_mcp_server_id', 'mcp_server_id'),
+        Index("idx_agent_tools_agent_id", "agent_id"),
+        Index("idx_agent_tools_mcp_server_id", "mcp_server_id"),
     )
 
     # Relationships

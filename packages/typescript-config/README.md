@@ -1,4 +1,4 @@
-# TypeScript Config
+# TypeScript config
 
 Shared TypeScript configuration for the monorepo workspace.
 

@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  node-lint-and-typecheck:
+    name: Node Lint and Type Check
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Cache turbo build setup
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Lint
+        run: pnpm lint --filter='boilerplate-frontend' --filter='@workspace/ui'
+
+      - name: Type check
+        run: pnpm --filter='boilerplate-frontend' --filter='@workspace/ui' type-check
+
+  python-lint:
+    name: Python Lint
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Install and lint Backend
+        working-directory: ./apps/backend
+        run: |
+          uv sync --frozen
+          uv run ruff check .
+
+      - name: Install and lint MCP Server
+        working-directory: ./apps/mcp_server
+        run: |
+          uv sync --frozen
+          uv run ruff check .
+
+      - name: Install and lint Webhook
+        working-directory: ./apps/webhook
+        run: |
+          uv sync --frozen
+          uv run ruff check src
+
+  documentation-lint:
+    name: Documentation Lint (Vale)
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Vale
+        uses: errata-ai/vale-action@v2.1.1
+        with:
+          files: all
+          vale_flags: "--glob=README.md --glob=CONTRIBUTING.md --glob=apps/*/README.md --glob=packages/*/README.md"
+          fail_on_error: true

@@ -1,11 +1,11 @@
 """MCP OAuth CRUD operations for token management."""
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from pydantic import BaseModel, Field
 from restack_ai.function import NonRetryableError, function, log
-from sqlalchemy import select, update, func
+from sqlalchemy import func, select, update
 from sqlalchemy.exc import SQLAlchemyError
 
 from src.database.connection import get_async_db
@@ -14,6 +14,18 @@ from src.utils.token_encryption import (
     decrypt_token,
     encrypt_token,
 )
+
+
+def _raise_refresh_token_failed_error() -> None:
+    """Raise error when OAuth token refresh fails."""
+    error_message = "Failed to refresh OAuth token"
+    raise NonRetryableError(message=error_message)
+
+
+def _raise_database_connection_failed_error() -> None:
+    """Raise error when database connection fails."""
+    error_message = "Database connection failed"
+    raise NonRetryableError(message=error_message)
 
 
 # Input models
@@ -174,19 +186,34 @@ async def oauth_token_create_or_update(
     function_input: SaveOAuthTokenInput,
 ) -> SaveOAuthTokenOutput:
     """Create or update OAuth token."""
+    log.info(
+        f"Starting oauth_token_create_or_update with input: {function_input}"
+    )
+
     async for db in get_async_db():
+        log.info("Database connection established")
         try:
             # Check if there are any existing connections for this MCP server in this workspace
-            existing_connections_query = select(func.count(UserOAuthConnection.id)).where(
-                UserOAuthConnection.workspace_id == uuid.UUID(function_input.workspace_id),
-                UserOAuthConnection.mcp_server_id == uuid.UUID(function_input.mcp_server_id),
+            existing_connections_query = select(
+                func.count(UserOAuthConnection.id)
+            ).where(
+                UserOAuthConnection.workspace_id
+                == uuid.UUID(function_input.workspace_id),
+                UserOAuthConnection.mcp_server_id
+                == uuid.UUID(function_input.mcp_server_id),
             )
-            existing_connections_result = await db.execute(existing_connections_query)
-            existing_connections_count = existing_connections_result.scalar()
-            
+            existing_connections_result = await db.execute(
+                existing_connections_query
+            )
+            existing_connections_count = (
+                existing_connections_result.scalar()
+            )
+
             # Auto-default if this is the first connection for this MCP server
-            should_be_default = function_input.is_default or existing_connections_count == 0
-            
+            should_be_default = (
+                function_input.is_default
+                or existing_connections_count == 0
+            )
             # If this token should be default, unmark any existing default tokens for this workspace and MCP server
             if should_be_default:
                 await db.execute(
@@ -207,7 +234,7 @@ async def oauth_token_create_or_update(
             expires_at = None
             if function_input.expires_in:
                 expires_at = (
-                    datetime.now(timezone.utc)
+                    datetime.now(UTC)
                     + timedelta(seconds=function_input.expires_in)
                 ).replace(tzinfo=None)
 
@@ -249,7 +276,7 @@ async def oauth_token_create_or_update(
                 )
                 existing_token.is_default = should_be_default
                 existing_token.updated_at = datetime.now(
-                    timezone.utc
+                    UTC
                 ).replace(tzinfo=None)
                 token = existing_token
             else:
@@ -294,8 +321,19 @@ async def oauth_token_create_or_update(
             )
 
         except SQLAlchemyError as e:
+            log.error(
+                f"SQLAlchemy error in oauth_token_create_or_update: {e}"
+            )
             raise NonRetryableError(
                 message=f"Database error saving OAuth token: {e}"
+            ) from e
+        except Exception as e:
+            log.error(
+                f"Unexpected error in oauth_token_create_or_update: {e}"
+            )
+            log.error(f"Error type: {type(e)}")
+            raise NonRetryableError(
+                message=f"Unexpected error saving OAuth token: {e}"
             ) from e
 
     # This should never be reached due to async generator
@@ -368,15 +406,16 @@ async def oauth_token_get_by_user_and_server(
 
 
 @function.defn()
-async def get_oauth_token_for_mcp_server(
+async def get_oauth_token_for_mcp_server(  # noqa: C901
     function_input: GetOAuthTokenForMcpServerInput,
 ) -> str | None:
     """Get OAuth token for MCP server, refreshing if needed.
 
     Args:
-        mcp_server_id: The MCP server ID to get token for
-        user_id: Optional user ID. If not provided, uses the default token for the workspace
-        workspace_id: Optional workspace ID. Used to find default token when user_id is not provided
+        function_input: Input containing mcp_server_id, user_id, and workspace_id
+
+    Returns:
+        The decrypted access token if available and valid, None otherwise
     """
     try:
         async for db in get_async_db():
@@ -399,7 +438,7 @@ async def get_oauth_token_for_mcp_server(
                     == uuid.UUID(function_input.workspace_id),
                     UserOAuthConnection.mcp_server_id
                     == uuid.UUID(function_input.mcp_server_id),
-                    UserOAuthConnection.is_default == True,
+                    UserOAuthConnection.is_default,
                 )
                 result = await db.execute(query)
                 oauth_connection = result.scalar_one_or_none()
@@ -453,7 +492,7 @@ async def get_oauth_token_for_mcp_server(
                 return None
 
             # Check if token is expired or about to expire (within 5 minutes)
-            now = datetime.now(timezone.utc).replace(tzinfo=None)
+            now = datetime.now(UTC).replace(tzinfo=None)
             if (
                 oauth_connection.expires_at
                 and oauth_connection.expires_at <= now
@@ -502,7 +541,11 @@ async def get_oauth_token_for_mcp_server(
                         )
                         return None
 
-                except Exception as e:
+                except (
+                    ValueError,
+                    TypeError,
+                    AttributeError,
+                ) as e:
                     log.error(
                         f"Error refreshing OAuth token for MCP server {function_input.mcp_server_id}: {e}"
                     )
@@ -510,11 +553,13 @@ async def get_oauth_token_for_mcp_server(
 
             # Decrypt and return the access token
             if oauth_connection and oauth_connection.access_token:
-                return decrypt_token(oauth_connection.access_token)
+                return decrypt_token(
+                    oauth_connection.access_token
+                )
 
             return None
 
-    except Exception as e:
+    except (ValueError, TypeError, AttributeError) as e:
         log.error(
             f"Error getting OAuth token for MCP server {function_input.mcp_server_id}: {e}"
         )
@@ -626,9 +671,7 @@ async def oauth_token_refresh_and_update(
             not refresh_result
             or not refresh_result.token_exchange
         ):
-            raise NonRetryableError(
-                message="Failed to refresh OAuth token"
-            )
+            _raise_refresh_token_failed_error()
 
         token_data = refresh_result.token_exchange
 
@@ -668,7 +711,7 @@ async def oauth_token_refresh_and_update(
                     expires_at = None
                     if token_data.expires_in:
                         expires_at = (
-                            datetime.now(timezone.utc)
+                            datetime.now(UTC)
                             + timedelta(
                                 seconds=token_data.expires_in
                             )
@@ -694,12 +737,12 @@ async def oauth_token_refresh_and_update(
                         else None
                     )
                     existing_token.last_refreshed_at = (
-                        datetime.now(timezone.utc).replace(
+                        datetime.now(UTC).replace(
                             tzinfo=None
                         )
                     )
                     existing_token.updated_at = datetime.now(
-                        timezone.utc
+                        UTC
                     ).replace(tzinfo=None)
 
                     await db.commit()
@@ -724,10 +767,9 @@ async def oauth_token_refresh_and_update(
                             auth_type=existing_token.auth_type,
                         )
                     )
-                else:
-                    raise NonRetryableError(
-                        message="No existing token found to refresh"
-                    )
+                raise NonRetryableError(
+                    message="No existing token found to refresh"
+                )
 
             except SQLAlchemyError as e:
                 raise NonRetryableError(
@@ -735,9 +777,7 @@ async def oauth_token_refresh_and_update(
                 ) from e
 
         # This should never be reached due to async generator
-        raise NonRetryableError(
-            message="Database connection failed"
-        )
+        _raise_database_connection_failed_error()
 
     except NonRetryableError:
         raise
@@ -807,7 +847,7 @@ async def oauth_token_get_default(
                 == uuid.UUID(function_input.workspace_id),
                 UserOAuthConnection.mcp_server_id
                 == uuid.UUID(function_input.mcp_server_id),
-                UserOAuthConnection.is_default == True,
+                UserOAuthConnection.is_default,
             )
             result = await db.execute(query)
             token = result.scalar_one_or_none()
@@ -869,14 +909,14 @@ async def oauth_token_set_default(
                     == token.workspace_id,
                     UserOAuthConnection.mcp_server_id
                     == token.mcp_server_id,
-                    UserOAuthConnection.is_default == True,
+                    UserOAuthConnection.is_default,
                 )
                 .values(is_default=False)
             )
 
             # Set this token as default
             token.is_default = True
-            token.updated_at = datetime.now(timezone.utc).replace(
+            token.updated_at = datetime.now(UTC).replace(
                 tzinfo=None
             )
 
@@ -935,14 +975,14 @@ async def oauth_token_set_default_by_id(
                     == token.workspace_id,
                     UserOAuthConnection.mcp_server_id
                     == token.mcp_server_id,
-                    UserOAuthConnection.is_default == True,
+                    UserOAuthConnection.is_default,
                 )
                 .values(is_default=False)
             )
 
             # Set this token as default
             token.is_default = True
-            token.updated_at = datetime.now(timezone.utc).replace(
+            token.updated_at = datetime.now(UTC).replace(
                 tzinfo=None
             )
 

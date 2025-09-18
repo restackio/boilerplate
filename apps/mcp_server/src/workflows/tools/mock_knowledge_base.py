@@ -58,7 +58,9 @@ class MockKnowledgeBase:
     async def run(
         self, workflow_input: KnowledgeBaseInput
     ) -> KnowledgeBaseOutput:
-        log.info("MockKnowledgeBase started", input=workflow_input)
+        log.info(
+            "MockKnowledgeBase started", input=workflow_input
+        )
 
         try:
             # Use LLM to generate search results based on query and schema
@@ -113,7 +115,8 @@ Return realistic search results that would help with L1 support assessment.""",
             search_results = json.loads(response_text)
 
             log.info(
-                "MockKnowledgeBase completed", results=search_results
+                "MockKnowledgeBase completed",
+                results=search_results,
             )
             return KnowledgeBaseOutput(results=search_results)
 
