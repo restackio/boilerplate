@@ -20,8 +20,6 @@ jobs:
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - name: Setup Node.js environment
         uses: actions/setup-node@v4
@@ -92,5 +90,5 @@ jobs:
       - name: Run Vale
         uses: errata-ai/vale-action@v2.1.1
         with:
-          files: 'README.md CONTRIBUTING.md apps/*/README.md packages/*/README.md'
+          files: '["README.md", "CONTRIBUTING.md", "apps/*/README.md", "packages/*/README.md"]'
           fail_on_error: true
