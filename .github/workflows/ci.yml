@@ -42,7 +42,7 @@ jobs:
         run: pnpm lint --filter='boilerplate-frontend' --filter='@workspace/ui'
 
       - name: Type check
-        run: pnpm type-check --filter='boilerplate-frontend' --filter='@workspace/ui'
+        run: pnpm --filter='boilerplate-frontend' --filter='@workspace/ui' type-check
 
   python-lint:
     name: Python Lint
