@@ -60,6 +60,10 @@ RUN pnpm install
 
 # Copy the full application and build it.
 COPY --from=builder /app/out/full/ .
+
+# Ensure the UI package source files are available for the CSS import
+COPY --from=builder /app/packages/ui/src ./packages/ui/src
+
 RUN pnpm build
 
 # ============
