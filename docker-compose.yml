@@ -23,6 +23,9 @@ services:
       -c work_mem=16MB
       -c random_page_cost=1.1
       -c synchronous_commit=off
+      -c max_parallel_workers=4
+      -c max_parallel_workers_per_gather=2
+      -c jit=off
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d boilerplate_db"]
       interval: 10s
