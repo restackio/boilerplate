@@ -230,6 +230,15 @@ CREATE INDEX IF NOT EXISTS idx_tasks_list_covering ON tasks(workspace_id, status
 -- Index for email lookups (very common in auth)
 CREATE INDEX IF NOT EXISTS idx_users_email_lower ON users(lower(email));
 
+-- PostgreSQL 17 JSONB Performance Optimizations
+-- GIN indexes for JSONB fields to improve JSON queries
+CREATE INDEX IF NOT EXISTS idx_agents_config_gin ON agents USING GIN (config) WHERE config IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_tasks_messages_gin ON tasks USING GIN (messages) WHERE messages IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_tasks_schedule_gin ON tasks USING GIN (schedule_spec) WHERE schedule_spec IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_mcp_headers_gin ON mcp_servers USING GIN (headers) WHERE headers IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_agent_tools_config_gin ON agent_tools USING GIN (config) WHERE config IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_agent_tools_allowed_gin ON agent_tools USING GIN (allowed_tools) WHERE allowed_tools IS NOT NULL;
+
 -- Create updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
