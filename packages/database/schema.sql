@@ -75,7 +75,8 @@ CREATE TABLE IF NOT EXISTS agents (
     model VARCHAR(100) DEFAULT 'gpt-5' CHECK (model IN (
         'gpt-5', 'gpt-5-mini', 'gpt-5-nano',
         'gpt-5-2025-08-07', 'gpt-5-mini-2025-08-07', 'gpt-5-nano-2025-08-07',
-        'gpt-4.1', 'gpt-4.1-mini', 'gpt-4.1-nano', 'gpt-4o', 'gpt-4o-mini'
+        'gpt-4.1', 'gpt-4.1-mini', 'gpt-4.1-nano', 'gpt-4o', 'gpt-4o-mini',
+        'o3-deep-research', 'o4-mini-deep-research'
     )),
     reasoning_effort VARCHAR(20) DEFAULT 'medium' CHECK (reasoning_effort IN ('minimal', 'low', 'medium', 'high')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -85,12 +86,12 @@ CREATE TABLE IF NOT EXISTS agents (
 
 
 -- Unified agent tools table mirroring Responses API tool types
--- tool_type ∈ ('file_search','web_search_preview','mcp','code_interpreter','image_generation','local_shell')
+-- tool_type ∈ ('file_search','web_search','mcp','code_interpreter','image_generation','local_shell')
 CREATE TABLE IF NOT EXISTS agent_tools (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     agent_id UUID NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
     tool_type VARCHAR(32) NOT NULL CHECK (tool_type IN (
-        'file_search','web_search_preview','mcp','code_interpreter','image_generation','local_shell'
+        'file_search','web_search','mcp','code_interpreter','image_generation','local_shell'
     )),
     mcp_server_id UUID REFERENCES mcp_servers(id) ON DELETE CASCADE,
     -- MCP-specific fields (merged from agent_mcp_tools)
@@ -232,7 +233,6 @@ CREATE INDEX IF NOT EXISTS idx_users_email_lower ON users(lower(email));
 
 -- PostgreSQL 17 JSONB Performance Optimizations
 -- GIN indexes for JSONB fields to improve JSON queries
-CREATE INDEX IF NOT EXISTS idx_agents_config_gin ON agents USING GIN (config) WHERE config IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_tasks_messages_gin ON tasks USING GIN (messages) WHERE messages IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_tasks_schedule_gin ON tasks USING GIN (schedule_spec) WHERE schedule_spec IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_mcp_headers_gin ON mcp_servers USING GIN (headers) WHERE headers IS NOT NULL;

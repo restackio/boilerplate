@@ -13,12 +13,14 @@ import { Trash2, RefreshCw } from "lucide-react";
 import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
 import { Team } from "@/hooks/use-workspace-scoped-actions";
 import { LucideIconPicker } from "@workspace/ui/components/lucide-icon-picker";
+import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 
 export default function TeamSettingsPage() {
   const router = useRouter();
   const params = useParams();
   const teamId = params.teamId as string;
   
+  const { isReady } = useDatabaseWorkspace();
   const { getTeamById, updateTeam, deleteTeam, teamsLoading } = useWorkspaceScopedActions();
   void teamsLoading; // Suppress unused warning
   const [team, setTeam] = useState<Team | null>(null);
@@ -35,7 +37,7 @@ export default function TeamSettingsPage() {
 
   useEffect(() => {
     const fetchTeam = async () => {
-      if (teamId) {
+      if (teamId && isReady) {
         setLoading(true);
         const result = await getTeamById(teamId);
         if (result.success && result.data) {
@@ -53,7 +55,7 @@ export default function TeamSettingsPage() {
     };
 
     fetchTeam();
-  }, [teamId, getTeamById]);
+  }, [teamId, getTeamById, isReady]);
 
   const handleSave = async () => {
     if (!team) return;
@@ -112,7 +114,7 @@ export default function TeamSettingsPage() {
     </div>
   );
 
-  if (loading) {
+  if (!isReady || loading) {
     return (
       <div className="space-y-6">
         <PageHeader breadcrumbs={breadcrumbs} actions={actions} />

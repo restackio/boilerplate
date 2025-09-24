@@ -737,9 +737,7 @@ async def oauth_token_refresh_and_update(
                         else None
                     )
                     existing_token.last_refreshed_at = (
-                        datetime.now(UTC).replace(
-                            tzinfo=None
-                        )
+                        datetime.now(UTC).replace(tzinfo=None)
                     )
                     existing_token.updated_at = datetime.now(
                         UTC

@@ -28,6 +28,9 @@ importers:
 
   apps/frontend:
     dependencies:
+      '@radix-ui/react-use-controllable-state':
+        specifier: ^1.2.2
+        version: 1.2.2(@types/react@19.1.7)(react@19.1.0)
       '@restackio/ai':
         specifier: ^0.0.147
         version: 0.0.147

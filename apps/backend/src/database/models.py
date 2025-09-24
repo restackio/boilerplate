@@ -240,6 +240,8 @@ class Agent(Base):
                     "gpt-5-2025-08-07",
                     "gpt-5-mini-2025-08-07",
                     "gpt-5-nano-2025-08-07",
+                    "o3-deep-research",
+                    "o4-mini-deep-research",
                 ]
             ),
             name="valid_model",
@@ -273,7 +275,7 @@ class AgentTool(Base):
     )
     tool_type = Column(
         String(32), nullable=False
-    )  # file_search, web_search_preview, mcp, code_interpreter, image_generation, local_shell
+    )  # file_search, web_search, mcp, code_interpreter, image_generation, local_shell
     mcp_server_id = Column(
         UUID(as_uuid=True),
         ForeignKey("mcp_servers.id", ondelete="CASCADE"),
@@ -314,7 +316,7 @@ class AgentTool(Base):
             tool_type.in_(
                 [
                     "file_search",
-                    "web_search_preview",
+                    "web_search",
                     "mcp",
                     "code_interpreter",
                     "image_generation",
