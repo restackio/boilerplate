@@ -16,6 +16,7 @@ export default function AgentEditPage() {
   
   const {
     agent,
+    isLoading,
     isReady,
     workspaceId,
     activeTab,
@@ -32,13 +33,10 @@ export default function AgentEditPage() {
     getAgentVersions,
   } = useAgentPage(agentId);
 
-  // Note: Loading state is now handled by loading.tsx
-  // Only check if data is ready, not if it's loading
-  if (!isReady) {
-    return null; // Next.js loading.tsx will handle the loading state
+  if (!isReady || isLoading) {
+    return null; 
   }
 
-  // Show not found state
   if (!agent) {
     return (
       <TooltipProvider>

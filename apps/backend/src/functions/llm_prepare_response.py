@@ -36,7 +36,10 @@ async def llm_prepare_response(
             or "minimal",
             "summary": "detailed",
         },
-        "text": {"format": {"type": "text"}, "verbosity": "low"},
+        "text": {
+            "format": {"type": "text"},
+            "verbosity": "medium",
+        },
         "parallel_tool_calls": True,
         "stream": True,
     }

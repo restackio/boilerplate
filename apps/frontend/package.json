@@ -14,6 +14,7 @@
     "clean": "rm -rf .next && rm -rf .turbo"
   },
   "dependencies": {
+    "@radix-ui/react-use-controllable-state": "^1.2.2",
     "@restackio/ai": "^0.0.147",
     "@restackio/react": "^0.10.15",
     "@workspace/ui": "workspace:*",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, forwardRef, useImperativeHandle } from "react";
 import { Label } from "@workspace/ui/components/ui/label";
 import {
   Select,
@@ -11,7 +11,7 @@ import {
 } from "@workspace/ui/components/ui/select";
 import { AgentToolsManager } from "./agent-tools-manager";
 import { PROMPT_TEMPLATES } from "./prompt-templates";
-import { AgentConfigurationForm, type AgentConfigData } from "./agent-configuration-form";
+import { AgentConfigurationForm, type AgentConfigData, type AgentConfigurationFormRef } from "./agent-configuration-form";
 
 interface Agent {
   id?: string;
@@ -23,17 +23,22 @@ interface Agent {
   reasoning_effort?: string;
 }
 
+export interface AgentSetupTabRef {
+  getCurrentData: () => AgentConfigData | null;
+}
+
 interface AgentSetupTabProps {
   agent: Agent | null;
   onSave: (agentData: AgentConfigData) => Promise<void>;
   isSaving: boolean;
   workspaceId: string;
-  onChange?: (agentData: AgentConfigData) => void;
+  onChange?: (agentData: AgentConfigData) => void; // Deprecated - use ref instead
 }
 
-export function AgentSetupTab({ agent, onChange, workspaceId }: AgentSetupTabProps) {
+export const AgentSetupTab = forwardRef<AgentSetupTabRef, AgentSetupTabProps>(({ agent, onChange, workspaceId }, ref) => {
   const [nameError, setNameError] = useState("");
   const [currentInstructions, setCurrentInstructions] = useState("");
+  const formRef = useRef<AgentConfigurationFormRef>(null);
   
   // Check if agent is published (read-only)
   const isReadOnly = agent?.status === "published";
@@ -76,12 +81,19 @@ export function AgentSetupTab({ agent, onChange, workspaceId }: AgentSetupTabPro
     }
   }, [agent?.instructions]);
 
+  // Expose getCurrentData function via ref
+  useImperativeHandle(ref, () => ({
+    getCurrentData: () => {
+      return formRef.current?.getCurrentData() || null;
+    },
+  }), []);
+
   return (
     <div className="space-y-6">
       {/* Agent Configuration Form */}
       <AgentConfigurationForm
+        ref={formRef}
         initialData={initialData}
-        onChange={handleFormChange}
         showNameField={true}
         showDescriptionField={true}
         showInstructionsPreview={true}
@@ -134,4 +146,6 @@ export function AgentSetupTab({ agent, onChange, workspaceId }: AgentSetupTabPro
       )}
     </div>
   );
-} 
+});
+
+AgentSetupTab.displayName = "AgentSetupTab"; 

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useRef } from "react";
 import { Button } from "@workspace/ui/components/ui/button";
-import { AgentConfigForm, useAgentConfig, type AgentConfigData } from "@workspace/ui/components/agent-config-form";
+import { AgentConfigForm, type AgentConfigFormRef } from "@workspace/ui/components/agent-config-form";
 import { QuickActionDialog, useQuickActionDialog } from "@workspace/ui/components/quick-action-dialog";
 import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
 import { Plus } from "lucide-react";
@@ -14,43 +14,43 @@ interface CreateAgentDialogProps {
 export function CreateAgentDialog({ onAgentCreated }: CreateAgentDialogProps) {
   const { createAgent } = useWorkspaceScopedActions();
   const { isOpen, open, close, isLoading, handleError, handleSuccess } = useQuickActionDialog();
-  const { config, updateConfig, validateConfig, reset } = useAgentConfig({
+  const formRef = useRef<AgentConfigFormRef>(null);
+  
+  const [nameError, setNameError] = useState("");
+
+  // Use static initial data to prevent infinite loop
+  const staticInitialData = useMemo(() => ({
     name: "",
     description: "",
     instructions: "You are a helpful support agent. Your role is to assist users with their technical questions and issues. Always be polite, professional, and thorough in your responses.",
     model: "gpt-5",
     reasoning_effort: "medium",
-  });
-
-  const [nameError, setNameError] = useState("");
+  }), []);
 
   const handleCreateAgent = async () => {
-    // Validate config
-    if (!validateConfig()) {
-      throw new Error("Please fix validation errors");
+    // Get current form data
+    const formData = formRef.current?.getCurrentData();
+    if (!formData) {
+      throw new Error("Unable to get form data");
+    }
+
+    // Basic validation
+    if (!formData.instructions?.trim()) {
+      throw new Error("Instructions are required");
     }
 
     // Create agent with status as draft
     const agentData = {
-      ...config,
+      ...formData,
       status: "draft" as const,
     };
 
     const result = await createAgent(agentData);
     if (result.success) {
-      reset();
       setNameError("");
       onAgentCreated?.();
     } else {
       throw new Error(result.error || "Failed to create agent");
-    }
-  };
-
-  const handleConfigChange = (newConfig: AgentConfigData) => {
-    updateConfig(newConfig);
-    // Clear name error when name changes
-    if (newConfig.name !== config.name) {
-      setNameError("");
     }
   };
 
@@ -80,8 +80,8 @@ export function CreateAgentDialog({ onAgentCreated }: CreateAgentDialogProps) {
         size="lg"
       >
         <AgentConfigForm
-          initialData={config}
-          onChange={handleConfigChange}
+          ref={formRef}
+          initialData={staticInitialData}
           showNameField={true}
           showDescriptionField={true}
           showInstructionsPreview={false}

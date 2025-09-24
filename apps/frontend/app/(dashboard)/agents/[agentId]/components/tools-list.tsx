@@ -8,7 +8,7 @@ import { Label } from "@workspace/ui/components/ui/label";
 import { Trash2, Edit3, Check, X, Wrench, Globe, Code, Image, Plug } from "lucide-react";
 import { updateAgentTool, deleteAgentTool } from "@/app/actions/workflow";
 
-export type ToolType = 'web_search_preview' | 'mcp' | 'code_interpreter' | 'image_generation';
+export type ToolType = 'web_search' | 'mcp' | 'code_interpreter' | 'image_generation';
 
 export interface AgentToolRecord {
   id: string;
@@ -33,7 +33,7 @@ interface ToolsListProps {
 
 const getToolIcon = (type: ToolType) => {
   switch (type) {
-    case 'web_search_preview': return <Globe className="h-3 w-3" />;
+    case 'web_search': return <Globe className="h-3 w-3" />;
     case 'mcp': return <Plug className="h-3 w-3" />;
     case 'code_interpreter': return <Code className="h-3 w-3" />;
     case 'image_generation': return <Image className="h-3 w-3" />;

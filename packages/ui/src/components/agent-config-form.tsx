@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from "react";
 import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
 import { Input } from "./ui/input";
@@ -26,7 +26,6 @@ export interface AgentConfigData {
 interface AgentConfigFormProps {
   // Data
   initialData?: Partial<AgentConfigData>;
-  onChange?: (data: AgentConfigData) => void;
   
   // UI Configuration
   showNameField?: boolean;
@@ -74,6 +73,8 @@ export const DEFAULT_MODEL_OPTIONS = [
   { value: "gpt-4.1-nano", label: "GPT-4.1 Nano" },
   { value: "gpt-4o", label: "GPT-4o" },
   { value: "gpt-4o-mini", label: "GPT-4o Mini" },
+  { value: "o3-deep-research", label: "O3 Deep Research" },
+  { value: "o4-mini-deep-research", label: "O4 Mini Deep Research" },
 ];
 
 // Default reasoning effort options
@@ -87,9 +88,12 @@ export const DEFAULT_REASONING_EFFORT_OPTIONS = [
 // Default instructions template
 const DEFAULT_INSTRUCTIONS = "You are a helpful support agent. Your role is to assist users with their technical questions and issues. Always be polite, professional, and thorough in your responses.";
 
-export function AgentConfigForm({
+export interface AgentConfigFormRef {
+  getCurrentData: () => AgentConfigData;
+}
+
+export const AgentConfigForm = forwardRef<AgentConfigFormRef, AgentConfigFormProps>(({
   initialData,
-  onChange,
   showNameField = true,
   showDescriptionField = true,
   showInstructionsPreview = false,
@@ -104,7 +108,7 @@ export function AgentConfigForm({
   enableTemplates = false,
   templates = [],
   onTemplateSelect,
-}: AgentConfigFormProps) {
+}, ref) => {
   // Form state
   const [name, setName] = useState(initialData?.name || "");
   const [description, setDescription] = useState(initialData?.description || "");
@@ -120,19 +124,6 @@ export function AgentConfigForm({
   
   const nameError = externalNameError || internalNameError;
 
-  // Emit changes
-  const emitChange = useCallback(() => {
-    if (onChange) {
-      const payload: AgentConfigData = {
-        ...(showNameField && { name }),
-        ...(showDescriptionField && { description }),
-        instructions,
-        model,
-        reasoning_effort: reasoningEffort,
-      };
-      onChange(payload);
-    }
-  }, [name, description, instructions, model, reasoningEffort, showNameField, showDescriptionField, onChange]);
 
   // Validation
   const validateAgentName = useCallback((name: string): boolean => {
@@ -167,10 +158,16 @@ export function AgentConfigForm({
     }
   }, [initialData]);
 
-  // Emit changes whenever a state variable changes
-  useEffect(() => {
-    emitChange();
-  }, [name, description, instructions, model, reasoningEffort, emitChange]);
+  // Expose getCurrentData function via ref
+  useImperativeHandle(ref, () => ({
+    getCurrentData: () => ({
+      ...(showNameField && { name }),
+      ...(showDescriptionField && { description }),
+      instructions,
+      model,
+      reasoning_effort: reasoningEffort,
+    }),
+  }), [name, description, instructions, model, reasoningEffort, showNameField, showDescriptionField]);
 
   // Template handling
   const handleTemplateSelect = (templateId: string) => {
@@ -372,7 +369,9 @@ export function AgentConfigForm({
       </ConfigField>
     </div>
   );
-}
+});
+
+AgentConfigForm.displayName = "AgentConfigForm";
 
 // Helper component for field layout
 interface ConfigFieldProps {

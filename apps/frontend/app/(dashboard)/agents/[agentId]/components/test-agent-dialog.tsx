@@ -1,7 +1,7 @@
 "use client";
 
 import { QuickActionDialog, commonFields, type QuickActionButton } from "@workspace/ui/components/quick-action-dialog";
-import { ArrowUp, Gamepad2 } from "lucide-react";
+import { ArrowUp } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
 import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
@@ -58,7 +58,6 @@ export function TestAgentDialog({ isOpen, onClose, agent }: TestAgentDialogProps
     {
       key: "playground",
       label: "Compare in Playground",
-      icon: Gamepad2,
       variant: "outline" as const,
       onClick: handleGoToPlayground,
     },

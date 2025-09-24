@@ -32,13 +32,39 @@ from .send_agent_event import (
 load_dotenv()
 
 # Suppress noisy Pydantic serialization warnings from OpenAI SDK
-# These warnings occur when OpenAI tries to serialize McpCall objects
+# These warnings occur when OpenAI tries to serialize response objects
 # which don't perfectly fit the expected union types, but the serialization still works
+
+# Suppress specific PydanticSerializationUnexpectedValue warnings
 warnings.filterwarnings(
     "ignore",
     message=".*PydanticSerializationUnexpectedValue.*",
     category=UserWarning,
     module="pydantic",
+)
+
+# Suppress general Pydantic serializer warnings from main.py
+warnings.filterwarnings(
+    "ignore",
+    message=".*Pydantic serializer warnings.*",
+    category=UserWarning,
+    module="pydantic.main",
+)
+
+# Suppress warnings about expected types vs actual types
+warnings.filterwarnings(
+    "ignore",
+    message=".*Expected.*serialized value may not be as expected.*",
+    category=UserWarning,
+    module="pydantic.main",
+)
+
+# Suppress warnings about literal values
+warnings.filterwarnings(
+    "ignore",
+    message=".*Expected `literal.*",
+    category=UserWarning,
+    module="pydantic.main",
 )
 
 
@@ -169,7 +195,12 @@ async def send_non_delta_events_to_agent(
                 # Use standard OpenAI SDK serialization with error handling
                 if hasattr(event, "model_dump"):
                     try:
-                        event_data = event.model_dump()
+                        # Temporarily suppress Pydantic warnings during serialization
+                        with warnings.catch_warnings():
+                            warnings.simplefilter(
+                                "ignore", UserWarning
+                            )
+                            event_data = event.model_dump()
                     except (
                         APIResponseValidationError,
                         ValueError,

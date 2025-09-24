@@ -14,6 +14,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useWorkspaceScopedActions, McpServer } from "../../../../hooks/use-workspace-scoped-actions";
+import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 import { IntegrationSetupTab } from "./components/integration-setup-tab";
 import { IntegrationTokensTab } from "./components/integration-tokens-tab";
 
@@ -21,6 +22,7 @@ import { IntegrationTokensTab } from "./components/integration-tokens-tab";
 export default function IntegrationDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { isReady } = useDatabaseWorkspace();
   const { getMcpServerById, updateMcpServer, deleteMcpServer } = useWorkspaceScopedActions();
   const [server, setServer] = useState<McpServer | null>(null);
   const [loading, setLoading] = useState(true);
@@ -44,7 +46,7 @@ export default function IntegrationDetailPage() {
 
   useEffect(() => {
     const loadServer = async () => {
-      if (!integrationId) return;
+      if (!integrationId || !isReady) return;
       
       try {
         const result = await getMcpServerById(integrationId);
@@ -61,9 +63,9 @@ export default function IntegrationDetailPage() {
     };
 
     loadServer();
-  }, [integrationId, getMcpServerById]);
+  }, [integrationId, getMcpServerById, isReady]);
 
-  if (loading) {
+  if (!isReady || loading) {
     return (
       <TooltipProvider>
         <div className="flex-1">

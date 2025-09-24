@@ -12,11 +12,11 @@ interface ToolsActionsProps {
   availableTypes?: ToolType[];
 }
 
-const defaultTypes: ToolType[] = ['web_search_preview', 'code_interpreter', 'image_generation'];
+const defaultTypes: ToolType[] = ['web_search', 'code_interpreter', 'image_generation'];
 
 const getToolConfig = (type: ToolType) => {
   switch (type) {
-    case 'web_search_preview':
+    case 'web_search':
       return { icon: Globe, label: 'Web search' };
     case 'code_interpreter':
       return { icon: Code, label: 'Code interpreter' };

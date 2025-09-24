@@ -1,7 +1,8 @@
 "use client";
 
+import { useMemo, useCallback, useRef, useEffect } from "react";
 import { CollapsiblePanel } from "@workspace/ui/components/collapsible-panel";
-import { AgentConfigForm } from "@workspace/ui/components/agent-config-form";
+import { AgentConfigForm, type AgentConfigFormRef } from "@workspace/ui/components/agent-config-form";
 import { Brain, Wrench, FileText } from "lucide-react";
 import { Agent } from "@/hooks/use-workspace-scoped-actions";
 import { PlaygroundToolsDisplay } from "./playground-tools-display";
@@ -21,10 +22,33 @@ export function PlaygroundLeftPanel({
   onToggleCollapse,
   workspaceId,
 }: PlaygroundLeftPanelProps) {
-  // Convert agent change handler to AgentConfigForm format
-  const handleConfigChange = (config: Partial<Agent>) => {
-    onAgentChange(config);
-  };
+  const formRef = useRef<AgentConfigFormRef>(null);
+
+  // Static initial data - form will manage its own state
+  const initialData = useMemo(() => ({
+    instructions: agent.instructions || "",
+    model: agent.model || "gpt-5",
+    reasoning_effort: agent.reasoning_effort || "medium",
+  }), [agent.instructions, agent.model, agent.reasoning_effort]);
+
+  // Function to sync form data back to agent when needed
+  const syncFormToAgent = useCallback(() => {
+    const formData = formRef.current?.getCurrentData();
+    if (formData) {
+      onAgentChange({
+        instructions: formData.instructions,
+        model: formData.model,
+        reasoning_effort: formData.reasoning_effort,
+      });
+    }
+  }, [onAgentChange]);
+
+  // Sync on blur or when switching tabs (optional - for better UX)
+  useEffect(() => {
+    const handleBlur = () => syncFormToAgent();
+    window.addEventListener('blur', handleBlur);
+    return () => window.removeEventListener('blur', handleBlur);
+  }, [syncFormToAgent]);
 
   // Define tabs for the collapsible panel
   const tabs = [
@@ -33,19 +57,17 @@ export function PlaygroundLeftPanel({
       label: "Instructions",
       icon: FileText,
       content: (
-        <AgentConfigForm
-          initialData={{
-            instructions: agent.instructions || "",
-            model: agent.model || "gpt-5",
-            reasoning_effort: agent.reasoning_effort || "medium",
-          }}
-          onChange={handleConfigChange}
-          showNameField={false}
-          showDescriptionField={false}
-          showInstructionsPreview={false}
-          variant="compact"
-          instructionsMinHeight="200px"
-        />
+        <div onBlur={syncFormToAgent}>
+          <AgentConfigForm
+            ref={formRef}
+            initialData={initialData}
+            showNameField={false}
+            showDescriptionField={false}
+            showInstructionsPreview={false}
+            variant="compact"
+            instructionsMinHeight="200px"
+          />
+        </div>
       ),
     },
     {
@@ -53,18 +75,16 @@ export function PlaygroundLeftPanel({
       label: "Model",
       icon: Brain,
       content: (
-        <AgentConfigForm
-          initialData={{
-            instructions: agent.instructions || "",
-            model: agent.model || "gpt-5",
-            reasoning_effort: agent.reasoning_effort || "medium",
-          }}
-          onChange={handleConfigChange}
-          showNameField={false}
-          showDescriptionField={false}
-          showInstructionsPreview={false}
-          variant="compact"
-        />
+        <div onBlur={syncFormToAgent}>
+          <AgentConfigForm
+            ref={formRef}
+            initialData={initialData}
+            showNameField={false}
+            showDescriptionField={false}
+            showInstructionsPreview={false}
+            variant="compact"
+          />
+        </div>
       ),
     },
     {

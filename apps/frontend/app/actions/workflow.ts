@@ -236,7 +236,7 @@ export async function getAgentTools(agentId: string) {
 
 export async function createAgentTool(toolData: {
   agent_id: string;
-  tool_type: 'web_search_preview'|'mcp'|'code_interpreter'|'image_generation';
+  tool_type: 'web_search'|'mcp'|'code_interpreter'|'image_generation';
   mcp_server_id?: string;
   // MCP-specific fields
   tool_name?: string;
@@ -257,7 +257,7 @@ export async function createAgentTool(toolData: {
 
 export async function updateAgentTool(toolData: {
   agent_tool_id: string;
-  tool_type?: 'web_search_preview'|'mcp'|'code_interpreter'|'image_generation';
+  tool_type?: 'web_search'|'mcp'|'code_interpreter'|'image_generation';
   mcp_server_id?: string | null;
   // MCP-specific fields
   tool_name?: string;

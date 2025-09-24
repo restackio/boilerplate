@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from "react";
 import { Button } from "@workspace/ui/components/ui/button";
 import { Textarea } from "@workspace/ui/components/ui/textarea";
 import { Input } from "@workspace/ui/components/ui/input";
@@ -22,10 +22,14 @@ export interface AgentConfigData {
   reasoning_effort: string;
 }
 
+export interface AgentConfigurationFormRef {
+  getCurrentData: () => AgentConfigData;
+}
+
 interface AgentConfigurationFormProps {
   // Data
   initialData?: Partial<AgentConfigData>;
-  onChange?: (data: AgentConfigData) => void;
+  onChange?: (data: AgentConfigData) => void; // Deprecated - kept for backward compatibility
   
   // UI Configuration
   showNameField?: boolean;
@@ -56,6 +60,8 @@ export const MODEL_OPTIONS = [
   { value: "gpt-4.1-nano", label: "GPT-4.1 Nano" },
   { value: "gpt-4o", label: "GPT-4o" },
   { value: "gpt-4o-mini", label: "GPT-4o Mini" },
+  { value: "o3-deep-research", label: "O3 Deep Research" },
+  { value: "o4-mini-deep-research", label: "O4 Mini Deep Research" },
 ];
 
 // Reasoning effort options - centralized
@@ -111,9 +117,8 @@ function FieldWrapper({ children, title, variant }: { children: React.ReactNode;
   );
 };
 
-export function AgentConfigurationForm({
+export const AgentConfigurationForm = forwardRef<AgentConfigurationFormRef, AgentConfigurationFormProps>(({
   initialData,
-  onChange,
   showNameField = true,
   showDescriptionField = true,
   showInstructionsPreview = false,
@@ -123,7 +128,7 @@ export function AgentConfigurationForm({
   validateName = true,
   nameError: externalNameError,
   onNameValidation,
-}: AgentConfigurationFormProps) {
+}, ref) => {
   // Form state
   const [name, setName] = useState(initialData?.name || "");
   const [description, setDescription] = useState(initialData?.description || "");
@@ -140,19 +145,6 @@ export function AgentConfigurationForm({
   
   const nameError = externalNameError || internalNameError;
 
-  // Emit changes
-  const emitChange = useCallback(() => {
-    if (onChange) {
-      const payload: AgentConfigData = {
-        ...(showNameField && { name }),
-        ...(showDescriptionField && { description }),
-        instructions,
-        model,
-        reasoning_effort: reasoningEffort,
-      };
-      onChange(payload);
-    }
-  }, [name, description, instructions, model, reasoningEffort, showNameField, showDescriptionField, onChange]);
 
   // Validation
   const validateAgentName = useCallback((name: string): boolean => {
@@ -187,10 +179,16 @@ export function AgentConfigurationForm({
     }
   }, [initialData]);
 
-  // Emit changes whenever a state variable changes
-  useEffect(() => {
-    emitChange();
-  }, [name, description, instructions, model, reasoningEffort, emitChange]);
+  // Expose getCurrentData function via ref
+  useImperativeHandle(ref, () => ({
+    getCurrentData: () => ({
+      ...(showNameField && { name }),
+      ...(showDescriptionField && { description }),
+      instructions,
+      model,
+      reasoning_effort: reasoningEffort,
+    }),
+  }), [name, description, instructions, model, reasoningEffort, showNameField, showDescriptionField]);
 
   return (
     <div className="space-y-4">
@@ -345,4 +343,6 @@ export function AgentConfigurationForm({
       </FieldWrapper>
     </div>
   );
-}
+});
+
+AgentConfigurationForm.displayName = "AgentConfigurationForm";

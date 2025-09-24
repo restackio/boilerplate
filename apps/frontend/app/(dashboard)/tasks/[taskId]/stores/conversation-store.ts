@@ -236,6 +236,17 @@ export class ConversationStore {
       }
     }
     
+    // Handle web search completion events (response.web_search_call.completed)
+    if (event.type.includes('completed') && event.type.includes('web_search')) {
+      streamItem.isStreaming = false;
+      streamItem.openai_output.status = "completed";
+      
+      // Clean up delta buffer when item is completed
+      if (streamItem.id) {
+        this.textDeltaBuffers.delete(streamItem.id);
+      }
+    }
+    
     // Handle item additions/completions
     if (event.item) {
       // Ensure content and summary arrays have proper types
@@ -258,7 +269,8 @@ export class ConversationStore {
       streamItem.openai_output = { ...streamItem.openai_output, ...updatedItem };
       if (event.type.includes('done')) {
         streamItem.isStreaming = false;
-        streamItem.openai_output.status = "completed";
+        // Use the status from the item if provided, otherwise set to completed
+        streamItem.openai_output.status = updatedItem.status || "completed";
         
         // Clean up delta buffer when item is completed
         if (streamItem.id) {
