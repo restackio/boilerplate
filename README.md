@@ -19,7 +19,7 @@ cp .env.example .env
 ```
 
 - Set `OPENAI_API_KEY` with a valid OpenAI API key
-- Set `MCP_URL` for ngrok tunnel with `ngrok http 112233`
+- Set `RESTACK_ENGINE_MCP_ADDRESS` for ngrok tunnel with `ngrok http 112233`
 
 ```bash
 pnpm quickstart
@@ -97,7 +97,7 @@ brew install ngrok  # or download from https://ngrok.com
 ngrok http 112233
 
 # Add the ngrok URL to .env:
-MCP_URL=https://your-ngrok-url.ngrok-free.app
+RESTACK_ENGINE_MCP_ADDRESS=https://your-ngrok-url.ngrok-free.app
 ```
 
 

@@ -211,7 +211,7 @@ export function IntegrationSetupTab({ server, onDataChange }: IntegrationSetupTa
 
         {formData.local && (
           <div className="text-sm text-muted-foreground p-3 bg-muted/30 rounded-md">
-            <strong>Local Server:</strong> This server will use environment variables (like MCP_URL) for connection.
+            <strong>Local Server:</strong> This server will use environment variables (like RESTACK_ENGINE_MCP_ADDRESS) for connection.
             The connection test will attempt to connect to the local server automatically.
           </div>
         )}
