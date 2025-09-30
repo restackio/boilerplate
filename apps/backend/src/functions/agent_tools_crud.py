@@ -305,10 +305,10 @@ async def agent_tools_read_by_agent(  # noqa: C901, PLR0912
                 if r.tool_type == "mcp" and r.mcp_server_id:
                     ms = mcp_map.get(str(r.mcp_server_id))
                     if ms:
-                        # For local MCP servers, use MCP_URL environment variable instead of stored URL
+                        # For local MCP servers, use RESTACK_ENGINE_MCP_ADDRESS environment variable instead of stored URL
                         server_url = ms.server_url
                         if getattr(ms, "local", False):
-                            server_url = os.getenv("MCP_URL")
+                            server_url = os.getenv("RESTACK_ENGINE_MCP_ADDRESS")
 
                         # Convert our internal approval format to OpenAI's expected format
                         require_approval = _convert_approval_config(
