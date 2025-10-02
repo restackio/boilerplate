@@ -70,17 +70,6 @@ def get_clickhouse_client() -> clickhouse_connect.driver.Client:
     )
 
 
-def _process_event_timestamp(
-    event_timestamp: str | None,
-) -> datetime:
-    """Process and validate event timestamp."""
-    if event_timestamp:
-        return datetime.fromisoformat(
-            event_timestamp.replace("Z", "+00:00")
-        )
-    return datetime.now(tz=UTC)
-
-
 def _process_event_uuids(
     event: PipelineEventInput, event_index: int
 ) -> tuple[str, str | None, str]:
@@ -231,9 +220,17 @@ async def ingest_pipeline_events(
             )
             logger.debug("Event data: %s", event)
 
-            event_ts = _process_event_timestamp(
-                event.event_timestamp
-            )
+            # Process timestamp - parse ISO format or use current time
+            if event.event_timestamp:
+                dt = datetime.fromisoformat(
+                    event.event_timestamp.rstrip("Z")
+                )
+                event_ts = (
+                    dt if dt.tzinfo else dt.replace(tzinfo=UTC)
+                )
+            else:
+                event_ts = datetime.now(tz=UTC)
+
             agent_uuid, task_uuid, workspace_uuid = (
                 _process_event_uuids(event, i)
             )

@@ -134,7 +134,16 @@ async def _get_clickhouse_stats(
             "table", "pipeline_events"
         )
 
+        # Validate table name to prevent SQL injection
+        def _raise_invalid_table_name() -> None:
+            msg = "Invalid table name"
+            raise ValueError(msg)  # noqa: TRY301
+
+        if not table_name.replace("_", "").isalnum():
+            _raise_invalid_table_name()
+
         # Get stats for this dataset
+        # table_name is validated above to contain only alphanumeric and underscores
         stats_query = f"""
         SELECT
             max(ingested_at) as last_updated_at,
@@ -538,7 +547,16 @@ async def _query_clickhouse_events(  # noqa: C901
             "table", "pipeline_events"
         )
 
+        # Validate table name to prevent SQL injection
+        def _raise_invalid_table_name() -> None:
+            msg = "Invalid table name"
+            raise ValueError(msg)  # noqa: TRY301
+
+        if not table_name.replace("_", "").isalnum():
+            _raise_invalid_table_name()
+
         # Query for events
+        # table_name is validated above to contain only alphanumeric and underscores
         events_query = f"""
         SELECT
             id,
@@ -555,17 +573,7 @@ async def _query_clickhouse_events(  # noqa: C901
         LIMIT {function_input.limit} OFFSET {function_input.offset}
         """
 
-        # Count total - validate table name to prevent SQL injection
-        def _raise_invalid_table_name() -> None:
-            msg = "Invalid table name"
-            raise ValueError(msg)  # noqa: TRY301
-
-        def _validate_table_name(name: str) -> None:
-            if not name.replace("_", "").isalnum():
-                _raise_invalid_table_name()
-
-        _validate_table_name(table_name)
-        # Suppress S608 as table name is validated above
+        # Count total - table name already validated above
         count_query = f"SELECT count() FROM {table_name} WHERE {where_clause}"  # noqa: S608
 
         events_result = client.query(events_query)
