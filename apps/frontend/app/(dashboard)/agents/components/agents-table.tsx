@@ -24,6 +24,7 @@ import { Button } from "@workspace/ui/components/ui/button";
 import { DataTableFilter } from "@workspace/ui/components/table";
 import { createColumnConfigHelper } from "@workspace/ui/components/table/core/filters";
 import { useDataTableFilters } from "@workspace/ui/components/table/hooks/use-data-table-filters";
+import type { FiltersState } from "@workspace/ui/components/table/core/types";
 import {
   Table,
   TableBody,
@@ -110,7 +111,7 @@ interface AgentsTableProps {
   onRowClick?: (agentId: string) => void;
   onViewAgent?: (agentId: string) => void;
   teams?: Array<{ label: string; value: string; icon: React.ComponentType<{ className?: string }> }>;
-  defaultFilters?: Array<{ id: string; value: string | string[] }>;
+  defaultFilters?: FiltersState;
 }
 
 // Helper function to get the correct agent ID for navigation
