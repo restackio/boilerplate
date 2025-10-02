@@ -11,7 +11,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
-    UniqueConstraint
+    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.ext.declarative import declarative_base
