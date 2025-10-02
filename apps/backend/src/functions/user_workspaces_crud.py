@@ -217,8 +217,9 @@ async def user_workspaces_create(
                 raise NonRetryableError(  # noqa: TRY301
                     message="User is already a member of this workspace"
                 )
+            user_workspace_id = uuid.uuid4()
             user_workspace = UserWorkspace(
-                id=uuid.uuid4(),
+                id=user_workspace_id,
                 user_id=uuid.UUID(function_input.user_id),
                 workspace_id=uuid.UUID(
                     function_input.workspace_id

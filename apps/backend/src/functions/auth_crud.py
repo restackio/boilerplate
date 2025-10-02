@@ -99,7 +99,9 @@ async def user_signup(user_data: UserSignupInput) -> AuthOutput:
             await db.flush()  # Flush to get the user ID
 
             # Create user-workspace relationship
+            user_workspace_id = uuid.uuid4()
             user_workspace = UserWorkspace(
+                id=user_workspace_id,
                 user_id=user.id,
                 workspace_id=uuid.UUID(user_data.workspace_id),
                 role="owner",  # First user in workspace is owner
