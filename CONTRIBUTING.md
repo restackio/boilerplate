@@ -157,7 +157,7 @@ For OpenAI to access your local MCP server:
 ngrok http 8001
 
 # Add to .env
-MCP_URL=https://your-ngrok-url.ngrok-free.app
+RESTACK_ENGINE_MCP_ADDRESS=https://your-ngrok-url.ngrok-free.app
 ```
 
 ## Key development commands

@@ -126,7 +126,7 @@ async def mcp_session_init(
 ) -> McpSessionInitOutput:
     """Initialize an MCP session and return session ID and endpoint."""
     try:
-        # Get the effective server URL (use MCP_URL for local servers)
+        # Get the effective server URL (use RESTACK_ENGINE_MCP_ADDRESS for local servers)
         effective_url = _get_effective_server_url(
             local=function_input.local,
             server_url=function_input.server_url,
@@ -242,9 +242,9 @@ async def mcp_session_init(
 def _get_effective_server_url(
     *, local: bool, server_url: str | None = None
 ) -> str:
-    """Get the effective server URL, using MCP_URL environment variable for local servers."""
+    """Get the effective server URL, using RESTACK_ENGINE_MCP_ADDRESS environment variable for local servers."""
     if local:
-        return os.getenv("MCP_URL", server_url)
+        return os.getenv("RESTACK_ENGINE_MCP_ADDRESS", server_url)
     return server_url
 
 
@@ -388,7 +388,7 @@ async def mcp_tools_list_direct(
 ) -> McpToolsListDirectOutput:
     """Get tools list from an MCP server without session management (for servers that don't require sessions)."""
     try:
-        # Get the effective server URL (use MCP_URL for local servers)
+        # Get the effective server URL (use RESTACK_ENGINE_MCP_ADDRESS for local servers)
         effective_url = _get_effective_server_url(
             local=function_input.local,
             server_url=function_input.server_url,
