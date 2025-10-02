@@ -65,7 +65,9 @@ def _raise_activity_failure() -> None:
 
 def _raise_unknown_error(failure_type: str) -> None:
     """Raise error for unknown failure type."""
-    error_message = f"MCP_UNKNOWN_ERROR: Unknown error type: {failure_type}"
+    error_message = (
+        f"MCP_UNKNOWN_ERROR: Unknown error type: {failure_type}"
+    )
     raise NonRetryableError(error_message)
 
 
@@ -111,7 +113,7 @@ with import_functions():
     pass
 
 
-class FailingMcpTestInput(BaseModel):
+class TestFailuresInput(BaseModel):
     """Input for the failing MCP test tool."""
 
     failure_type: str = Field(
@@ -127,7 +129,7 @@ class FailingMcpTestInput(BaseModel):
     )
 
 
-class FailingMcpTestOutput(BaseModel):
+class TestFailuresOutput(BaseModel):
     """Output from the failing MCP test tool."""
 
     result: dict[str, Any]
@@ -138,16 +140,14 @@ class FailingMcpTestOutput(BaseModel):
 @workflow.defn(
     description="Mock MCP tool that fails on purpose for testing error handling"
 )
-class MockFailingMcpTest:
+class TestFailures:
     """Mock MCP tool designed to fail in various ways to test error handling."""
 
     @workflow.run
     async def run(
-        self, workflow_input: FailingMcpTestInput
-    ) -> FailingMcpTestOutput:
-        log.info(
-            "MockFailingMcpTest started", input=workflow_input
-        )
+        self, workflow_input: TestFailuresInput
+    ) -> TestFailuresOutput:
+        log.info("TestFailures started", input=workflow_input)
 
         try:
             # If should_fail is False, return a successful response
@@ -160,10 +160,10 @@ class MockFailingMcpTest:
                 }
 
                 log.info(
-                    "MockFailingMcpTest completed successfully",
+                    "TestFailures completed successfully",
                     result=success_result,
                 )
-                return FailingMcpTestOutput(
+                return TestFailuresOutput(
                     result=success_result,
                     failure_simulated=False,
                 )
@@ -179,7 +179,7 @@ class MockFailingMcpTest:
             _execute_failure_type(failure_type)
 
         except Exception as e:
-            error_message = f"MockFailingMcpTest simulated error ({failure_type}): {e}"
+            error_message = f"TestFailures simulated error ({failure_type}): {e}"
             log.error(error_message)
 
             # Re-raise as NonRetryableError to simulate MCP tool failure

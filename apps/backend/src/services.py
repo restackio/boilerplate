@@ -30,6 +30,16 @@ from src.functions.agents_crud import (
     agents_update_status,
 )
 from src.functions.auth_crud import user_login, user_signup
+from src.functions.data_ingestion import (
+    ingest_pipeline_events,
+    query_clickhouse_data,
+)
+from src.functions.datasets_crud import (
+    datasets_create,
+    datasets_get_by_id,
+    datasets_read,
+    query_dataset_events,
+)
 from src.functions.llm_prepare_response import (
     llm_prepare_response,
 )
@@ -76,6 +86,7 @@ from src.functions.tasks_crud import (
     tasks_create,
     tasks_delete,
     tasks_get_by_id,
+    tasks_get_stats,
     tasks_read,
     tasks_update,
     tasks_update_agent_task_id,
@@ -134,6 +145,11 @@ from src.workflows.crud.auth_crud import (
     UserLoginWorkflow,
     UserSignupWorkflow,
 )
+from src.workflows.crud.datasets_crud import (
+    DatasetsGetByIdWorkflow,
+    DatasetsReadWorkflow,
+    QueryDatasetEventsWorkflow,
+)
 from src.workflows.crud.mcp_oauth_sdk import (
     BearerTokenCreateWorkflow,
     McpOAuthCallbackWorkflow,
@@ -163,6 +179,7 @@ from src.workflows.crud.tasks_crud import (
     TasksCreateWorkflow,
     TasksDeleteWorkflow,
     TasksGetByIdWorkflow,
+    TasksGetStatsWorkflow,
     TasksReadWorkflow,
     TasksUpdateAgentTaskIdWorkflow,
     TasksUpdateWorkflow,
@@ -223,6 +240,7 @@ async def run_restack_service() -> None:
             TasksUpdateWorkflow,
             TasksDeleteWorkflow,
             TasksGetByIdWorkflow,
+            TasksGetStatsWorkflow,
             TasksUpdateAgentTaskIdWorkflow,
             PlaygroundCreateDualTasksWorkflow,
             WorkspacesReadWorkflow,
@@ -249,6 +267,10 @@ async def run_restack_service() -> None:
             UserWorkspacesDeleteWorkflow,
             UserSignupWorkflow,
             UserLoginWorkflow,
+            # Datasets workflows
+            DatasetsReadWorkflow,
+            DatasetsGetByIdWorkflow,
+            QueryDatasetEventsWorkflow,
             McpServersReadWorkflow,
             McpServersCreateWorkflow,
             McpServersUpdateWorkflow,
@@ -295,6 +317,7 @@ async def run_restack_service() -> None:
             tasks_update,
             tasks_delete,
             tasks_get_by_id,
+            tasks_get_stats,
             tasks_update_agent_task_id,
             schedule_create_workflow,
             schedule_update_workflow,
@@ -325,6 +348,14 @@ async def run_restack_service() -> None:
             user_workspaces_delete,
             user_signup,
             user_login,
+            # Datasets functions
+            datasets_read,
+            datasets_get_by_id,
+            query_dataset_events,
+            datasets_create,
+            # Data ingestion functions
+            ingest_pipeline_events,
+            query_clickhouse_data,
             mcp_servers_read,
             mcp_servers_create,
             mcp_servers_update,

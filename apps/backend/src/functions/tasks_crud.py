@@ -2,7 +2,7 @@ import uuid
 
 from pydantic import BaseModel, Field, field_validator
 from restack_ai.function import NonRetryableError, function
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
 from src.database.connection import get_async_db
@@ -15,8 +15,8 @@ class TaskCreateInput(BaseModel):
     title: str = Field(..., min_length=1, max_length=255)
     description: str = Field(..., min_length=1)
     status: str = Field(
-        default="open",
-        pattern="^(open|active|waiting|closed|completed)$",
+        default="in_progress",
+        pattern="^(in_progress|in_review|closed|completed)$",
     )
     agent_id: str | None = None
     agent_name: str | None = None
@@ -37,7 +37,7 @@ class TaskUpdateInput(BaseModel):
     title: str | None = Field(None, min_length=1, max_length=255)
     description: str | None = None
     status: str | None = Field(
-        None, pattern="^(open|active|waiting|closed|completed)$"
+        None, pattern="^(in_progress|in_review|closed|completed)$"
     )
     agent_id: str | None = None
     assigned_to_id: str | None = None
@@ -74,7 +74,7 @@ class TaskGetByIdInput(BaseModel):
 
 class TaskGetByStatusInput(BaseModel):
     status: str = Field(
-        ..., pattern="^(open|active|waiting|closed|completed)$"
+        ..., pattern="^(in_progress|in_review|closed|completed)$"
     )
 
 
@@ -131,6 +131,14 @@ class TaskSingleOutput(BaseModel):
 
 class TaskDeleteOutput(BaseModel):
     success: bool
+
+
+class TaskStatsOutput(BaseModel):
+    in_progress: int
+    in_review: int
+    closed: int
+    completed: int
+    total: int
 
 
 @function.defn()
@@ -614,5 +622,56 @@ async def tasks_update_agent_task_id(
             await db.rollback()
             raise NonRetryableError(
                 message=f"Failed to update agent task ID: {e!s}"
+            ) from e
+    return None
+
+
+@function.defn()
+async def tasks_get_stats(
+    function_input: TaskGetByWorkspaceInput,
+) -> TaskStatsOutput:
+    """Get task statistics by status for a specific workspace."""
+    async for db in get_async_db():
+        try:
+            # Query to count tasks by status
+            stats_query = (
+                select(
+                    Task.status,
+                    func.count(Task.id).label("count"),
+                )
+                .where(
+                    Task.workspace_id
+                    == uuid.UUID(function_input.workspace_id)
+                )
+                .group_by(Task.status)
+            )
+            result = await db.execute(stats_query)
+            status_counts = result.all()
+
+            # Initialize all statuses to 0
+            stats = {
+                "in_progress": 0,
+                "in_review": 0,
+                "closed": 0,
+                "completed": 0,
+            }
+
+            # Update with actual counts
+            total = 0
+            for status, count in status_counts:
+                if status in stats:
+                    stats[status] = count
+                    total += count
+
+            return TaskStatsOutput(
+                in_progress=stats["in_progress"],
+                in_review=stats["in_review"],
+                closed=stats["closed"],
+                completed=stats["completed"],
+                total=total,
+            )
+        except Exception as e:
+            raise NonRetryableError(
+                message=f"Failed to get task statistics: {e!s}"
             ) from e
     return None

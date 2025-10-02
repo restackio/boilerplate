@@ -1,8 +1,8 @@
-# """Zendesk Ticket API Schema
+# """Zendesk Ticket API Sample
 # Source: https://developer.zendesk.com/api-reference/ticketing/tickets/tickets/#show-ticket
 # """
 
-ZENDESK_TICKET_SCHEMA = {
+ZENDESK_TICKET_SAMPLE = {
     "ticket": {
         "assignee_id": 235323,
         "collaborator_ids": [35334, 234],

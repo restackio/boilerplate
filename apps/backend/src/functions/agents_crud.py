@@ -34,6 +34,10 @@ class AgentCreateInput(BaseModel):
         default="draft", pattern="^(published|draft|archived)$"
     )
     parent_agent_id: str | None = None
+    # Agent type: interactive (user-facing) or pipeline (data processing)
+    type: str = Field(
+        default="interactive", pattern="^(interactive|pipeline)$"
+    )
     # New GPT-5 model configuration fields
     model: str = Field(
         default="gpt-5",
@@ -61,6 +65,10 @@ class AgentCloneInput(BaseModel):
     status: str = Field(
         default="draft", pattern="^(published|draft|archived)$"
     )
+    # Agent type: interactive (user-facing) or pipeline (data processing)
+    type: str = Field(
+        default="interactive", pattern="^(interactive|pipeline)$"
+    )
     # New GPT-5 model configuration fields
     model: str = Field(
         default="gpt-5",
@@ -85,6 +93,10 @@ class AgentUpdateInput(BaseModel):
         None, pattern="^(published|draft|archived)$"
     )
     parent_agent_id: str | None = None
+    # Agent type: interactive (user-facing) or pipeline (data processing)
+    type: str | None = Field(
+        None, pattern="^(interactive|pipeline)$"
+    )
     # New GPT-5 model configuration fields
     model: str | None = Field(
         None,
@@ -129,6 +141,8 @@ class AgentOutput(BaseModel):
     instructions: str | None
     status: str
     parent_agent_id: str | None
+    # Agent type: interactive (user-facing) or pipeline (data processing)
+    type: str = "interactive"
     # New GPT-5 model configuration fields
     model: str = "gpt-5"
     reasoning_effort: str = "medium"
@@ -350,6 +364,7 @@ class AgentTableOutput(BaseModel):
     name: str
     description: str | None = None
     instructions: str | None = None
+    type: str | None = None
     status: str
     parent_agent_id: str | None = None
     model: str | None = "gpt-5"
@@ -424,6 +439,7 @@ def _process_agent_group(
         name=display_agent.name,
         description=display_agent.description,
         instructions=display_agent.instructions,
+        type=display_agent.type,
         status=display_agent.status,
         parent_agent_id=str(display_agent.parent_agent_id)
         if display_agent.parent_agent_id
@@ -530,6 +546,8 @@ async def agents_create(
                 instructions=agent_data.instructions,
                 status=agent_data.status,
                 parent_agent_id=parent_agent_id,
+                # Agent type
+                type=agent_data.type,
                 # New GPT-5 model configuration fields
                 model=agent_data.model,
                 reasoning_effort=agent_data.reasoning_effort,
@@ -552,6 +570,8 @@ async def agents_create(
                 parent_agent_id=str(agent.parent_agent_id)
                 if agent.parent_agent_id
                 else None,
+                # Agent type
+                type=agent.type or "interactive",
                 # New GPT-5 model configuration fields
                 model=agent.model or "gpt-5",
                 reasoning_effort=agent.reasoning_effort
@@ -630,6 +650,8 @@ async def agents_update(
                 parent_agent_id=str(agent.parent_agent_id)
                 if agent.parent_agent_id
                 else None,
+                # Agent type
+                type=agent.type or "interactive",
                 # New GPT-5 model configuration fields
                 model=agent.model or "gpt-5",
                 reasoning_effort=agent.reasoning_effort
@@ -745,6 +767,8 @@ async def agents_get_by_id(
                 parent_agent_id=str(agent.parent_agent_id)
                 if agent.parent_agent_id
                 else None,
+                # Agent type
+                type=agent.type or "interactive",
                 # New GPT-5 model configuration fields
                 model=agent.model or "gpt-5",
                 reasoning_effort=agent.reasoning_effort
@@ -1177,6 +1201,8 @@ async def agents_clone(
                 or source_agent.instructions,
                 status=clone_data.status,
                 parent_agent_id=source_agent_id,  # Set the source as parent
+                # Agent type inherited from source agent
+                type=clone_data.type,
                 model=clone_data.model,
                 reasoning_effort=clone_data.reasoning_effort,
             )
@@ -1221,6 +1247,8 @@ async def agents_clone(
                 parent_agent_id=str(new_agent.parent_agent_id)
                 if new_agent.parent_agent_id
                 else None,
+                # Agent type
+                type=new_agent.type or "interactive",
                 model=new_agent.model or "gpt-5",
                 reasoning_effort=new_agent.reasoning_effort
                 or "medium",

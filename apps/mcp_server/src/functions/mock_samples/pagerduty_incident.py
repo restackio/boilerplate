@@ -1,8 +1,8 @@
-# """PagerDuty Incident API Schema
+# """PagerDuty Incident API Sample
 # Source: https://developer.pagerduty.com/api-reference/76f403c3fec76-get-an-incident-type
 # """
 
-PAGERDUTY_INCIDENT_SCHEMA = {
+PAGERDUTY_INCIDENT_SAMPLE = {
     "incident": {
         "id": "PINCIDENTID",
         "type": "incident",

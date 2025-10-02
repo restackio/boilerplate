@@ -19,6 +19,7 @@ dependencies = [
     "bcrypt>=4.0.1",
     "mcp>=1.13.1",
     "cryptography>=45.0.7",
+    "clickhouse-connect>=0.9.0",
     "ruff>=0.13.0",
 ]
 

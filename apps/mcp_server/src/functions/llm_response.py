@@ -34,7 +34,7 @@ async def llm_response(
             api_key=os.environ.get("OPENAI_API_KEY")
         )
 
-        response = await client.responses.create(
+        response = await client.chat.completions.create(
             **function_input.create_params
         )
 
@@ -47,4 +47,4 @@ async def llm_response(
         error_message = f"llm_response failed: {e}"
         raise NonRetryableError(error_message) from e
 
-    return response.output_text
+    return response.choices[0].message.content

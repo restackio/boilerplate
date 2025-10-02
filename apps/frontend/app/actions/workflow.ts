@@ -312,6 +312,36 @@ export async function updateAgentMcpServer(agentMcpServerData: {
   });
 }
 
+export async function createDataset(datasetData: {
+  workspace_id: string;
+  name: string;
+  description?: string;
+  storage_type?: string;
+  tags?: string[];
+}) {
+  const { workflowId, runId } = await runWorkflow({
+    workflowName: "DatasetsCreateWorkflow",
+    input: datasetData
+  });
+  
+  return await getWorkflowResult({
+    workflowId,
+    runId
+  });
+}
+
+export async function getDatasets(workspaceId: string) {
+  const { workflowId, runId } = await runWorkflow({
+    workflowName: "DatasetsReadWorkflow",
+    input: { workspace_id: workspaceId }
+  });
+  
+  return await getWorkflowResult({
+    workflowId,
+    runId
+  });
+}
+
 export async function deleteAgentMcpServer(agentMcpServerId: string) {
   // Delete MCP server tool via unified agent_tools table
   return await deleteAgentTool({

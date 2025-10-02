@@ -18,7 +18,7 @@ interface CreateTaskFormProps {
   onSubmit: (taskData: {
     title: string;
     description: string;
-    status: "open" | "active" | "waiting" | "closed" | "completed";
+    status: "in_progress" | "in_review" | "closed" | "completed";
     agent_id: string;
     assigned_to_id: string;
     // Schedule-related fields
@@ -132,7 +132,7 @@ export function CreateTaskForm({
       const baseTaskData = {
         title: taskDescription.substring(0, 50) + (taskDescription.length > 50 ? "..." : ""),
         description: taskDescription,
-        status: "open" as const,
+        status: "in_progress" as const,
         assigned_to_id: currentUser?.id || "",
       };
 
@@ -214,7 +214,7 @@ export function CreateTaskForm({
       const baseTaskData = {
         title: taskDescription.substring(0, 50) + (taskDescription.length > 50 ? "..." : ""),
         description: taskDescription,
-        status: "open" as const,
+        status: "in_progress" as const,
         assigned_to_id: currentUser?.id || "",
         agent_id: selectedAgentId,
         // Schedule-related fields

@@ -29,6 +29,7 @@ interface ToolsListProps {
   tools: AgentToolRecord[];
   onToolsChange: () => Promise<void>;
   isReadOnly?: boolean;
+  agentType?: "interactive" | "pipeline";
 }
 
 const getToolIcon = (type: ToolType) => {
@@ -42,10 +43,20 @@ const getToolIcon = (type: ToolType) => {
 };
 
 
-export function ToolsList({ tools, onToolsChange, isReadOnly = false }: ToolsListProps) {
+export function ToolsList({ tools, onToolsChange, isReadOnly = false, agentType }: ToolsListProps) {
   // Description editing state
   const [editingDescriptions, setEditingDescriptions] = useState<Record<string, string>>({});
   const [isEditingDescription, setIsEditingDescription] = useState<Record<string, boolean>>({});
+
+  // Check if a tool can be deleted
+  const canDeleteTool = (tool: AgentToolRecord): boolean => {
+    // For pipeline agents, prevent deletion of transform and load tools
+    if (agentType === "pipeline" && tool.tool_type === "mcp") {
+      const protectedTools = ["transformdata", "loadintodataset"];
+      return !protectedTools.includes(tool.tool_name || "");
+    }
+    return true;
+  };
 
   const handleEditDescription = (toolId: string, currentDescription: string) => {
     setEditingDescriptions(prev => ({ ...prev, [toolId]: currentDescription || '' }));
@@ -137,7 +148,12 @@ export function ToolsList({ tools, onToolsChange, isReadOnly = false }: ToolsLis
                 size="sm"
                 onClick={() => handleDelete(tool.id)}
                 className="text-destructive hover:text-destructive flex-shrink-0 h-8 w-8 p-0"
-                disabled={isReadOnly}
+                disabled={isReadOnly || !canDeleteTool(tool)}
+                title={
+                  !canDeleteTool(tool) 
+                    ? "This tool is required for pipeline agents and cannot be removed" 
+                    : undefined
+                }
               >
                 <Trash2 className="h-4 w-4" />
               </Button>

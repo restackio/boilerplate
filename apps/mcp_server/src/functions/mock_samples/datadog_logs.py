@@ -1,8 +1,8 @@
-# """Datadog Logs API Schema
+# """Datadog Logs API Sample
 # Source: https://docs.datadoghq.com/api/latest/logs/
 # """
 
-DATADOG_LOGS_SCHEMA = {
+DATADOG_LOGS_SAMPLE = {
     "data": [
         {
             "id": "log_12345678901234567890",

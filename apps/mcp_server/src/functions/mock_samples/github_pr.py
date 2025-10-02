@@ -1,8 +1,8 @@
-# """GitHub Pull Request Creation API Schema
+# """GitHub Pull Request Creation API Sample
 # Source: https://docs.github.com/en/rest/pulls/pulls?apiVersion=2022-11-28
 # """
 
-GITHUB_PR_CREATION_SCHEMA = {
+GITHUB_PR_CREATION_SAMPLE = {
     "id": 1347,
     "node_id": "PR_kwDOABCD1234567890",
     "number": 123,

@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from restack_ai.agent import (
     NonRetryableError,
     agent,
+    all_events_finished,
     import_functions,
     log,
     uuid,
@@ -49,6 +50,10 @@ with import_functions():
         Message,
         llm_response_stream,
     )
+    from src.functions.tasks_crud import (
+        TaskUpdateInput,
+        tasks_update,
+    )
 
 
 class MessagesEvent(BaseModel):
@@ -80,6 +85,7 @@ class AgentTaskInput(BaseModel):
     assigned_to_id: str | None = None
     task_id: str | None = None
     user_id: str | None = None
+    workspace_id: str | None = None
 
 
 @agent.defn()
@@ -89,13 +95,14 @@ class AgentTask:
         self.initialized = False
         self.agent_id = "None"
         self.task_id = None
+        self.workspace_id = None
+        self.agent_type = None
         self.messages = []
         self.tools = []
         self.events = []
         self.last_response_id = (
             None  # For conversation continuity
         )
-
         # Agent model configuration for GPT-5 features
         self.agent_model = None
         self.agent_reasoning_effort = None
@@ -177,7 +184,7 @@ class AgentTask:
                             function=llm_response_stream,
                             function_input=prepared,
                             start_to_close_timeout=timedelta(
-                                seconds=120
+                                minutes=10
                             ),
                         )
                     except Exception as e:
@@ -292,6 +299,35 @@ class AgentTask:
                 if "id" in response:
                     self.last_response_id = response["id"]
 
+            if (
+                self.agent_type == "pipeline"
+                and event_data.get("type")
+                == "response.output_item.done"
+                and event_data.get("item", {}).get("type")
+                == "mcp_call"
+                and event_data.get("item", {}).get("name")
+                == "loadintodataset"
+                and event_data.get("item", {}).get("status")
+                == "completed"
+            ):
+                log.info(
+                    f"Pipeline agent {self.agent_id} completed data loading for task {self.task_id}"
+                )
+
+                await agent.step(
+                    function=tasks_update,
+                    function_input=TaskUpdateInput(
+                        task_id=self.task_id,
+                        status="completed",
+                    ),
+                    start_to_close_timeout=timedelta(seconds=30),
+                )
+
+                self.end = True
+                log.info(
+                    f"Pipeline agent {self.agent_id} workflow marked for completion"
+                )
+
         except ValueError as e:
             log.error(f"Error handling response_item: {e}")
 
@@ -316,11 +352,13 @@ class AgentTask:
     async def run(self, agent_input: AgentTaskInput) -> None:
         self.agent_id = agent_input.agent_id
         self.task_id = agent_input.task_id
+        self.workspace_id = agent_input.workspace_id
 
-        # Load agent configuration and tools once at startup (deterministic)
-        log.info(
-            "Loading agent configuration and tools at startup"
-        )
+        meta_info = {
+            "agent_id": self.agent_id,
+            "task_id": self.task_id,
+            "workspace_id": agent_input.workspace_id,
+        }
 
         agent_result = await agent.step(
             function=agents_get_by_id,
@@ -333,20 +371,14 @@ class AgentTask:
             result=agent_result,
         )
 
-        # Set agent configuration (deterministic based on database state at startup)
         if agent_result.agent:
             agent_data = agent_result.agent
             self.agent_model = agent_data.model
             self.agent_reasoning_effort = (
                 agent_data.reasoning_effort
             )
+            self.agent_type = agent_data.type
 
-            log.info(
-                f"Loaded agent configuration - Model: {self.agent_model}, "
-                f"Reasoning: {self.agent_reasoning_effort}"
-            )
-
-            # Add instructions to initial messages if they exist
             if (
                 agent_data.instructions
                 and agent_data.instructions.strip()
@@ -354,21 +386,19 @@ class AgentTask:
                 self.messages.append(
                     Message(
                         role="developer",
-                        content=f"{agent_data.instructions}. Markdown is supported. Use headings wherever appropriate.",
+                        content=f"{agent_data.instructions}. Markdown is supported. Use headings wherever appropriate. Agent meta info: {meta_info!s}",
                     )
                 )
         else:
-            # Set defaults if no agent found
-            self.agent_model = "gpt-5"
-            self.agent_reasoning_effort = "medium"
+            raise NonRetryableError(
+                message=f"Agent with id {self.agent_id} not found"
+            )
 
-        # Load tools once at startup (deterministic)
         tools_result = await agent.step(
             function=agent_tools_read_by_agent,
             function_input=AgentToolsGetByAgentInput(
                 agent_id=self.agent_id,
                 user_id=agent_input.user_id,
-                convert_approval_to_string=True,
             ),
             start_to_close_timeout=timedelta(seconds=30),
         )
@@ -377,4 +407,6 @@ class AgentTask:
         self.initialized = True
 
         log.info("AgentTask agent_id", agent_id=self.agent_id)
-        await agent.condition(lambda: self.end)
+        await agent.condition(
+            lambda: self.end and all_events_finished()
+        )

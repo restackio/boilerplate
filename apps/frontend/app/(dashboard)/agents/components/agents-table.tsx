@@ -10,6 +10,8 @@ import {
   FileText,
   Archive,
   Tag,
+  MessageSquare,
+  Workflow,
 } from "lucide-react";
 import {
   Tooltip,
@@ -35,6 +37,7 @@ import Link from "next/link";
 
 export interface Agent {
   id: string;
+  type?: string;
   name: string;
   description?: string;
   instructions: string;
@@ -61,8 +64,15 @@ export const agentColumnsConfig = [
     .text()
     .id("name")
     .accessor((row: Agent) => row.name)
-    .displayName("Agent Name")
+    .displayName("Name")
     .icon(Bot)
+    .build(),
+  dtf
+    .option()
+    .id("type")
+    .accessor((row: Agent) => row.type)
+    .displayName("Type")
+    .icon(Workflow)
     .build(),
   dtf
     .option()
@@ -81,22 +91,26 @@ export const agentColumnsConfig = [
 ] as const;
 
 // Status options
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const statusOptions: Array<{ label: string; value: string; icon: any }> =
+export const statusOptions: Array<{ label: string; value: string; icon: React.ComponentType<{ className?: string }> }> =
   [
     { label: "Published", value: "published", icon: CheckCircle },
     { label: "Draft", value: "draft", icon: FileText },
     { label: "Archived", value: "archived", icon: Archive },
   ];
 
+// Agent type options
+export const agentTypeOptions: Array<{ label: string; value: string; icon: React.ComponentType<{ className?: string }> }> =
+  [
+    { label: "Interactive", value: "interactive", icon: MessageSquare },
+    { label: "Pipeline", value: "pipeline", icon: Workflow },
+  ];
+
 interface AgentsTableProps {
   data: Agent[];
   onRowClick?: (agentId: string) => void;
   onViewAgent?: (agentId: string) => void;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  teams?: Array<{ label: string; value: string; icon: any }>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  defaultFilters?: any[];
+  teams?: Array<{ label: string; value: string; icon: React.ComponentType<{ className?: string }> }>;
+  defaultFilters?: Array<{ id: string; value: string | string[] }>;
 }
 
 // Helper function to get the correct agent ID for navigation
@@ -107,6 +121,22 @@ function getAgentNavigationId(agent: Agent): string {
   }
   // For published/archived agents, use the main agent ID
   return agent.id;
+}
+
+// Helper function to get the team icon for an agent
+function getTeamIcon(agent: Agent, teams: Array<{ label: string; value: string; icon: React.ComponentType<{ className?: string }> }>) {
+  if (!agent.team_name || agent.team_name === "No Team") {
+    return Users;
+  }
+  
+  // Find the team in the teams array to get its icon
+  const team = teams.find(t => t.value === agent.team_name);
+  if (team && team.icon) {
+    return team.icon;
+  }
+  
+  // Fallback to Users icon if team not found
+  return Users;
 }
 
 export function AgentsTable({ 
@@ -129,6 +159,7 @@ export function AgentsTable({
       defaultFilters,
       options: {
         status: statusOptions,
+        type: agentTypeOptions,
         team: teams,
       },
     });
@@ -163,6 +194,7 @@ export function AgentsTable({
                   <TableHead className="hidden md:table-cell">Draft</TableHead>
                   <TableHead className="hidden md:table-cell">Published</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="hidden md:table-cell">Type</TableHead>
                   <TableHead className="hidden sm:table-cell">Team</TableHead>
                   <TableHead className="hidden lg:table-cell">Updated at</TableHead>
                   <TableHead>Actions</TableHead>
@@ -186,7 +218,10 @@ export function AgentsTable({
                         {/* Show team and version info on mobile when columns are hidden */}
                         <div className="sm:hidden flex flex-wrap gap-2 mt-2 text-xs text-muted-foreground">
                           <span className="flex items-center gap-1 min-w-0">
-                            <Users className="h-3 w-3 flex-shrink-0" />
+                            {(() => {
+                              const TeamIcon = getTeamIcon(agent, teams);
+                              return <TeamIcon className="h-3 w-3 flex-shrink-0" />;
+                            })()}
                             <span className="truncate">{agent.team_name || "No Team"}</span>
                           </span>
                           {agent.draft_count > 0 && (
@@ -226,6 +261,7 @@ export function AgentsTable({
                       </div>
                     </Link>
                   </TableCell>
+                  
                   <TableCell className="hidden md:table-cell">
                     {agent.draft_count > 0 ? (
                       <div className="flex flex-col items-center gap-1">
@@ -287,9 +323,22 @@ export function AgentsTable({
                   <TableCell>
                     <AgentStatusBadge status={agent.status} size="sm" />
                   </TableCell>
+                  <TableCell className="hidden md:table-cell">
+                    <div className="flex items-center space-x-2 min-w-0">
+                      {agent.type === "pipeline" ? (
+                        <Workflow className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      ) : (
+                        <MessageSquare className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      )}
+                      <span className="text-sm truncate">{agentTypeOptions.find(option => option.value === agent.type)?.label || "Interactive"}</span>
+                    </div>
+                  </TableCell>
                   <TableCell className="hidden sm:table-cell">
                     <div className="flex items-center space-x-2 min-w-0">
-                      <Users className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      {(() => {
+                        const TeamIcon = getTeamIcon(agent, teams);
+                        return <TeamIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />;
+                      })()}
                       <span className="text-sm truncate">{agent.team_name || "No Team"}</span>
                     </div>
                   </TableCell>

@@ -27,14 +27,17 @@ with import_functions():
         TaskDeleteOutput,
         TaskGetByIdInput,
         TaskGetByStatusInput,
+        TaskGetByWorkspaceInput,
         TaskListOutput,
         TaskSingleOutput,
+        TaskStatsOutput,
         TaskUpdateAgentTaskIdInput,
         TaskUpdateInput,
         tasks_create,
         tasks_delete,
         tasks_get_by_id,
         tasks_get_by_status,
+        tasks_get_stats,
         tasks_read,
         tasks_update,
         tasks_update_agent_task_id,
@@ -112,7 +115,9 @@ class TasksCreateWorkflow:
                     agent_id=result.task.agent_id,
                     assigned_to_id=result.task.assigned_to_id
                     or None,
-                    user_id=result.task.assigned_to_id,  # Use assigned_to_id as user_id for OAuth tokens
+                    user_id=result.task.assigned_to_id,
+                    workspace_id=result.task.workspace_id,
+                    task_id=result.task.id,
                 ),
                 parent_close_policy=ParentClosePolicy.ABANDON,
             )
@@ -394,3 +399,25 @@ class PlaygroundCreateDualTasksWorkflow:
                 "draft_agent_task_id": draft_result.task.agent_task_id,
                 "comparison_agent_task_id": comparison_result.task.agent_task_id,
             }
+
+
+@workflow.defn()
+class TasksGetStatsWorkflow:
+    """Workflow to get task statistics by status for a workspace."""
+
+    @workflow.run
+    async def run(
+        self, workflow_input: TaskGetByWorkspaceInput
+    ) -> TaskStatsOutput:
+        log.info("TasksGetStatsWorkflow started")
+        try:
+            return await workflow.step(
+                function=tasks_get_stats,
+                function_input=workflow_input,
+                start_to_close_timeout=timedelta(seconds=30),
+            )
+
+        except Exception as e:
+            error_message = f"Error during tasks_get_stats: {e}"
+            log.error(error_message)
+            raise NonRetryableError(message=error_message) from e

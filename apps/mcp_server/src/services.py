@@ -5,25 +5,19 @@ from pathlib import Path
 from watchfiles import run_process
 
 from src.client import client
-from src.functions.generate_random_data import (
-    generate_random_data,
-)
 from src.functions.llm_response import llm_response
-from src.workflows.tools.mock_datadog_logs import MockDatadogLogs
-from src.workflows.tools.mock_failing_mcp_test import (
-    MockFailingMcpTest,
+from src.functions.template_from_sample import (
+    template_from_sample,
 )
-from src.workflows.tools.mock_github_pr import MockGitHubPR
-from src.workflows.tools.mock_hello_world import MockHelloWorld
-from src.workflows.tools.mock_knowledge_base import (
-    MockKnowledgeBase,
+from src.workflows.tools.generate_mock import GenerateMock
+from src.workflows.tools.load_into_dataset import (
+    LoadIntoDataset,
 )
-from src.workflows.tools.mock_linear_issue import MockLinearIssue
-from src.workflows.tools.mock_pagerduty_incident import (
-    MockPagerDutyIncident,
+from src.workflows.tools.test_failures import (
+    TestFailures,
 )
-from src.workflows.tools.mock_zendesk_ticket import (
-    MockZendeskTicket,
+from src.workflows.tools.transform_data import (
+    TransformData,
 )
 
 # Create logger for this module
@@ -35,18 +29,14 @@ async def run_restack_service() -> None:
     await client.start_service(
         task_queue="mcp_server",
         workflows=[
-            MockZendeskTicket,
-            MockDatadogLogs,
-            MockLinearIssue,
-            MockGitHubPR,
-            MockKnowledgeBase,
-            MockPagerDutyIncident,
-            MockHelloWorld,
-            MockFailingMcpTest,
+            GenerateMock,
+            TestFailures,
+            TransformData,
+            LoadIntoDataset,
         ],
         functions=[
             llm_response,
-            generate_random_data,
+            template_from_sample,
         ],
     )
 

@@ -67,84 +67,20 @@ INSERT INTO mcp_servers (id, workspace_id, server_label, server_url, local, serv
   'Intercom MCP server for customer support and messaging',
   '{"Authorization": "Bearer ic-demo-token"}'
 ),
--- Local MCP servers (mock implementations)
 (
-  'f4567890-1234-5678-9abc-def012345678',
+  'c0000000-0000-0000-0000-000000000001',
   'c926e979-1f16-46bf-a7cc-8aab70162d65',
-  'mock-zendesk',
+  'restack-core',
   NULL,
   TRUE,
-  'Mock Zendesk MCP server for ticket management and customer support',
-  NULL
-),
-(
-  '15678901-2345-6789-bcde-f01234567890',
-  'c926e979-1f16-46bf-a7cc-8aab70162d65',
-  'mock-knowledge-base',
-  NULL,
-  TRUE,
-  'Mock Knowledge base MCP server for documentation and knowledge management',
-  NULL
-),
-(
-  '26789012-3456-789a-cdef-012345678901',
-  'c926e979-1f16-46bf-a7cc-8aab70162d65',
-  'mock-pagerduty',
-  NULL,
-  TRUE,
-  'Mock PagerDuty MCP server for incident management and monitoring',
-  NULL
-),
-(
-  '37890123-4567-890b-cdef-123456789012',
-  'c926e979-1f16-46bf-a7cc-8aab70162d65',
-  'mock-datadog',
-  NULL,
-  TRUE,
-  'Mock Datadog MCP server for logs and metrics monitoring',
-  NULL
-),
-(
-  '48901234-5678-901c-def0-234567890123',
-  'c926e979-1f16-46bf-a7cc-8aab70162d65',
-  'mock-linear',
-  NULL,
-  TRUE,
-  'Mock Linear MCP server for issue and project management',
-  NULL
-),
-(
-  '59012345-6789-012d-ef01-345678901234',
-  'c926e979-1f16-46bf-a7cc-8aab70162d65',
-  'mock-github-pr',
-  NULL,
-  TRUE,
-  'Mock GitHub PR MCP server for pull request management',
-  NULL
-),
-(
-  '90123456-789a-123e-f012-456789012348',
-  'c926e979-1f16-46bf-a7cc-8aab70162d65',
-  'mock-failing-test',
-  NULL,
-  TRUE,
-  'Mock Failing MCP Test server for error handling testing',
-  NULL
-),
-(
-  'a1b2c3d4-5678-9012-cdef-567890123456',
-  'c926e979-1f16-46bf-a7cc-8aab70162d65',
-  'mock-hello-world',
-  NULL,
-  TRUE,
-  'Mock Hello World MCP server for simple greeting messages',
+  'Core Restack MCP server providing unified mock generation, transform and load tools',
   NULL
 )
 ON CONFLICT (id) DO NOTHING;
 
 
 -- Customer Support Agent - Zendesk orchestrator
-INSERT INTO agents (id, workspace_id, team_id, name, description, instructions, status, model, reasoning_effort)
+INSERT INTO agents (id, workspace_id, team_id, name, description, instructions, type, status, model, reasoning_effort)
 VALUES (
     '77777777-7777-7777-7777-777777777777',
     'c926e979-1f16-46bf-a7cc-8aab70162d65',
@@ -157,21 +93,25 @@ VALUES (
 Process incoming support tickets from Zendesk, classifying and managing each according to issue severity, and track all related actions and communications.
 
 ## Available Tools
-You have access to the following tools that you MUST use for the corresponding actions:
-- **mockzendeskticket**: Create, update, or query mock Zendesk tickets
-- **mockknowledgebase**: Search mock documentation and knowledge base for solutions
-- **mockpagerdutyincident**: Check mock incidents and monitoring data from PagerDuty
-- **mockdatadoglogs**: Query mock logs and metrics from Datadog for investigation
-- **mocklinearissue**: Create and manage mock Linear tickets for engineering tasks
-- **mockgithubpr**: Create mock GitHub issues and pull requests for code changes
+You have access to the following unified mock generation tool:
+- **generatemock**: Generate realistic mock data for any integration (Zendesk, PagerDuty, Datadog, Linear, GitHub, Knowledge Base, etc.)
+
+## How to Use GenerateMock
+Use the `generatemock` tool with these integration templates:
+- `integration_template: "zendesk_ticket"` - Create, update, or query mock Zendesk tickets
+- `integration_template: "knowledge_base"` - Search mock documentation and knowledge base for solutions  
+- `integration_template: "pagerduty_incident"` - Check mock incidents and monitoring data from PagerDuty
+- `integration_template: "datadog_logs"` - Query mock logs and metrics from Datadog for investigation
+- `integration_template: "linear_issue"` - Create and manage mock Linear tickets for engineering tasks
+- `integration_template: "github_pr"` - Create mock GitHub issues and pull requests for code changes
 
 ## Checklist
 Begin with a concise checklist (3–7 bullets) outlining your approach:
-- Review the Zendesk ticket for required information using mockzendeskticket
+- Review the Zendesk ticket for required information using generatemock with zendesk_ticket template
 - Classify ticket as L1, L2, L3, or 'Incomplete Data'
-- For L1: use mockknowledgebase to consult documentation and draft a solution response
-- For L2: use mockpagerdutyincident and mockdatadoglogs to investigate; summarize findings and respond
-- For L3: notify user, use mocklinearissue to create ticket, and if code change needed, use mockgithubpr to open issue and PR, then follow up post-merge
+- For L1: use generatemock with knowledge_base template to consult documentation and draft a solution response
+- For L2: use generatemock with pagerduty_incident and datadog_logs templates to investigate; summarize findings and respond
+- For L3: notify user, use generatemock with linear_issue template to create ticket, and if code change needed, use generatemock with github_pr template to open issue and PR, then follow up post-merge
 - Document all actions, artifact references, and communications
 - Return structured output as specified
 
@@ -181,17 +121,17 @@ Begin with a concise checklist (3–7 bullets) outlining your approach:
    - **L2:** Requires deeper investigation with monitoring tools.
    - **L3:** Needs engineering intervention.
 2. **L1 Tickets:**
-   - Use mockknowledgebase to search documentation for possible solutions.
+   - Use generatemock with knowledge_base template to search documentation for possible solutions.
    - Draft a response for the user referencing any documentation or solutions used.
 3. **L2 Tickets:**
-   - Use mockpagerdutyincident to check for related incidents.
-   - Use mockdatadoglogs to investigate logs and metrics.
+   - Use generatemock with pagerduty_incident template to check for related incidents.
+   - Use generatemock with datadog_logs template to investigate logs and metrics.
    - Summarize findings.
    - Draft a user response outlining investigation results and next steps.
 4. **L3 Tickets:**
    - Notify the user that the engineering team will handle the issue.
-   - Use mocklinearissue to create a Linear ticket summarizing the problem and include the reference.
-   - If a code change is required, use mockgithubpr to create a GitHub issue and PR. Include references for both.
+   - Use generatemock with linear_issue template to create a Linear ticket summarizing the problem and include the reference.
+   - If a code change is required, use generatemock with github_pr template to create a GitHub issue and PR. Include references for both.
    - After the PR is merged, send a follow-up response to the user about the resolution.
 5. **Error Handling:**
    - If any required data is missing from the ticket, note this in the output and flag the ticket as 'Incomplete Data'.
@@ -202,7 +142,7 @@ Begin with a concise checklist (3–7 bullets) outlining your approach:
 - **ALWAYS use the appropriate tool** for each action - do not attempt to perform actions manually
 - Call tools in the logical sequence needed to complete the ticket processing
 - If a tool call fails, try again with adjusted parameters or explain the limitation
-- Use multiple tools in parallel when gathering information (e.g., mockpagerdutyincident and mockdatadoglogs for L2 tickets)
+- Use multiple tools in parallel when gathering information (e.g., generatemock with pagerduty_incident and datadog_logs templates for L2 tickets)
 
 ## Validation
 After processing each ticket, briefly validate that all actions match the ticket's classification and required references are included. If output is incomplete or a reference is missing, self-correct or explain in output.
@@ -215,6 +155,7 @@ After processing each ticket, briefly validate that all actions match the ticket
 - All actions relevant to the ticket's issue level are recorded.
 - References (IDs/URLs) are included where possible.
 - If insufficient data, mark as 'Incomplete Data' and explain.$$,
+    'interactive',
     'published',
     'gpt-5',
     'medium'
@@ -222,7 +163,7 @@ After processing each ticket, briefly validate that all actions match the ticket
 ON CONFLICT (id) DO NOTHING;
 
 -- Sales Agent - CRM and lead management
-INSERT INTO agents (id, workspace_id, team_id, name, description, instructions, status, model, reasoning_effort)
+INSERT INTO agents (id, workspace_id, team_id, name, description, instructions, type, status, model, reasoning_effort)
 VALUES (
     'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
     'c926e979-1f16-46bf-a7cc-8aab70162d65',
@@ -247,6 +188,7 @@ Manage sales leads, track opportunities, and provide insights on sales pipeline 
 5. Provide insights on pipeline health and conversion rates
 
 Always maintain accurate records and follow up on commitments made to prospects.$$,
+    'interactive',
     'published',
     'gpt-5-mini',
     'low'
@@ -254,7 +196,7 @@ Always maintain accurate records and follow up on commitments made to prospects.
 ON CONFLICT (id) DO NOTHING;
 
 -- Marketing Agent - Campaign analytics and optimization
-INSERT INTO agents (id, workspace_id, team_id, name, description, instructions, status, model, reasoning_effort)
+INSERT INTO agents (id, workspace_id, team_id, name, description, instructions, type, status, model, reasoning_effort)
 VALUES (
     'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
     'c926e979-1f16-46bf-a7cc-8aab70162d65',
@@ -279,6 +221,7 @@ Analyze marketing campaign performance, provide insights, and recommend optimiza
 5. Track campaign goals and measure success against objectives
 
 Focus on data-driven insights and clear recommendations for improving marketing effectiveness.$$,
+    'interactive',
     'published',
     'gpt-5',
     'medium'
@@ -286,7 +229,7 @@ Focus on data-driven insights and clear recommendations for improving marketing 
 ON CONFLICT (id) DO NOTHING;
 
 -- Engineering Agent - Documentation and research
-INSERT INTO agents (id, workspace_id, team_id, name, description, instructions, status, model, reasoning_effort)
+INSERT INTO agents (id, workspace_id, team_id, name, description, instructions, type, status, model, reasoning_effort)
 VALUES (
     'cccccccc-cccc-cccc-cccc-cccccccccccc',
     'c926e979-1f16-46bf-a7cc-8aab70162d65',
@@ -311,6 +254,7 @@ Research technical solutions, search documentation, and provide comprehensive an
 5. Suggest implementation approaches and potential gotchas
 
 Always prioritize accuracy and provide multiple approaches when possible.$$,
+    'interactive',
     'published',
     'gpt-5',
     'low'
@@ -318,7 +262,7 @@ Always prioritize accuracy and provide multiple approaches when possible.$$,
 ON CONFLICT (id) DO NOTHING;
 
 -- HR Agent - Employee data and operations
-INSERT INTO agents (id, workspace_id, team_id, name, description, instructions, status, model, reasoning_effort)
+INSERT INTO agents (id, workspace_id, team_id, name, description, instructions, type, status, model, reasoning_effort)
 VALUES (
     'dddddddd-dddd-dddd-dddd-dddddddddddd',
     'c926e979-1f16-46bf-a7cc-8aab70162d65',
@@ -343,6 +287,7 @@ Assist with HR operations, employee data queries, and policy guidance.
 5. Ensure compliance with privacy and data protection requirements
 
 Always maintain confidentiality and follow proper authorization protocols for sensitive information.$$,
+    'interactive',
     'published',
     'gpt-5-mini',
     'medium'
@@ -350,7 +295,7 @@ Always maintain confidentiality and follow proper authorization protocols for se
 ON CONFLICT (id) DO NOTHING;
 
 -- News Research Agent - Web search demonstration
-INSERT INTO agents (id, workspace_id, team_id, name, description, instructions, status, model, reasoning_effort)
+INSERT INTO agents (id, workspace_id, team_id, name, description, instructions, type, status, model, reasoning_effort)
 VALUES (
     'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
     'c926e979-1f16-46bf-a7cc-8aab70162d65',
@@ -387,6 +332,7 @@ Always provide:
 - Recommendations for follow-up research if needed
 
 Demonstrate the full capabilities of web search with detailed, informative responses.$$,
+    'interactive',
     'published',
     'gpt-5',
     'medium'
@@ -394,7 +340,7 @@ Demonstrate the full capabilities of web search with detailed, informative respo
 ON CONFLICT (id) DO NOTHING;
 
 -- Error Testing Agent - For testing MCP failure scenarios
-INSERT INTO agents (id, workspace_id, team_id, name, description, instructions, status, model, reasoning_effort)
+INSERT INTO agents (id, workspace_id, team_id, name, description, instructions, type, status, model, reasoning_effort)
 VALUES (
     'ffffffff-ffff-ffff-ffff-ffffffffffff',
     'c926e979-1f16-46bf-a7cc-8aab70162d65',
@@ -453,6 +399,7 @@ Use FailingMcpTest with:
 - **Error Recovery**: Test how the system recovers from different error types
 
 Focus on thorough testing and clear documentation of error handling behavior.$$,
+    'interactive',
     'published',
     'gpt-5',
     'low'
@@ -460,7 +407,7 @@ Focus on thorough testing and clear documentation of error handling behavior.$$,
 ON CONFLICT (id) DO NOTHING;
 
 -- Deep Research Agent - Advanced research using o3 deep research and web search
-INSERT INTO agents (id, workspace_id, team_id, name, description, instructions, status, model, reasoning_effort)
+INSERT INTO agents (id, workspace_id, team_id, name, description, instructions, type, status, model, reasoning_effort)
 VALUES (
     '12345678-9abc-def0-1234-567890abcdef',
     'c926e979-1f16-46bf-a7cc-8aab70162d65',
@@ -542,14 +489,79 @@ Provide structured research reports including:
 - **Strategic Planning**: Market opportunities, risk assessment, scenario planning
 
 Use your advanced reasoning capabilities to provide insights that go beyond simple information aggregation - identify hidden patterns, predict implications, and generate novel perspectives based on comprehensive analysis.$$,
+    'interactive',
     'published',
     'o3-deep-research',
     'medium'
 )
 ON CONFLICT (id) DO NOTHING;
 
+-- Pipeline Agent - Demonstrates ETL workflow (Extract -> Transform -> Load)
+INSERT INTO agents (id, workspace_id, team_id, name, description, instructions, type, status, model, reasoning_effort)
+VALUES (
+    '99999999-9999-9999-9999-999999999999',
+    'c926e979-1f16-46bf-a7cc-8aab70162d65',
+    '11111111-1111-1111-1111-111111111111',
+    'zendesk-ticket-urgency',
+    'Pipeline agent that extracts Zendesk tickets, assesses urgency with AI, and loads to dataset',
+    $$You are a pipeline agent that processes support tickets through a deterministic ETL workflow.
+
+## Objective
+Process support tickets by extracting data from Zendesk, transforming it with AI-powered urgency assessment, and loading the enriched data to a dataset for analysis.
+
+## Pipeline Workflow
+Your workflow follows a strict Extract → Transform → Load pattern:
+
+### 1. Extract Step
+- Use GenerateMock tool with zendesk_ticket template to retrieve support ticket data
+- Extract ticket details including priority, customer info, and issue description
+
+### 2. Transform Step  
+- Use transform tool to assess ticket urgency using AI analysis
+- Apply structured output schema for consistent urgency scoring
+- Consider factors: customer tier, issue severity, business impact, time sensitivity
+
+### 3. Load Step
+- Use load tool to save enriched data to dataset "pipeline_events"
+- Ensure data is properly formatted for downstream analysis and tagged appropriately
+
+## Execution Instructions
+1. **Always follow the ETL sequence** - Extract → Transform → Load
+2. **Use the transform tool** with this prompt: "Analyze the support ticket and assess its urgency level. Consider factors like: customer tier, issue severity, business impact, and time sensitivity. Categorize as: Critical, High, Medium, or Low urgency."
+3. **Apply structured output schema** for urgency assessment:
+   ```json
+   {
+     "type": "object",
+     "properties": {
+       "ticket_id": {"type": "string"},
+       "urgency_level": {"type": "string", "enum": ["Critical", "High", "Medium", "Low"]},
+       "urgency_score": {"type": "number", "minimum": 1, "maximum": 10},
+       "reasoning": {"type": "string"},
+       "recommended_sla": {"type": "string"},
+       "escalation_needed": {"type": "boolean"},
+       "original_ticket": {"type": "object"}
+     },
+     "required": ["ticket_id", "urgency_level", "urgency_score", "reasoning"]
+   }
+   ```
+4. **Load to pipeline_events** to dataset "pipeline_events"
+
+## Quality Standards
+- **Consistency**: Use the same urgency criteria for all tickets
+- **Completeness**: Ensure all required fields are populated in the output
+- **Traceability**: Maintain connection between original ticket and assessment
+- **Deterministic**: Same input should produce same output
+
+Your role is to create a reliable, repeatable process for ticket urgency assessment that feeds into operational dashboards and escalation workflows.$$,
+    'pipeline',
+    'published',
+    'gpt-5',
+    'minimal'
+)
+ON CONFLICT (id) DO NOTHING;
+
 -- Notion Knowledge Management Agent - Demonstrates OAuth token refresh
-INSERT INTO agents (id, workspace_id, team_id, name, description, instructions, status, model, reasoning_effort)
+INSERT INTO agents (id, workspace_id, team_id, name, description, instructions, type, status, model, reasoning_effort)
 VALUES (
     '11111111-2222-3333-4444-555555555555',
     'c926e979-1f16-46bf-a7cc-8aab70162d65',
@@ -593,6 +605,7 @@ This agent demonstrates OAuth 2.0 refresh token functionality:
 - Handles token refresh errors gracefully
 
 Always ensure information is well-organized, searchable, and accessible to team members.$$,
+    'interactive',
     'published',
     'gpt-5',
     'medium'
@@ -604,13 +617,8 @@ INSERT INTO agent_tools (id, agent_id, tool_type, mcp_server_id, tool_name, cust
 -- Notion agent with search tool (from existing seed data)
 ('a0000001-0001-0001-0001-000000000001', '11111111-2222-3333-4444-555555555555', 'mcp', 'a0123456-789a-123e-f012-456789012349', 'search', 'Search through Notion pages and databases for relevant information', FALSE, TRUE),
 
--- Customer Support Agent tools (using mock servers)
-('a0000002-0002-0002-0002-000000000002', '77777777-7777-7777-7777-777777777777', 'mcp', 'f4567890-1234-5678-9abc-def012345678', 'mockzendeskticket', 'Create and manage mock Zendesk support tickets', TRUE, TRUE),
-('a0000003-0003-0003-0003-000000000003', '77777777-7777-7777-7777-777777777777', 'mcp', '15678901-2345-6789-bcde-f01234567890', 'mockknowledgebase', 'Search mock internal knowledge base for solutions', FALSE, TRUE),
-('a0000008-0008-0008-0008-000000000008', '77777777-7777-7777-7777-777777777777', 'mcp', '26789012-3456-789a-cdef-012345678901', 'mockpagerdutyincident', 'Retrieve mock PagerDuty incident information', FALSE, TRUE),
-('a0000009-0009-0009-0009-000000000009', '77777777-7777-7777-7777-777777777777', 'mcp', '37890123-4567-890b-cdef-123456789012', 'mockdatadoglogs', 'Query mock Datadog logs and metrics', FALSE, TRUE),
-('a0000010-0010-0010-0010-000000000010', '77777777-7777-7777-7777-777777777777', 'mcp', '48901234-5678-901c-def0-234567890123', 'mocklinearissue', 'Create mock Linear issues for engineering tasks', FALSE, TRUE),
-('a0000011-0011-0011-0011-000000000011', '77777777-7777-7777-7777-777777777777', 'mcp', '59012345-6789-012d-ef01-345678901234', 'mockgithubpr', 'Create mock GitHub pull requests', FALSE, TRUE),
+-- Customer Support Agent tools (using unified mock generation)
+('a0000002-0002-0002-0002-000000000002', '77777777-7777-7777-7777-777777777777', 'mcp', 'c0000000-0000-0000-0000-000000000001', 'generatemock', 'Generate mock data for any integration (Zendesk, PagerDuty, Datadog, Linear, GitHub, etc.)', FALSE, TRUE),
 
 -- Engineering Agent tools
 ('a0000006-0006-0006-0006-000000000006', 'cccccccc-cccc-cccc-cccc-cccccccccccc', 'mcp', 'c1d2e3f4-5678-9012-cdef-345678901234', 'ask_question', 'Query internal documentation and wikis', FALSE, TRUE),
@@ -620,10 +628,15 @@ INSERT INTO agent_tools (id, agent_id, tool_type, mcp_server_id, tool_name, cust
 ('a0000014-0014-0014-0014-000000000014', '12345678-9abc-def0-1234-567890abcdef', 'web_search', NULL, NULL, 'Advanced web search for comprehensive research across academic, industry, and news sources', FALSE, TRUE),
 
 -- Error Testing Agent tools
-('a0000012-0012-0012-0012-000000000012', 'ffffffff-ffff-ffff-ffff-ffffffffffff', 'mcp', '90123456-789a-123e-f012-456789012348', 'mockfailingmcptest', 'Mock MCP tool that fails for testing error handling', FALSE, TRUE),
+('a0000012-0012-0012-0012-000000000012', 'ffffffff-ffff-ffff-ffff-ffffffffffff', 'mcp', 'c0000000-0000-0000-0000-000000000001', 'testfailures', 'Test MCP tool that fails for testing error handling', FALSE, TRUE),
 
 -- Demo Hello World tool
-('a0000013-0013-0013-0013-000000000013', 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'mcp', 'a1b2c3d4-5678-9012-cdef-567890123456', 'mockhelloworld', 'Simple mock hello world greeting tool', FALSE, TRUE)
+('a0000013-0013-0013-0013-000000000013', 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'mcp', 'c0000000-0000-0000-0000-000000000001', 'generatemock', 'Generate mock data including simple hello world greetings', FALSE, TRUE),
+
+-- Pipeline Agent tools (Extract → Transform → Load)
+('a0000015-0015-0015-0015-000000000015', '99999999-9999-9999-9999-999999999999', 'mcp', 'c0000000-0000-0000-0000-000000000001', 'generatemock', 'Extract support ticket data from Zendesk using mock generation (Step 1: Extract)', FALSE, TRUE),
+('a0000016-0016-0016-0016-000000000016', '99999999-9999-9999-9999-999999999999', 'mcp', 'c0000000-0000-0000-0000-000000000001', 'transformdata', 'Assess ticket urgency using AI analysis (Step 2: Transform)', FALSE, TRUE),
+('a0000017-0017-0017-0017-000000000017', '99999999-9999-9999-9999-999999999999', 'mcp', 'c0000000-0000-0000-0000-000000000001', 'loadintodataset', 'Load enriched data to pipeline_events dataset (Step 3: Load)', FALSE, TRUE)
 
 ON CONFLICT (id) DO NOTHING;
 
@@ -672,10 +685,10 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
         "openai_output": {
           "id": "msg-003",
           "type": "mcp_call",
-          "name": "mockzendeskticket",
-          "server_label": "mock-zendesk",
+          "name": "generatemock",
+          "server_label": "restack-core",
           "status": "completed",
-          "arguments": {"query": "login authentication errors", "timeframe": "24h"},
+          "arguments": {"integration_template": "zendesk_ticket", "parameters": {"query": "login authentication errors", "timeframe": "24h"}},
           "output": "Found 3 related tickets in the past 24 hours with similar authentication errors"
         }
       },
@@ -686,10 +699,10 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
         "openai_output": {
           "id": "msg-004",
           "type": "mcp_call",
-          "name": "mockpagerdutyincident",
-          "server_label": "mock-pagerduty",
+          "name": "generatemock",
+          "server_label": "restack-core",
           "status": "completed",
-          "arguments": {"service": "authentication", "status": "open"},
+          "arguments": {"integration_template": "pagerduty_incident", "parameters": {"service": "authentication", "status": "open"}},
           "output": "No active incidents found for authentication services"
         }
       },
@@ -700,10 +713,10 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
         "openai_output": {
           "id": "msg-005",
           "type": "mcp_call",
-          "name": "mockdatadoglogs",
-          "server_label": "mock-datadog",
+          "name": "generatemock",
+          "server_label": "restack-core",
           "status": "completed",
-          "arguments": {"user": "john.doe@example.com", "service": "authentication", "timeframe": "1h"},
+          "arguments": {"integration_template": "datadog_logs", "parameters": {"user": "john.doe@example.com", "service": "authentication", "timeframe": "1h"}},
           "output": "Found account lockout due to 5 failed login attempts in 10 minutes. Account status: LOCKED"
         }
       },
@@ -726,10 +739,10 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
         "openai_output": {
           "id": "msg-007",
           "type": "mcp_call",
-          "name": "mockzendeskticket",
-          "server_label": "mock-zendesk",
+          "name": "generatemock",
+          "server_label": "restack-core",
           "status": "completed",
-          "arguments": {"action": "create", "subject": "Login issue resolved", "status": "resolved"},
+          "arguments": {"integration_template": "zendesk_ticket", "parameters": {"action": "create", "subject": "Login issue resolved", "status": "resolved"}},
           "output": "Ticket #ZD-12345 created and marked as resolved"
         }
       },
@@ -773,10 +786,10 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
         "openai_output": {
           "id": "msg-103",
           "type": "mcp_approval_request",
-          "name": "mockdatadoglogs",
-          "server_label": "mock-datadog",
+          "name": "generatemock",
+          "server_label": "restack-core",
           "status": "failed",
-          "arguments": {"service": "payment", "log_level": "error", "timeframe": "1h"},
+          "arguments": {"integration_template": "datadog_logs", "parameters": {"service": "payment", "log_level": "error", "timeframe": "1h"}},
           "output": "Access denied - Security investigation requires manual approval from Security team",
           "decline_reason": "Sensitive payment data access requires Security team authorization"
         }
@@ -794,10 +807,10 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
         "openai_output": {
           "id": "msg-105",
           "type": "mcp_call",
-          "name": "mocklinearissue",
-          "server_label": "mock-linear",
+          "name": "generatemock",
+          "server_label": "restack-core",
           "status": "completed",
-          "arguments": {"priority": "high", "team": "security", "title": "Payment fraud investigation", "description": "Suspicious payment patterns detected"},
+          "arguments": {"integration_template": "linear_issue", "parameters": {"priority": "high", "team": "security", "title": "Payment fraud investigation", "description": "Suspicious payment patterns detected"}},
           "output": "High-priority security ticket LIN-SEC-789 created and assigned to Security team"
         }
       },
@@ -808,10 +821,10 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
         "openai_output": {
           "id": "msg-106",
           "type": "mcp_call",
-          "name": "mockpagerdutyincident",
-          "server_label": "mock-pagerduty",
+          "name": "generatemock",
+          "server_label": "restack-core",
           "status": "completed",
-          "arguments": {"category": "security", "status": "resolved", "timeframe": "7d"},
+          "arguments": {"integration_template": "pagerduty_incident", "parameters": {"category": "security", "status": "resolved", "timeframe": "7d"}},
           "output": "Found similar incident PD-INC-456 from last week, marked as resolved - card testing attack"
         }
       },
@@ -828,10 +841,10 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
         "openai_output": {
           "id": "msg-108",
           "type": "mcp_call",
-          "name": "mockzendeskticket",
-          "server_label": "mock-zendesk",
+          "name": "generatemock",
+          "server_label": "restack-core",
           "status": "completed",
-          "arguments": {"action": "create", "subject": "Security escalation - Payment fraud", "priority": "high"},
+          "arguments": {"integration_template": "zendesk_ticket", "parameters": {"action": "create", "subject": "Security escalation - Payment fraud", "priority": "high"}},
           "output": "Security escalation ticket #ZD-SEC-123 created"
         }
       },
@@ -1261,7 +1274,7 @@ INSERT INTO tasks (
     uuid_generate_v4(),
     'Error Handling Examples - UI Testing',
     'This task demonstrates all possible error types that can occur during agent execution for UI testing purposes',
-    'active',
+    'in_progress',
     'cccccccc-cccc-cccc-cccc-cccccccccccc', -- technical-research-assistant
     '29fcdd0a-708e-478a-8030-34b02ad9ef84', -- Demo User
     'c926e979-1f16-46bf-a7cc-8aab70162d65', -- demo workspace

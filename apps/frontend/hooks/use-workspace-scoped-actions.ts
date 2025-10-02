@@ -26,6 +26,7 @@ export interface Agent {
   reasoning_effort?: string;
   status: "published" | "draft" | "archived";
   parent_agent_id?: string;
+  type?: "interactive" | "pipeline";
   team_id?: string;
   team_name?: string;
   created_at?: string;
@@ -42,9 +43,10 @@ export interface Task {
   id: string;
   title: string;
   description?: string;
-  status: "open" | "active" | "waiting" | "closed" | "completed";
+  status: "in_progress" | "in_review" | "closed" | "completed";
   agent_id: string;
   agent_name: string;
+  type?: "interactive" | "pipeline";
   assigned_to_id: string;
   assigned_to_name: string;
   team_id?: string;
@@ -158,6 +160,15 @@ async function executeWorkflow<T>(
         };
       }
       
+      // For datasets list responses
+      if ('datasets' in result && Array.isArray(result.datasets)) {
+        return {
+          success: true,
+          data: result.datasets as T,
+          count: result.datasets.length,
+        };
+      }
+      
       // Handle case where the result is directly an array
       if (Array.isArray(result)) {
         return {
@@ -196,6 +207,22 @@ async function executeWorkflow<T>(
         return {
           success: true,
           data: result.mcp_server as T,
+        };
+      }
+      
+      // For dataset single responses
+      if ('dataset' in result && result.dataset) {
+        return {
+          success: true,
+          data: result.dataset as T,
+        };
+      }
+      
+      // For dataset events responses (QueryDatasetEventsWorkflow)
+      if ('events' in result && Array.isArray(result.events)) {
+        return {
+          success: true,
+          data: result as T,
         };
       }
       

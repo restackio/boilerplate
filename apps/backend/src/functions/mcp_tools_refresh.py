@@ -28,7 +28,7 @@ def _extract_tools_from_result(result: dict) -> list[dict]:
 
 
 class McpToolsListInput(BaseModel):
-    server_url: str | None = Field(None)
+    server_url: str | None = None
     headers: dict[str, str] | None = None
     local: bool = Field(default=False)
     workspace_id: str | None = Field(
@@ -74,7 +74,7 @@ class McpToolsListOutput(BaseModel):
 
 
 class McpSessionInitInput(BaseModel):
-    server_url: str = Field(..., min_length=1)
+    server_url: str | None = None
     headers: dict[str, str] | None = None
     local: bool = Field(default=False)
 
@@ -104,7 +104,7 @@ class McpToolsSessionOutput(BaseModel):
 
 
 class McpToolsListDirectInput(BaseModel):
-    server_url: str = Field(..., min_length=1)
+    server_url: str | None = None
     headers: dict[str, str] | None = None
     local: bool = Field(default=False)
 
@@ -128,7 +128,8 @@ async def mcp_session_init(
     try:
         # Get the effective server URL (use MCP_URL for local servers)
         effective_url = _get_effective_server_url(
-            function_input.server_url, local=function_input.local
+            local=function_input.local,
+            server_url=function_input.server_url,
         )
 
         async with aiohttp.ClientSession() as session:
@@ -239,7 +240,7 @@ async def mcp_session_init(
 
 
 def _get_effective_server_url(
-    server_url: str, *, local: bool
+    *, local: bool, server_url: str | None = None
 ) -> str:
     """Get the effective server URL, using MCP_URL environment variable for local servers."""
     if local:
@@ -389,7 +390,8 @@ async def mcp_tools_list_direct(
     try:
         # Get the effective server URL (use MCP_URL for local servers)
         effective_url = _get_effective_server_url(
-            function_input.server_url, local=function_input.local
+            local=function_input.local,
+            server_url=function_input.server_url,
         )
 
         async with aiohttp.ClientSession() as session:
@@ -422,6 +424,8 @@ async def mcp_tools_list_direct(
                     content_type = tools_response.headers.get(
                         "content-type", ""
                     )
+
+                    # Debug: Log the response details
 
                     if "text/event-stream" in content_type:
                         # Parse SSE format - read line by line to avoid timeout
@@ -473,6 +477,7 @@ async def mcp_tools_list_direct(
                     else:
                         # Regular JSON response
                         tools_data = await tools_response.json()
+
                         if (
                             isinstance(tools_data, dict)
                             and "result" in tools_data
@@ -486,6 +491,7 @@ async def mcp_tools_list_direct(
                             tools_with_desc = (
                                 _extract_tools_from_result(result)
                             )
+
                             return McpToolsListDirectOutput(
                                 success=True,
                                 tools=tool_names,

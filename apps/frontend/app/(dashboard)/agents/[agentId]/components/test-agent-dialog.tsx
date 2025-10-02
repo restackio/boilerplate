@@ -24,7 +24,7 @@ export function TestAgentDialog({ isOpen, onClose, agent }: TestAgentDialogProps
     const taskData = {
       title: taskDescription.substring(0, 50) + (taskDescription.length > 50 ? "..." : ""),
       description: taskDescription,
-      status: "open" as const,
+      status: "in_progress" as const,
       agent_id: agent.id,
       assigned_to_id: currentUser?.id || "",
     };

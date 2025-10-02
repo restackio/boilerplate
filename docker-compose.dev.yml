@@ -67,8 +67,41 @@ services:
     networks:
       - boilerplate-network
 
+  # ClickHouse Database for Analytics and Datasets
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    container_name: boilerplate_clickhouse
+    environment:
+      CLICKHOUSE_DB: boilerplate_clickhouse
+      CLICKHOUSE_USER: clickhouse
+      CLICKHOUSE_PASSWORD: clickhouse
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    ports:
+      - "8123:8123"  # HTTP interface
+      - "9000:9000"  # Native client
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse/
+      - clickhouse_logs:/var/log/clickhouse-server/
+      - ./packages/database/clickhouse-init.sql:/docker-entrypoint-initdb.d/01-init.sql
+      - ./packages/database/clickhouse-seed.sql:/docker-entrypoint-initdb.d/02-seed.sql
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--query", "SELECT 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - boilerplate-network
+
 volumes:
   postgres_dev_data:
+    driver: local
+  clickhouse_data:
+    driver: local
+  clickhouse_logs:
     driver: local
 
 networks:

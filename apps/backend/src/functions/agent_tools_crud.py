@@ -37,53 +37,35 @@ def _raise_tool_name_required_error() -> None:
     )
 
 
-def _convert_approval_config(
-    require_approval: dict,
-    allowed_tools: list[str],
-    *,
-    convert_to_string: bool = True,
-) -> str | dict:
-    """Convert our internal approval configuration to OpenAI's expected string format.
+def _create_granular_require_approval(
+    tools_approval: dict[str, bool],
+) -> dict:
+    """Create granular require_approval object for MCP tools.
 
     Args:
-        require_approval: Our internal config like {"never": {"tool_names": ["tool1"]}, "always": {"tool_names": []}}
-        allowed_tools: List of tools allowed for this agent
-        convert_to_string: If True, converts to string format; if False, returns original object format
+        tools_approval: Dictionary mapping tool names to their approval requirements
 
     Returns:
-        String format ("never", "always") if convert_to_string=True,
-        or original object format if convert_to_string=False
+        Dictionary with "never" and "always" keys containing tool name arrays
     """
-    if not convert_to_string:
-        # Return original object format for testing/debugging
-        return require_approval or {}
-    if not require_approval:
-        return "never"
+    never_tools = [
+        tool
+        for tool, needs_approval in tools_approval.items()
+        if not needs_approval
+    ]
+    always_tools = [
+        tool
+        for tool, needs_approval in tools_approval.items()
+        if needs_approval
+    ]
 
-    never_tools = require_approval.get("never", {}).get(
-        "tool_names", []
-    )
-    always_tools = require_approval.get("always", {}).get(
-        "tool_names", []
-    )
+    result = {}
+    if never_tools:
+        result["never"] = {"tool_names": never_tools}
+    if always_tools:
+        result["always"] = {"tool_names": always_tools}
 
-    # If no allowed_tools specified, check all tools in the config
-    tools_to_check = (
-        allowed_tools
-        if allowed_tools
-        else (never_tools + always_tools)
-    )
-
-    # If any allowed tool requires approval, set to "always"
-    if any(tool in always_tools for tool in tools_to_check):
-        return "always"
-
-    # If all allowed tools are in never list, set to "never"
-    if all(tool in never_tools for tool in tools_to_check):
-        return "never"
-
-    # Mixed or undefined tools default to "never"
-    return "never"
+    return result
 
 
 class AgentToolsGetByAgentInput(BaseModel):
@@ -92,10 +74,6 @@ class AgentToolsGetByAgentInput(BaseModel):
     user_id: str | None = Field(
         None,
         description="Optional user ID for OAuth token refresh. If not provided, uses most recent token.",
-    )
-    convert_approval_to_string: bool = Field(
-        default=True,
-        description="Convert approval config to string format for OpenAI",
     )
 
 
@@ -107,7 +85,7 @@ class AgentToolCreateInput(BaseModel):
     agent_id: str = Field(..., min_length=1)
     tool_type: str = Field(
         ...,
-        pattern=r"^(web_search|mcp|code_interpreter|image_generation)$",
+        pattern=r"^(web_search|mcp|code_interpreter|image_generation|transform|load)$",
     )
     mcp_server_id: str | None = None
     # MCP-specific fields
@@ -300,74 +278,129 @@ async def agent_tools_read_by_agent(  # noqa: C901, PLR0912
                 for ms in mres.scalars().all():
                     mcp_map[str(ms.id)] = ms
 
-            tools: list[dict] = []
+            # Group MCP tools by server to create granular approval settings
+            mcp_servers_config: dict[str, dict] = {}
+
+            # First pass: collect all MCP tools grouped by server
             for r in rows:
                 if r.tool_type == "mcp" and r.mcp_server_id:
                     ms = mcp_map.get(str(r.mcp_server_id))
                     if ms:
-                        # For local MCP servers, use MCP_URL environment variable instead of stored URL
-                        server_url = ms.server_url
-                        if getattr(ms, "local", False):
-                            server_url = os.getenv("MCP_URL")
+                        server_key = str(r.mcp_server_id)
 
-                        # Convert our internal approval format to OpenAI's expected format
-                        require_approval = _convert_approval_config(
-                            ms.require_approval or {},
-                            r.allowed_tools or [],
-                            convert_to_string=function_input.convert_approval_to_string,
-                        )
-                        tool_obj = {
-                            "type": "mcp",
-                            "server_label": ms.server_label,
-                            "server_url": server_url,
-                            "server_description": ms.server_description
-                            or "",
-                            "headers": ms.headers or {},
-                            "require_approval": require_approval,
-                        }
+                        if server_key not in mcp_servers_config:
+                            # For local MCP servers, use MCP_URL environment variable instead of stored URL
+                            server_url = ms.server_url
+                            if getattr(ms, "local", False):
+                                server_url = os.getenv("MCP_URL")
 
-                        oauth_token = await get_oauth_token_for_mcp_server(
-                            GetOAuthTokenForMcpServerInput(
-                                mcp_server_id=str(ms.id),
-                                user_id=function_input.user_id,
+                            mcp_servers_config[server_key] = {
+                                "type": "mcp",
+                                "server_label": ms.server_label,
+                                "server_url": server_url,
+                                "server_description": ms.server_description
+                                or "",
+                                "headers": ms.headers or {},
+                                "allowed_tools": [],
+                                "tools_approval": {},  # Track per-tool approval settings
+                                "mcp_server": ms,
+                            }
+
+                        # Add tool to this server's configuration
+                        if r.tool_name:
+                            # Specific tool configuration
+                            if (
+                                r.tool_name
+                                not in mcp_servers_config[
+                                    server_key
+                                ]["allowed_tools"]
+                            ):
+                                mcp_servers_config[server_key][
+                                    "allowed_tools"
+                                ].append(r.tool_name)
+                            mcp_servers_config[server_key][
+                                "tools_approval"
+                            ][r.tool_name] = (
+                                r.require_approval or False
                             )
+                        elif r.allowed_tools:
+                            # Server-level configuration with multiple tools
+                            for tool_name in r.allowed_tools:
+                                if (
+                                    tool_name
+                                    not in mcp_servers_config[
+                                        server_key
+                                    ]["allowed_tools"]
+                                ):
+                                    mcp_servers_config[
+                                        server_key
+                                    ]["allowed_tools"].append(
+                                        tool_name
+                                    )
+                                mcp_servers_config[server_key][
+                                    "tools_approval"
+                                ][tool_name] = (
+                                    r.require_approval or False
+                                )
+
+            # Second pass: create final tool configurations with granular approval
+            tools: list[dict] = []
+            for server_config in mcp_servers_config.values():
+                tools_approval = server_config["tools_approval"]
+                ms = server_config["mcp_server"]
+
+                # Get OAuth token for this server
+                oauth_token = (
+                    await get_oauth_token_for_mcp_server(
+                        GetOAuthTokenForMcpServerInput(
+                            mcp_server_id=str(ms.id),
+                            user_id=function_input.user_id,
                         )
-                        if oauth_token:
-                            tool_obj["authorization"] = (
-                                oauth_token
-                            )
-                            user_context = (
-                                f"user {function_input.user_id}"
-                                if function_input.user_id
-                                else "most recent token"
-                            )
-                            log.info(
-                                f"Added OAuth authorization for MCP server {ms.server_label} using {user_context}"
-                            )
-                        # Only log if we expect OAuth (don't spam logs for non-OAuth servers)
-                        elif ms.server_url and (
-                            "oauth"
-                            in (ms.server_url or "").lower()
-                            or "api."
-                            in (ms.server_url or "").lower()
-                        ):
-                            user_context = (
-                                f"user {function_input.user_id}"
-                                if function_input.user_id
-                                else "any user"
-                            )
-                            log.debug(
-                                f"No OAuth token found for MCP server {ms.server_label} for {user_context}"
-                            )
-                        if r.allowed_tools:
-                            tool_obj["allowed_tools"] = (
-                                r.allowed_tools
-                            )
-                        if r.config:
-                            tool_obj.update(r.config)
-                        tools.append(tool_obj)
-                else:
-                    # OpenAI official tools
+                    )
+                )
+
+                # Create single tool configuration with granular approval settings
+                tool_obj = {
+                    "type": server_config["type"],
+                    "server_label": server_config["server_label"],
+                    "server_url": server_config["server_url"],
+                    "server_description": server_config[
+                        "server_description"
+                    ],
+                    "headers": server_config["headers"],
+                    "allowed_tools": server_config[
+                        "allowed_tools"
+                    ],
+                    "require_approval": _create_granular_require_approval(
+                        tools_approval
+                    ),
+                }
+
+                if oauth_token:
+                    tool_obj["authorization"] = oauth_token
+                    user_context = (
+                        f"user {function_input.user_id}"
+                        if function_input.user_id
+                        else "most recent token"
+                    )
+                    log.info(
+                        f"Added OAuth authorization for MCP server {ms.server_label} using {user_context}"
+                    )
+                # Only log if we expect OAuth (don't spam logs for non-OAuth servers)
+                elif ms.server_url and (
+                    "oauth" in (ms.server_url or "").lower()
+                    or "api." in (ms.server_url or "").lower()
+                ):
+                    log.info(
+                        f"No OAuth token found for MCP server {ms.server_label} - may need authentication"
+                    )
+
+                tools.append(tool_obj)
+
+            # Handle non-MCP tools (OpenAI official tools)
+            for r in rows:
+                if r.tool_type != "mcp":
+                    # Standard OpenAI tools (web_search, etc.)
                     tool_obj = {"type": r.tool_type}
                     if r.config:
                         tool_obj.update(r.config)

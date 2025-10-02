@@ -2,6 +2,7 @@ import logging
 import os
 from collections.abc import AsyncGenerator
 
+import clickhouse_connect
 from dotenv import load_dotenv
 from sqlalchemy.exc import DisconnectionError
 from sqlalchemy.ext.asyncio import (
@@ -83,3 +84,16 @@ async def init_async_db() -> None:
 async def close_async_db() -> None:
     """Close database connections (async version)."""
     await async_engine.dispose()
+
+
+def get_clickhouse_client() -> clickhouse_connect.driver.Client:
+    """Get ClickHouse client connection."""
+    return clickhouse_connect.get_client(
+        host=os.getenv("CLICKHOUSE_HOST", "localhost"),
+        port=int(os.getenv("CLICKHOUSE_PORT", "8123")),
+        username=os.getenv("CLICKHOUSE_USER", "clickhouse"),
+        password=os.getenv("CLICKHOUSE_PASSWORD", "clickhouse"),
+        database=os.getenv(
+            "CLICKHOUSE_DATABASE", "boilerplate_clickhouse"
+        ),
+    )

@@ -11,6 +11,7 @@ interface Props {
   workspaceId: string;
   agent?: {
     status: "published" | "draft" | "archived";
+    type?: "interactive" | "pipeline";
   };
 }
 
@@ -43,6 +44,7 @@ export function AgentToolsManager({ agentId, workspaceId, agent }: Props) {
         tools={tools}
         onToolsChange={fetchTools}
         isReadOnly={isReadOnly}
+        agentType={agent?.type}
       />
 
       {/* Add Tool Section */}

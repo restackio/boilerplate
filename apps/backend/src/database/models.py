@@ -207,6 +207,10 @@ class Agent(Base):
         ForeignKey("agents.id", ondelete="SET NULL"),
         nullable=True,
     )
+    # Agent type: interactive (user-facing) or pipeline (data processing)
+    type = Column(
+        String(20), nullable=False, default="interactive"
+    )
     # New GPT-5 model configuration fields
     model = Column(String(100), nullable=False, default="gpt-5")
     reasoning_effort = Column(
@@ -230,6 +234,10 @@ class Agent(Base):
         CheckConstraint(
             status.in_(["published", "draft", "archived"]),
             name="valid_status",
+        ),
+        CheckConstraint(
+            type.in_(["interactive", "pipeline"]),
+            name="valid_type",
         ),
         CheckConstraint(
             model.in_(
@@ -275,7 +283,7 @@ class AgentTool(Base):
     )
     tool_type = Column(
         String(32), nullable=False
-    )  # file_search, web_search, mcp, code_interpreter, image_generation, local_shell
+    )  # file_search, web_search, mcp, code_interpreter, image_generation, local_shell, transform, load
     mcp_server_id = Column(
         UUID(as_uuid=True),
         ForeignKey("mcp_servers.id", ondelete="CASCADE"),
@@ -514,3 +522,54 @@ class UserOAuthConnection(Base):
     mcp_server = relationship(
         "McpServer", back_populates="user_oauth_connections"
     )
+
+
+class Dataset(Base):
+    __tablename__ = "datasets"
+
+    id = Column(UUID(as_uuid=True), primary_key=True)
+    workspace_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    name = Column(String(255), nullable=False)
+    description = Column(Text)
+
+    # Storage configuration (storage-agnostic)
+    storage_type = Column(
+        String(50), nullable=False, default="clickhouse"
+    )
+    storage_config = Column(
+        JSONB, nullable=False
+    )  # Storage-specific configuration
+    last_updated_at = Column(DateTime)
+    created_at = Column(
+        DateTime,
+        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+    )
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+        onupdate=lambda: datetime.now(tz=UTC).replace(
+            tzinfo=None
+        ),
+    )
+
+    # Constraints
+    __table_args__ = (
+        CheckConstraint(
+            storage_type.in_(
+                ["clickhouse"]
+            ),  # Future: 'postgres', 's3', 'bigquery', etc.
+            name="valid_storage_type",
+        ),
+        UniqueConstraint(
+            "workspace_id",
+            "name",
+            name="unique_dataset_name_per_workspace",
+        ),
+    )
+
+    # Relationships
+    workspace = relationship("Workspace")

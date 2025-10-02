@@ -8,6 +8,7 @@ import {
   CopyCheck,
   Building,
   Plug,
+  Database,
   type LucideIcon,
 } from "lucide-react";
 import { getLucideIcon } from "@workspace/ui/lib/get-lucide-icon";
@@ -150,6 +151,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         title: "Agents",
         url: "/agents",
         icon: Bot,
+      },
+      {
+        title: "Datasets",
+        url: "/datasets",
+        icon: Database,
       },
       {
         title: "Integrations",

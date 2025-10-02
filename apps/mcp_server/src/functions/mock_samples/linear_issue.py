@@ -1,8 +1,8 @@
-# """Linear Issue Creation API Schema
+# """Linear Issue Creation API Sample
 # Source: https://linear.app/developers/graphql#creating-and-editing-issues
 # """
 
-LINEAR_ISSUE_CREATION_SCHEMA = {
+LINEAR_ISSUE_CREATION_SAMPLE = {
     "data": {
         "issueCreate": {
             "success": True,

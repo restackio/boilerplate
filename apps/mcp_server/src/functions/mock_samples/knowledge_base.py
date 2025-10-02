@@ -1,8 +1,8 @@
-# """Knowledge Base Schema
+# """Knowledge Base Sample
 # Internal documentation retrieval for L1 support assessment
 # """
 
-KNOWLEDGE_BASE_SEARCH_SCHEMA = {
+KNOWLEDGE_BASE_SEARCH_SAMPLE = {
     "results": [
         {
             "id": "doc_12345",

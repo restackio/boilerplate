@@ -6,8 +6,10 @@ import { PageHeader } from "@workspace/ui/components/page-header";
 import { Button } from "@workspace/ui/components/ui/button";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Plus, RefreshCw, Users } from "lucide-react";
+import { getLucideIcon } from "@workspace/ui/lib/get-lucide-icon";
 import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
 import { CreateTaskForm } from "./components/create-task-form";
+import { TaskStatsCard } from "./components/task-stats-card";
 import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 import TasksTabs from "./tasks-tabs";
 
@@ -44,7 +46,7 @@ export default function TasksPage() {
   const handleCreateTask = async (taskData: {
     title: string;
     description: string;
-    status: "open" | "active" | "waiting" | "closed" | "completed";
+    status: "in_progress" | "in_review" | "closed" | "completed";
     agent_id: string;
     assigned_to_id: string;
     // Schedule-related fields
@@ -94,7 +96,11 @@ export default function TasksPage() {
     teams.forEach((team) => {
       if (!uniqueTeams.has(team.name)) {
         uniqueTeams.add(team.name);
-        options.push({ label: team.name, value: team.name, icon: Users });
+        options.push({ 
+          label: team.name, 
+          value: team.name, 
+          icon: getLucideIcon(team.icon) 
+        });
       }
     });
     
@@ -116,6 +122,17 @@ export default function TasksPage() {
       });
     }
     
+    // Handle status filtering
+    const statusParam = searchParams.get('status');
+    if (statusParam) {
+      filters.push({
+        columnId: 'status',
+        type: 'option' as const,
+        operator: 'is any of' as const,
+        values: [statusParam],
+      });
+    }
+    
     // Handle task IDs filtering for newly created tasks
     // Since we can't filter by ID directly, we'll store the task IDs for client-side filtering
     const tasksParam = searchParams.get('tasks');
@@ -125,6 +142,16 @@ export default function TasksPage() {
     }
     
     return filters;
+  }, [searchParams]);
+
+  // Check if any filters are active
+  const hasActiveFilters = useMemo(() => {
+    const teamParam = searchParams.get('team');
+    const tasksParam = searchParams.get('tasks');
+    const assignedParam = searchParams.get('assigned');
+    const statusParam = searchParams.get('status');
+    
+    return !!(teamParam || tasksParam || assignedParam || statusParam);
   }, [searchParams]);
 
   const breadcrumbs = [{ label: "Tasks" }];
@@ -161,6 +188,9 @@ export default function TasksPage() {
       <PageHeader breadcrumbs={breadcrumbs} actions={actions} />
       <TasksTabs />
       <div className="p-4 space-y-4">{/* Following agents pattern with proper spacing */}
+        {/* Task Statistics Card - only show when no filters are active */}
+        {!hasActiveFilters && <TaskStatsCard />}
+
         {/* Show notification for newly created tasks */}
         {isShowingNewTasks && (
           <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-md">

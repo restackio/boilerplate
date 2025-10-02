@@ -76,7 +76,7 @@ export function useTaskDetail() {
       const updateData = {
         title: task.title || "Untitled Task",
         description: task.description || "",
-        status: task.status || "open",
+        status: task.status || "in_progress",
         agent_id: task.agent_id || "",
         assigned_to_id: task.assigned_to_id || "",
         ...updates,

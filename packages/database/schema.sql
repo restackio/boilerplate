@@ -71,7 +71,7 @@ CREATE TABLE IF NOT EXISTS agents (
     instructions TEXT,
     status VARCHAR(50) NOT NULL DEFAULT 'draft' CHECK (status IN ('published', 'draft', 'archived')),
     parent_agent_id UUID REFERENCES agents(id) ON DELETE SET NULL,
-    -- New GPT-5 model configuration fields
+    type VARCHAR(20) NOT NULL DEFAULT 'interactive' CHECK (type IN ('interactive', 'pipeline')),
     model VARCHAR(100) DEFAULT 'gpt-5' CHECK (model IN (
         'gpt-5', 'gpt-5-mini', 'gpt-5-nano',
         'gpt-5-2025-08-07', 'gpt-5-mini-2025-08-07', 'gpt-5-nano-2025-08-07',
@@ -83,10 +83,24 @@ CREATE TABLE IF NOT EXISTS agents (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Create datasets table for storage-agnostic data management
+CREATE TABLE IF NOT EXISTS datasets (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL CHECK (name ~ '^[a-z0-9_\-]+$'),
+    description TEXT,
+    
+    -- Storage configuration (storage-agnostic)
+    storage_type VARCHAR(50) NOT NULL DEFAULT 'clickhouse' CHECK (storage_type IN ('clickhouse')), -- Future: 'postgres', 's3', 'bigquery', etc.
+    storage_config JSONB NOT NULL, -- Storage-specific configuration (table names, connection details, etc.)
+    last_updated_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    -- Ensure unique dataset names per workspace
+    CONSTRAINT unique_dataset_name_per_workspace UNIQUE(workspace_id, name)
+);
 
 
--- Unified agent tools table mirroring Responses API tool types
--- tool_type ∈ ('file_search','web_search','mcp','code_interpreter','image_generation','local_shell')
 CREATE TABLE IF NOT EXISTS agent_tools (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     agent_id UUID NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
@@ -157,7 +171,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     team_id UUID REFERENCES teams(id) ON DELETE SET NULL,
     title VARCHAR(255) NOT NULL,
     description TEXT,
-    status VARCHAR(50) NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'active', 'waiting', 'closed', 'completed')),
+    status VARCHAR(50) NOT NULL DEFAULT 'in_progress' CHECK (status IN ('in_progress', 'in_review', 'closed', 'completed')),
     agent_id UUID NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
     assigned_to_id UUID REFERENCES users(id) ON DELETE CASCADE,
     agent_task_id VARCHAR(255),
@@ -180,6 +194,7 @@ CREATE INDEX IF NOT EXISTS idx_mcp_servers_workspace_id ON mcp_servers(workspace
 CREATE INDEX IF NOT EXISTS idx_agents_workspace_id ON agents(workspace_id);
 CREATE INDEX IF NOT EXISTS idx_agents_team_id ON agents(team_id);
 CREATE INDEX IF NOT EXISTS idx_agents_status ON agents(status);
+CREATE INDEX IF NOT EXISTS idx_agents_type ON agents(type);
 CREATE INDEX IF NOT EXISTS idx_agents_parent_id ON agents(parent_agent_id);
 CREATE INDEX IF NOT EXISTS idx_agents_created_at ON agents(created_at);
 CREATE INDEX IF NOT EXISTS idx_agents_parent_created ON agents(parent_agent_id, created_at);
@@ -203,6 +218,10 @@ CREATE INDEX IF NOT EXISTS idx_tasks_is_scheduled ON tasks(is_scheduled);
 CREATE INDEX IF NOT EXISTS idx_tasks_schedule_status ON tasks(schedule_status);
 CREATE INDEX IF NOT EXISTS idx_tasks_restack_schedule_id ON tasks(restack_schedule_id);
 
+-- Dataset-related indexes
+CREATE INDEX IF NOT EXISTS idx_datasets_workspace_id ON datasets(workspace_id);
+CREATE INDEX IF NOT EXISTS idx_datasets_created_at ON datasets(created_at);
+
 -- OAuth-related indexes
 CREATE INDEX IF NOT EXISTS idx_user_oauth_connections_user_id ON user_oauth_connections(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_oauth_connections_workspace_id ON user_oauth_connections(workspace_id);
@@ -212,21 +231,26 @@ CREATE INDEX IF NOT EXISTS idx_user_oauth_connections_expires_at ON user_oauth_c
 -- Performance-critical composite indexes for common query patterns
 CREATE INDEX IF NOT EXISTS idx_agents_workspace_status_created ON agents(workspace_id, status, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_agents_workspace_name_parent ON agents(workspace_id, name, parent_agent_id);
+CREATE INDEX IF NOT EXISTS idx_agents_workspace_type_status ON agents(workspace_id, type, status);
 CREATE INDEX IF NOT EXISTS idx_tasks_workspace_status_created ON tasks(workspace_id, status, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_tasks_agent_status ON tasks(agent_id, status);
 CREATE INDEX IF NOT EXISTS idx_user_workspaces_user_role ON user_workspaces(user_id, role);
-CREATE INDEX IF NOT EXISTS idx_agent_tools_agent_type_enabled ON agent_tools(agent_id, tool_type, enabled);
+CREATE INDEX IF NOT EXISTS idx_agent_tools_type_enabled ON agent_tools(agent_id, tool_type, enabled);
 CREATE INDEX IF NOT EXISTS idx_mcp_servers_workspace_label ON mcp_servers(workspace_id, server_label);
+CREATE INDEX IF NOT EXISTS idx_datasets_workspace_created ON datasets(workspace_id, created_at DESC);
 
 -- Partial indexes for published records (more efficient for common queries)
 CREATE INDEX IF NOT EXISTS idx_agents_published_workspace ON agents(workspace_id, created_at DESC) WHERE status = 'published';
+CREATE INDEX IF NOT EXISTS idx_agents_pipeline_workspace ON agents(workspace_id, created_at DESC) WHERE type = 'pipeline';
 CREATE INDEX IF NOT EXISTS idx_tasks_open_workspace ON tasks(workspace_id, created_at DESC) WHERE status IN ('open', 'active');
 CREATE INDEX IF NOT EXISTS idx_tasks_scheduled_workspace ON tasks(workspace_id, is_scheduled, schedule_status, created_at DESC) WHERE is_scheduled = true;
 CREATE INDEX IF NOT EXISTS idx_agent_tools_enabled ON agent_tools(agent_id, tool_type) WHERE enabled = true;
+-- No partial index needed since we removed status column
 
 -- Covering indexes for read-heavy operations
-CREATE INDEX IF NOT EXISTS idx_agents_list_covering ON agents(workspace_id, status) INCLUDE (id, name, description, created_at, updated_at);
+CREATE INDEX IF NOT EXISTS idx_agents_list_covering ON agents(workspace_id, status) INCLUDE (id, name, description, type, created_at, updated_at);
 CREATE INDEX IF NOT EXISTS idx_tasks_list_covering ON tasks(workspace_id, status) INCLUDE (id, title, description, agent_id, assigned_to_id, created_at, updated_at);
+CREATE INDEX IF NOT EXISTS idx_datasets_list_covering ON datasets(workspace_id) INCLUDE (id, name, description, created_at, updated_at);
 
 -- Index for email lookups (very common in auth)
 CREATE INDEX IF NOT EXISTS idx_users_email_lower ON users(lower(email));
@@ -238,6 +262,7 @@ CREATE INDEX IF NOT EXISTS idx_tasks_schedule_gin ON tasks USING GIN (schedule_s
 CREATE INDEX IF NOT EXISTS idx_mcp_headers_gin ON mcp_servers USING GIN (headers) WHERE headers IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_agent_tools_config_gin ON agent_tools USING GIN (config) WHERE config IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_agent_tools_allowed_gin ON agent_tools USING GIN (allowed_tools) WHERE allowed_tools IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_datasets_schema_gin ON datasets USING GIN (schema_definition) WHERE schema_definition IS NOT NULL;
 
 -- Create updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -257,3 +282,4 @@ CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECU
 CREATE TRIGGER update_teams_updated_at BEFORE UPDATE ON teams FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_mcp_servers_updated_at BEFORE UPDATE ON mcp_servers FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_user_oauth_connections_updated_at BEFORE UPDATE ON user_oauth_connections FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_datasets_updated_at BEFORE UPDATE ON datasets FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

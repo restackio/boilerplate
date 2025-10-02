@@ -8,6 +8,7 @@ import { PageHeader } from "@workspace/ui/components/page-header";
 import { Button } from "@workspace/ui/components/ui/button";
 import { useRouter, useSearchParams } from "next/navigation";
 import { RefreshCw, Users } from "lucide-react";
+import { getLucideIcon } from "@workspace/ui/lib/get-lucide-icon";
 import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
 import { CreateAgentDialog } from "./components/create-agent-dialog";
 import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
@@ -46,7 +47,11 @@ export default function TechnicalSupportAgentsPage() {
     teams.forEach((team) => {
       if (!uniqueTeams.has(team.name)) {
         uniqueTeams.add(team.name);
-        options.push({ label: team.name, value: team.name, icon: Users });
+        options.push({ 
+          label: team.name, 
+          value: team.name, 
+          icon: getLucideIcon(team.icon) 
+        });
       }
     });
     

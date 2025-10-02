@@ -21,3 +21,9 @@ INSERT INTO teams (id, workspace_id, name, description, icon) VALUES
 ('44444444-4444-4444-4444-444444444444', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'Sales', 'Manages sales and customer relationships', 'DollarSign'),
 ('55555555-5555-5555-5555-555555555555', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'Support', 'Provides customer support', 'HeadphonesIcon')
 ON CONFLICT (id) DO NOTHING;
+
+-- Insert single dataset representing all pipeline events
+INSERT INTO datasets (id, workspace_id, name, description, storage_type, storage_config) VALUES
+('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'pipeline_events', 'All pipeline events from ClickHouse - unified event storage', 'clickhouse', 
+ '{"database": "boilerplate_clickhouse", "table": "pipeline_events"}')
+ON CONFLICT (id) DO NOTHING;

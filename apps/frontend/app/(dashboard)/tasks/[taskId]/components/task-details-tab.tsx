@@ -69,13 +69,11 @@ export function TaskDetailsTab({ task, onUpdateTask, isLoading = false }: TaskDe
     switch (status) {
       case "completed":
         return "bg-green-100 text-green-800";
-      case "active":
-        return "bg-blue-100 text-blue-800";
-      case "waiting":
-        return "bg-yellow-100 text-yellow-800";
       case "closed":
         return "bg-neutral-100 text-neutral-800";
-      case "open":
+      case "in_progress":
+        return "bg-blue-100 text-blue-800";
+      case "in_review":
         return "bg-orange-100 text-orange-800";
       default:
         return "bg-neutral-100 text-neutral-800";
@@ -168,15 +166,14 @@ export function TaskDetailsTab({ task, onUpdateTask, isLoading = false }: TaskDe
           {isEditing ? (
             <Select
               value={editedTask.status}
-              onValueChange={(value) => setEditedTask({ ...editedTask, status: value as "open" | "active" | "waiting" | "closed" | "completed" })}
+              onValueChange={(value) => setEditedTask({ ...editedTask, status: value as "in_progress" | "in_review" | "closed" | "completed" })}
             >
               <SelectTrigger className="mt-1">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="open">Open</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="waiting">Waiting</SelectItem>
+                <SelectItem value="in_progress">In Progress</SelectItem>
+                <SelectItem value="in_review">In Review</SelectItem>
                 <SelectItem value="closed">Closed</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>
               </SelectContent>
