@@ -73,7 +73,7 @@ INSERT INTO mcp_servers (id, workspace_id, server_label, server_url, local, serv
   'restack-core',
   NULL,
   TRUE,
-  'Core Restack MCP server providing unified mock generation, transform and load tools',
+  'Core Restack MCP server providing unified tools including mock generation, transform, load, and ClickHouse operations',
   NULL
 )
 ON CONFLICT (id) DO NOTHING;
@@ -560,6 +560,99 @@ Your role is to create a reliable, repeatable process for ticket urgency assessm
 )
 ON CONFLICT (id) DO NOTHING;
 
+-- Events Analytics Agent - Query ClickHouse and draft posts
+INSERT INTO agents (id, workspace_id, team_id, name, description, instructions, type, status, model, reasoning_effort)
+VALUES (
+    '88888888-8888-8888-8888-888888888888',
+    'c926e979-1f16-46bf-a7cc-8aab70162d65',
+    '33333333-3333-3333-3333-333333333333', -- Marketing team
+    'events-analytics-writer',
+    'Agent that queries ClickHouse pipeline events and drafts insightful posts',
+    $$You are an analytics-driven content creator who transforms event data into engaging posts.
+
+## Objective
+Query the ClickHouse pipeline_events table to analyze recent events and draft compelling posts that highlight insights, trends, and patterns discovered in the data.
+
+## Two-Step Workflow
+
+### Step 1: Query Pipeline Events
+Use the ClickHouse MCP tools to analyze recent events:
+- **run_select_query**: Execute SQL queries to find interesting patterns
+- **list_tables**: Explore available data tables
+- **describe_table**: Understand the pipeline_events schema
+
+### Step 2: Draft Post
+Based on your analysis, create an engaging post that:
+- Highlights key insights and trends
+- Uses data to tell a compelling story  
+- Includes specific metrics and examples
+- Provides actionable takeaways
+
+## Query Strategy
+Start with exploratory queries to understand the data:
+```sql
+-- Find event distribution
+SELECT event_name, COUNT(*) as count 
+FROM pipeline_events 
+GROUP BY event_name 
+ORDER BY count DESC;
+
+-- Analyze recent activity
+SELECT event_name, event_timestamp, tags
+FROM pipeline_events
+ORDER BY event_timestamp DESC
+LIMIT 10;
+
+-- Find patterns in tags
+SELECT arrayJoin(tags) as tag, COUNT(*) as occurrences
+FROM pipeline_events
+GROUP BY tag
+ORDER BY occurrences DESC;
+```
+
+## Post Guidelines
+1. **Catchy Title**: Create an attention-grabbing headline
+2. **Data-Driven**: Back claims with specific metrics from queries
+3. **Visual Elements**: Suggest charts or visualizations where appropriate
+4. **Actionable**: Provide clear takeaways or recommendations
+5. **Engaging**: Write in an accessible, conversational tone
+6. **Authentic**: Only include insights supported by the actual data
+
+## Example Post Structure
+```
+🚀 [Compelling Title Based on Data Insight]
+
+[Opening hook with key metric or surprising finding]
+
+📊 What the Data Shows:
+• [Insight 1 with specific numbers]
+• [Insight 2 with context]
+• [Insight 3 showing trend]
+
+🔍 Key Observations:
+[Deeper analysis of patterns discovered]
+
+💡 Takeaway:
+[Actionable insight or recommendation]
+
+#DataDriven #Analytics #Insights
+```
+
+## Quality Standards
+- **Accuracy**: All claims must be backed by actual query results
+- **Clarity**: Present technical findings in accessible language
+- **Timeliness**: Focus on recent, relevant data
+- **Value**: Provide genuine insights, not just data dumps
+- **Engagement**: Write to inform AND interest your audience
+
+Always start by querying the data to understand what stories it can tell, then craft your post accordingly.$$,
+    'interactive',
+    'published',
+    'gpt-5',
+    'medium'
+)
+ON CONFLICT (id) DO NOTHING;
+
 -- Notion Knowledge Management Agent - Demonstrates OAuth token refresh
 INSERT INTO agents (id, workspace_id, team_id, name, description, instructions, type, status, model, reasoning_effort)
 VALUES (
@@ -636,7 +729,12 @@ INSERT INTO agent_tools (id, agent_id, tool_type, mcp_server_id, tool_name, cust
 -- Pipeline Agent tools (Extract → Transform → Load)
 ('a0000015-0015-0015-0015-000000000015', '99999999-9999-9999-9999-999999999999', 'mcp', 'c0000000-0000-0000-0000-000000000001', 'generatemock', 'Extract support ticket data from Zendesk using mock generation (Step 1: Extract)', FALSE, TRUE),
 ('a0000016-0016-0016-0016-000000000016', '99999999-9999-9999-9999-999999999999', 'mcp', 'c0000000-0000-0000-0000-000000000001', 'transformdata', 'Assess ticket urgency using AI analysis (Step 2: Transform)', FALSE, TRUE),
-('a0000017-0017-0017-0017-000000000017', '99999999-9999-9999-9999-999999999999', 'mcp', 'c0000000-0000-0000-0000-000000000001', 'loadintodataset', 'Load enriched data to pipeline_events dataset (Step 3: Load)', FALSE, TRUE)
+('a0000017-0017-0017-0017-000000000017', '99999999-9999-9999-9999-999999999999', 'mcp', 'c0000000-0000-0000-0000-000000000001', 'loadintodataset', 'Load enriched data to pipeline_events dataset (Step 3: Load)', FALSE, TRUE),
+
+-- Events Analytics Agent tools (ClickHouse via restack-core)
+('a0000018-0018-0018-0018-000000000018', '88888888-8888-8888-8888-888888888888', 'mcp', 'c0000000-0000-0000-0000-000000000001', 'clickhouserunselectquery', 'Execute SQL queries on ClickHouse to analyze pipeline events (Step 1: Query)', FALSE, TRUE),
+('a0000019-0019-0019-0019-000000000019', '88888888-8888-8888-8888-888888888888', 'mcp', 'c0000000-0000-0000-0000-000000000001', 'clickhouselisttables', 'List all available tables in the ClickHouse database', FALSE, TRUE),
+('a0000020-0020-0020-0020-000000000020', '88888888-8888-8888-8888-888888888888', 'mcp', 'c0000000-0000-0000-0000-000000000001', 'clickhouselistdatabases', 'List all available ClickHouse databases', FALSE, TRUE)
 
 ON CONFLICT (id) DO NOTHING;
 

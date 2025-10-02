@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import {
   Database,
   Activity,
@@ -188,8 +188,8 @@ export function EventsTable({ events, loading = false }: EventsTableProps) {
               filteredData.map((event) => {
                 const isExpanded = expandedRows.has(event.id);
                 return (
-                  <>
-                    <TableRow key={event.id} className="cursor-pointer hover:bg-muted/50" onClick={() => toggleRowExpansion(event.id)}>
+                  <Fragment key={event.id}>
+                    <TableRow className="cursor-pointer hover:bg-muted/50" onClick={() => toggleRowExpansion(event.id)}>
                       <TableCell>
                         <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
                           {isExpanded ? (
@@ -228,7 +228,7 @@ export function EventsTable({ events, loading = false }: EventsTableProps) {
                       </TableCell>
                     </TableRow>
                     {isExpanded && (
-                      <TableRow key={`${event.id}-expanded`}>
+                      <TableRow>
                         <TableCell colSpan={5}>
                           <div className="bg-background p-2">
                             <Tabs 
@@ -385,7 +385,7 @@ export function EventsTable({ events, loading = false }: EventsTableProps) {
                         </TableCell>
                       </TableRow>
                     )}
-                  </>
+                  </Fragment>
                 );
               })
             )}

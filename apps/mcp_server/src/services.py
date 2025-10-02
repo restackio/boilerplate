@@ -9,6 +9,11 @@ from src.functions.llm_response import llm_response
 from src.functions.template_from_sample import (
     template_from_sample,
 )
+from src.functions.clickhouse_crud import (
+    clickhouse_list_databases,
+    clickhouse_list_tables,
+    clickhouse_run_select_query,
+)
 from src.workflows.tools.generate_mock import GenerateMock
 from src.workflows.tools.load_into_dataset import (
     LoadIntoDataset,
@@ -18,6 +23,12 @@ from src.workflows.tools.test_failures import (
 )
 from src.workflows.tools.transform_data import (
     TransformData,
+)
+
+from src.workflows.clickhouse_crud import (
+    ClickHouseListDatabasesWorkflow,
+    ClickHouseListTablesWorkflow,
+    ClickHouseRunSelectQueryWorkflow,
 )
 
 # Create logger for this module
@@ -33,10 +44,16 @@ async def run_restack_service() -> None:
             TestFailures,
             TransformData,
             LoadIntoDataset,
+            ClickHouseListDatabasesWorkflow,
+            ClickHouseListTablesWorkflow,
+            ClickHouseRunSelectQueryWorkflow,
         ],
         functions=[
             llm_response,
             template_from_sample,
+            clickhouse_list_databases,
+            clickhouse_list_tables,
+            clickhouse_run_select_query,
         ],
     )
 
