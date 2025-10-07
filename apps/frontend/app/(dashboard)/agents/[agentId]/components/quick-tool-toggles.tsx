@@ -44,7 +44,7 @@ const TOOL_GROUPS: ToolGroup[] = [
     label: "Context store",
     description: "Allow agent to query dataset for better context",
     icon: Database,
-    toolNames: ["clickhouselistdatabases", "clickhouselisttables", "clickhouserunselectquery"]
+    toolNames: ["clickhouselisttables", "clickhouserunselectquery"]
   }
 ];
 

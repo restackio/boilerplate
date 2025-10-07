@@ -55,10 +55,14 @@ class ClickHouseListDatabases:
 
     @workflow.run
     async def run(
-        self, workflow_input: ClickHouseListDatabasesInput
+        self, workflow_input: ClickHouseListDatabasesInput | None = None
     ) -> ClickHouseListDatabasesOutput:
         log.info("ClickHouseListDatabases started")
         try:
+            # Ensure we have a valid input object even if None is passed
+            if workflow_input is None:
+                workflow_input = ClickHouseListDatabasesInput()
+            
             return await workflow.step(
                 task_queue="mcp_server",
                 function=clickhouse_list_databases,

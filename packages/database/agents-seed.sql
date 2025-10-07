@@ -776,7 +776,6 @@ INSERT INTO agent_tools (id, agent_id, tool_type, mcp_server_id, tool_name, cust
 ('a0000022-0022-0022-0022-000000000022', 'bbbbbbbb-cccc-dddd-eeee-222222222222', 'mcp', 'c0000000-0000-0000-0000-000000000001', 'updatetodos', 'Track orchestration progress: [{id, content, status}]. Mark steps completed as you delegate and synthesize', FALSE, TRUE),
 ('a0000023-0023-0023-0023-000000000023', 'bbbbbbbb-cccc-dddd-eeee-222222222222', 'mcp', 'c0000000-0000-0000-0000-000000000001', 'clickhouserunselectquery', 'Execute SQL queries on ClickHouse to analyze pipeline events', FALSE, TRUE),
 ('a0000024-0024-0024-0024-000000000024', 'bbbbbbbb-cccc-dddd-eeee-222222222222', 'mcp', 'c0000000-0000-0000-0000-000000000001', 'clickhouselisttables', 'List all available tables in the ClickHouse database', FALSE, TRUE),
-('a0000025-0025-0025-0025-000000000025', 'bbbbbbbb-cccc-dddd-eeee-222222222222', 'mcp', 'c0000000-0000-0000-0000-000000000001', 'clickhouselistdatabases', 'List all available ClickHouse databases', FALSE, TRUE),
 
 -- Pipeline Agent tools (Extract → Transform → Load)
 ('a0000015-0015-0015-0015-000000000015', '99999999-9999-9999-9999-999999999999', 'mcp', 'c0000000-0000-0000-0000-000000000001', 'generatemock', 'Extract support ticket data from Zendesk using mock generation (Step 1: Extract)', FALSE, TRUE),
@@ -785,9 +784,7 @@ INSERT INTO agent_tools (id, agent_id, tool_type, mcp_server_id, tool_name, cust
 
 -- Events Analytics Agent tools (ClickHouse via restack-core)
 ('a0000018-0018-0018-0018-000000000018', '88888888-8888-8888-8888-888888888888', 'mcp', 'c0000000-0000-0000-0000-000000000001', 'clickhouserunselectquery', 'Execute SQL queries on ClickHouse to analyze pipeline events (Step 1: Query)', FALSE, TRUE),
-('a0000019-0019-0019-0019-000000000019', '88888888-8888-8888-8888-888888888888', 'mcp', 'c0000000-0000-0000-0000-000000000001', 'clickhouselisttables', 'List all available tables in the ClickHouse database', FALSE, TRUE),
-('a0000020-0020-0020-0020-000000000020', '88888888-8888-8888-8888-888888888888', 'mcp', 'c0000000-0000-0000-0000-000000000001', 'clickhouselistdatabases', 'List all available ClickHouse databases', FALSE, TRUE)
-
+('a0000019-0019-0019-0019-000000000019', '88888888-8888-8888-8888-888888888888', 'mcp', 'c0000000-0000-0000-0000-000000000001', 'clickhouselisttables', 'List all available tables in the ClickHouse database', FALSE, TRUE)
 ON CONFLICT (id) DO NOTHING;
 
 -- Insert agent subagent relationships (agents that can be delegated to via createsubtask)
