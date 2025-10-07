@@ -79,7 +79,7 @@ export default function DatasetsPage() {
   return (
     <div className="flex-1">
       <PageHeader 
-        breadcrumbs={[{ label: "Datasets" }]}
+        breadcrumbs={[{ label: "Context" }]}
         actions={
           <div className="flex items-center gap-2">
             <Button

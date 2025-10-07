@@ -774,6 +774,9 @@ INSERT INTO agent_tools (id, agent_id, tool_type, mcp_server_id, tool_name, cust
 -- Task Parallel tools
 ('a0000021-0021-0021-0021-000000000021', 'bbbbbbbb-cccc-dddd-eeee-222222222222', 'mcp', 'c0000000-0000-0000-0000-000000000001', 'createsubtask', 'Create a subtask and delegate it to another agent', FALSE, TRUE),
 ('a0000022-0022-0022-0022-000000000022', 'bbbbbbbb-cccc-dddd-eeee-222222222222', 'mcp', 'c0000000-0000-0000-0000-000000000001', 'updatetodos', 'Track orchestration progress: [{id, content, status}]. Mark steps completed as you delegate and synthesize', FALSE, TRUE),
+('a0000023-0023-0023-0023-000000000023', 'bbbbbbbb-cccc-dddd-eeee-222222222222', 'mcp', 'c0000000-0000-0000-0000-000000000001', 'clickhouserunselectquery', 'Execute SQL queries on ClickHouse to analyze pipeline events', FALSE, TRUE),
+('a0000024-0024-0024-0024-000000000024', 'bbbbbbbb-cccc-dddd-eeee-222222222222', 'mcp', 'c0000000-0000-0000-0000-000000000001', 'clickhouselisttables', 'List all available tables in the ClickHouse database', FALSE, TRUE),
+('a0000025-0025-0025-0025-000000000025', 'bbbbbbbb-cccc-dddd-eeee-222222222222', 'mcp', 'c0000000-0000-0000-0000-000000000001', 'clickhouselistdatabases', 'List all available ClickHouse databases', FALSE, TRUE),
 
 -- Pipeline Agent tools (Extract → Transform → Load)
 ('a0000015-0015-0015-0015-000000000015', '99999999-9999-9999-9999-999999999999', 'mcp', 'c0000000-0000-0000-0000-000000000001', 'generatemock', 'Extract support ticket data from Zendesk using mock generation (Step 1: Extract)', FALSE, TRUE),

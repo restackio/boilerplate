@@ -163,7 +163,7 @@ export default function DatasetDetailPage() {
     <div className="flex-1">
       <PageHeader 
         breadcrumbs={[
-          { label: "Datasets", href: "/datasets" },
+          { label: "Context", href: "/datasets" },
           { label: dataset.name }
         ]}
         actions={

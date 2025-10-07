@@ -6,7 +6,7 @@ export default function Loading() {
     <div className="flex-1">
       <PageHeader 
         breadcrumbs={[
-          { label: "Datasets", href: "/datasets" },
+          { label: "Context", href: "/datasets" },
           { label: "Loading..." }
         ]}
         actions={

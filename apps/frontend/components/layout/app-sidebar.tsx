@@ -153,7 +153,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         icon: Bot,
       },
       {
-        title: "Datasets",
+        title: "Context",
         url: "/datasets",
         icon: Database,
       },
