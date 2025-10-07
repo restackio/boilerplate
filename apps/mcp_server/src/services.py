@@ -50,7 +50,7 @@ async def run_restack_service() -> None:
             ClickHouseListTables,
             ClickHouseRunSelectQuery,
             CreateSubtask,
-            UpdateTodos
+            UpdateTodos,
         ],
         functions=[
             llm_response,

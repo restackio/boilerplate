@@ -13,15 +13,14 @@ class SendAgentEventInput(BaseModel):
     temporal_run_id: str | None = None
     event_input: dict[str, Any] | None = None
 
+
 class CreateSubtaskInput(BaseModel):
     """Input for creating a subtask with a specific agent."""
 
     sub_agent_id: str = Field(
         description="Database UUID of the agent to use for this subtask (e.g., pipeline agent, research agent). Use a different agent_id from meta_info.agent_id."
     )
-    task_title: str = Field(
-        description="Title for the subtask"
-    )
+    task_title: str = Field(description="Title for the subtask")
     task_description: str = Field(
         description="Detailed instructions for the subtask"
     )
@@ -35,7 +34,9 @@ class CreateSubtaskInput(BaseModel):
     class Config:
         """Pydantic configuration."""
 
-        populate_by_name = True  # Allow both agent_id and subagent_id
+        populate_by_name = (
+            True  # Allow both agent_id and subagent_id
+        )
 
 
 class CreateSubtaskOutput(BaseModel):
@@ -69,7 +70,9 @@ class CreateSubtask:
         Uses the generic send_agent_event function to notify the parent agent.
         The parent agent's temporal_agent_id and temporal_run_id come from meta_info that the LLM has access to.
         """
-        log.info(f"CreateSubtask workflow started for: {workflow_input.task_title}")
+        log.info(
+            f"CreateSubtask workflow started for: {workflow_input.task_title}"
+        )
         try:
             # Send subtask_create event to parent agent using temporal_agent_id from meta_info
             await workflow.step(
@@ -88,7 +91,9 @@ class CreateSubtask:
                 start_to_close_timeout=timedelta(seconds=30),
             )
 
-            log.info(f"Subtask creation event sent to parent agent {workflow_input.parent_temporal_agent_id}")
+            log.info(
+                f"Subtask creation event sent to parent agent {workflow_input.parent_temporal_agent_id}"
+            )
 
             return CreateSubtaskOutput(
                 status="requested",
@@ -99,4 +104,3 @@ class CreateSubtask:
             error_message = f"Error during create_subtask: {e}"
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e
-

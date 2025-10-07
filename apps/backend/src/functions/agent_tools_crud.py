@@ -292,7 +292,9 @@ async def agent_tools_read_by_agent(  # noqa: C901, PLR0912
                             # For local MCP servers, use RESTACK_ENGINE_MCP_ADDRESS environment variable instead of stored URL
                             server_url = ms.server_url
                             if getattr(ms, "local", False):
-                                server_url = os.getenv("RESTACK_ENGINE_MCP_ADDRESS")
+                                server_url = os.getenv(
+                                    "RESTACK_ENGINE_MCP_ADDRESS"
+                                )
 
                             mcp_servers_config[server_key] = {
                                 "type": "mcp",

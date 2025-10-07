@@ -117,7 +117,9 @@ class TasksCreateWorkflow:
             )
 
             # Get temporal_parent_agent_id from the task (already in DB)
-            temporal_parent_agent_id = result.task.temporal_parent_agent_id
+            temporal_parent_agent_id = (
+                result.task.temporal_parent_agent_id
+            )
 
             agent_task = await workflow.child_start(
                 agent_id=f"task_agent_{result.task.id}",
@@ -346,9 +348,7 @@ class TasksUpdateAgentTaskIdWorkflow:
             )
 
         except Exception as e:
-            error_message = (
-                f"Error during tasks_update_temporal_agent_id: {e}"
-            )
+            error_message = f"Error during tasks_update_temporal_agent_id: {e}"
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e
 
@@ -366,7 +366,9 @@ class PlaygroundCreateDualTasksWorkflow:
             workspace_id = workflow_input.workspace_id
             task_description = workflow_input.task_description
             draft_agent_id = workflow_input.draft_agent_id
-            comparison_agent_id = workflow_input.comparison_agent_id
+            comparison_agent_id = (
+                workflow_input.comparison_agent_id
+            )
 
             # Create input for both task creation workflows
             draft_task_input = TaskCreateInput(

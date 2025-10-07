@@ -13,14 +13,20 @@ from restack_ai.function import NonRetryableError, function
 class ClickHouseRunSelectQueryInput(BaseModel):
     """Input for running a SELECT query in ClickHouse."""
 
-    query: str = Field(..., description="The SELECT query to execute")
+    query: str = Field(
+        ..., description="The SELECT query to execute"
+    )
 
 
 class ClickHouseRunSelectQueryOutput(BaseModel):
     """Output from running a SELECT query."""
 
-    columns: list[str] = Field(default_factory=list, description="Column names")
-    rows: list[list[Any]] = Field(default_factory=list, description="Result rows")
+    columns: list[str] = Field(
+        default_factory=list, description="Column names"
+    )
+    rows: list[list[Any]] = Field(
+        default_factory=list, description="Result rows"
+    )
 
 
 class ClickHouseListDatabasesInput(BaseModel):
@@ -32,21 +38,32 @@ class ClickHouseListDatabasesInput(BaseModel):
 class ClickHouseListDatabasesOutput(BaseModel):
     """Output from listing databases."""
 
-    databases: list[str] = Field(default_factory=list, description="List of database names")
+    databases: list[str] = Field(
+        default_factory=list, description="List of database names"
+    )
 
 
 class ClickHouseListTablesInput(BaseModel):
     """Input for listing tables in a ClickHouse database."""
 
-    database: str = Field(..., description="Database name to list tables from")
-    like: str | None = Field(None, description="Filter tables with LIKE pattern")
-    not_like: str | None = Field(None, description="Exclude tables with NOT LIKE pattern")
+    database: str = Field(
+        ..., description="Database name to list tables from"
+    )
+    like: str | None = Field(
+        None, description="Filter tables with LIKE pattern"
+    )
+    not_like: str | None = Field(
+        None, description="Exclude tables with NOT LIKE pattern"
+    )
 
 
 class ClickHouseListTablesOutput(BaseModel):
     """Output from listing tables."""
 
-    tables: list[dict[str, Any]] = Field(default_factory=list, description="List of tables with metadata")
+    tables: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="List of tables with metadata",
+    )
 
 
 def _create_clickhouse_client() -> Client:
@@ -56,8 +73,12 @@ def _create_clickhouse_client() -> Client:
             host=os.getenv("CLICKHOUSE_HOST", "localhost"),
             port=int(os.getenv("CLICKHOUSE_PORT", "8123")),
             username=os.getenv("CLICKHOUSE_USER", "clickhouse"),
-            password=os.getenv("CLICKHOUSE_PASSWORD", "clickhouse"),
-            database=os.getenv("CLICKHOUSE_DATABASE", "boilerplate_clickhouse"),
+            password=os.getenv(
+                "CLICKHOUSE_PASSWORD", "clickhouse"
+            ),
+            database=os.getenv(
+                "CLICKHOUSE_DATABASE", "boilerplate_clickhouse"
+            ),
         )
     except Exception as e:
         msg = f"Failed to connect to ClickHouse: {e!s}"
@@ -73,7 +94,9 @@ async def clickhouse_run_select_query(
         client = _create_clickhouse_client()
 
         # Execute the query with read-only mode
-        result = client.query(function_input.query, settings={"readonly": "1"})
+        result = client.query(
+            function_input.query, settings={"readonly": "1"}
+        )
 
         return ClickHouseRunSelectQueryOutput(
             columns=result.column_names,
@@ -96,7 +119,9 @@ async def clickhouse_list_databases(
 
         # Convert newline-separated string to list
         if isinstance(result, str):
-            databases = [db.strip() for db in result.strip().split("\n")]
+            databases = [
+                db.strip() for db in result.strip().split("\n")
+            ]
         else:
             databases = [result]
 
@@ -136,7 +161,9 @@ async def clickhouse_list_tables(
         # Convert to list of dicts
         tables = []
         for row in result.result_rows:
-            table_dict = dict(zip(result.column_names, row, strict=False))
+            table_dict = dict(
+                zip(result.column_names, row, strict=False)
+            )
             tables.append(table_dict)
 
         return ClickHouseListTablesOutput(
@@ -146,4 +173,3 @@ async def clickhouse_list_tables(
         raise NonRetryableError(
             message=f"Failed to list tables: {e!s}"
         ) from e
-

@@ -97,7 +97,9 @@ class AgentTaskInput(BaseModel):
     user_id: str | None = None  # Database UUID
     workspace_id: str | None = None  # Database UUID
     parent_task_id: str | None = None  # Database UUID
-    temporal_parent_agent_id: str | None = None  # Temporal workflow ID for event routing
+    temporal_parent_agent_id: str | None = (
+        None  # Temporal workflow ID for event routing
+    )
 
 
 @agent.defn()
@@ -124,14 +126,16 @@ class AgentTask:
         self.agent_reasoning_effort = None
         # Parent task tracking for subtask status updates
         self.parent_task_id = None  # Database UUID
-        self.temporal_parent_agent_id = None  # Temporal workflow ID for sending events
+        self.temporal_parent_agent_id = (
+            None  # Temporal workflow ID for sending events
+        )
 
     def _format_todos_for_llm(
         self,
         todos: list[dict],
         completed: int,
         in_progress: int,
-        total: int
+        total: int,
     ) -> str:
         """Format todos for LLM context (simple version).
 
@@ -168,8 +172,12 @@ class AgentTask:
                 else msg
                 for msg in self.messages
             ],
-            "todos": list(self.todos.values()),  # Include todos in state
-            "subtasks": list(self.subtasks.values()),  # Include subtasks for real-time status updates
+            "todos": list(
+                self.todos.values()
+            ),  # Include todos in state
+            "subtasks": list(
+                self.subtasks.values()
+            ),  # Include subtasks for real-time status updates
             "task_id": self.task_id,
             "temporal_agent_id": agent_info().workflow_id,
             "last_response_id": self.last_response_id,
@@ -326,28 +334,43 @@ class AgentTask:
                 self.todos[todo_id] = {
                     "id": todo_id,
                     "content": todo.get("content", ""),
-                    "status": todo.get("status", "in_progress"),  # Only in_progress or completed
+                    "status": todo.get(
+                        "status", "in_progress"
+                    ),  # Only in_progress or completed
                 }
 
             # Calculate progress
             todos_values = list(self.todos.values())
-            completed = sum(1 for t in todos_values if t["status"] == "completed")
-            in_progress = sum(1 for t in todos_values if t["status"] == "in_progress")
+            completed = sum(
+                1
+                for t in todos_values
+                if t["status"] == "completed"
+            )
+            in_progress = sum(
+                1
+                for t in todos_values
+                if t["status"] == "in_progress"
+            )
             total = len(todos_values)
 
             # Inject todo context into messages for LLM awareness
             # Following Claude Agent SDK pattern: https://docs.claude.com/en/api/agent-sdk/todo-tracking
             if todos_values:
-                todo_context = self._format_todos_for_llm(todos_values, completed, in_progress, total)
+                todo_context = self._format_todos_for_llm(
+                    todos_values, completed, in_progress, total
+                )
                 self.messages.append(
                     Message(
-                        role="developer",
-                        content=todo_context
+                        role="developer", content=todo_context
                     )
                 )
-                log.info("Todo context injected into message stream for LLM awareness")
+                log.info(
+                    "Todo context injected into message stream for LLM awareness"
+                )
 
-            log.info(f"Todos updated: {completed}/{total} completed, {in_progress} in progress")
+            log.info(
+                f"Todos updated: {completed}/{total} completed, {in_progress} in progress"
+            )
 
             return {  # noqa: TRY300
                 "success": True,
@@ -363,7 +386,11 @@ class AgentTask:
                 code="agent_error",
             )
             self.events.append(error_event.model_dump())
-            return {"success": False, "error": str(e), "todos": []}
+            return {
+                "success": False,
+                "error": str(e),
+                "todos": [],
+            }
 
     @agent.event
     async def subtask_create(self, create_data: dict) -> dict:
@@ -389,13 +416,19 @@ class AgentTask:
                 function_input=AgentIdInput(agent_id=agent_id),
                 start_to_close_timeout=timedelta(seconds=30),
             )
-            agent_name = agent_result.agent.name if agent_result and agent_result.agent else "Unknown"
+            agent_name = (
+                agent_result.agent.name
+                if agent_result and agent_result.agent
+                else "Unknown"
+            )
 
             # Create and start child task using TasksCreateWorkflow
             task_input = TaskCreateInput(
                 workspace_id=self.workspace_id,
                 title=task_title,
-                description=create_data.get("task_description", ""),
+                description=create_data.get(
+                    "task_description", ""
+                ),
                 agent_id=agent_id,
                 assigned_to_id=self.user_id,
                 status="in_progress",
@@ -419,7 +452,9 @@ class AgentTask:
                 "status": "in_progress",
             }
 
-            log.info(f"Subtask created and registered: {child_task_id} for parent: {self.task_id}")
+            log.info(
+                f"Subtask created and registered: {child_task_id} for parent: {self.task_id}"
+            )
 
             return {  # noqa: TRY300
                 "success": True,
@@ -450,7 +485,9 @@ class AgentTask:
             status = notify_data.get("status", "")
             message = notify_data.get("message", "")
 
-            log.info(f"Subtask notification: {title} ({task_id}) → {status}")
+            log.info(
+                f"Subtask notification: {title} ({task_id}) → {status}"
+            )
 
             # Update minimal state (all subscribed clients get update instantly)
             if task_id in self.subtasks:
@@ -459,16 +496,19 @@ class AgentTask:
                     log.info(f"✓ Subtask completed: {title}")
                 elif status == "failed":
                     self.subtasks[task_id]["error"] = message
-                    log.warning(f"✗ Subtask failed: {title} - {message}")
+                    log.warning(
+                        f"✗ Subtask failed: {title} - {message}"
+                    )
             else:
-                log.warning(f"Subtask {task_id} not found in state")
+                log.warning(
+                    f"Subtask {task_id} not found in state"
+                )
 
             return {"success": True}  # noqa: TRY300
 
         except Exception as e:  # noqa: BLE001
             log.error(f"Error handling subtask notification: {e}")
             return {"success": False, "error": str(e)}
-
 
     @agent.event
     async def response_item(self, event_data: dict) -> dict:
@@ -507,9 +547,13 @@ class AgentTask:
                             task_id=self.task_id,
                             title=self.title,
                             status="failed",
-                            message=error_info.get("message", "Unknown error"),
+                            message=error_info.get(
+                                "message", "Unknown error"
+                            ),
                         ),
-                        start_to_close_timeout=timedelta(seconds=10),
+                        start_to_close_timeout=timedelta(
+                            seconds=10
+                        ),
                     )
             else:
                 # Store normal events
@@ -558,7 +602,9 @@ class AgentTask:
                             title=self.title,
                             status="completed",
                         ),
-                        start_to_close_timeout=timedelta(seconds=10),
+                        start_to_close_timeout=timedelta(
+                            seconds=10
+                        ),
                     )
 
                 self.end = True
@@ -599,7 +645,9 @@ class AgentTask:
 
         # Set parent info if this is a subtask (passed directly from workflow)
         self.parent_task_id = agent_input.parent_task_id
-        self.temporal_parent_agent_id = agent_input.temporal_parent_agent_id
+        self.temporal_parent_agent_id = (
+            agent_input.temporal_parent_agent_id
+        )
 
         meta_info = {
             "agent_id": self.agent_id,
@@ -678,7 +726,8 @@ class AgentTask:
             (
                 tool.get("type") == "mcp"
                 and tool.get("allowed_tools")
-                and "createsubtask" in tool.get("allowed_tools", [])
+                and "createsubtask"
+                in tool.get("allowed_tools", [])
             )
             for tool in self.tools
         )
@@ -702,11 +751,16 @@ class AgentTask:
                     function_input=AgentSubagentsReadInput(
                         parent_agent_id=self.agent_id
                     ),
-                    start_to_close_timeout=timedelta(seconds=60),  # Increased timeout for reliability
+                    start_to_close_timeout=timedelta(
+                        seconds=60
+                    ),  # Increased timeout for reliability
                 )
 
                 # Format subagents list and append to instructions
-                if subagents_result and subagents_result.subagents:
+                if (
+                    subagents_result
+                    and subagents_result.subagents
+                ):
                     subagents_list = []
                     for subagent in subagents_result.subagents:
                         type_label = (
@@ -717,7 +771,10 @@ class AgentTask:
                         subagents_list.append(
                             f"- `{subagent.id}` - **{subagent.name}**: {subagent.description or 'No description'} (Type: {type_label})"
                         )
-                    subagents_text = "\n\n## Available Subagents for subtask creation\n" + "\n".join(subagents_list)
+                    subagents_text = (
+                        "\n\n## Available Subagents for subtask creation\n"
+                        + "\n".join(subagents_list)
+                    )
 
                     # Append to existing messages
                     self.messages.append(

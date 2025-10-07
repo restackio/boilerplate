@@ -565,7 +565,10 @@ async def tasks_get_by_parent_id(
                     selectinload(Task.assigned_to_user),
                     selectinload(Task.team),
                 )
-                .where(Task.parent_task_id == uuid.UUID(function_input.task_id))
+                .where(
+                    Task.parent_task_id
+                    == uuid.UUID(function_input.task_id)
+                )
                 .order_by(Task.created_at.asc())
             )
             result = await db.execute(tasks_query)
@@ -575,13 +578,19 @@ async def tasks_get_by_parent_id(
                 TaskOutput(
                     id=str(task.id),
                     workspace_id=str(task.workspace_id),
-                    team_id=str(task.team_id) if task.team_id else None,
-                    team_name=task.team.name if task.team else None,
+                    team_id=str(task.team_id)
+                    if task.team_id
+                    else None,
+                    team_name=task.team.name
+                    if task.team
+                    else None,
                     title=task.title,
                     description=task.description,
                     status=task.status,
                     agent_id=str(task.agent_id),
-                    agent_name=task.agent.name if task.agent else "N/A",
+                    agent_name=task.agent.name
+                    if task.agent
+                    else "N/A",
                     assigned_to_id=str(task.assigned_to_id)
                     if task.assigned_to_id
                     else None,
@@ -720,7 +729,9 @@ async def tasks_update_agent_task_id(
                     message=f"Task with id {function_input.task_id} not found"
                 )
             # Update the temporal_agent_id
-            task.temporal_agent_id = function_input.temporal_agent_id
+            task.temporal_agent_id = (
+                function_input.temporal_agent_id
+            )
 
             await db.commit()
             await db.refresh(task)

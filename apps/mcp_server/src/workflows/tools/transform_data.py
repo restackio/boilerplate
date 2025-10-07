@@ -15,7 +15,7 @@ from restack_ai.workflow import (
 
 class TransformDataInput(BaseModel):
     """Transform data using AI with structured output.
-    
+
     Three separate required parameters:
     - input_data: The actual data object to analyze
     - transformation_task: What analysis to perform
@@ -35,12 +35,13 @@ class TransformDataInput(BaseModel):
         description=(
             "JSON Schema for the output. Must have 'type' and 'properties'. "
             "Example: {'type': 'object', 'properties': {'urgency_level': {'type': 'string'}}}"
-        )
+        ),
     )
     model: str = Field(
         default="gpt-4o-mini",
         description="AI model to use for transformation",
     )
+
 
 class TransformDataOutput(BaseModel):
     """Output after transforming data."""

@@ -31,7 +31,9 @@ class ClickHouseRunSelectQuery:
     async def run(
         self, workflow_input: ClickHouseRunSelectQueryInput
     ) -> ClickHouseRunSelectQueryOutput:
-        log.info(f"ClickHouseRunSelectQuery started with query: {workflow_input.query}")
+        log.info(
+            f"ClickHouseRunSelectQuery started with query: {workflow_input.query}"
+        )
         try:
             return await workflow.step(
                 task_queue="mcp_server",
@@ -40,7 +42,9 @@ class ClickHouseRunSelectQuery:
                 start_to_close_timeout=timedelta(seconds=60),
             )
         except Exception as e:
-            error_message = f"Error during clickhouse_run_select_query: {e}"
+            error_message = (
+                f"Error during clickhouse_run_select_query: {e}"
+            )
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e
 
@@ -62,7 +66,9 @@ class ClickHouseListDatabases:
                 start_to_close_timeout=timedelta(seconds=30),
             )
         except Exception as e:
-            error_message = f"Error during clickhouse_list_databases: {e}"
+            error_message = (
+                f"Error during clickhouse_list_databases: {e}"
+            )
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e
 
@@ -75,7 +81,9 @@ class ClickHouseListTables:
     async def run(
         self, workflow_input: ClickHouseListTablesInput
     ) -> ClickHouseListTablesOutput:
-        log.info(f"ClickHouseListTables started for database: {workflow_input.database}")
+        log.info(
+            f"ClickHouseListTables started for database: {workflow_input.database}"
+        )
         try:
             return await workflow.step(
                 task_queue="mcp_server",
@@ -84,7 +92,8 @@ class ClickHouseListTables:
                 start_to_close_timeout=timedelta(seconds=30),
             )
         except Exception as e:
-            error_message = f"Error during clickhouse_list_tables: {e}"
+            error_message = (
+                f"Error during clickhouse_list_tables: {e}"
+            )
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e
-

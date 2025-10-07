@@ -2,7 +2,7 @@
 
 import json
 import re
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 from restack_ai.workflow import NonRetryableError, log, workflow
@@ -17,15 +17,15 @@ except ImportError:
     # Fallback: Define a local version if import fails
     class PipelineEventInput(BaseModel):
         agent_id: str = Field(..., min_length=1)
-        task_id: Optional[str] = None
+        task_id: str | None = None
         workspace_id: str = Field(..., min_length=1)
-        dataset_id: Optional[str] = None
+        dataset_id: str | None = None
         event_name: str = Field(..., min_length=1)
         raw_data: dict[str, Any] = Field(default_factory=dict)
-        transformed_data: Optional[dict[str, Any]] = None
-        tags: Optional[list[str]] = None
-        embedding: Optional[list[float]] = None
-        event_timestamp: Optional[str] = None
+        transformed_data: dict[str, Any] | None = None
+        tags: list[str] | None = None
+        embedding: list[float] | None = None
+        event_timestamp: str | None = None
 
 
 def sanitize_json_string(json_str: str) -> str:
@@ -112,8 +112,8 @@ class LoadIntoDatasetInput(BaseModel):
     """Input for loading data into a dataset."""
 
     input_data: list[dict[str, Any]] = Field(
-        ..., 
-        description="Data to load as an array of objects. Example: [{'record': {...}}] or [{'record': {...}}, {'record': {...}}]"
+        ...,
+        description="Data to load as an array of objects. Example: [{'record': {...}}] or [{'record': {...}}, {'record': {...}}]",
     )
     dataset_name: str = Field(
         ..., description="Name of the dataset"
@@ -124,15 +124,16 @@ class LoadIntoDatasetInput(BaseModel):
     workspace_id: str = Field(
         ..., description="ID of the workspace"
     )
-    task_id: Optional[str] = Field(
+    task_id: str | None = Field(
         default=None, description="ID of the task"
     )
     event_name: str = Field(
         default="Data Load", description="Event name for tracking"
     )
-    tags: Optional[list[str]] = Field(
+    tags: list[str] | None = Field(
         default=None, description="Tags for the event"
     )
+
 
 class LoadIntoDatasetOutput(BaseModel):
     """Output after loading data into a dataset."""

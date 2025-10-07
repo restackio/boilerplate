@@ -13,11 +13,20 @@ log = logging.getLogger(__name__)
 class SubtaskNotifyInput(BaseModel):
     """Input for notifying parent of subtask lifecycle event."""
 
-    temporal_parent_agent_id: str = Field(..., description="Parent agent Temporal ID")
-    task_id: str = Field(..., description="This subtask task_id (database UUID)")
+    temporal_parent_agent_id: str = Field(
+        ..., description="Parent agent Temporal ID"
+    )
+    task_id: str = Field(
+        ..., description="This subtask task_id (database UUID)"
+    )
     title: str = Field(..., description="Subtask title")
-    status: str = Field(..., description="Lifecycle status: started, completed, failed")
-    message: str | None = Field(None, description="Optional message (e.g., error)")
+    status: str = Field(
+        ...,
+        description="Lifecycle status: started, completed, failed",
+    )
+    message: str | None = Field(
+        None, description="Optional message (e.g., error)"
+    )
 
 
 class SubtaskNotifyOutput(BaseModel):
@@ -64,5 +73,6 @@ async def subtask_notify(
 
     except Exception as e:
         log.exception("Failed to notify parent")
-        return SubtaskNotifyOutput(success=False, message=f"Failed to notify: {e}")
-
+        return SubtaskNotifyOutput(
+            success=False, message=f"Failed to notify: {e}"
+        )

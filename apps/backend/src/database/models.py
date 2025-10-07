@@ -392,7 +392,10 @@ class AgentSubagent(Base):
             "subagent_id",
             name="unique_parent_subagent",
         ),
-        Index("idx_agent_subagents_parent_agent_id", "parent_agent_id"),
+        Index(
+            "idx_agent_subagents_parent_agent_id",
+            "parent_agent_id",
+        ),
         Index("idx_agent_subagents_subagent_id", "subagent_id"),
     )
 
@@ -436,9 +439,7 @@ class Task(Base):
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
     )
-    temporal_agent_id = Column(
-        String(255), nullable=True
-    )
+    temporal_agent_id = Column(String(255), nullable=True)
     messages = Column(
         JSONB, nullable=True
     )  # Store conversation history for completed tasks
@@ -466,9 +467,7 @@ class Task(Base):
     schedule_status = Column(
         String(50), nullable=True, default="inactive"
     )  # Schedule status: active, inactive, paused
-    temporal_schedule_id = Column(
-        String(255), nullable=True
-    )
+    temporal_schedule_id = Column(String(255), nullable=True)
     created_at = Column(
         DateTime,
         default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),

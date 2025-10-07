@@ -43,13 +43,16 @@ async def agent_subagents_read(
     """Read all subagents configured for a parent agent."""
     async for db in get_async_db():
         try:
-            parent_agent_id = uuid.UUID(function_input.parent_agent_id)
+            parent_agent_id = uuid.UUID(
+                function_input.parent_agent_id
+            )
 
             # Query agent_subagents with joined subagent details
             stmt = (
                 select(AgentSubagent)
                 .where(
-                    AgentSubagent.parent_agent_id == parent_agent_id,
+                    AgentSubagent.parent_agent_id
+                    == parent_agent_id,
                     AgentSubagent.enabled == True,  # noqa: E712
                 )
                 .options(selectinload(AgentSubagent.subagent))
@@ -69,7 +72,9 @@ async def agent_subagents_read(
                         type=subagent.type,
                         status=subagent.status,
                         model=subagent.model,
-                        team_id=str(subagent.team_id) if subagent.team_id else None,
+                        team_id=str(subagent.team_id)
+                        if subagent.team_id
+                        else None,
                     )
                 )
 
@@ -112,7 +117,9 @@ async def agent_subagents_create(
     """Create a new agent subagent relationship."""
     async for db in get_async_db():
         try:
-            parent_agent_id = uuid.UUID(function_input.parent_agent_id)
+            parent_agent_id = uuid.UUID(
+                function_input.parent_agent_id
+            )
             subagent_id = uuid.UUID(function_input.subagent_id)
 
             # Verify both agents exist
@@ -156,7 +163,10 @@ async def agent_subagents_create(
 
         except IntegrityError as e:
             await db.rollback()
-            log.error("agent_subagents_create_integrity_error", error=str(e))
+            log.error(
+                "agent_subagents_create_integrity_error",
+                error=str(e),
+            )
             raise NonRetryableError(
                 message="Subagent relationship already exists"
             ) from e
@@ -165,7 +175,9 @@ async def agent_subagents_create(
             raise
         except Exception as e:
             await db.rollback()
-            log.error("agent_subagents_create_error", error=str(e))
+            log.error(
+                "agent_subagents_create_error", error=str(e)
+            )
             raise NonRetryableError(
                 message=f"Failed to create subagent relationship: {e!s}"
             ) from e
@@ -192,7 +204,9 @@ async def agent_subagents_delete(
     """Delete an agent subagent relationship."""
     async for db in get_async_db():
         try:
-            parent_agent_id = uuid.UUID(function_input.parent_agent_id)
+            parent_agent_id = uuid.UUID(
+                function_input.parent_agent_id
+            )
             subagent_id = uuid.UUID(function_input.subagent_id)
 
             # Find and delete the relationship
@@ -225,7 +239,9 @@ async def agent_subagents_delete(
             raise
         except Exception as e:
             await db.rollback()
-            log.error("agent_subagents_delete_error", error=str(e))
+            log.error(
+                "agent_subagents_delete_error", error=str(e)
+            )
             raise NonRetryableError(
                 message=f"Failed to delete subagent relationship: {e!s}"
             ) from e
@@ -254,7 +270,9 @@ async def agent_subagents_toggle(
     """Toggle enabled status of an agent subagent relationship."""
     async for db in get_async_db():
         try:
-            parent_agent_id = uuid.UUID(function_input.parent_agent_id)
+            parent_agent_id = uuid.UUID(
+                function_input.parent_agent_id
+            )
             subagent_id = uuid.UUID(function_input.subagent_id)
 
             # Find the relationship
@@ -292,7 +310,9 @@ async def agent_subagents_toggle(
             raise
         except Exception as e:
             await db.rollback()
-            log.error("agent_subagents_toggle_error", error=str(e))
+            log.error(
+                "agent_subagents_toggle_error", error=str(e)
+            )
             raise NonRetryableError(
                 message=f"Failed to toggle subagent relationship: {e!s}"
             ) from e
@@ -355,12 +375,18 @@ async def agent_subagents_get_available(
             # Get configured subagent IDs if parent specified
             configured_ids = set()
             if parent_agent_id:
-                subagents_stmt = select(AgentSubagent.subagent_id).where(
-                    AgentSubagent.parent_agent_id == parent_agent_id
+                subagents_stmt = select(
+                    AgentSubagent.subagent_id
+                ).where(
+                    AgentSubagent.parent_agent_id
+                    == parent_agent_id
                 )
-                subagents_result = await db.execute(subagents_stmt)
+                subagents_result = await db.execute(
+                    subagents_stmt
+                )
                 configured_ids = {
-                    str(row[0]) for row in subagents_result.fetchall()
+                    str(row[0])
+                    for row in subagents_result.fetchall()
                 }
 
             # Build response
@@ -372,7 +398,9 @@ async def agent_subagents_get_available(
                     type=agent.type,
                     status=agent.status,
                     model=agent.model,
-                    team_id=str(agent.team_id) if agent.team_id else None,
+                    team_id=str(agent.team_id)
+                    if agent.team_id
+                    else None,
                     is_configured=str(agent.id) in configured_ids,
                 )
                 for agent in agents
@@ -384,12 +412,16 @@ async def agent_subagents_get_available(
                 count=len(available_agents),
             )
 
-            return AgentSubagentsGetAvailableOutput(agents=available_agents)
+            return AgentSubagentsGetAvailableOutput(
+                agents=available_agents
+            )
 
         except Exception as e:
-            log.error("agent_subagents_get_available_error", error=str(e))
+            log.error(
+                "agent_subagents_get_available_error",
+                error=str(e),
+            )
             raise NonRetryableError(
                 message=f"Failed to get available agents: {e!s}"
             ) from e
     return None
-
