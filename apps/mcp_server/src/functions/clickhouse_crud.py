@@ -1,11 +1,11 @@
 """ClickHouse CRUD functions for querying and managing ClickHouse databases."""
 
-import json
 import os
-from typing import Any, Optional
+from typing import Any
 
 import clickhouse_connect
 from clickhouse_connect.driver.binding import format_query_value
+from clickhouse_connect.driver.client import Client
 from pydantic import BaseModel, Field
 from restack_ai.function import NonRetryableError, function
 
@@ -26,7 +26,7 @@ class ClickHouseRunSelectQueryOutput(BaseModel):
 class ClickHouseListDatabasesInput(BaseModel):
     """Input for listing ClickHouse databases."""
 
-    pass  # No input needed
+    # No input needed
 
 
 class ClickHouseListDatabasesOutput(BaseModel):
@@ -39,8 +39,8 @@ class ClickHouseListTablesInput(BaseModel):
     """Input for listing tables in a ClickHouse database."""
 
     database: str = Field(..., description="Database name to list tables from")
-    like: Optional[str] = Field(None, description="Filter tables with LIKE pattern")
-    not_like: Optional[str] = Field(None, description="Exclude tables with NOT LIKE pattern")
+    like: str | None = Field(None, description="Filter tables with LIKE pattern")
+    not_like: str | None = Field(None, description="Exclude tables with NOT LIKE pattern")
 
 
 class ClickHouseListTablesOutput(BaseModel):
@@ -49,7 +49,7 @@ class ClickHouseListTablesOutput(BaseModel):
     tables: list[dict[str, Any]] = Field(default_factory=list, description="List of tables with metadata")
 
 
-def _create_clickhouse_client():
+def _create_clickhouse_client() -> Client:
     """Create a ClickHouse client connection."""
     try:
         return clickhouse_connect.get_client(
@@ -60,7 +60,8 @@ def _create_clickhouse_client():
             database=os.getenv("CLICKHOUSE_DATABASE", "boilerplate_clickhouse"),
         )
     except Exception as e:
-        raise ConnectionError(f"Failed to connect to ClickHouse: {e!s}")
+        msg = f"Failed to connect to ClickHouse: {e!s}"
+        raise ConnectionError(msg) from e
 
 
 @function.defn()
@@ -70,10 +71,10 @@ async def clickhouse_run_select_query(
     """Run a SELECT query in a ClickHouse database."""
     try:
         client = _create_clickhouse_client()
-        
+
         # Execute the query with read-only mode
         result = client.query(function_input.query, settings={"readonly": "1"})
-        
+
         return ClickHouseRunSelectQueryOutput(
             columns=result.column_names,
             rows=result.result_rows,
@@ -86,19 +87,19 @@ async def clickhouse_run_select_query(
 
 @function.defn()
 async def clickhouse_list_databases(
-    function_input: ClickHouseListDatabasesInput,
+    function_input: ClickHouseListDatabasesInput,  # noqa: ARG001
 ) -> ClickHouseListDatabasesOutput:
     """List available ClickHouse databases."""
     try:
         client = _create_clickhouse_client()
         result = client.command("SHOW DATABASES")
-        
+
         # Convert newline-separated string to list
         if isinstance(result, str):
             databases = [db.strip() for db in result.strip().split("\n")]
         else:
             databases = [result]
-        
+
         return ClickHouseListDatabasesOutput(
             databases=databases,
         )
@@ -115,28 +116,29 @@ async def clickhouse_list_tables(
     """List available ClickHouse tables in a database with metadata."""
     try:
         client = _create_clickhouse_client()
-        
+
         # Build query with optional filters
+        # Note: format_query_value properly escapes SQL values
         query = (
-            f"SELECT database, name, engine, total_rows, total_bytes, "
+            f"SELECT database, name, engine, total_rows, total_bytes, "  # noqa: S608
             f"total_bytes_uncompressed, parts, active_parts, comment "
             f"FROM system.tables WHERE database = {format_query_value(function_input.database)}"
         )
-        
+
         if function_input.like:
             query += f" AND name LIKE {format_query_value(function_input.like)}"
-        
+
         if function_input.not_like:
             query += f" AND name NOT LIKE {format_query_value(function_input.not_like)}"
-        
+
         result = client.query(query)
-        
+
         # Convert to list of dicts
         tables = []
         for row in result.result_rows:
-            table_dict = dict(zip(result.column_names, row))
+            table_dict = dict(zip(result.column_names, row, strict=False))
             tables.append(table_dict)
-        
+
         return ClickHouseListTablesOutput(
             tables=tables,
         )

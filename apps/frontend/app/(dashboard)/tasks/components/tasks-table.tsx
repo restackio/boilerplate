@@ -37,6 +37,7 @@ import {
 import { EmptyState } from "@workspace/ui/components/ui/empty-state";
 import { getLucideIcon } from "@workspace/ui/lib/get-lucide-icon";
 import Link from "next/link";
+import { taskStatusOptions, getStatusColor, getStatusBadge } from "../utils/task-status-utils";
 
 // Task data type
 export interface Task {
@@ -122,13 +123,8 @@ export const taskTeamOptions = [
   { label: "HR", value: "HR", icon: UserPlus },
 ];
 
-// Status options
-export const taskStatusOptions = [
-  { label: "In Progress", value: "in_progress", icon: CircleDashed },
-  { label: "In Review", value: "in_review", icon: CirclePause },
-  { label: "Closed", value: "closed", icon: CircleX },
-  { label: "Completed", value: "completed", icon: CheckCircle },
-];
+// Re-export status options for backward compatibility
+export { taskStatusOptions } from "../utils/task-status-utils";
 
 // Agent options (placeholder - would be populated from backend)
 export const taskAgentOptions = [
@@ -153,21 +149,8 @@ export const taskCreatedByOptions = [
 
 
 
-// Helper function for status colors
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case "completed":
-      return "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200";
-    case "in_progress":
-      return "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200";
-    case "in_review":
-      return "bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-200";
-    case "closed":
-      return "bg-gray-100 text-gray-800 dark:bg-gray-900/50 dark:text-gray-200";
-    default:
-      return "bg-gray-100 text-gray-800 dark:bg-gray-900/50 dark:text-gray-200";
-  }
-};
+// Re-export helper functions for backward compatibility
+export { getStatusColor, getStatusBadge, getStatusIcon } from "../utils/task-status-utils";
 
 // Helper function to get the team icon for a task
 const getTeamIcon = (task: Task, teams: Array<{ label: string; value: string; icon: any }>) => {
@@ -295,11 +278,7 @@ export function TasksTable({
                   </Link>
                 </TableCell>
                 <TableCell className="p-3">
-                  <Badge
-                    className={`${getStatusColor(task.status)} border-0 w-fit text-xs`}
-                  >
-                    {taskStatusOptions.find(option => option.value === task.status)?.label}
-                  </Badge>
+                  {getStatusBadge(task.status, "default", "xs")}
                 </TableCell>
                 <TableCell className="hidden sm:table-cell p-3">
                   <div className="flex items-center space-x-2">

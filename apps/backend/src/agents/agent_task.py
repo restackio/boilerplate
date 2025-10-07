@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from restack_ai.agent import (
     NonRetryableError,
     agent,
+    agent_info,
     all_events_finished,
     import_functions,
     log,
@@ -33,6 +34,10 @@ def create_agent_error_event(
 
 
 with import_functions():
+    from src.functions.agent_subagents_crud import (
+        AgentSubagentsReadInput,
+        agent_subagents_read,
+    )
     from src.functions.agent_tools_crud import (
         AgentToolsGetByAgentInput,
         agent_tools_read_by_agent,
@@ -50,7 +55,12 @@ with import_functions():
         Message,
         llm_response_stream,
     )
+    from src.functions.subtask_notify import (
+        SubtaskNotifyInput,
+        subtask_notify,
+    )
     from src.functions.tasks_crud import (
+        TaskCreateInput,
         TaskUpdateInput,
         tasks_update,
     )
@@ -81,11 +91,13 @@ class AgentTaskInput(BaseModel):
     title: str
     description: str
     status: str
-    agent_id: str
-    assigned_to_id: str | None = None
-    task_id: str | None = None
-    user_id: str | None = None
-    workspace_id: str | None = None
+    agent_id: str  # Database UUID
+    assigned_to_id: str | None = None  # Database UUID
+    task_id: str | None = None  # Database UUID
+    user_id: str | None = None  # Database UUID
+    workspace_id: str | None = None  # Database UUID
+    parent_task_id: str | None = None  # Database UUID
+    temporal_parent_agent_id: str | None = None  # Temporal workflow ID for event routing
 
 
 @agent.defn()
@@ -95,17 +107,50 @@ class AgentTask:
         self.initialized = False
         self.agent_id = "None"
         self.task_id = None
+        self.user_id = None
+        self.assigned_to_id = None
         self.workspace_id = None
         self.agent_type = None
         self.messages = []
         self.tools = []
         self.events = []
+        self.todos = {}
+        self.subtasks = {}
         self.last_response_id = (
             None  # For conversation continuity
         )
         # Agent model configuration for GPT-5 features
         self.agent_model = None
         self.agent_reasoning_effort = None
+        # Parent task tracking for subtask status updates
+        self.parent_task_id = None  # Database UUID
+        self.temporal_parent_agent_id = None  # Temporal workflow ID for sending events
+
+    def _format_todos_for_llm(
+        self,
+        todos: list[dict],
+        completed: int,
+        in_progress: int,
+        total: int
+    ) -> str:
+        """Format todos for LLM context (simple version).
+
+        Based on: https://docs.claude.com/en/api/agent-sdk/todo-tracking
+        """
+        # Progress summary
+        context = f"📋 Progress: {completed}/{total} completed"
+        if in_progress > 0:
+            context += f", {in_progress} in progress"
+        context += "\n\n"
+
+        # List all todos with visual indicators (natural order)
+        for todo in todos:
+            icon = "✅" if todo["status"] == "completed" else "🔧"
+            context += f"{icon} {todo['content']}\n"
+
+        context += "\n💡 Update status as you complete steps using updatetodos."
+
+        return context
 
     @agent.state
     def state_response(self) -> dict[str, Any]:
@@ -123,8 +168,10 @@ class AgentTask:
                 else msg
                 for msg in self.messages
             ],
+            "todos": list(self.todos.values()),  # Include todos in state
+            "subtasks": list(self.subtasks.values()),  # Include subtasks for real-time status updates
             "task_id": self.task_id,
-            "agent_task_id": self.agent_id,
+            "temporal_agent_id": agent_info().workflow_id,
             "last_response_id": self.last_response_id,
             "initialized": self.initialized,
         }
@@ -260,6 +307,170 @@ class AgentTask:
         }
 
     @agent.event
+    async def todo_update(self, update_data: dict) -> dict:
+        """Update todos in agent state (simple - just replace full list).
+
+        Args:
+            update_data: Dict containing todos (list of {id, content, status})
+
+        Returns:
+            Dict with success status and current todos
+        """
+        try:
+            todos_list = update_data.get("todos", [])
+
+            # Replace todos with new list (agent sends full current state)
+            self.todos = {}
+            for todo in todos_list:
+                todo_id = str(todo.get("id"))
+                self.todos[todo_id] = {
+                    "id": todo_id,
+                    "content": todo.get("content", ""),
+                    "status": todo.get("status", "in_progress"),  # Only in_progress or completed
+                }
+
+            # Calculate progress
+            todos_values = list(self.todos.values())
+            completed = sum(1 for t in todos_values if t["status"] == "completed")
+            in_progress = sum(1 for t in todos_values if t["status"] == "in_progress")
+            total = len(todos_values)
+
+            # Inject todo context into messages for LLM awareness
+            # Following Claude Agent SDK pattern: https://docs.claude.com/en/api/agent-sdk/todo-tracking
+            if todos_values:
+                todo_context = self._format_todos_for_llm(todos_values, completed, in_progress, total)
+                self.messages.append(
+                    Message(
+                        role="developer",
+                        content=todo_context
+                    )
+                )
+                log.info("Todo context injected into message stream for LLM awareness")
+
+            log.info(f"Todos updated: {completed}/{total} completed, {in_progress} in progress")
+
+            return {  # noqa: TRY300
+                "success": True,
+                "todos": todos_values,
+                "message": f"✓ Todos updated: {completed}/{total} completed, {in_progress} in progress",
+            }
+
+        except Exception as e:  # noqa: BLE001
+            log.error(f"Error updating todos: {e}")
+            error_event = create_agent_error_event(
+                message=f"Error updating todos: {e}",
+                error_type="todo_update_failed",
+                code="agent_error",
+            )
+            self.events.append(error_event.model_dump())
+            return {"success": False, "error": str(e), "todos": []}
+
+    @agent.event
+    async def subtask_create(self, create_data: dict) -> dict:
+        """Create a subtask with another agent.
+
+        Creates the subtask via TasksCreateWorkflow and stores minimal state.
+        All clients (web, mobile, desktop) subscribe to this state for real-time updates.
+
+        Args:
+            create_data: Dict containing {agent_id, task_title, task_description}
+
+        Returns:
+            Dict with success status and subtask info
+        """
+        try:
+            agent_id = create_data.get("agent_id", "")
+            task_title = create_data.get("task_title", "")
+            parent_workflow_id = agent_info().workflow_id
+
+            # Get agent info for display
+            agent_result = await agent.step(
+                function=agents_get_by_id,
+                function_input=AgentIdInput(agent_id=agent_id),
+                start_to_close_timeout=timedelta(seconds=30),
+            )
+            agent_name = agent_result.agent.name if agent_result and agent_result.agent else "Unknown"
+
+            # Create and start child task using TasksCreateWorkflow
+            task_input = TaskCreateInput(
+                workspace_id=self.workspace_id,
+                title=task_title,
+                description=create_data.get("task_description", ""),
+                agent_id=agent_id,
+                assigned_to_id=self.user_id,
+                status="in_progress",
+                parent_task_id=self.task_id,
+                temporal_parent_agent_id=parent_workflow_id,
+            )
+
+            child_workflow_id = f"task_create_{uuid()}"
+            task_result = await agent.child_execute(
+                workflow="TasksCreateWorkflow",
+                workflow_id=child_workflow_id,
+                workflow_input=task_input,
+            )
+
+            # Store minimal state (for multi-client real-time updates)
+            child_task_id = str(task_result["task"]["id"])
+            self.subtasks[child_task_id] = {
+                "task_id": child_task_id,
+                "title": task_title,
+                "agent_name": agent_name,
+                "status": "in_progress",
+            }
+
+            log.info(f"Subtask created and registered: {child_task_id} for parent: {self.task_id}")
+
+            return {  # noqa: TRY300
+                "success": True,
+                "task_id": child_task_id,
+                "message": f"✓ Subtask '{task_title}' created",
+            }
+
+        except Exception as e:  # noqa: BLE001
+            log.error(f"Error creating subtask: {e}")
+            return {"success": False, "error": str(e)}
+
+    @agent.event
+    async def subtask_notify(self, notify_data: dict) -> dict:
+        """Handle subtask lifecycle notifications (lightweight state updates).
+
+        Called by child agents for important events: started, completed, failed.
+        Updates minimal state for real-time multi-client synchronization.
+
+        Args:
+            notify_data: Dict containing {task_id, title, status, message}
+
+        Returns:
+            Dict with success status
+        """
+        try:
+            task_id = str(notify_data.get("task_id", ""))
+            title = notify_data.get("title", "Subtask")
+            status = notify_data.get("status", "")
+            message = notify_data.get("message", "")
+
+            log.info(f"Subtask notification: {title} ({task_id}) → {status}")
+
+            # Update minimal state (all subscribed clients get update instantly)
+            if task_id in self.subtasks:
+                self.subtasks[task_id]["status"] = status
+                if status == "completed":
+                    log.info(f"✓ Subtask completed: {title}")
+                elif status == "failed":
+                    self.subtasks[task_id]["error"] = message
+                    log.warning(f"✗ Subtask failed: {title} - {message}")
+            else:
+                log.warning(f"Subtask {task_id} not found in state")
+
+            return {"success": True}  # noqa: TRY300
+
+        except Exception as e:  # noqa: BLE001
+            log.error(f"Error handling subtask notification: {e}")
+            return {"success": False, "error": str(e)}
+
+
+    @agent.event
     async def response_item(self, event_data: dict) -> dict:
         """Store OpenAI ResponseStreamEvent in simple format."""
         try:
@@ -286,6 +497,20 @@ class AgentTask:
                 )
                 self.events.append(error_event.model_dump())
                 log.error(f"OpenAI/MCP error: {error_info}")
+
+                # Notify parent of error if this is a subtask
+                if self.temporal_parent_agent_id and self.task_id:
+                    await agent.step(
+                        function=subtask_notify,
+                        function_input=SubtaskNotifyInput(
+                            temporal_parent_agent_id=self.temporal_parent_agent_id,
+                            task_id=self.task_id,
+                            title=self.title,
+                            status="failed",
+                            message=error_info.get("message", "Unknown error"),
+                        ),
+                        start_to_close_timeout=timedelta(seconds=10),
+                    )
             else:
                 # Store normal events
                 self.events.append(event_data)
@@ -323,6 +548,19 @@ class AgentTask:
                     start_to_close_timeout=timedelta(seconds=30),
                 )
 
+                # Notify parent of completion if this is a subtask
+                if self.temporal_parent_agent_id and self.task_id:
+                    await agent.step(
+                        function=subtask_notify,
+                        function_input=SubtaskNotifyInput(
+                            temporal_parent_agent_id=self.temporal_parent_agent_id,
+                            task_id=self.task_id,
+                            title=self.title,
+                            status="completed",
+                        ),
+                        start_to_close_timeout=timedelta(seconds=10),
+                    )
+
                 self.end = True
                 log.info(
                     f"Pipeline agent {self.agent_id} workflow marked for completion"
@@ -352,13 +590,41 @@ class AgentTask:
     async def run(self, agent_input: AgentTaskInput) -> None:
         self.agent_id = agent_input.agent_id
         self.task_id = agent_input.task_id
+        self.user_id = agent_input.user_id
+        self.assigned_to_id = agent_input.assigned_to_id
         self.workspace_id = agent_input.workspace_id
+        self.title = agent_input.title
+        self.description = agent_input.description
+        self.status = agent_input.status
+
+        # Set parent info if this is a subtask (passed directly from workflow)
+        self.parent_task_id = agent_input.parent_task_id
+        self.temporal_parent_agent_id = agent_input.temporal_parent_agent_id
 
         meta_info = {
             "agent_id": self.agent_id,
             "task_id": self.task_id,
             "workspace_id": agent_input.workspace_id,
+            "temporal_agent_id": agent_info().workflow_id,
+            "temporal_run_id": agent_info().run_id,
         }
+
+        # Notify parent if this is a subtask (lightweight notification)
+        if self.temporal_parent_agent_id and self.task_id:
+            log.info(
+                f"Subtask detected. Parent task: {self.parent_task_id}, "
+                f"Parent Temporal agent: {self.temporal_parent_agent_id}"
+            )
+            await agent.step(
+                function=subtask_notify,
+                function_input=SubtaskNotifyInput(
+                    temporal_parent_agent_id=self.temporal_parent_agent_id,
+                    task_id=self.task_id,
+                    title=self.title,
+                    status="started",
+                ),
+                start_to_close_timeout=timedelta(seconds=10),
+            )
 
         agent_result = await agent.step(
             function=agents_get_by_id,
@@ -383,10 +649,12 @@ class AgentTask:
                 agent_data.instructions
                 and agent_data.instructions.strip()
             ):
+                instructions = agent_data.instructions
+
                 self.messages.append(
                     Message(
                         role="developer",
-                        content=f"{agent_data.instructions}. Markdown is supported. Use headings wherever appropriate. Agent meta info: {meta_info!s}",
+                        content=f"{instructions}. Markdown is supported. Use headings wherever appropriate. Agent meta info: {meta_info!s}",
                     )
                 )
         else:
@@ -403,6 +671,79 @@ class AgentTask:
             start_to_close_timeout=timedelta(seconds=30),
         )
         self.tools = tools_result.tools or []
+
+        # Check if createsubtask tool is enabled and append subagents list
+        # MCP tools have their names in the 'allowed_tools' array
+        has_createsubtask = any(
+            (
+                tool.get("type") == "mcp"
+                and tool.get("allowed_tools")
+                and "createsubtask" in tool.get("allowed_tools", [])
+            )
+            for tool in self.tools
+        )
+
+        log.info(
+            "AgentTask: Checked for createsubtask tool",
+            has_createsubtask=has_createsubtask,
+            tools_count=len(self.tools),
+        )
+
+        if has_createsubtask:
+            try:
+                # Fetch configured subagents using step function (proper Restack pattern)
+                log.info(
+                    "AgentTask: Fetching subagents for agent",
+                    agent_id=self.agent_id,
+                )
+
+                subagents_result = await agent.step(
+                    function=agent_subagents_read,
+                    function_input=AgentSubagentsReadInput(
+                        parent_agent_id=self.agent_id
+                    ),
+                    start_to_close_timeout=timedelta(seconds=60),  # Increased timeout for reliability
+                )
+
+                # Format subagents list and append to instructions
+                if subagents_result and subagents_result.subagents:
+                    subagents_list = []
+                    for subagent in subagents_result.subagents:
+                        type_label = (
+                            "Pipeline"
+                            if subagent.type == "pipeline"
+                            else "Interactive"
+                        )
+                        subagents_list.append(
+                            f"- `{subagent.id}` - **{subagent.name}**: {subagent.description or 'No description'} (Type: {type_label})"
+                        )
+                    subagents_text = "\n\n## Available Subagents for subtask creation\n" + "\n".join(subagents_list)
+
+                    # Append to existing messages
+                    self.messages.append(
+                        Message(
+                            role="developer",
+                            content=subagents_text,
+                        )
+                    )
+
+                    log.debug(
+                        "AgentTask: Subagents successfully loaded and appended to instructions",
+                        count=len(subagents_result.subagents),
+                        agent_id=self.agent_id,
+                    )
+                else:
+                    log.debug(
+                        "AgentTask: No subagents configured for this agent",
+                        agent_id=self.agent_id,
+                    )
+
+            except Exception as e:  # noqa: BLE001
+                log.error(
+                    "AgentTask: Failed to load subagents",
+                    error=str(e),
+                    agent_id=self.agent_id,
+                )
 
         self.initialized = True
 

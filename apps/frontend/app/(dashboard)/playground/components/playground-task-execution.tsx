@@ -34,7 +34,7 @@ export function PlaygroundTaskExecution({
 
   const { responseState, agentResponses, loading: agentLoading, sendMessageToAgent } = useAgentState({
     taskId: taskId || undefined,
-    agentTaskId: task?.agent_task_id || undefined,
+    agentTaskId: task?.temporal_agent_id || undefined,
     onStateChange: () => {
       // Handle state changes if needed
     },
@@ -43,7 +43,7 @@ export function PlaygroundTaskExecution({
   const { conversation, updateConversationItemStatus } = useRxjsConversation({
     responseState: responseState as { events: OpenAIEvent[]; [key: string]: unknown } | false,
     agentResponses: agentResponses as { events?: OpenAIEvent[]; [key: string]: unknown }[],
-    taskAgentTaskId: task?.agent_task_id || undefined,
+    taskAgentTaskId: task?.temporal_agent_id || undefined,
     storeKey: taskId || 'default', // Use taskId as unique store key
   });
 
@@ -76,7 +76,7 @@ export function PlaygroundTaskExecution({
   }, [taskId, getTaskById]);
 
   const handleSendMessage = async () => {
-    if (!chatMessage.trim() || !task?.agent_task_id) return;
+    if (!chatMessage.trim() || !task?.temporal_agent_id) return;
 
     try {
       await sendMessageToAgent(chatMessage);
@@ -88,7 +88,7 @@ export function PlaygroundTaskExecution({
 
 
   const handleApproveRequest = async (itemId: string) => {
-    if (!task?.agent_task_id) {
+    if (!task?.temporal_agent_id) {
       return;
     }
 
@@ -97,7 +97,7 @@ export function PlaygroundTaskExecution({
       updateConversationItemStatus(itemId, "completed");
 
       const result = await sendMcpApproval({
-        agentId: task.agent_task_id,
+        agentId: task.temporal_agent_id,
         approvalId: itemId,
         approved: true,
       });
@@ -114,7 +114,7 @@ export function PlaygroundTaskExecution({
   };
 
   const handleDenyRequest = async (itemId: string) => {
-    if (!task?.agent_task_id) {
+    if (!task?.temporal_agent_id) {
       return;
     }
 
@@ -123,7 +123,7 @@ export function PlaygroundTaskExecution({
       updateConversationItemStatus(itemId, "failed");
 
       const result = await sendMcpApproval({
-        agentId: task.agent_task_id,
+        agentId: task.temporal_agent_id,
         approvalId: itemId,
         approved: false,
       });

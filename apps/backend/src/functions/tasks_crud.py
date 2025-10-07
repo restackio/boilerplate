@@ -21,7 +21,10 @@ class TaskCreateInput(BaseModel):
     agent_id: str | None = None
     agent_name: str | None = None
     assigned_to_id: str | None = None
-    agent_task_id: str | None = None
+    temporal_agent_id: str | None = None
+    # Subtask-related fields
+    parent_task_id: str | None = None
+    temporal_parent_agent_id: str | None = None
     # Schedule-related fields
     schedule_spec: dict | None = None
     schedule_task_id: str | None = None
@@ -29,7 +32,7 @@ class TaskCreateInput(BaseModel):
     schedule_status: str | None = Field(
         None, pattern="^(active|inactive|paused)$"
     )
-    restack_schedule_id: str | None = None
+    temporal_schedule_id: str | None = None
 
 
 class TaskUpdateInput(BaseModel):
@@ -41,8 +44,11 @@ class TaskUpdateInput(BaseModel):
     )
     agent_id: str | None = None
     assigned_to_id: str | None = None
-    agent_task_id: str | None = None
+    temporal_agent_id: str | None = None
     messages: list | None = None
+    # Subtask-related fields
+    parent_task_id: str | None = None
+    temporal_parent_agent_id: str | None = None
     # Schedule-related fields
     schedule_spec: dict | None = None
     schedule_task_id: str | None = None
@@ -50,12 +56,14 @@ class TaskUpdateInput(BaseModel):
     schedule_status: str | None = Field(
         None, pattern="^(active|inactive|paused)$"
     )
-    restack_schedule_id: str | None = None
+    temporal_schedule_id: str | None = None
 
     @field_validator(
         "assigned_to_id",
         "agent_id",
         "schedule_task_id",
+        "parent_task_id",
+        "temporal_parent_agent_id",
         mode="before",
     )
     @classmethod
@@ -84,7 +92,7 @@ class TaskDeleteInput(BaseModel):
 
 class TaskUpdateAgentTaskIdInput(BaseModel):
     task_id: str = Field(..., min_length=1)
-    agent_task_id: str = Field(..., min_length=1)
+    temporal_agent_id: str = Field(..., min_length=1)
 
 
 class TaskGetByWorkspaceInput(BaseModel):
@@ -104,14 +112,17 @@ class TaskOutput(BaseModel):
     agent_name: str
     assigned_to_id: str | None
     assigned_to_name: str | None
-    agent_task_id: str | None
+    temporal_agent_id: str | None
     messages: list | None = None
+    # Subtask-related fields
+    parent_task_id: str | None = None
+    temporal_parent_agent_id: str | None
     # Schedule-related fields
     schedule_spec: dict | None = None
     schedule_task_id: str | None = None
     is_scheduled: bool = False
     schedule_status: str | None = None
-    restack_schedule_id: str | None = None
+    temporal_schedule_id: str | None
     created_at: str | None
     updated_at: str | None
 
@@ -189,7 +200,12 @@ async def tasks_read(
                         assigned_to_name=task.assigned_to_user.name
                         if task.assigned_to_user
                         else "N/A",
-                        agent_task_id=task.agent_task_id,
+                        temporal_agent_id=task.temporal_agent_id,
+                        # Subtask-related fields
+                        parent_task_id=str(task.parent_task_id)
+                        if task.parent_task_id
+                        else None,
+                        temporal_parent_agent_id=task.temporal_parent_agent_id,
                         # Schedule-related fields
                         schedule_spec=task.schedule_spec,
                         schedule_task_id=str(
@@ -199,7 +215,7 @@ async def tasks_read(
                         else None,
                         is_scheduled=task.is_scheduled,
                         schedule_status=task.schedule_status,
-                        restack_schedule_id=task.restack_schedule_id,
+                        temporal_schedule_id=task.temporal_schedule_id,
                         created_at=task.created_at.isoformat()
                         if task.created_at
                         else None,
@@ -231,11 +247,18 @@ async def tasks_create(
                 title=task_data.title,
                 description=task_data.description,
                 status=task_data.status,
-                agent_id=uuid.UUID(task_data.agent_id),
+                agent_id=uuid.UUID(task_data.agent_id)
+                if task_data.agent_id
+                else None,
                 assigned_to_id=uuid.UUID(task_data.assigned_to_id)
                 if task_data.assigned_to_id
                 else None,
-                agent_task_id=task_data.agent_task_id,
+                temporal_agent_id=task_data.temporal_agent_id,
+                # Subtask-related fields
+                parent_task_id=uuid.UUID(task_data.parent_task_id)
+                if task_data.parent_task_id
+                else None,
+                temporal_parent_agent_id=task_data.temporal_parent_agent_id,
                 # Schedule-related fields
                 schedule_spec=task_data.schedule_spec,
                 schedule_task_id=uuid.UUID(
@@ -245,7 +268,7 @@ async def tasks_create(
                 else None,
                 is_scheduled=task_data.is_scheduled,
                 schedule_status=task_data.schedule_status,
-                restack_schedule_id=task_data.restack_schedule_id,
+                temporal_schedule_id=task_data.temporal_schedule_id,
             )
 
             db.add(task)
@@ -277,7 +300,21 @@ async def tasks_create(
                 assigned_to_name=task.assigned_to_user.name
                 if task.assigned_to_user
                 else None,
-                agent_task_id=task.agent_task_id,
+                temporal_agent_id=task.temporal_agent_id,
+                messages=task.messages,
+                # Subtask-related fields
+                parent_task_id=str(task.parent_task_id)
+                if task.parent_task_id
+                else None,
+                temporal_parent_agent_id=task.temporal_parent_agent_id,
+                # Schedule-related fields
+                schedule_spec=task.schedule_spec,
+                schedule_task_id=str(task.schedule_task_id)
+                if task.schedule_task_id
+                else None,
+                is_scheduled=task.is_scheduled,
+                schedule_status=task.schedule_status,
+                temporal_schedule_id=task.temporal_schedule_id,
                 created_at=task.created_at.isoformat()
                 if task.created_at
                 else None,
@@ -323,9 +360,14 @@ async def tasks_update(
                         (key == "agent_id" and value)
                         or (key == "assigned_to_id" and value)
                         or (key == "schedule_task_id" and value)
+                        or (key == "parent_task_id" and value)
                     ):
                         setattr(task, key, uuid.UUID(value))
-                    elif (
+                    elif key in [
+                        "temporal_agent_id",
+                        "temporal_parent_agent_id",
+                        "temporal_schedule_id",
+                    ] or (
                         (key == "messages" and value is not None)
                         or (
                             key == "schedule_spec"
@@ -336,7 +378,6 @@ async def tasks_update(
                             in [
                                 "is_scheduled",
                                 "schedule_status",
-                                "restack_schedule_id",
                             ]
                             and value is not None
                         )
@@ -373,8 +414,21 @@ async def tasks_update(
                 assigned_to_name=task.assigned_to_user.name
                 if task.assigned_to_user
                 else None,
-                agent_task_id=task.agent_task_id,
+                temporal_agent_id=task.temporal_agent_id,
                 messages=task.messages,
+                # Subtask-related fields
+                parent_task_id=str(task.parent_task_id)
+                if task.parent_task_id
+                else None,
+                temporal_parent_agent_id=task.temporal_parent_agent_id,
+                # Schedule-related fields
+                schedule_spec=task.schedule_spec,
+                schedule_task_id=str(task.schedule_task_id)
+                if task.schedule_task_id
+                else None,
+                is_scheduled=task.is_scheduled,
+                schedule_status=task.schedule_status,
+                temporal_schedule_id=task.temporal_schedule_id,
                 created_at=task.created_at.isoformat()
                 if task.created_at
                 else None,
@@ -466,8 +520,21 @@ async def tasks_get_by_id(
                 assigned_to_name=task.assigned_to_user.name
                 if task.assigned_to_user
                 else None,
-                agent_task_id=task.agent_task_id,
+                temporal_agent_id=task.temporal_agent_id,
                 messages=task.messages,
+                # Subtask-related fields
+                parent_task_id=str(task.parent_task_id)
+                if task.parent_task_id
+                else None,
+                temporal_parent_agent_id=task.temporal_parent_agent_id,
+                # Schedule-related fields
+                schedule_spec=task.schedule_spec,
+                schedule_task_id=str(task.schedule_task_id)
+                if task.schedule_task_id
+                else None,
+                is_scheduled=task.is_scheduled,
+                schedule_status=task.schedule_status,
+                temporal_schedule_id=task.temporal_schedule_id,
                 created_at=task.created_at.isoformat()
                 if task.created_at
                 else None,
@@ -481,6 +548,72 @@ async def tasks_get_by_id(
             raise NonRetryableError(
                 message=f"Failed to get task: {e!s}"
             ) from e
+    return None
+
+
+@function.defn()
+async def tasks_get_by_parent_id(
+    function_input: TaskGetByIdInput,
+) -> TaskListOutput:
+    """Get all subtasks for a parent task."""
+    async for db in get_async_db():
+        try:
+            tasks_query = (
+                select(Task)
+                .options(
+                    selectinload(Task.agent),
+                    selectinload(Task.assigned_to_user),
+                    selectinload(Task.team),
+                )
+                .where(Task.parent_task_id == uuid.UUID(function_input.task_id))
+                .order_by(Task.created_at.asc())
+            )
+            result = await db.execute(tasks_query)
+            tasks = result.scalars().all()
+
+            output_result = [
+                TaskOutput(
+                    id=str(task.id),
+                    workspace_id=str(task.workspace_id),
+                    team_id=str(task.team_id) if task.team_id else None,
+                    team_name=task.team.name if task.team else None,
+                    title=task.title,
+                    description=task.description,
+                    status=task.status,
+                    agent_id=str(task.agent_id),
+                    agent_name=task.agent.name if task.agent else "N/A",
+                    assigned_to_id=str(task.assigned_to_id)
+                    if task.assigned_to_id
+                    else None,
+                    assigned_to_name=task.assigned_to_user.name
+                    if task.assigned_to_user
+                    else "N/A",
+                    temporal_agent_id=task.temporal_agent_id,
+                    parent_task_id=str(task.parent_task_id)
+                    if task.parent_task_id
+                    else None,
+                    temporal_parent_agent_id=task.temporal_parent_agent_id,
+                    schedule_spec=task.schedule_spec,
+                    schedule_task_id=str(task.schedule_task_id)
+                    if task.schedule_task_id
+                    else None,
+                    is_scheduled=task.is_scheduled,
+                    schedule_status=task.schedule_status,
+                    temporal_schedule_id=task.temporal_schedule_id,
+                    created_at=task.created_at.isoformat()
+                    if task.created_at
+                    else None,
+                    updated_at=task.updated_at.isoformat()
+                    if task.updated_at
+                    else None,
+                )
+                for task in tasks
+            ]
+
+            return TaskListOutput(tasks=output_result)
+        except Exception as e:
+            msg = f"Error during tasks_get_by_parent_id: {e}"
+            raise NonRetryableError(msg) from e
     return None
 
 
@@ -528,7 +661,12 @@ async def tasks_get_by_status(
                         assigned_to_name=task.assigned_to_user.name
                         if task.assigned_to_user
                         else "N/A",
-                        agent_task_id=task.agent_task_id,
+                        temporal_agent_id=task.temporal_agent_id,
+                        # Subtask-related fields
+                        parent_task_id=str(task.parent_task_id)
+                        if task.parent_task_id
+                        else None,
+                        temporal_parent_agent_id=task.temporal_parent_agent_id,
                         # Schedule-related fields
                         schedule_spec=task.schedule_spec,
                         schedule_task_id=str(
@@ -538,7 +676,7 @@ async def tasks_get_by_status(
                         else None,
                         is_scheduled=task.is_scheduled,
                         schedule_status=task.schedule_status,
-                        restack_schedule_id=task.restack_schedule_id,
+                        temporal_schedule_id=task.temporal_schedule_id,
                         created_at=task.created_at.isoformat()
                         if task.created_at
                         else None,
@@ -560,7 +698,7 @@ async def tasks_get_by_status(
 async def tasks_update_agent_task_id(
     function_input: TaskUpdateAgentTaskIdInput,
 ) -> TaskSingleOutput:
-    """Update the agent_task_id for a task when the agent starts execution."""
+    """Update the temporal_agent_id for a task when the agent starts execution."""
     async for db in get_async_db():
         try:
             task_query = (
@@ -581,8 +719,8 @@ async def tasks_update_agent_task_id(
                 raise NonRetryableError(  # noqa: TRY301
                     message=f"Task with id {function_input.task_id} not found"
                 )
-            # Update the agent_task_id
-            task.agent_task_id = function_input.agent_task_id
+            # Update the temporal_agent_id
+            task.temporal_agent_id = function_input.temporal_agent_id
 
             await db.commit()
             await db.refresh(task)
@@ -607,8 +745,21 @@ async def tasks_update_agent_task_id(
                 assigned_to_name=task.assigned_to_user.name
                 if task.assigned_to_user
                 else None,
-                agent_task_id=task.agent_task_id,
+                temporal_agent_id=task.temporal_agent_id,
                 messages=task.messages,
+                # Subtask-related fields
+                parent_task_id=str(task.parent_task_id)
+                if task.parent_task_id
+                else None,
+                temporal_parent_agent_id=task.temporal_parent_agent_id,
+                # Schedule-related fields
+                schedule_spec=task.schedule_spec,
+                schedule_task_id=str(task.schedule_task_id)
+                if task.schedule_task_id
+                else None,
+                is_scheduled=task.is_scheduled,
+                schedule_status=task.schedule_status,
+                temporal_schedule_id=task.temporal_schedule_id,
                 created_at=task.created_at.isoformat()
                 if task.created_at
                 else None,
@@ -621,7 +772,7 @@ async def tasks_update_agent_task_id(
         except Exception as e:
             await db.rollback()
             raise NonRetryableError(
-                message=f"Failed to update agent task ID: {e!s}"
+                message=f"Failed to update temporal agent ID: {e!s}"
             ) from e
     return None
 

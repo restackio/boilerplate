@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from "@workspace/ui/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/ui/card";
+import { PROMPT_TEMPLATES } from "./prompt-templates";
 
 export interface AgentConfigData {
   name?: string;
@@ -72,33 +73,6 @@ export const REASONING_EFFORT_OPTIONS = [
   { value: "high", label: "High" },
 ];
 
-// Helper component for formatting instructions
-function InstructionsPreview({ instructions }: { instructions: string }) {
-  const formatInstructionsWithMCPs = (text: string) => {
-    const parts = text.split(/(@\w+)/g);
-    return parts.map((part, index) => {
-      if (part.startsWith("@")) {
-        return (
-          <span
-            key={index}
-            className="font-bold text-black bg-neutral-100 px-1 rounded"
-          >
-            {part}
-          </span>
-        );
-      }
-      return part;
-    });
-  };
-
-  const formattedInstructions = formatInstructionsWithMCPs(instructions);
-  return (
-    <div className="whitespace-pre-wrap font-mono text-sm p-3 bg-muted rounded-md border min-h-[200px]">
-      {formattedInstructions}
-    </div>
-  );
-};
-
 // Helper component for layout
 function FieldWrapper({ children, title, variant }: { children: React.ReactNode; title?: string; variant: "full" | "compact" }) {
   if (variant === "compact") {
@@ -140,7 +114,6 @@ export const AgentConfigurationForm = forwardRef<AgentConfigurationFormRef, Agen
   const [reasoningEffort, setReasoningEffort] = useState(initialData?.reasoning_effort || "medium");
   
   // UI state
-  const [previewMode, setPreviewMode] = useState(true);
   const [internalNameError, setInternalNameError] = useState("");
   
   const nameError = externalNameError || internalNameError;
@@ -284,61 +257,50 @@ export const AgentConfigurationForm = forwardRef<AgentConfigurationFormRef, Agen
       </FieldWrapper>
 
       {/* Instructions */}
-      <FieldWrapper title="System Instructions" variant={variant}>
-        <div className="space-y-4">
-          {showInstructionsPreview && (
+      <FieldWrapper title="Instructions" variant={variant}>
+        <div className="space-y-3">
+          {/* Template Insertion - Only show in edit mode */}
+          {!isReadOnly && (
             <div className="flex items-center gap-2">
-              <div className="ml-auto flex gap-1">
-                <Button
-                  type="button"
-                  variant={!previewMode ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setPreviewMode(false)}
-                  disabled={isReadOnly}
-                >
-                  Edit
-                </Button>
-                <Button
-                  type="button"
-                  variant={previewMode ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setPreviewMode(true)}
-                >
-                  Preview
-                </Button>
-              </div>
+              <Label className="text-xs text-muted-foreground whitespace-nowrap">Insert from template:</Label>
+              <Select onValueChange={(id) => {
+                const template = PROMPT_TEMPLATES.find(x => x.id === id);
+                if (template) {
+                  const newInstructions = instructions 
+                    ? instructions + "\n\n" + template.content 
+                    : template.content;
+                  setInstructions(newInstructions);
+                }
+              }}>
+                <SelectTrigger className="h-8 w-full">
+                  <SelectValue placeholder="GPT-5 best-practice templates" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PROMPT_TEMPLATES.map(template => (
+                    <SelectItem key={template.id} value={template.id}>
+                      {template.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
-
-          <div style={{ display: (!showInstructionsPreview || !previewMode) ? 'block' : 'none' }}>
-            <div className="space-y-2">
-              <Textarea
-                id="agent-instructions"
-                value={instructions}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setInstructions(v);
-                }}
-                placeholder="Enter detailed instructions for how this agent should behave..."
-                className={`font-mono text-sm resize-none`}
-                style={{ minHeight: instructionsMinHeight }}
-                disabled={isReadOnly}
-              />
-              <p className="text-xs text-muted-foreground">
-                Define how the agent should respond. Use{" "}
-                <code className="bg-muted px-1 rounded">@tool_name</code>{" "}
-                to reference MCP tools.
-              </p>
-            </div>
-          </div>
-          <div style={{ display: (!showInstructionsPreview || !previewMode) ? 'none' : 'block' }}>
-            <div className="space-y-2">
-              <InstructionsPreview instructions={instructions} />
-              <p className="text-xs text-muted-foreground">
-                Preview of how the instructions will appear with tool references highlighted.
-              </p>
-            </div>
-          </div>
+          
+          <Textarea
+            id="agent-instructions"
+            value={instructions}
+            onChange={(e) => {
+              const v = e.target.value;
+              setInstructions(v);
+            }}
+            placeholder="Enter detailed instructions for how this agent should behave..."
+            className={`font-mono text-sm resize-none`}
+            style={{ minHeight: instructionsMinHeight }}
+            disabled={isReadOnly}
+          />
+          <p className="text-xs text-muted-foreground">
+            Define how the agent should respond. Markdown is supported.
+          </p>
         </div>
       </FieldWrapper>
     </div>

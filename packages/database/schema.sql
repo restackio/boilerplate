@@ -83,6 +83,18 @@ CREATE TABLE IF NOT EXISTS agents (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Create agent_subagents table
+CREATE TABLE IF NOT EXISTS agent_subagents (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    parent_agent_id UUID NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+    subagent_id UUID NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+    enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    -- Ensure unique parent-subagent pairs
+    CONSTRAINT unique_parent_subagent UNIQUE(parent_agent_id, subagent_id)
+);
+
 -- Create datasets table for storage-agnostic data management
 CREATE TABLE IF NOT EXISTS datasets (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -174,14 +186,17 @@ CREATE TABLE IF NOT EXISTS tasks (
     status VARCHAR(50) NOT NULL DEFAULT 'in_progress' CHECK (status IN ('in_progress', 'in_review', 'closed', 'completed')),
     agent_id UUID NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
     assigned_to_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    agent_task_id VARCHAR(255),
+    temporal_agent_id VARCHAR(255), -- Temporal/Restack workflow ID
     messages JSONB,
+    -- Subtask-related columns
+    parent_task_id UUID REFERENCES tasks(id) ON DELETE CASCADE, -- Reference to parent task if this is a subtask
+    temporal_parent_agent_id VARCHAR(255), -- Parent's Temporal workflow ID for event routing (cached for performance)
     -- Schedule-related columns
     schedule_spec JSONB, -- Store the schedule specification (calendars, intervals, cron)
     schedule_task_id UUID REFERENCES tasks(id) ON DELETE SET NULL, -- Reference to the schedule task that created this task
     is_scheduled BOOLEAN NOT NULL DEFAULT FALSE, -- Whether this is a scheduled task
     schedule_status VARCHAR(50) DEFAULT 'inactive' CHECK (schedule_status IN ('active', 'inactive', 'paused')), -- Schedule status
-    restack_schedule_id VARCHAR(255), -- Restack schedule ID for managing the schedule
+    temporal_schedule_id VARCHAR(255), -- Temporal/Restack schedule ID for managing the schedule
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -194,11 +209,16 @@ CREATE INDEX IF NOT EXISTS idx_mcp_servers_workspace_id ON mcp_servers(workspace
 CREATE INDEX IF NOT EXISTS idx_agents_workspace_id ON agents(workspace_id);
 CREATE INDEX IF NOT EXISTS idx_agents_team_id ON agents(team_id);
 CREATE INDEX IF NOT EXISTS idx_agents_status ON agents(status);
+CREATE INDEX IF NOT EXISTS idx_agent_subagents_parent_agent_id ON agent_subagents(parent_agent_id);
+CREATE INDEX IF NOT EXISTS idx_agent_subagents_subagent_id ON agent_subagents(subagent_id);
 CREATE INDEX IF NOT EXISTS idx_agents_type ON agents(type);
 CREATE INDEX IF NOT EXISTS idx_agents_parent_id ON agents(parent_agent_id);
 CREATE INDEX IF NOT EXISTS idx_agents_created_at ON agents(created_at);
 CREATE INDEX IF NOT EXISTS idx_agents_parent_created ON agents(parent_agent_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_agents_status_created ON agents(status, created_at);
+CREATE INDEX IF NOT EXISTS idx_tasks_parent_task_id ON tasks(parent_task_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_agent_id ON tasks(agent_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_workspace_id ON tasks(workspace_id);
 
 -- Unique constraint for root agent names within workspace (allows versions with same name)
 CREATE UNIQUE INDEX IF NOT EXISTS unique_root_agent_name_per_workspace 
@@ -212,11 +232,11 @@ CREATE INDEX IF NOT EXISTS idx_tasks_team_id ON tasks(team_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
 CREATE INDEX IF NOT EXISTS idx_tasks_agent_id ON tasks(agent_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_assigned_to_id ON tasks(assigned_to_id);
-CREATE INDEX IF NOT EXISTS idx_tasks_agent_task_id ON tasks(agent_task_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_temporal_agent_id ON tasks(temporal_agent_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_schedule_task_id ON tasks(schedule_task_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_is_scheduled ON tasks(is_scheduled);
 CREATE INDEX IF NOT EXISTS idx_tasks_schedule_status ON tasks(schedule_status);
-CREATE INDEX IF NOT EXISTS idx_tasks_restack_schedule_id ON tasks(restack_schedule_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_temporal_schedule_id ON tasks(temporal_schedule_id);
 
 -- Dataset-related indexes
 CREATE INDEX IF NOT EXISTS idx_datasets_workspace_id ON datasets(workspace_id);
@@ -262,7 +282,6 @@ CREATE INDEX IF NOT EXISTS idx_tasks_schedule_gin ON tasks USING GIN (schedule_s
 CREATE INDEX IF NOT EXISTS idx_mcp_headers_gin ON mcp_servers USING GIN (headers) WHERE headers IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_agent_tools_config_gin ON agent_tools USING GIN (config) WHERE config IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_agent_tools_allowed_gin ON agent_tools USING GIN (allowed_tools) WHERE allowed_tools IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_datasets_schema_gin ON datasets USING GIN (schema_definition) WHERE schema_definition IS NOT NULL;
 
 -- Create updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()

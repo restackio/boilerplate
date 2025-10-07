@@ -184,7 +184,7 @@ async def send_non_delta_events_to_agent(
     stream: AsyncIterator[ResponseStreamEvent],
 ) -> None:
     """Send only non-delta events to agent."""
-    agent_id = function_info().workflow_id
+    temporal_agent_id = function_info().workflow_id
 
     try:
         async for event in stream:
@@ -234,7 +234,7 @@ async def send_non_delta_events_to_agent(
                     await send_agent_event(
                         SendAgentEventInput(
                             event_name="response_item",
-                            agent_id=agent_id,
+                            temporal_agent_id=temporal_agent_id,
                             event_input=event_data,
                         )
                     )
@@ -253,7 +253,7 @@ async def send_non_delta_events_to_agent(
                         await send_agent_event(
                             SendAgentEventInput(
                                 event_name="response_item",
-                                agent_id=agent_id,
+                                temporal_agent_id=temporal_agent_id,
                                 event_input=error_event.model_dump(),
                             )
                         )
@@ -280,7 +280,7 @@ async def send_non_delta_events_to_agent(
             await send_agent_event(
                 SendAgentEventInput(
                     event_name="response_item",
-                    agent_id=agent_id,
+                    temporal_agent_id=temporal_agent_id,
                     event_input=critical_error_event.model_dump(),
                 )
             )
@@ -318,7 +318,7 @@ async def llm_response_stream(
             )
 
             # Send detailed error event to agent
-            agent_id = function_info().workflow_id
+            temporal_agent_id = function_info().workflow_id
             openai_error_event = create_error_event(
                 message=error_msg,
                 error_type="api_request_failed",
@@ -329,7 +329,7 @@ async def llm_response_stream(
                 await send_agent_event(
                     SendAgentEventInput(
                         event_name="response_item",
-                        agent_id=agent_id,
+                        temporal_agent_id=temporal_agent_id,
                         event_input=openai_error_event.model_dump(),
                     )
                 )

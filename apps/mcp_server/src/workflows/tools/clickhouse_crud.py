@@ -2,7 +2,12 @@
 
 from datetime import timedelta
 
-from restack_ai.workflow import NonRetryableError, import_functions, log, workflow
+from restack_ai.workflow import (
+    NonRetryableError,
+    import_functions,
+    log,
+    workflow,
+)
 
 with import_functions():
     from src.functions.clickhouse_crud import (
@@ -19,14 +24,14 @@ with import_functions():
 
 
 @workflow.defn()
-class ClickHouseRunSelectQueryWorkflow:
+class ClickHouseRunSelectQuery:
     """Workflow to run a SELECT query in ClickHouse."""
 
     @workflow.run
     async def run(
         self, workflow_input: ClickHouseRunSelectQueryInput
     ) -> ClickHouseRunSelectQueryOutput:
-        log.info(f"ClickHouseRunSelectQueryWorkflow started with query: {workflow_input.query}")
+        log.info(f"ClickHouseRunSelectQuery started with query: {workflow_input.query}")
         try:
             return await workflow.step(
                 task_queue="mcp_server",
@@ -41,14 +46,14 @@ class ClickHouseRunSelectQueryWorkflow:
 
 
 @workflow.defn()
-class ClickHouseListDatabasesWorkflow:
+class ClickHouseListDatabases:
     """Workflow to list ClickHouse databases."""
 
     @workflow.run
     async def run(
         self, workflow_input: ClickHouseListDatabasesInput
     ) -> ClickHouseListDatabasesOutput:
-        log.info("ClickHouseListDatabasesWorkflow started")
+        log.info("ClickHouseListDatabases started")
         try:
             return await workflow.step(
                 task_queue="mcp_server",
@@ -63,14 +68,14 @@ class ClickHouseListDatabasesWorkflow:
 
 
 @workflow.defn()
-class ClickHouseListTablesWorkflow:
+class ClickHouseListTables:
     """Workflow to list tables in a ClickHouse database."""
 
     @workflow.run
     async def run(
         self, workflow_input: ClickHouseListTablesInput
     ) -> ClickHouseListTablesOutput:
-        log.info(f"ClickHouseListTablesWorkflow started for database: {workflow_input.database}")
+        log.info(f"ClickHouseListTables started for database: {workflow_input.database}")
         try:
             return await workflow.step(
                 task_queue="mcp_server",

@@ -5,15 +5,22 @@ from pathlib import Path
 from watchfiles import run_process
 
 from src.client import client
-from src.functions.llm_response import llm_response
-from src.functions.template_from_sample import (
-    template_from_sample,
-)
 from src.functions.clickhouse_crud import (
     clickhouse_list_databases,
     clickhouse_list_tables,
     clickhouse_run_select_query,
 )
+from src.functions.llm_response import llm_response
+from src.functions.template_from_sample import (
+    template_from_sample,
+)
+from src.functions.update_todos import update_todos
+from src.workflows.tools.clickhouse_crud import (
+    ClickHouseListDatabases,
+    ClickHouseListTables,
+    ClickHouseRunSelectQuery,
+)
+from src.workflows.tools.create_subtask import CreateSubtask
 from src.workflows.tools.generate_mock import GenerateMock
 from src.workflows.tools.load_into_dataset import (
     LoadIntoDataset,
@@ -24,12 +31,7 @@ from src.workflows.tools.test_failures import (
 from src.workflows.tools.transform_data import (
     TransformData,
 )
-
-from src.workflows.clickhouse_crud import (
-    ClickHouseListDatabasesWorkflow,
-    ClickHouseListTablesWorkflow,
-    ClickHouseRunSelectQueryWorkflow,
-)
+from src.workflows.tools.update_todos import UpdateTodos
 
 # Create logger for this module
 logger = logging.getLogger(__name__)
@@ -44,9 +46,11 @@ async def run_restack_service() -> None:
             TestFailures,
             TransformData,
             LoadIntoDataset,
-            ClickHouseListDatabasesWorkflow,
-            ClickHouseListTablesWorkflow,
-            ClickHouseRunSelectQueryWorkflow,
+            ClickHouseListDatabases,
+            ClickHouseListTables,
+            ClickHouseRunSelectQuery,
+            CreateSubtask,
+            UpdateTodos
         ],
         functions=[
             llm_response,
@@ -54,6 +58,7 @@ async def run_restack_service() -> None:
             clickhouse_list_databases,
             clickhouse_list_tables,
             clickhouse_run_select_query,
+            update_todos,
         ],
     )
 

@@ -8,6 +8,13 @@ from watchfiles import run_process
 from src.agents.agent_task import AgentTask
 from src.client import client
 from src.database.connection import init_async_db
+from src.functions.agent_subagents_crud import (
+    agent_subagents_create,
+    agent_subagents_delete,
+    agent_subagents_get_available,
+    agent_subagents_read,
+    agent_subagents_toggle,
+)
 from src.functions.agent_tools_crud import (
     agent_tools_create,
     agent_tools_delete,
@@ -82,10 +89,12 @@ from src.functions.schedule_crud import (
     schedule_update_workflow,
 )
 from src.functions.send_agent_event import send_agent_event
+from src.functions.subtask_notify import subtask_notify
 from src.functions.tasks_crud import (
     tasks_create,
     tasks_delete,
     tasks_get_by_id,
+    tasks_get_by_parent_id,
     tasks_get_stats,
     tasks_read,
     tasks_update,
@@ -120,6 +129,13 @@ from src.functions.workspaces_crud import (
     workspaces_get_by_id,
     workspaces_read,
     workspaces_update,
+)
+from src.workflows.crud.agent_subagents_crud import (
+    AgentSubagentsCreateWorkflow,
+    AgentSubagentsDeleteWorkflow,
+    AgentSubagentsGetAvailableWorkflow,
+    AgentSubagentsReadWorkflow,
+    AgentSubagentsToggleWorkflow,
 )
 from src.workflows.crud.agent_tools_crud import (
     AgentToolsCreateWorkflow,
@@ -282,6 +298,11 @@ async def run_restack_service() -> None:
             AgentToolsCreateWorkflow,
             AgentToolsUpdateWorkflow,
             AgentToolsDeleteWorkflow,
+            AgentSubagentsReadWorkflow,
+            AgentSubagentsGetAvailableWorkflow,
+            AgentSubagentsCreateWorkflow,
+            AgentSubagentsDeleteWorkflow,
+            AgentSubagentsToggleWorkflow,
             ScheduleCreateWorkflow,
             ScheduleUpdateWorkflow,
             ScheduleEditWorkflow,
@@ -298,6 +319,7 @@ async def run_restack_service() -> None:
         ],
         functions=[
             send_agent_event,
+            subtask_notify,
             llm_response_stream,
             llm_prepare_response,
             agents_read,
@@ -317,6 +339,7 @@ async def run_restack_service() -> None:
             tasks_update,
             tasks_delete,
             tasks_get_by_id,
+            tasks_get_by_parent_id,
             tasks_get_stats,
             tasks_update_agent_task_id,
             schedule_create_workflow,
@@ -384,6 +407,12 @@ async def run_restack_service() -> None:
             agent_tools_create,
             agent_tools_update,
             agent_tools_delete,
+            # Agent subagents functions
+            agent_subagents_read,
+            agent_subagents_create,
+            agent_subagents_delete,
+            agent_subagents_toggle,
+            agent_subagents_get_available,
             get_oauth_token_for_mcp_server,
         ],
     )

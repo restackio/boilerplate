@@ -31,6 +31,7 @@ export default function TaskDetailPage() {
     selectedCard,
     conversation,
     agentLoading,
+    responseState,
     setShowDeleteDialog,
     setChatMessage,
     setActiveTab,
@@ -44,7 +45,7 @@ export default function TaskDetailPage() {
   } = useTaskDetail();
 
   const handleApproveRequest = async (itemId: string) => {
-    if (!task?.agent_task_id) {
+    if (!task?.temporal_agent_id) {
       return;
     }
 
@@ -53,7 +54,7 @@ export default function TaskDetailPage() {
       updateConversationItemStatus(itemId, "completed");
 
       const result = await sendMcpApproval({
-        agentId: task.agent_task_id,
+        agentId: task.temporal_agent_id,
         approvalId: itemId,
         approved: true,
       });
@@ -70,7 +71,7 @@ export default function TaskDetailPage() {
   };
 
   const handleDenyRequest = async (itemId: string) => {
-    if (!task?.agent_task_id) {
+    if (!task?.temporal_agent_id) {
       return;
     }
 
@@ -79,7 +80,7 @@ export default function TaskDetailPage() {
       updateConversationItemStatus(itemId, "failed");
 
       const result = await sendMcpApproval({
-        agentId: task.agent_task_id,
+        agentId: task.temporal_agent_id,
         approvalId: itemId,
         approved: false,
       });
@@ -128,6 +129,7 @@ export default function TaskDetailPage() {
           onDenyRequest={handleDenyRequest}
           agentLoading={agentLoading}
           showSplitView={showSplitView}
+          responseState={responseState}
         />
 
         <TaskSplitView

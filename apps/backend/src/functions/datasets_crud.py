@@ -151,7 +151,7 @@ async def _get_clickhouse_stats(
             uniq(agent_id) as unique_agents
         FROM {table_name}
         WHERE {where_clause}
-        """  # noqa: S608
+        """
 
         query_result = client.query(stats_query)
         if query_result.result_rows:
@@ -571,7 +571,7 @@ async def _query_clickhouse_events(  # noqa: C901
         WHERE {where_clause}
         ORDER BY event_timestamp DESC
         LIMIT {function_input.limit} OFFSET {function_input.offset}
-        """  # noqa: S608
+        """
 
         # Count total - table name already validated above
         count_query = f"SELECT count() FROM {table_name} WHERE {where_clause}"  # noqa: S608

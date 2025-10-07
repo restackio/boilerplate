@@ -89,7 +89,7 @@ Core building blocks: `Button`, `Input`, `Card`, `Dialog`, `Badge`, `Avatar`, `T
 ### Status and loading
 ```tsx
 <StatusIndicator 
-  status="active" 
+  status="in_progress" 
   label="Agent Running"
 />
 

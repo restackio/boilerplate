@@ -2,14 +2,7 @@
 
 import { useState, ReactNode } from "react";
 import { Button } from "./ui/button";
-import { Loader2, MoreHorizontal, type LucideIcon } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from "./ui/dropdown-menu";
+import { Loader2, Archive, Trash2, type LucideIcon } from "lucide-react";
 import { cn } from "../lib/utils";
 
 export interface ActionButton {
@@ -23,8 +16,6 @@ export interface ActionButton {
   variant?: "default" | "outline" | "secondary" | "destructive" | "ghost";
   /** Button size */
   size?: "sm" | "default" | "lg";
-  /** Whether button is primary */
-  isPrimary?: boolean;
   /** Whether button is disabled */
   disabled?: boolean;
   /** Loading state */
@@ -33,14 +24,10 @@ export interface ActionButton {
   loadingLabel?: string;
   /** Tooltip text */
   tooltip?: string;
-  /** Whether to show in overflow menu */
-  overflow?: boolean;
+  /** Show icon only without label */
+  iconOnly?: boolean;
   /** Action handler */
   onClick?: () => void | Promise<void>;
-  /** Confirmation required */
-  requiresConfirmation?: boolean;
-  /** Confirmation message */
-  confirmationMessage?: string;
   /** Conditional display */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   show?: boolean | ((context: any) => boolean);
@@ -55,10 +42,6 @@ interface ActionButtonGroupProps {
   spacing?: "tight" | "normal" | "loose";
   /** Group size */
   size?: "sm" | "default" | "lg";
-  /** Show overflow menu for extra actions */
-  showOverflow?: boolean;
-  /** Maximum visible buttons before overflow */
-  maxVisible?: number;
   /** Loading states per action */
   loadingStates?: Record<string, boolean>;
   /** Global loading state */
@@ -68,8 +51,6 @@ interface ActionButtonGroupProps {
   context?: any;
   /** Additional className */
   className?: string;
-  /** Custom overflow trigger */
-  overflowTrigger?: ReactNode;
   /** Custom status badge */
   statusBadge?: ReactNode;
   /** Show separator before actions */
@@ -81,41 +62,19 @@ export function ActionButtonGroup({
   align = "right",
   spacing = "normal",
   size = "default",
-  showOverflow = true,
-  maxVisible = 3,
   loadingStates = {},
   isLoading = false,
   context,
   className,
-  overflowTrigger,
   statusBadge,
   showSeparator = false,
 }: ActionButtonGroupProps) {
-  const [confirmingAction, setConfirmingAction] = useState<string | null>(null);
-
   // Filter actions based on conditions
   const visibleActions = actions.filter(action => {
     if (action.show === false) return false;
     if (typeof action.show === 'function') return action.show(context);
     return action.show === undefined || action.show === true;
   });
-
-  // Separate primary, visible, and overflow actions
-  const primaryActions = visibleActions.filter(a => a.isPrimary && !a.overflow);
-  const regularActions = visibleActions.filter(a => !a.isPrimary && !a.overflow);
-  const overflowActions = visibleActions.filter(a => a.overflow);
-
-  // Determine which actions to show directly vs in overflow
-  const directActions = [...primaryActions];
-  const remainingSlots = Math.max(0, maxVisible - directActions.length);
-  directActions.push(...regularActions.slice(0, remainingSlots));
-  
-  const menuActions = [
-    ...regularActions.slice(remainingSlots),
-    ...overflowActions
-  ];
-
-  const hasOverflow = showOverflow && menuActions.length > 0;
 
   // Spacing classes
   const spacingClasses = {
@@ -131,64 +90,33 @@ export function ActionButtonGroup({
     right: "justify-end",
   };
 
-  // Handle action click
-  const handleActionClick = async (action: ActionButton) => {
-    if (action.requiresConfirmation && confirmingAction !== action.key) {
-      setConfirmingAction(action.key);
-      return;
-    }
-
-    setConfirmingAction(null);
-    await action.onClick?.();
-  };
-
   // Render action button
-  const renderButton = (action: ActionButton, inMenu = false) => {
+  const renderButton = (action: ActionButton) => {
     const Icon = action.icon;
     const actionLoading = loadingStates[action.key] || action.loading || isLoading;
     const disabled = action.disabled || isLoading;
-    const isConfirming = confirmingAction === action.key;
-
-    if (inMenu) {
-      return (
-        <DropdownMenuItem
-          key={action.key}
-          onClick={() => handleActionClick(action)}
-          disabled={disabled}
-          className={cn(
-            "flex items-center gap-2",
-            action.variant === "destructive" && "text-destructive focus:text-destructive"
-          )}
-        >
-          {actionLoading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            Icon && <Icon className="h-4 w-4" />
-          )}
-          {isConfirming ? action.confirmationMessage || "Confirm?" : action.label}
-        </DropdownMenuItem>
-      );
-    }
 
     return (
       <Button
         key={action.key}
         variant={action.variant || "outline"}
-        size={action.size || size}
-        onClick={() => handleActionClick(action)}
+        size={action.iconOnly ? "icon" : action.size || size}
+        onClick={action.onClick}
         disabled={disabled}
-        className="flex items-center gap-2"
-        title={action.tooltip}
+        className={cn(
+          action.iconOnly ? "h-8 w-8" : "flex items-center gap-2"
+        )}
+        title={action.tooltip || action.label}
       >
         {actionLoading ? (
           <>
             <Loader2 className="h-4 w-4 animate-spin" />
-            {action.loadingLabel || action.label}
+            {!action.iconOnly && (action.loadingLabel || action.label)}
           </>
         ) : (
           <>
             {Icon && <Icon className="h-4 w-4" />}
-            {isConfirming ? action.confirmationMessage || "Confirm?" : action.label}
+            {!action.iconOnly && action.label}
           </>
         )}
       </Button>
@@ -206,31 +134,8 @@ export function ActionButtonGroup({
       {/* Status badge */}
       {statusBadge}
 
-      {/* Direct action buttons */}
-      {directActions.map(action => renderButton(action))}
-
-      {/* Overflow menu */}
-      {hasOverflow && (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            {overflowTrigger || (
-              <Button variant="ghost" size={size} className="h-8 w-8 p-0">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            )}
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {menuActions.map((action, index) => (
-              <div key={action.key}>
-                {renderButton(action, true)}
-                {index < menuActions.length - 1 && action.variant === "destructive" && (
-                  <DropdownMenuSeparator />
-                )}
-              </div>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
+      {/* Action buttons */}
+      {visibleActions.map(action => renderButton(action))}
     </div>
   );
 }
@@ -415,7 +320,6 @@ export const commonActions = {
     key: "save",
     label: "Save",
     variant: "default",
-    isPrimary: true,
     loading,
     onClick,
   }),
@@ -423,20 +327,20 @@ export const commonActions = {
   delete: (onClick: () => void, loading = false): ActionButton => ({
     key: "delete",
     label: "Delete",
-    variant: "destructive",
+    icon: Trash2,
+    variant: "ghost",
     loading,
-    requiresConfirmation: true,
-    confirmationMessage: "Confirm delete",
+    iconOnly: true,
     onClick,
-    overflow: true,
   }),
 
   archive: (onClick: () => void, loading = false): ActionButton => ({
     key: "archive",
     label: "Archive",
-    variant: "outline",
+    icon: Archive,
+    variant: "ghost",
     loading,
-    requiresConfirmation: true,
+    iconOnly: true,
     onClick,
   }),
 
@@ -451,6 +355,14 @@ export const commonActions = {
     key: "test",
     label: "Test",
     variant: "outline",
+    onClick,
+  }),
+
+  publish: (onClick: () => void, loading = false): ActionButton => ({
+    key: "publish",
+    label: "Publish",
+    variant: "default",
+    loading,
     onClick,
   }),
 };

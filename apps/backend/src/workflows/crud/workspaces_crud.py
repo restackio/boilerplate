@@ -10,8 +10,12 @@ from restack_ai.workflow import (
 with import_functions():
     from src.functions.workspaces_crud import (
         WorkspaceCreateInput,
+        WorkspaceDeleteOutput,
+        WorkspaceIdInput,
         WorkspaceListOutput,
+        WorkspaceReadInput,
         WorkspaceSingleOutput,
+        WorkspaceUpdateInput,
         workspaces_create,
         workspaces_delete,
         workspaces_get_by_id,
@@ -27,7 +31,7 @@ class WorkspacesReadWorkflow:
 
     @workflow.run
     async def run(
-        self, workflow_input: dict
+        self, workflow_input: WorkspaceReadInput
     ) -> WorkspaceListOutput:
         log.info("WorkspacesReadWorkflow started")
         try:
@@ -71,7 +75,7 @@ class WorkspacesUpdateWorkflow:
 
     @workflow.run
     async def run(
-        self, workflow_input: dict
+        self, workflow_input: WorkspaceUpdateInput
     ) -> WorkspaceSingleOutput:
         log.info("WorkspacesUpdateWorkflow started")
         try:
@@ -92,7 +96,9 @@ class WorkspacesDeleteWorkflow:
     """Workflow to delete a workspace."""
 
     @workflow.run
-    async def run(self, workflow_input: dict) -> dict[str, bool]:
+    async def run(
+        self, workflow_input: WorkspaceIdInput
+    ) -> WorkspaceDeleteOutput:
         log.info("WorkspacesDeleteWorkflow started")
         try:
             return await workflow.step(
@@ -113,7 +119,7 @@ class WorkspacesGetByIdWorkflow:
 
     @workflow.run
     async def run(
-        self, workflow_input: dict
+        self, workflow_input: WorkspaceIdInput
     ) -> WorkspaceSingleOutput | None:
         log.info("WorkspacesGetByIdWorkflow started")
         try:

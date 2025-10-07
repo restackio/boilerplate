@@ -51,7 +51,7 @@ export interface Task {
   assigned_to_name: string;
   team_id?: string;
   team_name?: string;
-  agent_task_id?: string; 
+  temporal_agent_id?: string; 
   messages?: any[];
   // Schedule-related fields
   schedule_spec?: any;

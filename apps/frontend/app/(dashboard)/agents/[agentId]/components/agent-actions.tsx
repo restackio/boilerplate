@@ -44,41 +44,34 @@ export function AgentActions({
     setShowArchiveDialog(false);
   };
 
-  // Define actions using our new ActionButton pattern
+  // Define actions - they appear in order: status / archive / delete / save / test / publish
   const actions: ActionButton[] = [
-    // Test action
+    commonActions.archive(() => setShowArchiveDialog(true), isArchiving),
+    commonActions.delete(() => setShowDeleteDialog(true), isDeleting),
+    {
+      key: "save",
+      label: agent?.status === "published" ? "New version" : "Save",
+      variant: agent.status === "published" ? "default" : "outline",
+      loading: isSaving,
+      loadingLabel: agent?.status === "published" ? "Creating version..." : "Saving...",
+      onClick: onSave,
+    },
     {
       key: "test",
       label: "Test",
       variant: "outline",
       onClick: () => setShowTestDialog(true),
     },
-    // Save/New version action
-    {
-      key: "save",
-      label: agent?.status === "published" ? "New version" : "Save",
-      variant: agent.status === "published" ? "default" : "outline",
-      isPrimary: true,
-      loading: isSaving,
-      loadingLabel: agent?.status === "published" ? "Creating version..." : "Saving...",
-      onClick: onSave,
-    },
-    // Publish action (only for drafts)
     {
       key: "publish",
       label: "Publish",
       icon: Play,
       variant: "default",
-      isPrimary: true,
       loading: isPublishing,
       loadingLabel: "Publishing...",
       onClick: onPublish,
       show: agent.status === "draft",
     },
-    // Archive action
-    commonActions.archive(() => setShowArchiveDialog(true), isArchiving),
-    // Delete action  
-    commonActions.delete(() => setShowDeleteDialog(true), isDeleting),
   ];
 
   return (
@@ -86,13 +79,6 @@ export function AgentActions({
       <ActionButtonGroup
         actions={actions}
         statusBadge={<AgentStatusBadge status={agent.status as AgentStatus} size="sm" />}
-        loadingStates={{
-          save: isSaving,
-          publish: isPublishing,
-          archive: isArchiving,
-          delete: isDeleting,
-        }}
-        context={agent}
       />
 
       {/* Dialogs */}

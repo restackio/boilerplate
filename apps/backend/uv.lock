@@ -164,7 +164,7 @@ requires-dist = [
     { name = "psycopg2-binary", specifier = ">=2.9.9" },
     { name = "pydantic", extras = ["email"], specifier = ">=2.11.7" },
     { name = "python-dotenv", specifier = ">=1.1.1" },
-    { name = "restack-ai", specifier = ">=0.0.112" },
+    { name = "restack-ai", specifier = ">=0.0.114" },
     { name = "ruff", specifier = ">=0.13.0" },
     { name = "sqlalchemy", specifier = ">=2.0.43" },
     { name = "watchfiles", specifier = ">=1.1.0" },
@@ -835,7 +835,7 @@ wheels = [
 
 [[package]]
 name = "restack-ai"
-version = "0.0.112"
+version = "0.0.114"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -848,9 +848,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "websockets" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/be/d2/78788832a90e5029f4bb47d238bdaa0bcea18110f12c07609f3ff962186c/restack_ai-0.0.112.tar.gz", hash = "sha256:df2fcb12175207ecb09bced1e3072615c3f6d7eb2f22a89b1b142a2bbc18e150", size = 22896, upload-time = "2025-09-08T14:00:55.403Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/63/2c/0bb0a9326b02062e16fbaf06c62b431f04d0f368f282eac4c31cde610191/restack_ai-0.0.114.tar.gz", hash = "sha256:0d7bc0a444c69326e66ef88a55eced6d98d4744f3a476c17bdd317efe7ea65d4", size = 23047, upload-time = "2025-10-06T18:56:27.888Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ec/e8/004baa8e090380e97343dd7e605ba9c2d168811d70312ed390fbc7f4c0eb/restack_ai-0.0.112-py3-none-any.whl", hash = "sha256:040478a781071d684a36376069322f78b5612b19c1f9e460ab018200c9e3233e", size = 28402, upload-time = "2025-09-08T14:00:54.182Z" },
+    { url = "https://files.pythonhosted.org/packages/b3/88/abdfb9e6caffb7470ac93e64196d27dff9587c2e4ba88ddbc038e1baeedc/restack_ai-0.0.114-py3-none-any.whl", hash = "sha256:28eed4417c96c59acbf2e4422e0bd2297a34a890e72e5c5376f56690354bed68", size = 28609, upload-time = "2025-10-06T18:56:26.501Z" },
 ]
 
 [[package]]
@@ -959,7 +959,7 @@ wheels = [
 
 [[package]]
 name = "temporalio"
-version = "1.15.0"
+version = "1.18.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "nexus-rpc" },
@@ -967,13 +967,13 @@ dependencies = [
     { name = "types-protobuf" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/0b/af/1a3619fc62333d0acbdf90cfc5ada97e68e8c0f79610363b2dbb30871d83/temporalio-1.15.0.tar.gz", hash = "sha256:a4bc6ca01717880112caab75d041713aacc8263dc66e41f5019caef68b344fa0", size = 1684485, upload-time = "2025-07-29T03:44:09.071Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/09/7a/9f7885950cc040d71340a9379134b168d557b0a0e589c75d31e797f5a8bf/temporalio-1.18.1.tar.gz", hash = "sha256:46394498f8822e61b3ce70d6735de7618f5af0501fb90f3f90f4b4f9e7816d77", size = 1787082, upload-time = "2025-09-30T15:00:19.871Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0e/2d/0153f2bc459e0cb59d41d4dd71da46bf9a98ca98bc37237576c258d6696b/temporalio-1.15.0-cp39-abi3-macosx_10_12_x86_64.whl", hash = "sha256:74bc5cc0e6bdc161a43015538b0821b8713f5faa716c4209971c274b528e0d47", size = 12703607, upload-time = "2025-07-29T03:43:30.083Z" },
-    { url = "https://files.pythonhosted.org/packages/e4/39/1b867ec698c8987aef3b7a7024b5c0c732841112fa88d021303d0fc69bea/temporalio-1.15.0-cp39-abi3-macosx_11_0_arm64.whl", hash = "sha256:ee8001304dae5723d79797516cfeebe04b966fdbdf348e658fce3b43afdda3cd", size = 12232853, upload-time = "2025-07-29T03:43:38.909Z" },
-    { url = "https://files.pythonhosted.org/packages/5e/3e/647d9a7c8b2f638f639717404c0bcbdd7d54fddd7844fdb802e3f40dc55f/temporalio-1.15.0-cp39-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:8febd1ac36720817e69c2176aa4aca14a97fe0b83f0d2449c0c730b8f0174d02", size = 12636700, upload-time = "2025-07-29T03:43:49.066Z" },
-    { url = "https://files.pythonhosted.org/packages/9a/13/7aa9ec694fec9fba39efdbf61d892bccf7d2b1aa3d9bd359544534c1d309/temporalio-1.15.0-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:202d81a42cafaed9ccc7ccbea0898838e3b8bf92fee65394f8790f37eafbaa63", size = 12860186, upload-time = "2025-07-29T03:43:57.644Z" },
-    { url = "https://files.pythonhosted.org/packages/9f/2b/ba962401324892236148046dbffd805d4443d6df7a7dc33cc7964b566bf9/temporalio-1.15.0-cp39-abi3-win_amd64.whl", hash = "sha256:aae5b18d7c9960238af0f3ebf6b7e5959e05f452106fc0d21a8278d78724f780", size = 12932800, upload-time = "2025-07-29T03:44:06.271Z" },
+    { url = "https://files.pythonhosted.org/packages/82/c0/9bad907dcf968c55acee1b5cc4ec0590a0fca3bc448dc32898785a577f7b/temporalio-1.18.1-cp39-abi3-macosx_10_12_x86_64.whl", hash = "sha256:748c0ec9f48aa1ab612a58fe516d9be28c1dd98194f560fd28a2ab09c6e2ca5e", size = 12809719, upload-time = "2025-09-30T14:59:58.177Z" },
+    { url = "https://files.pythonhosted.org/packages/51/c5/490a2726aa67d4b856e8288d36848e7859801889b21d251cae8e8a6c9311/temporalio-1.18.1-cp39-abi3-macosx_11_0_arm64.whl", hash = "sha256:5a789e7c483582d6d7dd49e7d2d2730d82dc94d9342fe71be76fa67afa4e6865", size = 12393639, upload-time = "2025-09-30T15:00:02.737Z" },
+    { url = "https://files.pythonhosted.org/packages/92/89/e500e066df3c0fc1e6ee1a7cadbdfbc9812c62296ac0554fc09779555560/temporalio-1.18.1-cp39-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:a9f5cf75c4b887476a2b39d022a9c44c495f5eb1668087a022bd9258d3adddf9", size = 12732719, upload-time = "2025-09-30T15:00:07.458Z" },
+    { url = "https://files.pythonhosted.org/packages/a4/18/7e5c4082b1550c38c802af02ae60ffe39d87646856aa51909cdd2789b7a6/temporalio-1.18.1-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:f28a69394bf18b4a1c22a6a784d348e93482858c505d054570b278f0f5e13e9c", size = 12926861, upload-time = "2025-09-30T15:00:12.777Z" },
+    { url = "https://files.pythonhosted.org/packages/10/49/e021b3205f06a1ec8a533dc8b02dcf5784d003cf99e4fd574eedb7439357/temporalio-1.18.1-cp39-abi3-win_amd64.whl", hash = "sha256:552b360f9ccdac8d5fc5d19c6578c2f6f634399ccc37439c4794aa58487f7fd5", size = 13059005, upload-time = "2025-09-30T15:00:17.586Z" },
 ]
 
 [[package]]

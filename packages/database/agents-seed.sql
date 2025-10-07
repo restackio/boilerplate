@@ -526,25 +526,9 @@ Your workflow follows a strict Extract → Transform → Load pattern:
 - Ensure data is properly formatted for downstream analysis and tagged appropriately
 
 ## Execution Instructions
-1. **Always follow the ETL sequence** - Extract → Transform → Load
-2. **Use the transform tool** with this prompt: "Analyze the support ticket and assess its urgency level. Consider factors like: customer tier, issue severity, business impact, and time sensitivity. Categorize as: Critical, High, Medium, or Low urgency."
-3. **Apply structured output schema** for urgency assessment:
-   ```json
-   {
-     "type": "object",
-     "properties": {
-       "ticket_id": {"type": "string"},
-       "urgency_level": {"type": "string", "enum": ["Critical", "High", "Medium", "Low"]},
-       "urgency_score": {"type": "number", "minimum": 1, "maximum": 10},
-       "reasoning": {"type": "string"},
-       "recommended_sla": {"type": "string"},
-       "escalation_needed": {"type": "boolean"},
-       "original_ticket": {"type": "object"}
-     },
-     "required": ["ticket_id", "urgency_level", "urgency_score", "reasoning"]
-   }
-   ```
-4. **Load to pipeline_events** to dataset "pipeline_events"
+1. **Extract**: Use GenerateMock with zendesk_ticket template to get ticket data
+2. **Transform**: Use transform tool to analyze urgency - assess based on customer tier, issue severity, business impact, and time sensitivity. Output should include: ticket_id, urgency_level (Critical/High/Medium/Low), urgency_score (1-10), reasoning, recommended_sla, escalation_needed, and original_ticket
+3. **Load**: Use load tool to save results to dataset "pipeline_events"
 
 ## Quality Standards
 - **Consistency**: Use the same urgency criteria for all tickets
@@ -556,7 +540,7 @@ Your role is to create a reliable, repeatable process for ticket urgency assessm
     'pipeline',
     'published',
     'gpt-5',
-    'minimal'
+    'low'
 )
 ON CONFLICT (id) DO NOTHING;
 
@@ -705,6 +689,64 @@ Always ensure information is well-organized, searchable, and accessible to team 
 )
 ON CONFLICT (id) DO NOTHING;
 
+-- Todo Tracking Demo Agent - Demonstrates workflow-state-based todo management
+INSERT INTO agents (id, workspace_id, team_id, name, description, instructions, type, status, model, reasoning_effort)
+VALUES (
+    'aaaaaaaa-bbbb-cccc-dddd-111111111111',
+    'c926e979-1f16-46bf-a7cc-8aab70162d65',
+    '11111111-1111-1111-1111-111111111111', -- Product team
+    'todo-tracking-demo',
+    'Demo agent that breaks down complex tasks into todos and executes them step-by-step',
+    $$You are a task execution specialist who tackles complex multi-step work systematically.
+
+When given a complex task (3+ steps), you:
+1. Break it down into clear, actionable todos
+2. Work through them one by one
+3. Mark each complete as you finish
+
+Use the **updatetodos** tool to track your progress visually for the user.$$,
+    'pipeline',
+    'published',
+    'gpt-5',
+    'medium'
+)
+ON CONFLICT (id) DO NOTHING;
+
+-- Task Parallel - Demonstrates parallel subtask to specialized agents
+INSERT INTO agents (id, workspace_id, team_id, name, description, instructions, type, status, model, reasoning_effort)
+VALUES (
+    'bbbbbbbb-cccc-dddd-eeee-222222222222',
+    'c926e979-1f16-46bf-a7cc-8aab70162d65',
+    '11111111-1111-1111-1111-111111111111', -- Product team
+    'task-parallel',
+    'Parallel execution pipeline that breaks down complex work in subtasks to subagents',
+    $$You are a parallel task execution specialist that breaks down complex requests into manageable subtasks and delegates them to specialized agents for concurrent execution.
+
+## Objective
+Coordinate complex work by creating subtasks and assigning them to the most appropriate specialized agents for parallel execution, then synthesize the results.
+
+## Strategy
+1. **Analyze** the user's request and identify independent work streams
+2. **Delegate** each work stream to the best-suited agent using createsubtask
+3. **Track** your orchestration strategy with updatetodos
+4. **Monitor** subtask progress through real-time status updates
+5. **Synthesize** all results into a coherent, comprehensive response
+
+## Key Principles
+- All subtasks run in parallel automatically for maximum efficiency
+- Choose agents based on their expertise and the work requirements
+- Give each subtask clear, specific instructions
+- Keep users informed about progress and what's happening
+- Combine results thoughtfully into actionable insights
+
+Your role is to make complex work manageable through intelligent parallel coordination.$$,
+    'pipeline',
+    'published',
+    'gpt-5',
+    'medium'
+)
+ON CONFLICT (id) DO NOTHING;
+
 -- Insert sample agent MCP tools using the unified agent_tools table (after all agents are created)
 INSERT INTO agent_tools (id, agent_id, tool_type, mcp_server_id, tool_name, custom_description, require_approval, enabled) VALUES
 -- Notion agent with search tool (from existing seed data)
@@ -726,6 +768,13 @@ INSERT INTO agent_tools (id, agent_id, tool_type, mcp_server_id, tool_name, cust
 -- Demo Hello World tool
 ('a0000013-0013-0013-0013-000000000013', 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'mcp', 'c0000000-0000-0000-0000-000000000001', 'generatemock', 'Generate mock data including simple hello world greetings', FALSE, TRUE),
 
+-- Todo Tracking Demo Agent tool
+('a0000020-0020-0020-0020-000000000020', 'aaaaaaaa-bbbb-cccc-dddd-111111111111', 'mcp', 'c0000000-0000-0000-0000-000000000001', 'updatetodos', 'Track multi-step task progress. Send full todo list each call: [{id, content, status: ''in_progress''|''completed''}]. Add by including, complete by changing status, remove by excluding.', FALSE, TRUE),
+
+-- Task Parallel tools
+('a0000021-0021-0021-0021-000000000021', 'bbbbbbbb-cccc-dddd-eeee-222222222222', 'mcp', 'c0000000-0000-0000-0000-000000000001', 'createsubtask', 'Create a subtask and delegate it to another agent', FALSE, TRUE),
+('a0000022-0022-0022-0022-000000000022', 'bbbbbbbb-cccc-dddd-eeee-222222222222', 'mcp', 'c0000000-0000-0000-0000-000000000001', 'updatetodos', 'Track orchestration progress: [{id, content, status}]. Mark steps completed as you delegate and synthesize', FALSE, TRUE),
+
 -- Pipeline Agent tools (Extract → Transform → Load)
 ('a0000015-0015-0015-0015-000000000015', '99999999-9999-9999-9999-999999999999', 'mcp', 'c0000000-0000-0000-0000-000000000001', 'generatemock', 'Extract support ticket data from Zendesk using mock generation (Step 1: Extract)', FALSE, TRUE),
 ('a0000016-0016-0016-0016-000000000016', '99999999-9999-9999-9999-999999999999', 'mcp', 'c0000000-0000-0000-0000-000000000001', 'transformdata', 'Assess ticket urgency using AI analysis (Step 2: Transform)', FALSE, TRUE),
@@ -738,9 +787,19 @@ INSERT INTO agent_tools (id, agent_id, tool_type, mcp_server_id, tool_name, cust
 
 ON CONFLICT (id) DO NOTHING;
 
+-- Insert agent subagent relationships (agents that can be delegated to via createsubtask)
+INSERT INTO agent_subagents (id, parent_agent_id, subagent_id, enabled) VALUES
+-- Task Parallel agent subagents (can delegate to these agents)
+('b0000001-0001-0001-0001-000000000001', 'bbbbbbbb-cccc-dddd-eeee-222222222222', '99999999-9999-9999-9999-999999999999', TRUE), -- zendesk-ticket-urgency (pipeline)
+('b0000002-0002-0002-0002-000000000002', 'bbbbbbbb-cccc-dddd-eeee-222222222222', '77777777-7777-7777-7777-777777777777', TRUE), -- zendesk-support-orchestrator
+('b0000003-0003-0003-0003-000000000003', 'bbbbbbbb-cccc-dddd-eeee-222222222222', '88888888-8888-8888-8888-888888888888', TRUE), -- events-analytics-writer
+('b0000004-0004-0004-0004-000000000004', 'bbbbbbbb-cccc-dddd-eeee-222222222222', 'cccccccc-cccc-cccc-cccc-cccccccccccc', TRUE), -- technical-research-assistant
+('b0000005-0005-0005-0005-000000000005', 'bbbbbbbb-cccc-dddd-eeee-222222222222', 'aaaaaaaa-bbbb-cccc-dddd-111111111111', TRUE)  -- todo-tracking-demo
+ON CONFLICT (parent_agent_id, subagent_id) DO NOTHING;
+
 -- Demo completed tasks with realistic conversation history
 -- Customer Support: Login issue resolution
-INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_id, assigned_to_id, agent_task_id, messages) VALUES
+INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_id, assigned_to_id, temporal_agent_id, messages) VALUES
 (
     '20000001-0000-0000-0000-000000000001',
     'c926e979-1f16-46bf-a7cc-8aab70162d65',
@@ -1364,7 +1423,7 @@ INSERT INTO tasks (
     agent_id, 
     assigned_to_id, 
     workspace_id, 
-    agent_task_id,
+    temporal_agent_id,
     created_at, 
     updated_at,
     messages

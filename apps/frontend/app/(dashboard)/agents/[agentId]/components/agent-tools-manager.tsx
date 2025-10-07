@@ -3,6 +3,7 @@
 import { McpServerDialog } from "./mcp-server-dialog";
 import { ToolsList } from "./tools-list";
 import { ToolsActions } from "./tools-actions";
+import { QuickToolToggles } from "./quick-tool-toggles";
 import { useToolsManager } from "../hooks/use-tools-manager";
 import { TableLoading } from "@workspace/ui/components/loading-states";
 
@@ -25,9 +26,11 @@ export function AgentToolsManager({ agentId, workspaceId, agent }: Props) {
     setMcpDialogOpen,
     hasType,
     mcpOptions,
+    restackCoreMcpServerId,
     fetchTools,
     onChooseType,
     handleCreateMcpTool,
+    handleQuickToolToggle,
   } = useToolsManager({ agentId });
 
   // Check if agent is published (read-only)
@@ -39,13 +42,27 @@ export function AgentToolsManager({ agentId, workspaceId, agent }: Props) {
 
   return (
     <>
-      {/* Existing Tools */}
+      {/* Existing Tools (includes inline subagents manager) */}
       <ToolsList 
         tools={tools}
         onToolsChange={fetchTools}
         isReadOnly={isReadOnly}
         agentType={agent?.type}
+        agentId={agentId}
+        workspaceId={workspaceId}
       />
+
+      {/* Quick Tool Toggles */}
+      {restackCoreMcpServerId && (
+        <QuickToolToggles
+          agentId={agentId}
+          tools={tools}
+          onToggle={handleQuickToolToggle}
+          isCreating={isCreating}
+          isReadOnly={isReadOnly}
+          restackCoreMcpServerId={restackCoreMcpServerId}
+        />
+      )}
 
       {/* Add Tool Section */}
       <ToolsActions

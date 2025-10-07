@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useMemo } from "react";
 import { ConversationItem } from "../types";
 import { EmptyState } from "@workspace/ui/components/empty-state";
 import { PromptInput } from "@workspace/ui/components/ai-elements/prompt-input";
@@ -6,6 +6,8 @@ import { Response } from "@workspace/ui/components/ai-elements/response";
 import { TaskCardMcp, TaskCardTool, TaskCardWebSearch, TaskCardError } from "./cards";
 import { Reasoning, ReasoningTrigger, ReasoningContent } from "@workspace/ui/components/ai-elements/reasoning";
 import { useConversationItem } from "../hooks/use-conversation-item";
+import { TaskTodosList } from "./task-todos-list";
+import { TaskSubtasksList } from "./task-subtasks-list";
 
 
 interface TaskChatInterfaceProps {
@@ -13,11 +15,12 @@ interface TaskChatInterfaceProps {
   chatMessage: string;
   onChatMessageChange: (message: string) => void;
   onSendMessage: () => void;
-  onCardClick: (item: ConversationItem) => void;
+  onCardClick?: (item: ConversationItem) => void;
   onApproveRequest?: (itemId: string) => void;
   onDenyRequest?: (itemId: string) => void;
   agentLoading: boolean;
   showSplitView: boolean;
+  responseState?: unknown; // Agent state for real-time updates
 }
 
 export function TaskChatInterface({
@@ -30,8 +33,26 @@ export function TaskChatInterface({
   onDenyRequest,
   agentLoading,
   showSplitView,
+  responseState,
 }: TaskChatInterfaceProps) {
   const conversationEndRef = useRef<HTMLDivElement>(null);
+
+  // Extract todos and subtasks from agent state (real-time for all clients)
+  const todos = useMemo(() => {
+    if (!responseState || typeof responseState !== 'object') {
+      return null;
+    }
+    const state = responseState as { todos?: unknown[] };
+    return state.todos && state.todos.length > 0 ? state.todos : null;
+  }, [responseState]);
+
+  const subtasks = useMemo(() => {
+    if (!responseState || typeof responseState !== 'object') {
+      return null;
+    }
+    const state = responseState as { subtasks?: unknown[] };
+    return state.subtasks && state.subtasks.length > 0 ? state.subtasks : null;
+  }, [responseState]);
 
   console.log("conversation", conversation);
 
@@ -61,6 +82,15 @@ export function TaskChatInterface({
           </>
         )}
         <div ref={conversationEndRef} />
+      </div>
+
+      <div className="p-4 space-y-2">
+          {/* Persistent Subtasks List above input - real-time from agent state */}
+          {subtasks && <TaskSubtasksList subtasks={subtasks} />}
+
+          {/* Persistent Todo List above input */}
+          {todos && <TaskTodosList todos={todos} />}
+
       </div>
 
       <PromptInput
@@ -137,7 +167,6 @@ function RenderConversationItem({
       );
         
     case 'mcp_call':
-      // Render as TaskCardTool to show the execution result
       return (
         <TaskCardTool 
           key={item.id}

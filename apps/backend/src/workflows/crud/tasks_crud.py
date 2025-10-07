@@ -1,6 +1,7 @@
 import asyncio
 from datetime import timedelta
 
+from pydantic import BaseModel, Field
 from restack_ai.workflow import (
     NonRetryableError,
     ParentClosePolicy,
@@ -44,13 +45,23 @@ with import_functions():
     )
 
 
+# Input models for workflows
+class PlaygroundCreateDualTasksInput(BaseModel):
+    workspace_id: str = Field(..., min_length=1)
+    task_description: str = Field(..., min_length=1)
+    draft_agent_id: str = Field(..., min_length=1)
+    comparison_agent_id: str = Field(..., min_length=1)
+
+
 # Workflow definitions
 @workflow.defn()
 class TasksReadWorkflow:
     """Workflow to read all tasks."""
 
     @workflow.run
-    async def run(self, workflow_input: dict) -> TaskListOutput:
+    async def run(
+        self, workflow_input: TaskGetByWorkspaceInput
+    ) -> TaskListOutput:
         log.info("TasksReadWorkflow started")
         try:
             return await workflow.step(
@@ -105,6 +116,9 @@ class TasksCreateWorkflow:
                 start_to_close_timeout=timedelta(seconds=2),
             )
 
+            # Get temporal_parent_agent_id from the task (already in DB)
+            temporal_parent_agent_id = result.task.temporal_parent_agent_id
+
             agent_task = await workflow.child_start(
                 agent_id=f"task_agent_{result.task.id}",
                 agent=AgentTask,
@@ -118,6 +132,8 @@ class TasksCreateWorkflow:
                     user_id=result.task.assigned_to_id,
                     workspace_id=result.task.workspace_id,
                     task_id=result.task.id,
+                    parent_task_id=result.task.parent_task_id,
+                    temporal_parent_agent_id=temporal_parent_agent_id,
                 ),
                 parent_close_policy=ParentClosePolicy.ABANDON,
             )
@@ -130,7 +146,7 @@ class TasksCreateWorkflow:
                 function=tasks_update_agent_task_id,
                 function_input=TaskUpdateAgentTaskIdInput(
                     task_id=result.task.id,
-                    agent_task_id=agent_task.id,
+                    temporal_agent_id=agent_task.id,
                 ),
             )
 
@@ -138,7 +154,7 @@ class TasksCreateWorkflow:
                 function=send_agent_event,
                 function_input=SendAgentEventInput(
                     event_name="messages",
-                    agent_id=agent_task.id,
+                    temporal_agent_id=agent_task.id,
                     event_input={
                         "messages": [
                             Message(
@@ -167,7 +183,7 @@ class TasksUpdateWorkflow:
     ) -> TaskSingleOutput:
         log.info("TasksUpdateWorkflow started")
         try:
-            # First get the current task to check its status and agent_task_id
+            # First get the current task to check its status and temporal_agent_id
             current_task = None
             if hasattr(
                 workflow_input, "status"
@@ -198,38 +214,38 @@ class TasksUpdateWorkflow:
             # If task is being completed/closed and has an active agent, stop the agent FIRST
             if (
                 current_task
-                and current_task.agent_task_id
+                and current_task.temporal_agent_id
                 and hasattr(workflow_input, "status")
                 and workflow_input.status
                 in ["completed", "closed"]
             ):
                 try:
                     log.info(
-                        f"Stopping agent {current_task.agent_task_id} before task {workflow_input.status}"
+                        f"Stopping agent {current_task.temporal_agent_id} before task {workflow_input.status}"
                     )
                     await workflow.step(
                         function=send_agent_event,
                         function_input=SendAgentEventInput(
                             event_name="end",
-                            agent_id=current_task.agent_task_id,
+                            temporal_agent_id=current_task.temporal_agent_id,
                         ),
                         start_to_close_timeout=timedelta(
                             seconds=30
                         ),
                     )
                     log.info(
-                        f"Successfully sent end event to agent {current_task.agent_task_id}"
+                        f"Successfully sent end event to agent {current_task.temporal_agent_id}"
                     )
                 except (ValueError, RuntimeError, OSError) as e:
                     # Don't fail the task update if agent stopping fails, just log it
                     # This can happen if the agent workflow doesn't exist or has already completed
                     if "workflow not found" in str(e).lower():
                         log.info(
-                            f"Agent workflow {current_task.agent_task_id} not found - likely already completed or stopped"
+                            f"Agent workflow {current_task.temporal_agent_id} not found - likely already completed or stopped"
                         )
                     else:
                         log.warning(
-                            f"Failed to stop agent {current_task.agent_task_id}: {e}"
+                            f"Failed to stop agent {current_task.temporal_agent_id}: {e}"
                         )
 
             # Then update the task in the database
@@ -315,7 +331,7 @@ class TasksGetByStatusWorkflow:
 
 @workflow.defn()
 class TasksUpdateAgentTaskIdWorkflow:
-    """Workflow to update agent_task_id when agent starts execution."""
+    """Workflow to update temporal_agent_id when agent starts execution."""
 
     @workflow.run
     async def run(
@@ -331,7 +347,7 @@ class TasksUpdateAgentTaskIdWorkflow:
 
         except Exception as e:
             error_message = (
-                f"Error during tasks_update_agent_task_id: {e}"
+                f"Error during tasks_update_temporal_agent_id: {e}"
             )
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e
@@ -342,15 +358,15 @@ class PlaygroundCreateDualTasksWorkflow:
     """Workflow to create two tasks simultaneously for playground A/B comparison."""
 
     @workflow.run
-    async def run(self, workflow_input: dict) -> dict:
+    async def run(
+        self, workflow_input: PlaygroundCreateDualTasksInput
+    ) -> dict:
         log.info("PlaygroundCreateDualTasksWorkflow started")
         try:
-            workspace_id = workflow_input["workspace_id"]
-            task_description = workflow_input["task_description"]
-            draft_agent_id = workflow_input["draft_agent_id"]
-            comparison_agent_id = workflow_input[
-                "comparison_agent_id"
-            ]
+            workspace_id = workflow_input.workspace_id
+            task_description = workflow_input.task_description
+            draft_agent_id = workflow_input.draft_agent_id
+            comparison_agent_id = workflow_input.comparison_agent_id
 
             # Create input for both task creation workflows
             draft_task_input = TaskCreateInput(
@@ -358,7 +374,7 @@ class PlaygroundCreateDualTasksWorkflow:
                 title=f"Playground Draft: {task_description[:50]}...",
                 description=task_description,
                 agent_id=draft_agent_id,
-                status="active",
+                status="in_progress",
             )
 
             comparison_task_input = TaskCreateInput(
@@ -366,7 +382,7 @@ class PlaygroundCreateDualTasksWorkflow:
                 title=f"Playground Comparison: {task_description[:50]}...",
                 description=task_description,
                 agent_id=comparison_agent_id,
-                status="active",
+                status="in_progress",
             )
 
             # Execute both TasksCreateWorkflow instances in parallel
@@ -396,8 +412,8 @@ class PlaygroundCreateDualTasksWorkflow:
             return {
                 "draft_task_id": draft_result.task.id,
                 "comparison_task_id": comparison_result.task.id,
-                "draft_agent_task_id": draft_result.task.agent_task_id,
-                "comparison_agent_task_id": comparison_result.task.agent_task_id,
+                "draft_temporal_agent_id": draft_result.task.temporal_agent_id,
+                "comparison_temporal_agent_id": comparison_result.task.temporal_agent_id,
             }
 
 

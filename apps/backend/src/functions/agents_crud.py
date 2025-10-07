@@ -7,7 +7,7 @@ from sqlalchemy import and_, func, select
 from sqlalchemy.orm import selectinload
 
 from src.database.connection import get_async_db
-from src.database.models import Agent, AgentTool
+from src.database.models import Agent, AgentSubagent, AgentTool
 
 
 def _raise_source_agent_not_found_error(
@@ -1232,6 +1232,23 @@ async def agents_clone(
                     enabled=source_tool.enabled,
                 )
                 db.add(new_tool)
+
+            # Get all subagents from the source agent
+            subagents_query = select(AgentSubagent).where(
+                AgentSubagent.parent_agent_id == source_agent_id
+            )
+            subagents_result = await db.execute(subagents_query)
+            source_subagents = subagents_result.scalars().all()
+
+            # Clone each subagent relationship
+            for source_subagent in source_subagents:
+                new_subagent = AgentSubagent(
+                    id=uuid.uuid4(),
+                    parent_agent_id=new_agent.id,
+                    subagent_id=source_subagent.subagent_id,
+                    enabled=source_subagent.enabled,
+                )
+                db.add(new_subagent)
 
             await db.commit()
             await db.refresh(new_agent)

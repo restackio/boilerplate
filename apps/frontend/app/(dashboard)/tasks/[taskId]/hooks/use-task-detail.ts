@@ -26,7 +26,7 @@ export function useTaskDetail() {
 
   const { responseState, agentResponses, loading: agentLoading, sendMessageToAgent } = useAgentState({
     taskId,
-    agentTaskId: task?.agent_task_id || undefined,
+    agentTaskId: task?.temporal_agent_id || undefined,
     onStateChange: () => {
       // Agent state changed - no logging needed in production
     },
@@ -35,7 +35,7 @@ export function useTaskDetail() {
   const { conversation, updateConversationItemStatus } = useRxjsConversation({
     responseState: responseState as { events: OpenAIEvent[]; [key: string]: unknown } | false,
     agentResponses: agentResponses as { events?: OpenAIEvent[]; [key: string]: unknown }[],
-    taskAgentTaskId: task?.agent_task_id,
+    taskAgentTaskId: task?.temporal_agent_id,
     persistedMessages: task?.messages,
     storeKey: taskId, // Use taskId as unique store key
   });
@@ -121,7 +121,7 @@ export function useTaskDetail() {
   };
 
   const handleSendMessage = async () => {
-    if (!chatMessage.trim() || !task?.agent_task_id) {
+    if (!chatMessage.trim() || !task?.temporal_agent_id) {
       return;
     }
 
@@ -175,6 +175,7 @@ export function useTaskDetail() {
     selectedCard,
     conversation,
     agentLoading,
+    responseState, // Add responseState so we can access todos
     setShowDeleteDialog,
     setChatMessage,
     setActiveTab,

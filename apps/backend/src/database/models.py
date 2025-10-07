@@ -358,6 +358,57 @@ class AgentTool(Base):
     mcp_server = relationship("McpServer", backref="agent_tools")
 
 
+class AgentSubagent(Base):
+    __tablename__ = "agent_subagents"
+
+    id = Column(UUID(as_uuid=True), primary_key=True)
+    parent_agent_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("agents.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    subagent_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("agents.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    enabled = Column(Boolean, nullable=False, default=True)
+    created_at = Column(
+        DateTime,
+        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+    )
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+        onupdate=lambda: datetime.now(tz=UTC).replace(
+            tzinfo=None
+        ),
+    )
+
+    # Constraints
+    __table_args__ = (
+        UniqueConstraint(
+            "parent_agent_id",
+            "subagent_id",
+            name="unique_parent_subagent",
+        ),
+        Index("idx_agent_subagents_parent_agent_id", "parent_agent_id"),
+        Index("idx_agent_subagents_subagent_id", "subagent_id"),
+    )
+
+    # Relationships
+    parent_agent = relationship(
+        "Agent",
+        foreign_keys=[parent_agent_id],
+        backref="configured_subagents",
+    )
+    subagent = relationship(
+        "Agent",
+        foreign_keys=[subagent_id],
+        backref="parent_agents",
+    )
+
+
 class Task(Base):
     __tablename__ = "tasks"
 
@@ -385,12 +436,21 @@ class Task(Base):
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
     )
-    agent_task_id = Column(
+    temporal_agent_id = Column(
         String(255), nullable=True
-    )  # Restack agent task ID for state management
+    )
     messages = Column(
         JSONB, nullable=True
     )  # Store conversation history for completed tasks
+    # Subtask-related columns
+    parent_task_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("tasks.id", ondelete="CASCADE"),
+        nullable=True,
+    )  # Reference to parent task if this is a subtask
+    temporal_parent_agent_id = Column(
+        String(255), nullable=True
+    )  # Parent's Temporal workflow ID for event routing (cached for performance)
     # Schedule-related columns
     schedule_spec = Column(
         JSONB, nullable=True
@@ -406,9 +466,9 @@ class Task(Base):
     schedule_status = Column(
         String(50), nullable=True, default="inactive"
     )  # Schedule status: active, inactive, paused
-    restack_schedule_id = Column(
+    temporal_schedule_id = Column(
         String(255), nullable=True
-    )  # Restack schedule ID for managing the schedule
+    )
     created_at = Column(
         DateTime,
         default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
@@ -426,9 +486,8 @@ class Task(Base):
         CheckConstraint(
             status.in_(
                 [
-                    "open",
-                    "active",
-                    "waiting",
+                    "in_progress",
+                    "in_review",
                     "closed",
                     "completed",
                 ]
@@ -453,6 +512,15 @@ class Task(Base):
     agent = relationship("Agent", back_populates="tasks")
     assigned_to_user = relationship(
         "User", foreign_keys=[assigned_to_id]
+    )
+    # Self-referencing relationship for parent-child tasks (subtasks)
+    parent_task = relationship(
+        "Task", remote_side=[id], foreign_keys=[parent_task_id]
+    )
+    subtasks = relationship(
+        "Task",
+        back_populates="parent_task",
+        foreign_keys=[parent_task_id],
     )
     # Self-referencing relationship for schedule tasks
     schedule_task = relationship(

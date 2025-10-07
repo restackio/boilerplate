@@ -44,7 +44,9 @@ class GenerateMockInput(BaseModel):
 class GenerateMockOutput(BaseModel):
     """Output containing the generated mock integration response."""
 
-    response: dict[str, Any] | list[dict[str, Any]]
+    response: Any = Field(
+        ..., description="Generated mock data (object or array)"
+    )
     integration_type: str
 
 

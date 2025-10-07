@@ -4,7 +4,7 @@ import json
 from datetime import timedelta
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 from restack_ai.workflow import (
     NonRetryableError,
     import_functions,
@@ -14,45 +14,33 @@ from restack_ai.workflow import (
 
 
 class TransformDataInput(BaseModel):
-    """Input for transforming data using AI."""
+    """Transform data using AI with structured output.
+    
+    Three separate required parameters:
+    - input_data: The actual data object to analyze
+    - transformation_task: What analysis to perform
+    - output_schema: JSON Schema for the result
+    """
 
-    data: list[dict[str, Any] | str] = Field(
+    input_data: list[dict[str, Any]] = Field(
         ...,
-        description="Input data to transform (can be objects or JSON strings)",
+        description="The actual data object to analyze. Put the raw data here. Example: [{'integration_type': 'zendesk_ticket', 'response': {'ticket': {...}}}]",
     )
-    prompt: str = Field(
-        ..., description="Transformation prompt/instructions"
+    transformation_task: str = Field(
+        ...,
+        description="The analysis or transformation task to perform. Example: 'Assess ticket urgency based on severity and impact'",
     )
-    output_schema: dict[str, Any] = Field(
-        ..., description="JSON schema for structured output"
+    output_schema: dict = Field(
+        ...,
+        description=(
+            "JSON Schema for the output. Must have 'type' and 'properties'. "
+            "Example: {'type': 'object', 'properties': {'urgency_level': {'type': 'string'}}}"
+        )
     )
     model: str = Field(
         default="gpt-4o-mini",
         description="AI model to use for transformation",
     )
-
-    @field_validator("data")
-    @classmethod
-    def parse_data(
-        cls, v: list[dict[str, Any] | str]
-    ) -> list[dict[str, Any]]:
-        """Parse data items, converting JSON strings to dictionaries if needed."""
-        parsed_data = []
-        for item in v:
-            if isinstance(item, str):
-                try:
-                    parsed_item = json.loads(item)
-                    parsed_data.append(parsed_item)
-                except json.JSONDecodeError as e:
-                    error_message = f"Invalid JSON string in data: {item[:100]}..."
-                    raise ValueError(error_message) from e
-            elif isinstance(item, dict):
-                parsed_data.append(item)
-            else:
-                error_message = f"Data item must be a dictionary or JSON string, got {type(item)}"
-                raise TypeError(error_message)
-        return parsed_data
-
 
 class TransformDataOutput(BaseModel):
     """Output after transforming data."""
@@ -93,7 +81,7 @@ class TransformData:
             # Prepare the system prompt for transformation
             system_prompt = f"""You are a data transformation assistant. Transform the provided data according to the user's instructions.
 
-Instructions: {workflow_input.prompt}
+Instructions: {workflow_input.transformation_task}
 
 You must return the transformed data as a JSON array where each item follows this schema:
 {json.dumps(workflow_input.output_schema, indent=2)}
@@ -101,7 +89,7 @@ You must return the transformed data as a JSON array where each item follows thi
 Return ONLY the JSON array, no additional text or formatting."""
 
             # Prepare the user message with the input data
-            user_message = f"Transform this data:\n{json.dumps(workflow_input.data, indent=2)}"
+            user_message = f"Transform this data:\n{json.dumps(workflow_input.input_data, indent=2)}"
 
             # Prepare the LLM request parameters
             create_params = {
@@ -137,7 +125,7 @@ Return ONLY the JSON array, no additional text or formatting."""
                 result = TransformDataOutput(
                     success=True,
                     transformed_data=transformed_data,
-                    message=f"Successfully transformed {len(workflow_input.data)} records into {len(transformed_data)} records",
+                    message=f"Successfully transformed data into {len(transformed_data)} record(s)",
                 )
 
                 log.info(

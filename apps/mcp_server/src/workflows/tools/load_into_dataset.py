@@ -2,9 +2,9 @@
 
 import json
 import re
-from typing import Any
+from typing import Any, Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 from restack_ai.workflow import NonRetryableError, log, workflow
 
 # Import PipelineEventInput to create proper objects
@@ -17,15 +17,15 @@ except ImportError:
     # Fallback: Define a local version if import fails
     class PipelineEventInput(BaseModel):
         agent_id: str = Field(..., min_length=1)
-        task_id: str | None = None
+        task_id: Optional[str] = None
         workspace_id: str = Field(..., min_length=1)
-        dataset_id: str | None = None
+        dataset_id: Optional[str] = None
         event_name: str = Field(..., min_length=1)
         raw_data: dict[str, Any] = Field(default_factory=dict)
-        transformed_data: dict[str, Any] | None = None
-        tags: list[str] | None = None
-        embedding: list[float] | None = None
-        event_timestamp: str | None = None
+        transformed_data: Optional[dict[str, Any]] = None
+        tags: Optional[list[str]] = None
+        embedding: Optional[list[float]] = None
+        event_timestamp: Optional[str] = None
 
 
 def sanitize_json_string(json_str: str) -> str:
@@ -111,8 +111,9 @@ def safe_json_parse(
 class LoadIntoDatasetInput(BaseModel):
     """Input for loading data into a dataset."""
 
-    data: list[dict[str, Any] | str] = Field(
-        ..., description="Data to load into dataset"
+    input_data: list[dict[str, Any]] = Field(
+        ..., 
+        description="Data to load as an array of objects. Example: [{'record': {...}}] or [{'record': {...}}, {'record': {...}}]"
     )
     dataset_name: str = Field(
         ..., description="Name of the dataset"
@@ -123,37 +124,15 @@ class LoadIntoDatasetInput(BaseModel):
     workspace_id: str = Field(
         ..., description="ID of the workspace"
     )
-    task_id: str | None = Field(
+    task_id: Optional[str] = Field(
         default=None, description="ID of the task"
     )
     event_name: str = Field(
         default="Data Load", description="Event name for tracking"
     )
-    tags: list[str] | None = Field(
+    tags: Optional[list[str]] = Field(
         default=None, description="Tags for the event"
     )
-
-    @field_validator("data", mode="before")
-    @classmethod
-    def parse_data(cls, v: Any) -> list[dict[str, Any]]:
-        """Parse data field, converting JSON strings to dictionaries if needed."""
-        if isinstance(v, list):
-            parsed_data = []
-            for i, item in enumerate(v):
-                if isinstance(item, str):
-                    try:
-                        parsed_data.append(
-                            safe_json_parse(item, i)
-                        )
-                    except NonRetryableError:
-                        # If it's not valid JSON, keep as string for now
-                        # The main workflow will handle the error with better context
-                        parsed_data.append(item)
-                else:
-                    parsed_data.append(item)
-            return parsed_data
-        return v
-
 
 class LoadIntoDatasetOutput(BaseModel):
     """Output after loading data into a dataset."""
@@ -202,7 +181,7 @@ class LoadIntoDataset:
         try:
             # Process the data - ensure all records are dictionaries
             processed_data = []
-            for i, record in enumerate(workflow_input.data):
+            for i, record in enumerate(workflow_input.input_data):
                 # Ensure record is a dictionary
                 if isinstance(record, str):
                     parsed_record = safe_json_parse(record, i)
