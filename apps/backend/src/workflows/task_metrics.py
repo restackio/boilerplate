@@ -81,8 +81,8 @@ class TaskMetricsWorkflow:
     """
 
     @workflow.run
-    async def run(self, input: TaskMetricsInput) -> TaskMetricsOutput:
-        log.info(f"Starting metrics evaluation for task {input.task_id}")
+    async def run(self, workflow_input: TaskMetricsInput) -> TaskMetricsOutput:
+        log.info(f"Starting metrics evaluation for task {workflow_input.task_id}")
         
         start_time = time.time()
         errors = []
@@ -91,18 +91,18 @@ class TaskMetricsWorkflow:
         try:
             await workflow.step(
                 ingest_performance_metrics,
-                task_id=input.task_id,
-                agent_id=input.agent_id,
-                agent_name=input.agent_name,
-                parent_agent_id=input.parent_agent_id,
-                workspace_id=input.workspace_id,
-                agent_version=input.agent_version,
-                duration_ms=input.duration_ms,
-                input_tokens=input.input_tokens,
-                output_tokens=input.output_tokens,
-                status=input.status,
-                task_input=input.task_input,
-                task_output=input.task_output,
+                task_id=workflow_input.task_id,
+                agent_id=workflow_input.agent_id,
+                agent_name=workflow_input.agent_name,
+                parent_agent_id=workflow_input.parent_agent_id,
+                workspace_id=workflow_input.workspace_id,
+                agent_version=workflow_input.agent_version,
+                duration_ms=workflow_input.duration_ms,
+                input_tokens=workflow_input.input_tokens,
+                output_tokens=workflow_input.output_tokens,
+                status=workflow_input.status,
+                task_input=workflow_input.task_input,
+                task_output=workflow_input.task_output,
             )
             performance_saved = True
             log.info("Performance metrics saved")
@@ -114,14 +114,14 @@ class TaskMetricsWorkflow:
         # Step 2: Get assigned metrics
         quality_results = []
         
-        if not input.run_quality_metrics:
+        if not workflow_input.run_quality_metrics:
             log.info("Skipping quality metrics")
         else:
             try:
                 # Get metrics that should run on completion
                 agent_metrics = await workflow.step(
                     get_agent_metrics,
-                    agent_id=input.agent_id,
+                    agent_id=workflow_input.agent_id,
                     enabled_only=True,
                 )
                 
@@ -149,34 +149,34 @@ class TaskMetricsWorkflow:
                         if metric_type == "llm_judge":
                             task = workflow.step(
                                 evaluate_llm_judge_metric,
-                                task_id=input.task_id,
-                                task_input=input.task_input,
-                                task_output=input.task_output,
+                                task_id=workflow_input.task_id,
+                                task_input=workflow_input.task_input,
+                                task_output=workflow_input.task_output,
                                 metric_definition=metric_def,
                             )
                         elif metric_type == "python_code":
                             task = workflow.step(
                                 evaluate_python_code_metric,
-                                task_id=input.task_id,
-                                task_input=input.task_input,
-                                task_output=input.task_output,
+                                task_id=workflow_input.task_id,
+                                task_input=workflow_input.task_input,
+                                task_output=workflow_input.task_output,
                                 performance_data={
-                                    "duration_ms": input.duration_ms,
-                                    "input_tokens": input.input_tokens,
-                                    "output_tokens": input.output_tokens,
-                                    "status": input.status,
+                                    "duration_ms": workflow_input.duration_ms,
+                                    "input_tokens": workflow_input.input_tokens,
+                                    "output_tokens": workflow_input.output_tokens,
+                                    "status": workflow_input.status,
                                 },
                                 metric_definition=metric_def,
                             )
                         elif metric_type == "formula":
                             task = workflow.step(
                                 evaluate_formula_metric,
-                                task_id=input.task_id,
+                                task_id=workflow_input.task_id,
                                 performance_data={
-                                    "duration_ms": input.duration_ms,
-                                    "input_tokens": input.input_tokens,
-                                    "output_tokens": input.output_tokens,
-                                    "status": input.status,
+                                    "duration_ms": workflow_input.duration_ms,
+                                    "input_tokens": workflow_input.input_tokens,
+                                    "output_tokens": workflow_input.output_tokens,
+                                    "status": workflow_input.status,
                                 },
                                 metric_definition=metric_def,
                             )
@@ -202,9 +202,9 @@ class TaskMetricsWorkflow:
                             try:
                                 await workflow.step(
                                     ingest_quality_metrics,
-                                    task_id=input.task_id,
-                                    agent_id=input.agent_id,
-                                    workspace_id=input.workspace_id,
+                                    task_id=workflow_input.task_id,
+                                    agent_id=workflow_input.agent_id,
+                                    workspace_id=workflow_input.workspace_id,
                                     quality_results=[
                                         {
                                             "metric_definition_id": r["metric_definition_id"],
@@ -238,7 +238,7 @@ class TaskMetricsWorkflow:
         )
         
         return TaskMetricsOutput(
-            task_id=input.task_id,
+            task_id=workflow_input.task_id,
             performance_saved=performance_saved,
             quality_metrics_count=len(quality_results),
             quality_metrics_results=[

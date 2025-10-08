@@ -105,17 +105,7 @@ class CreateMetricDefinitionWorkflow:
         try:
             return await workflow.step(
                 function=create_metric_definition,
-                workspace_id=workflow_input.workspace_id,
-                name=workflow_input.name,
-                description=workflow_input.description,
-                category=workflow_input.category,
-                metric_type=workflow_input.metric_type,
-                config=workflow_input.config,
-                output_type=workflow_input.output_type,
-                min_value=workflow_input.min_value,
-                max_value=workflow_input.max_value,
-                is_default=workflow_input.is_default,
-                created_by=workflow_input.created_by,
+                function_input=workflow_input.model_dump(),
                 start_to_close_timeout=timedelta(seconds=30),
             )
         except Exception as e:
@@ -134,7 +124,7 @@ class GetMetricDefinitionWorkflow:
         try:
             return await workflow.step(
                 function=get_metric_definition,
-                metric_id=workflow_input.metric_id,
+                function_input=workflow_input.model_dump(),
                 start_to_close_timeout=timedelta(seconds=30),
             )
         except Exception as e:
@@ -153,10 +143,7 @@ class ListMetricDefinitionsWorkflow:
         try:
             return await workflow.step(
                 function=list_metric_definitions,
-                workspace_id=workflow_input.workspace_id,
-                category=workflow_input.category,
-                metric_type=workflow_input.metric_type,
-                is_active=workflow_input.is_active,
+                function_input=workflow_input.model_dump(),
                 start_to_close_timeout=timedelta(seconds=30),
             )
         except Exception as e:
@@ -173,16 +160,10 @@ class UpdateMetricDefinitionWorkflow:
     async def run(self, workflow_input: UpdateMetricDefinitionInput) -> dict[str, Any] | None:
         log.info("UpdateMetricDefinitionWorkflow started")
         try:
-            # Build kwargs from non-None values
-            kwargs = {
-                k: v for k, v in workflow_input.model_dump().items()
-                if k != "metric_id" and v is not None
-            }
             return await workflow.step(
                 function=update_metric_definition,
-                metric_id=workflow_input.metric_id,
+                function_input=workflow_input.model_dump(),
                 start_to_close_timeout=timedelta(seconds=30),
-                **kwargs,
             )
         except Exception as e:
             error_message = f"Error during update_metric_definition: {e}"
@@ -200,7 +181,7 @@ class DeleteMetricDefinitionWorkflow:
         try:
             return await workflow.step(
                 function=delete_metric_definition,
-                metric_id=workflow_input.metric_id,
+                function_input=workflow_input.model_dump(),
                 start_to_close_timeout=timedelta(seconds=30),
             )
         except Exception as e:
@@ -219,13 +200,7 @@ class AssignMetricToAgentWorkflow:
         try:
             return await workflow.step(
                 function=assign_metric_to_agent,
-                agent_id=workflow_input.agent_id,
-                metric_definition_id=workflow_input.metric_definition_id,
-                enabled=workflow_input.enabled,
-                run_on_completion=workflow_input.run_on_completion,
-                run_on_playground=workflow_input.run_on_playground,
-                alert_threshold=workflow_input.alert_threshold,
-                alert_condition=workflow_input.alert_condition,
+                function_input=workflow_input.model_dump(),
                 start_to_close_timeout=timedelta(seconds=30),
             )
         except Exception as e:
@@ -244,8 +219,7 @@ class GetAgentMetricsWorkflow:
         try:
             return await workflow.step(
                 function=get_agent_metrics,
-                agent_id=workflow_input.agent_id,
-                enabled_only=workflow_input.enabled_only,
+                function_input=workflow_input.model_dump(),
                 start_to_close_timeout=timedelta(seconds=30),
             )
         except Exception as e:
@@ -264,7 +238,7 @@ class GetPlaygroundMetricsWorkflow:
         try:
             return await workflow.step(
                 function=get_playground_metrics,
-                agent_id=workflow_input.agent_id,
+                function_input=workflow_input.model_dump(),
                 start_to_close_timeout=timedelta(seconds=30),
             )
         except Exception as e:
@@ -283,8 +257,7 @@ class UnassignMetricFromAgentWorkflow:
         try:
             return await workflow.step(
                 function=unassign_metric_from_agent,
-                agent_id=workflow_input.agent_id,
-                metric_definition_id=workflow_input.metric_definition_id,
+                function_input=workflow_input.model_dump(),
                 start_to_close_timeout=timedelta(seconds=30),
             )
         except Exception as e:
