@@ -130,6 +130,24 @@ from src.functions.workspaces_crud import (
     workspaces_read,
     workspaces_update,
 )
+from src.functions.metrics_crud import (
+    create_metric_definition,
+    get_metric_definition,
+    list_metric_definitions,
+    update_metric_definition,
+    delete_metric_definition,
+    assign_metric_to_agent,
+    get_agent_metrics,
+    get_playground_metrics,
+    unassign_metric_from_agent,
+)
+from src.functions.metrics_evaluation import (
+    evaluate_llm_judge_metric,
+    evaluate_python_code_metric,
+    evaluate_formula_metric,
+    ingest_performance_metrics,
+    ingest_quality_metrics,
+)
 from src.workflows.crud.agent_subagents_crud import (
     AgentSubagentsCreateWorkflow,
     AgentSubagentsDeleteWorkflow,
@@ -230,6 +248,18 @@ from src.workflows.crud.workspaces_crud import (
     WorkspacesReadWorkflow,
     WorkspacesUpdateWorkflow,
 )
+from src.workflows.crud.metrics_crud import (
+    CreateMetricDefinitionWorkflow,
+    GetMetricDefinitionWorkflow,
+    ListMetricDefinitionsWorkflow,
+    UpdateMetricDefinitionWorkflow,
+    DeleteMetricDefinitionWorkflow,
+    AssignMetricToAgentWorkflow,
+    GetAgentMetricsWorkflow,
+    GetPlaygroundMetricsWorkflow,
+    UnassignMetricFromAgentWorkflow,
+)
+from src.workflows.task_metrics import TaskMetricsWorkflow
 
 # Create logger for this module
 logger = logging.getLogger(__name__)
@@ -316,6 +346,17 @@ async def run_restack_service() -> None:
             OAuthTokenRefreshWorkflow,
             OAuthTokenSetDefaultWorkflow,
             OAuthTokenSetDefaultByIdWorkflow,
+            # Metrics workflows
+            CreateMetricDefinitionWorkflow,
+            GetMetricDefinitionWorkflow,
+            ListMetricDefinitionsWorkflow,
+            UpdateMetricDefinitionWorkflow,
+            DeleteMetricDefinitionWorkflow,
+            AssignMetricToAgentWorkflow,
+            GetAgentMetricsWorkflow,
+            GetPlaygroundMetricsWorkflow,
+            UnassignMetricFromAgentWorkflow,
+            TaskMetricsWorkflow,
         ],
         functions=[
             send_agent_event,
@@ -414,6 +455,21 @@ async def run_restack_service() -> None:
             agent_subagents_toggle,
             agent_subagents_get_available,
             get_oauth_token_for_mcp_server,
+            # Metrics functions
+            create_metric_definition,
+            get_metric_definition,
+            list_metric_definitions,
+            update_metric_definition,
+            delete_metric_definition,
+            assign_metric_to_agent,
+            get_agent_metrics,
+            get_playground_metrics,
+            unassign_metric_from_agent,
+            evaluate_llm_judge_metric,
+            evaluate_python_code_metric,
+            evaluate_formula_metric,
+            ingest_performance_metrics,
+            ingest_quality_metrics,
         ],
     )
 

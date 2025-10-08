@@ -5,10 +5,8 @@ Evaluates task performance and runs quality metrics in parallel
 import time
 from dataclasses import dataclass
 from typing import Any
-from uuid import UUID
 
-from restack_ai import workflow
-from restack_ai.workflow import import_functions
+from restack_ai.workflow import import_functions, log, workflow
 
 with import_functions():
     from src.functions.metrics_crud import get_agent_metrics
@@ -84,7 +82,7 @@ class TaskMetricsWorkflow:
 
     @workflow.run
     async def run(self, input: TaskMetricsInput) -> TaskMetricsOutput:
-        workflow.logger.info(f"Starting metrics evaluation for task {input.task_id}")
+        log.info(f"Starting metrics evaluation for task {input.task_id}")
         
         start_time = time.time()
         errors = []
@@ -107,9 +105,9 @@ class TaskMetricsWorkflow:
                 task_output=input.task_output,
             )
             performance_saved = True
-            workflow.logger.info("Performance metrics saved")
+            log.info("Performance metrics saved")
         except Exception as e:
-            workflow.logger.error(f"Failed to save performance metrics: {e}")
+            log.error(f"Failed to save performance metrics: {e}")
             errors.append(f"Performance save error: {str(e)}")
             performance_saved = False
         
@@ -117,7 +115,7 @@ class TaskMetricsWorkflow:
         quality_results = []
         
         if not input.run_quality_metrics:
-            workflow.logger.info("Skipping quality metrics")
+            log.info("Skipping quality metrics")
         else:
             try:
                 # Get metrics that should run on completion
@@ -134,9 +132,9 @@ class TaskMetricsWorkflow:
                 ]
                 
                 if not completion_metrics:
-                    workflow.logger.info("No quality metrics configured for this agent")
+                    log.info("No quality metrics configured for this agent")
                 else:
-                    workflow.logger.info(
+                    log.info(
                         f"Running {len(completion_metrics)} quality metrics in parallel"
                     )
                     
@@ -183,7 +181,7 @@ class TaskMetricsWorkflow:
                                 metric_definition=metric_def,
                             )
                         else:
-                            workflow.logger.warning(f"Unknown metric type: {metric_type}")
+                            log.warning(f"Unknown metric type: {metric_type}")
                             continue
                         
                         metric_tasks.append(task)
@@ -195,7 +193,7 @@ class TaskMetricsWorkflow:
                         # Filter out None results (failed evaluations)
                         quality_results = [r for r in results if r is not None]
                         
-                        workflow.logger.info(
+                        log.info(
                             f"Completed {len(quality_results)}/{len(metric_tasks)} metric evaluations"
                         )
                         
@@ -222,18 +220,18 @@ class TaskMetricsWorkflow:
                                         for r in quality_results
                                     ],
                                 )
-                                workflow.logger.info("Quality metrics saved to ClickHouse")
+                                log.info("Quality metrics saved to ClickHouse")
                             except Exception as e:
-                                workflow.logger.error(f"Failed to save quality metrics: {e}")
+                                log.error(f"Failed to save quality metrics: {e}")
                                 errors.append(f"Quality save error: {str(e)}")
                 
             except Exception as e:
-                workflow.logger.error(f"Quality metrics evaluation failed: {e}")
+                log.error(f"Quality metrics evaluation failed: {e}")
                 errors.append(f"Quality evaluation error: {str(e)}")
         
         total_duration = int((time.time() - start_time) * 1000)
         
-        workflow.logger.info(
+        log.info(
             f"Task metrics workflow completed in {total_duration}ms. "
             f"Performance saved: {performance_saved}, "
             f"Quality metrics: {len(quality_results)}"
@@ -249,3 +247,4 @@ class TaskMetricsWorkflow:
             total_duration_ms=total_duration,
             errors=errors,
         )
+

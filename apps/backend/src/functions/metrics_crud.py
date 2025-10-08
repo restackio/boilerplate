@@ -8,9 +8,9 @@ from uuid import UUID
 
 from restack_ai.function import function, log
 from sqlalchemy import select
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import joinedload
 
-from src.database.connection import get_session_context_manager
+from src.database.connection import get_async_db
 from src.database.models import Agent, AgentMetric, MetricDefinition
 
 
@@ -54,7 +54,7 @@ async def create_metric_definition(
     """
     log.info(f"Creating metric definition: {name} in workspace {workspace_id}")
     
-    with get_session_context_manager() as session:
+    async for session in get_async_db():
         metric = MetricDefinition(
             workspace_id=UUID(workspace_id),
             name=name,
@@ -70,8 +70,8 @@ async def create_metric_definition(
         )
         
         session.add(metric)
-        session.commit()
-        session.refresh(metric)
+        await session.commit()
+        await session.refresh(metric)
         
         return _metric_to_dict(metric)
 
@@ -81,9 +81,10 @@ async def get_metric_definition(metric_id: str) -> dict[str, Any] | None:
     """Get a metric definition by ID"""
     log.info(f"Getting metric definition: {metric_id}")
     
-    with get_session_context_manager() as session:
+    async for session in get_async_db():
         stmt = select(MetricDefinition).where(MetricDefinition.id == UUID(metric_id))
-        metric = session.execute(stmt).scalar_one_or_none()
+        result = await session.execute(stmt)
+        metric = result.scalar_one_or_none()
         
         if not metric:
             return None
@@ -112,7 +113,7 @@ async def list_metric_definitions(
     """
     log.info(f"Listing metrics for workspace {workspace_id}")
     
-    with get_session_context_manager() as session:
+    async for session in get_async_db():
         stmt = select(MetricDefinition).where(
             MetricDefinition.workspace_id == UUID(workspace_id)
         )
@@ -126,7 +127,8 @@ async def list_metric_definitions(
         
         stmt = stmt.order_by(MetricDefinition.created_at.desc())
         
-        metrics = session.execute(stmt).scalars().all()
+        result = await session.execute(stmt)
+        metrics = result.scalars().all()
         return [_metric_to_dict(m) for m in metrics]
 
 
@@ -143,9 +145,10 @@ async def update_metric_definition(
     """
     log.info(f"Updating metric definition: {metric_id}")
     
-    with get_session_context_manager() as session:
+    async for session in get_async_db():
         stmt = select(MetricDefinition).where(MetricDefinition.id == UUID(metric_id))
-        metric = session.execute(stmt).scalar_one_or_none()
+        result = await session.execute(stmt)
+        metric = result.scalar_one_or_none()
         
         if not metric:
             return None
@@ -162,8 +165,8 @@ async def update_metric_definition(
         
         metric.updated_at = datetime.now(tz=UTC).replace(tzinfo=None)
         
-        session.commit()
-        session.refresh(metric)
+        await session.commit()
+        await session.refresh(metric)
         
         return _metric_to_dict(metric)
 
@@ -173,16 +176,17 @@ async def delete_metric_definition(metric_id: str) -> bool:
     """Delete a metric definition (soft delete by marking inactive)"""
     log.info(f"Deleting metric definition: {metric_id}")
     
-    with get_session_context_manager() as session:
+    async for session in get_async_db():
         stmt = select(MetricDefinition).where(MetricDefinition.id == UUID(metric_id))
-        metric = session.execute(stmt).scalar_one_or_none()
+        result = await session.execute(stmt)
+        metric = result.scalar_one_or_none()
         
         if not metric:
             return False
         
         # Soft delete
         metric.is_active = False
-        session.commit()
+        await session.commit()
         
         return True
 
@@ -219,13 +223,14 @@ async def assign_metric_to_agent(
     """
     log.info(f"Assigning metric {metric_definition_id} to agent {agent_id}")
     
-    with get_session_context_manager() as session:
+    async for session in get_async_db():
         # Check if already exists
         stmt = select(AgentMetric).where(
             AgentMetric.agent_id == UUID(agent_id),
             AgentMetric.metric_definition_id == UUID(metric_definition_id),
         )
-        existing = session.execute(stmt).scalar_one_or_none()
+        result = await session.execute(stmt)
+        existing = result.scalar_one_or_none()
         
         if existing:
             log.info("Metric already assigned, updating configuration")
@@ -236,8 +241,8 @@ async def assign_metric_to_agent(
             existing.alert_condition = alert_condition
             existing.updated_at = datetime.now(tz=UTC).replace(tzinfo=None)
             
-            session.commit()
-            session.refresh(existing)
+            await session.commit()
+            await session.refresh(existing)
             return _agent_metric_to_dict(existing)
         
         # Create new assignment
@@ -252,8 +257,8 @@ async def assign_metric_to_agent(
         )
         
         session.add(agent_metric)
-        session.commit()
-        session.refresh(agent_metric)
+        await session.commit()
+        await session.refresh(agent_metric)
         
         return _agent_metric_to_dict(agent_metric)
 
@@ -275,7 +280,7 @@ async def get_agent_metrics(
     """
     log.info(f"Getting metrics for agent {agent_id}")
     
-    with get_session_context_manager() as session:
+    async for session in get_async_db():
         stmt = (
             select(AgentMetric)
             .options(joinedload(AgentMetric.metric_definition))
@@ -287,7 +292,8 @@ async def get_agent_metrics(
         
         stmt = stmt.order_by(AgentMetric.created_at.desc())
         
-        agent_metrics = session.execute(stmt).scalars().all()
+        result = await session.execute(stmt)
+        agent_metrics = result.scalars().all()
         return [_agent_metric_to_dict(am, include_definition=True) for am in agent_metrics]
 
 
@@ -296,7 +302,7 @@ async def get_playground_metrics(agent_id: str) -> list[dict[str, Any]]:
     """Get metrics that should be displayed in playground for an agent"""
     log.info(f"Getting playground metrics for agent {agent_id}")
     
-    with get_session_context_manager() as session:
+    async for session in get_async_db():
         stmt = (
             select(AgentMetric)
             .options(joinedload(AgentMetric.metric_definition))
@@ -309,7 +315,8 @@ async def get_playground_metrics(agent_id: str) -> list[dict[str, Any]]:
             .where(MetricDefinition.is_active == True)
         )
         
-        agent_metrics = session.execute(stmt).scalars().all()
+        result = await session.execute(stmt)
+        agent_metrics = result.scalars().all()
         return [_agent_metric_to_dict(am, include_definition=True) for am in agent_metrics]
 
 
@@ -321,18 +328,19 @@ async def unassign_metric_from_agent(
     """Unassign a metric from an agent"""
     log.info(f"Unassigning metric {metric_definition_id} from agent {agent_id}")
     
-    with get_session_context_manager() as session:
+    async for session in get_async_db():
         stmt = select(AgentMetric).where(
             AgentMetric.agent_id == UUID(agent_id),
             AgentMetric.metric_definition_id == UUID(metric_definition_id),
         )
-        agent_metric = session.execute(stmt).scalar_one_or_none()
+        result = await session.execute(stmt)
+        agent_metric = result.scalar_one_or_none()
         
         if not agent_metric:
             return False
         
-        session.delete(agent_metric)
-        session.commit()
+        await session.delete(agent_metric)
+        await session.commit()
         
         return True
 

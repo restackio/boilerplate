@@ -195,7 +195,7 @@ export async function createMetricDefinition(data: {
   minValue?: number;
   maxValue?: number;
 }) {
-  const result = await executeWorkflow("create_metric_definition", {
+  const result = await executeWorkflow("CreateMetricDefinitionWorkflow", {
     workspace_id: data.workspaceId,
     name: data.name,
     description: data.description,
@@ -214,7 +214,7 @@ export async function createMetricDefinition(data: {
  * List all metric definitions for a workspace
  */
 export async function listMetricDefinitions(workspaceId: string) {
-  const result = await executeWorkflow("list_metric_definitions", { 
+  const result = await executeWorkflow("ListMetricDefinitionsWorkflow", { 
     workspace_id: workspaceId 
   });
   
@@ -231,7 +231,7 @@ export async function assignMetricToAgent(data: {
   runOnCompletion?: boolean;
   runOnPlayground?: boolean;
 }) {
-  const result = await executeWorkflow("assign_metric_to_agent", {
+  const result = await executeWorkflow("AssignMetricToAgentWorkflow", {
     agent_id: data.agentId,
     metric_definition_id: data.metricDefinitionId,
     enabled: data.enabled ?? true,
@@ -246,7 +246,7 @@ export async function assignMetricToAgent(data: {
  * Get metrics assigned to an agent
  */
 export async function getAgentMetrics(agentId: string) {
-  const result = await executeWorkflow("get_agent_metrics", { 
+  const result = await executeWorkflow("GetAgentMetricsWorkflow", { 
     agent_id: agentId 
   });
   
@@ -257,7 +257,7 @@ export async function getAgentMetrics(agentId: string) {
  * Get playground metrics for an agent
  */
 export async function getPlaygroundMetrics(agentId: string) {
-  const result = await executeWorkflow("get_playground_metrics", { 
+  const result = await executeWorkflow("GetPlaygroundMetricsWorkflow", { 
     agent_id: agentId 
   });
   

@@ -3,14 +3,14 @@ Metrics Evaluation Functions
 Executes different types of metrics: LLM judges, Python code, and formulas
 """
 import json
+import os
 import time
 from typing import Any
 
 from openai import OpenAI
 from restack_ai.function import function, log
 
-from src.database.clickhouse import get_clickhouse_client
-from src.services import get_openai_api_key
+from src.database.connection import get_clickhouse_client
 
 
 # ===================================
@@ -51,8 +51,7 @@ async def evaluate_llm_judge_metric(
             return None
         
         # Initialize OpenAI
-        openai_api_key = get_openai_api_key()
-        client = OpenAI(api_key=openai_api_key)
+        client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
         
         # Construct evaluation prompt
         full_prompt = f"""{judge_prompt}
