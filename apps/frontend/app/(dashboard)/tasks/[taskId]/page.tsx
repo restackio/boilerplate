@@ -136,7 +136,6 @@ export default function TaskDetailPage() {
           taskId={task.id}
           agentId={task.agent_id}
           workspaceId={currentWorkspaceId || undefined}
-          onCreateMetricFromFeedback={handleOpenAnalytics}
         />
 
         <TaskSplitView

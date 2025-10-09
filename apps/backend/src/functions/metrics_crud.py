@@ -39,7 +39,7 @@ class ListMetricDefinitionsInput(BaseModel):
     workspace_id: str
     category: str | None = None
     metric_type: str | None = None
-    is_active: bool = True
+    is_active: bool | None = None
 
 
 class UpdateMetricDefinitionInput(BaseModel):
@@ -180,8 +180,8 @@ async def list_metric_definitions(
                 MetricDefinition.metric_type
                 == input_data.metric_type
             )
-        if input_data.is_active:
-            stmt = stmt.where(MetricDefinition.is_active is True)
+        if input_data.is_active is not None:
+            stmt = stmt.where(MetricDefinition.is_active == input_data.is_active)
 
         stmt = stmt.order_by(MetricDefinition.created_at.desc())
 

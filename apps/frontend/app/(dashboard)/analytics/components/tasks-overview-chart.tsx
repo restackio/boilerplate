@@ -26,13 +26,13 @@ export default function TasksOverviewChart({ data }: TasksOverviewChartProps) {
       {/* Stats Summary */}
       <div className="grid grid-cols-3 gap-4">
         <div>
-          <p className="text-sm text-muted-foreground">Total Tasks</p>
+          <p className="text-sm text-muted-foreground">Total tasks</p>
           <p className="text-2xl font-bold">
             {data.reduce((sum, d) => sum + d.taskCount, 0)}
           </p>
         </div>
         <div>
-          <p className="text-sm text-muted-foreground">Avg Success Rate</p>
+          <p className="text-sm text-muted-foreground">Avg success rate</p>
           <div className="flex items-center gap-2">
             <p className="text-2xl font-bold">
               {(avgSuccessRate * 100).toFixed(1)}%
@@ -45,7 +45,7 @@ export default function TasksOverviewChart({ data }: TasksOverviewChartProps) {
           </div>
         </div>
         <div>
-          <p className="text-sm text-muted-foreground">Avg Daily Tasks</p>
+          <p className="text-sm text-muted-foreground">Avg daily tasks</p>
           <p className="text-2xl font-bold">
             {Math.round(data.reduce((sum, d) => sum + d.taskCount, 0) / data.length)}
           </p>
@@ -56,7 +56,7 @@ export default function TasksOverviewChart({ data }: TasksOverviewChartProps) {
       <div className="space-y-4">
         {/* Task Count Bars */}
         <div>
-          <p className="text-xs text-muted-foreground mb-2">Task Volume</p>
+          <p className="text-xs text-muted-foreground mb-2">Task volume</p>
           <div className="h-32 flex items-end gap-1">
             {data.map((item, idx) => (
               <div
@@ -71,7 +71,7 @@ export default function TasksOverviewChart({ data }: TasksOverviewChartProps) {
 
         {/* Success Rate Line */}
         <div>
-          <p className="text-xs text-muted-foreground mb-2">Success Rate</p>
+          <p className="text-xs text-muted-foreground mb-2">Success rate</p>
           <div className="relative h-24 border-b border-l border-muted">
             {/* Grid lines */}
             <div className="absolute inset-0 flex flex-col justify-between py-1">
@@ -121,7 +121,7 @@ export default function TasksOverviewChart({ data }: TasksOverviewChartProps) {
             </svg>
             
             {/* Y-axis labels */}
-            <div className="absolute -left-8 inset-y-0 flex flex-col justify-between text-xs text-muted-foreground py-1">
+            <div className="absolute right-0 inset-y-0 flex flex-col justify-between text-xs text-muted-foreground py-1 opacity-50">
               <span>100%</span>
               <span>90%</span>
               <span>80%</span>

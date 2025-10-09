@@ -5,12 +5,15 @@ import { getTaskFeedback } from "@/app/actions/feedback";
 import type { FeedbackRecord } from "@/app/actions/feedback";
 import { Button } from "@workspace/ui/components/ui/button";
 import { Badge } from "@workspace/ui/components/ui/badge";
-import { Card, CardContent } from "@workspace/ui/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@workspace/ui/components/ui/table";
-import { CheckCircle2, XCircle, Clock, DollarSign, RefreshCw, Zap, MessageSquare, FunctionSquare, ThumbsUp, ThumbsDown } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, DollarSign, RefreshCw, Zap, MessageSquare, FunctionSquare, ThumbsUp, ThumbsDown, ClipboardCheck } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@workspace/ui/components/ui/collapsible";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { ScrollArea } from "@workspace/ui/components/ui/scroll-area";
+import { MetricCard } from "./metric-card";
+import { CreateMetricDialog } from "@/app/(dashboard)/analytics/components/create-metric-dialog";
+import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
+import { Plus } from "lucide-react";
 
 interface TaskQualityMetric {
   metricName: string;
@@ -37,6 +40,7 @@ interface TaskAnalyticsTabProps {
 }
 
 export function TaskAnalyticsTab({ taskId }: TaskAnalyticsTabProps) {
+  const { currentWorkspaceId, currentUserId } = useDatabaseWorkspace();
   const [metrics, setMetrics] = useState<TaskQualityMetric[]>([]);
   const [tracesData, setTracesData] = useState<GetTaskTracesOutput | null>(null);
   const [feedbacks, setFeedbacks] = useState<FeedbackRecord[]>([]);
@@ -135,34 +139,26 @@ export function TaskAnalyticsTab({ taskId }: TaskAnalyticsTabProps) {
         {/* Summary Cards */}
         {tracesData && tracesData.spans.length > 0 && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div className="bg-background rounded-lg border p-3">
-              <div className="flex items-center gap-2 mb-1">
-                <Clock className="h-4 w-4 text-muted-foreground" />
-                <p className="text-xs text-muted-foreground">Duration</p>
-              </div>
-              <p className="text-2xl font-bold">{((tracesData.total_duration_ms || 0) / 1000).toFixed(1)}s</p>
-            </div>
-            <div className="bg-background rounded-lg border p-3">
-              <div className="flex items-center gap-2 mb-1">
-                <Zap className="h-4 w-4 text-muted-foreground" />
-                <p className="text-xs text-muted-foreground">Tokens</p>
-              </div>
-              <p className="text-2xl font-bold">{(tracesData.total_tokens || 0).toLocaleString()}</p>
-            </div>
-            <div className="bg-background rounded-lg border p-3">
-              <div className="flex items-center gap-2 mb-1">
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
-                <p className="text-xs text-muted-foreground">Cost</p>
-              </div>
-              <p className="text-2xl font-bold">${(tracesData.total_cost_usd || 0).toFixed(4)}</p>
-            </div>
-            <div className="bg-background rounded-lg border p-3">
-              <div className="flex items-center gap-2 mb-1">
-                <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                <p className="text-xs text-muted-foreground">LLM Calls</p>
-              </div>
-              <p className="text-2xl font-bold">{tracesData.generation_count || 0}</p>
-            </div>
+            <MetricCard
+              label="Duration"
+              value={`${((tracesData.total_duration_ms || 0) / 1000).toFixed(1)}s`}
+              
+            />
+            <MetricCard
+              label="Tokens"
+              value={(tracesData.total_tokens || 0).toLocaleString()}
+              
+            />
+            <MetricCard
+              label="Cost"
+              value={`$${(tracesData.total_cost_usd || 0).toFixed(4)}`}
+              
+            />
+            <MetricCard
+              label="LLM Calls"
+              value={tracesData.generation_count || 0}
+              
+            />
           </div>
         )}
 
@@ -259,35 +255,20 @@ export function TaskAnalyticsTab({ taskId }: TaskAnalyticsTabProps) {
         {/* User Feedback Section */}
         <div className="space-y-3">
           <h4 className="text-sm font-semibold flex items-center gap-2">
-            <MessageSquare className="h-4 w-4" />
-            User Feedback {feedbacks.length > 0 && `(${feedbacks.length})`}
+            Feedbacks {feedbacks.length > 0 && `(${feedbacks.length})`}
           </h4>
           
           {feedbacks.length > 0 ? (
             <div className="space-y-2">
               <div className="grid grid-cols-2 gap-2 mb-3">
-                <Card>
-                  <CardContent className="pt-4 pb-3">
-                    <div className="flex items-center gap-2">
-                      <ThumbsUp className="h-4 w-4 text-green-600" />
-                      <div>
-                        <p className="text-2xl font-bold">{feedbacks.filter(f => f.isPositive).length}</p>
-                        <p className="text-xs text-muted-foreground">Positive</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-4 pb-3">
-                    <div className="flex items-center gap-2">
-                      <ThumbsDown className="h-4 w-4 text-red-600" />
-                      <div>
-                        <p className="text-2xl font-bold">{feedbacks.filter(f => !f.isPositive).length}</p>
-                        <p className="text-xs text-muted-foreground">Negative</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                <MetricCard
+                  label="Positive"
+                  value={feedbacks.filter(f => f.isPositive).length}
+                />
+                <MetricCard
+                  label="Negative"
+                  value={feedbacks.filter(f => !f.isPositive).length}
+                />
               </div>
 
               <Table>
@@ -297,6 +278,7 @@ export function TaskAnalyticsTab({ taskId }: TaskAnalyticsTabProps) {
                     <TableHead className="w-[80px]">Response</TableHead>
                     <TableHead>Feedback</TableHead>
                     <TableHead className="w-[120px]">Date</TableHead>
+                    <TableHead className="w-[80px]">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -304,12 +286,12 @@ export function TaskAnalyticsTab({ taskId }: TaskAnalyticsTabProps) {
                     <TableRow key={index}>
                       <TableCell>
                         {feedback.isPositive ? (
-                          <Badge variant="outline" className="gap-1 text-green-600 border-green-600">
+                          <Badge variant="outline" className="gap-1 text-green-600 border-green-600 bg-green-600/10">
                             <ThumbsUp className="h-3 w-3" />
                             Positive
                           </Badge>
                         ) : (
-                          <Badge variant="outline" className="gap-1 text-red-600 border-red-600">
+                          <Badge variant="outline" className="gap-1 text-red-600 border-red-600 bg-red-600/10">
                             <ThumbsDown className="h-3 w-3" />
                             Negative
                           </Badge>
@@ -322,7 +304,26 @@ export function TaskAnalyticsTab({ taskId }: TaskAnalyticsTabProps) {
                         {feedback.feedbackText || <span className="text-muted-foreground italic">No details provided</span>}
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">
-                        {new Date(feedback.createdAt).toLocaleDateString()}
+                        {formatDate(feedback.createdAt)}
+                      </TableCell>
+                      <TableCell>
+                        {currentWorkspaceId && (
+                          <CreateMetricDialog
+                            workspaceId={currentWorkspaceId}
+                            userId={currentUserId}
+                            onMetricCreated={fetchData}
+                            feedbackContext={{
+                              isPositive: feedback.isPositive,
+                              feedbackText: feedback.feedbackText,
+                            }}
+                            trigger={
+                              <Button variant="outline" size="sm" className="h-7 px-2">
+                                <ClipboardCheck className="h-3.5 w-3.5" />
+                                Create metric
+                              </Button>
+                            }
+                          />
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -477,5 +478,40 @@ function TraceSpanCard({ span }: TraceSpanCardProps) {
       </Collapsible>
     </div>
   );
+}
+
+function formatDate(dateString: string | undefined | null): string {
+  if (!dateString) return "—";
+  
+  try {
+    // Handle various date formats
+    const date = new Date(dateString);
+    
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      // Try parsing ISO format manually if auto-parse fails
+      const isoMatch = dateString.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/);
+      if (isoMatch) {
+        const [, year, month, day] = isoMatch;
+        const parsedDate = new Date(`${year}-${month}-${day}T00:00:00Z`);
+        if (!isNaN(parsedDate.getTime())) {
+          return parsedDate.toLocaleDateString(undefined, {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+          });
+        }
+      }
+      return "—";
+    }
+    
+    return date.toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  } catch {
+    return "—";
+  }
 }
 

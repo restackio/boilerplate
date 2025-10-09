@@ -1,15 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/ui/card";
+import { Button } from "@workspace/ui/components/ui/button";
+import { AlertCircle, Edit2, Ellipsis } from "lucide-react";
 import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 import { getAnalytics, type AnalyticsData, type AnalyticsFilters } from "@/app/actions/analytics";
-import { getDetailedFeedbacks, type DetailedFeedback } from "@/app/actions/feedback";
 import MetricsFilters from "./metrics-filters";
 import TasksOverviewChart from "./tasks-overview-chart";
 import PerformanceMetricChart from "./performance-metric-chart";
 import QualityMetricChart from "./quality-metric-chart";
-import FeedbackChart from "./feedback-chart";
 
 export default function AnalyticsDashboard() {
   const { currentWorkspaceId, isReady, loading } = useDatabaseWorkspace();
@@ -21,7 +22,6 @@ export default function AnalyticsDashboard() {
   });
   
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
-  const [detailedFeedbacks, setDetailedFeedbacks] = useState<DetailedFeedback[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Update filters when workspace ID becomes available
@@ -32,37 +32,30 @@ export default function AnalyticsDashboard() {
   }, [currentWorkspaceId]);
 
   // Fetch all analytics data in one call
-  useEffect(() => {
+  const fetchAnalytics = async () => {
     if (!filters.workspaceId) return;
     
-    async function fetchAnalytics() {
-      setIsLoading(true);
-      
-      try {
-        const [data, feedbacks] = await Promise.all([
-          getAnalytics({
-            workspaceId: filters.workspaceId,
-            agentId: filters.agentId,
-            version: filters.version,
-            dateRange: filters.dateRange,
-          }),
-          getDetailedFeedbacks(
-            filters.workspaceId,
-            filters.agentId || undefined,
-            filters.dateRange
-          ),
-        ]);
-        
-        setAnalyticsData(data);
-        setDetailedFeedbacks(feedbacks);
-      } catch (error) {
-        console.error("Error fetching analytics:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
+    setIsLoading(true);
     
+    try {
+      const data = await getAnalytics({
+        workspaceId: filters.workspaceId,
+        agentId: filters.agentId,
+        version: filters.version,
+        dateRange: filters.dateRange,
+      });
+      
+      setAnalyticsData(data);
+    } catch (error) {
+      console.error("Error fetching analytics:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchAnalytics();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters]);
 
   // Show loading state while workspace is initializing
@@ -85,27 +78,24 @@ export default function AnalyticsDashboard() {
         </div>
       ) : (
         <>
-          {/* Main Overview Chart - Tasks & Success Rate */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Tasks Overview</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Task volume and success rate over time
-              </p>
-            </CardHeader>
-            <CardContent>
-              <TasksOverviewChart data={analyticsData?.overview?.timeseries || []} />
-            </CardContent>
-          </Card>
+
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold">Tasks volume and success rate</h2>
+            <Card>
+              <CardContent>
+                <TasksOverviewChart data={analyticsData?.overview?.timeseries || []} />
+              </CardContent>
+            </Card>
+          </div>
 
           {/* Performance Metrics */}
           <div className="space-y-4">
-            <h2 className="text-lg font-semibold">Performance Metrics</h2>
+            <h2 className="text-lg font-semibold">Quantitative metrics</h2>
             
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Duration</CardTitle>
+                  <CardTitle className="text-base">Latency (in s)</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <PerformanceMetricChart 
@@ -118,7 +108,7 @@ export default function AnalyticsDashboard() {
 
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Token Usage</CardTitle>
+                  <CardTitle className="text-base">Token usage</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <PerformanceMetricChart 
@@ -146,14 +136,82 @@ export default function AnalyticsDashboard() {
 
           {/* Quality Metrics */}
           <div className="space-y-4">
-            <h2 className="text-lg font-semibold">Quality Metrics</h2>
+            <h2 className="text-lg font-semibold">Qualitative metrics</h2>
             
-            {analyticsData?.quality?.summary && analyticsData.quality.summary.length > 0 ? (
-              <div className="grid gap-4 md:grid-cols-2">
-                {analyticsData.quality.summary.map((metric) => (
+            <div className="grid gap-4 md:grid-cols-3">
+              {/* User Feedback as first quality metric */}
+              {analyticsData?.feedback?.timeseries && analyticsData.feedback.timeseries.length > 0 && (
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-base">Feedbacks</CardTitle>
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 px-2"
+                        asChild
+                      >
+                        <Link href="/tasks?feedback=negative">
+                          <AlertCircle className="h-4 w-4 mr-1" />
+                          See fails
+                        </Link>
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <QualityMetricChart 
+                      data={analyticsData.feedback.timeseries.map(item => {
+                        // Pass = tasks with positive feedback OR no feedback at all
+                        // Fail = tasks with negative feedback
+                        const tasksWithNoFeedback = item.totalTasks - item.tasksWithFeedback;
+                        const passedTasks = item.positiveCount + tasksWithNoFeedback;
+                        const passRate = item.totalTasks > 0 ? passedTasks / item.totalTasks : 1;
+                        
+                        return {
+                          date: item.date,
+                          metricName: "Feedback",
+                          passRate: passRate,
+                          avgScore: passRate * 100,
+                        };
+                      })}
+                      metricName="Feedback"
+                    />
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Other quality metrics */}
+              {analyticsData?.quality?.summary && analyticsData.quality.summary.length > 0 && 
+                analyticsData.quality.summary.map((metric) => (
                   <Card key={metric.metricName}>
-                    <CardHeader>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                       <CardTitle className="text-base">{metric.metricName}</CardTitle>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 px-2"
+                          asChild
+                        >
+                          <Link href={`/tasks?metric=${encodeURIComponent(metric.metricName)}&status=failed`}>
+                            <AlertCircle className="h-4 w-4 mr-1" />
+                            See fails
+                          </Link>
+                        </Button>
+                        {!metric.isDefault && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 px-2"
+                            onClick={() => {
+                              // TODO: Open edit dialog for this metric
+                              alert(`Edit metric: ${metric.metricName} (ID: ${metric.metricId})`);
+                            }}
+                          >
+                            <Ellipsis className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
                     </CardHeader>
                     <CardContent>
                       <QualityMetricChart 
@@ -162,43 +220,21 @@ export default function AnalyticsDashboard() {
                       />
                     </CardContent>
                   </Card>
-                ))}
-              </div>
-            ) : (
+                ))
+              }
+            </div>
+
+            {/* Empty state if no metrics */}
+            {(!analyticsData?.feedback?.timeseries || analyticsData.feedback.timeseries.length === 0) && 
+             (!analyticsData?.quality?.summary || analyticsData.quality.summary.length === 0) && (
               <Card>
                 <CardContent className="pt-6">
                   <div className="h-[200px] flex items-center justify-center">
-                    <p className="text-sm text-muted-foreground">No quality metrics available</p>
+                    <p className="text-sm text-muted-foreground">No qualitative metrics available</p>
                   </div>
                 </CardContent>
               </Card>
             )}
-          </div>
-
-          {/* User Feedback */}
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold">User Feedback</h2>
-            <Card>
-              <CardHeader>
-                <CardTitle>Feedback Trends</CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Track positive and negative feedback from users over time
-                </p>
-              </CardHeader>
-              <CardContent>
-                <FeedbackChart
-                  data={analyticsData?.feedback?.timeseries || []}
-                  summary={analyticsData?.feedback?.summary || {
-                    totalPositive: 0,
-                    totalNegative: 0,
-                    totalFeedback: 0,
-                    negativePercentage: 0,
-                    positivePercentage: 0,
-                  }}
-                  detailedFeedbacks={detailedFeedbacks}
-                />
-              </CardContent>
-            </Card>
           </div>
         </>
       )}

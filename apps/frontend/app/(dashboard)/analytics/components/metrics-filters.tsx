@@ -1,6 +1,5 @@
 "use client";
 
-import { Card, CardContent } from "@workspace/ui/components/ui/card";
 import { Button } from "@workspace/ui/components/ui/button";
 import {
   Select,
@@ -30,10 +29,9 @@ export default function MetricsFilters({ filters, onFiltersChange }: MetricsFilt
   };
 
   return (
-    <Card>
-      <CardContent className="pt-6">
-        <div className="flex items-center gap-4">
-          <div className="flex-1">
+
+        <div className="flex items-center justify-start gap-2">
+          <div >
             <Select
               value={filters.dateRange || "7d"}
               onValueChange={(value) =>
@@ -52,7 +50,7 @@ export default function MetricsFilters({ filters, onFiltersChange }: MetricsFilt
             </Select>
           </div>
 
-          <div className="flex-1">
+          <div>
             <Select
               value={filters.agentId || "all"}
               onValueChange={(value) =>
@@ -73,7 +71,7 @@ export default function MetricsFilters({ filters, onFiltersChange }: MetricsFilt
             </Select>
           </div>
 
-          <div className="flex-1">
+          <div>
             <Select disabled>
               <SelectTrigger>
                 <SelectValue placeholder="All versions" />
@@ -85,7 +83,5 @@ export default function MetricsFilters({ filters, onFiltersChange }: MetricsFilt
             Reset
           </Button>
         </div>
-      </CardContent>
-    </Card>
   );
 }

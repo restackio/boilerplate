@@ -46,11 +46,6 @@ export function FeedbackDialog({
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            {feedbackType === "positive" ? (
-              <ThumbsUp className="h-5 w-5 text-green-600" />
-            ) : (
-              <ThumbsDown className="h-5 w-5 text-red-600" />
-            )}
             {feedbackType === "positive" ? "Positive" : "Negative"} Feedback
           </DialogTitle>
           <DialogDescription>
@@ -63,7 +58,7 @@ export function FeedbackDialog({
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <Label htmlFor="feedback-text">
-              Detailed Feedback
+              Feedback
               <span className="text-muted-foreground font-normal ml-1">(optional)</span>
             </Label>
             <Textarea
@@ -95,7 +90,7 @@ export function FeedbackDialog({
             onClick={handleSubmit}
             disabled={isSubmitting}
           >
-            {isSubmitting ? "Submitting..." : "Submit Feedback"}
+            {isSubmitting ? "Submitting..." : "Submit"}
           </Button>
         </DialogFooter>
       </DialogContent>

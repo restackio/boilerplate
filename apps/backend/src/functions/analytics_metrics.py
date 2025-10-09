@@ -310,58 +310,95 @@ async def _get_overview_metrics(
 async def _get_feedback_metrics(
     client: Any, filters: AnalyticsFilters
 ) -> dict[str, Any]:
-    """Get feedback metrics (positive/negative feedback over time)."""
-    where_filter, params = build_filter_clause(filters)
-    where_filter += " AND metric_category = 'feedback'"
+    """Get feedback metrics timeseries with task counts for proper coverage calculation.
+    
+    Returns only timeseries data - frontend calculates summaries from it.
+    """
+    # Get base filter for tasks
+    task_where_filter, task_params = build_filter_clause(
+        filters, include_version=True
+    )
+    
+    # Feedback-specific filter
+    feedback_where_filter, feedback_params = build_filter_clause(filters)
+    feedback_where_filter += " AND metric_category = 'feedback'"
 
-    # Timeseries query
+    # Combined timeseries query with task counts and feedback
     timeseries_query = f"""
+        WITH task_counts AS (
+            SELECT
+                toDate(created_at) as date,
+                count(DISTINCT task_id) as total_tasks
+            FROM task_metrics
+            WHERE metric_category = 'performance' AND {task_where_filter}
+            GROUP BY date
+        ),
+        feedback_counts AS (
+            SELECT
+                toDate(created_at) as date,
+                countIf(passed = 1) as positive_count,
+                countIf(passed = 0) as negative_count,
+                count() as feedback_count,
+                count(DISTINCT task_id) as tasks_with_feedback
+            FROM task_metrics
+            WHERE {feedback_where_filter}
+            GROUP BY date
+        )
         SELECT
-            toDate(created_at) as date,
-            countIf(passed = 1) as positive_count,
-            countIf(passed = 0) as negative_count,
-            count() as total_count,
-            if(count() > 0, (countIf(passed = 0) * 100.0 / count()), 0) as negative_percentage
-        FROM task_metrics
-        WHERE {where_filter}
-        GROUP BY date
+            COALESCE(t.date, f.date) as date,
+            COALESCE(t.total_tasks, 0) as total_tasks,
+            COALESCE(f.positive_count, 0) as positive_count,
+            COALESCE(f.negative_count, 0) as negative_count,
+            COALESCE(f.feedback_count, 0) as feedback_count,
+            COALESCE(f.tasks_with_feedback, 0) as tasks_with_feedback
+        FROM task_counts t
+        FULL OUTER JOIN feedback_counts f ON t.date = f.date
         ORDER BY date ASC
     """
 
-    result = client.query(timeseries_query, parameters=params)
+    # Merge params from both filters
+    merged_params = {**task_params, **feedback_params}
+    result = client.query(timeseries_query, parameters=merged_params)
 
     timeseries = [
         {
             "date": str(row["date"]),
+            "totalTasks": int(row["total_tasks"]),
+            "tasksWithFeedback": int(row["tasks_with_feedback"]),
             "positiveCount": int(row["positive_count"]),
             "negativeCount": int(row["negative_count"]),
-            "totalCount": int(row["total_count"]),
-            "negativePercentage": round(row["negative_percentage"], 1),
+            "feedbackCount": int(row["feedback_count"]),
+            "feedbackCoverage": round((int(row["tasks_with_feedback"]) / int(row["total_tasks"]) * 100), 1) if int(row["total_tasks"]) > 0 else 0,
         }
         for row in result.named_results()
     ]
 
-    # Summary query
-    summary_query = f"""
+    # Get detailed feedback entries (last 50)
+    detailed_query = f"""
         SELECT
-            countIf(passed = 1) as total_positive,
-            countIf(passed = 0) as total_negative,
-            count() as total_feedback,
-            if(count() > 0, (countIf(passed = 0) * 100.0 / count()), 0) as negative_percentage,
-            if(count() > 0, (countIf(passed = 1) * 100.0 / count()), 0) as positive_percentage
+            task_id,
+            passed as is_positive,
+            reasoning as comment,
+            created_at
         FROM task_metrics
-        WHERE {where_filter}
+        WHERE {feedback_where_filter}
+        ORDER BY created_at DESC
+        LIMIT 50
     """
 
-    summary_result = client.query(summary_query, parameters=params)
-    summary_row = next(iter(summary_result.named_results())) if summary_result.named_results() else None
+    detailed_result = client.query(detailed_query, parameters=feedback_params)
+    
+    detailed_feedbacks = [
+        {
+            "taskId": row["task_id"],
+            "isPositive": bool(row["is_positive"]),
+            "comment": row["comment"] if row["comment"] else None,
+            "createdAt": str(row["created_at"]),
+        }
+        for row in detailed_result.named_results()
+    ]
 
-    summary = {
-        "totalPositive": int(summary_row["total_positive"]) if summary_row else 0,
-        "totalNegative": int(summary_row["total_negative"]) if summary_row else 0,
-        "totalFeedback": int(summary_row["total_feedback"]) if summary_row else 0,
-        "negativePercentage": round(summary_row["negative_percentage"], 1) if summary_row else 0,
-        "positivePercentage": round(summary_row["positive_percentage"], 1) if summary_row else 0,
+    return {
+        "timeseries": timeseries,
+        "detailed": detailed_feedbacks,
     }
-
-    return {"summary": summary, "timeseries": timeseries}

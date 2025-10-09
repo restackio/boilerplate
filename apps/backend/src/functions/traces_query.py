@@ -176,12 +176,16 @@ async def query_traces_batch(
             params["agent_version"] = filters["agent_version"]
 
         if filters.get("date_from"):
-            where_conditions.append("started_at >= {date_from:DateTime64}")
-            params["date_from"] = filters["date_from"]
+            where_conditions.append("started_at >= {date_from:String}")
+            # Remove 'Z' suffix if present for ClickHouse compatibility
+            date_from_str = filters["date_from"].replace("Z", "").replace("T", " ")
+            params["date_from"] = date_from_str
 
         if filters.get("date_to"):
-            where_conditions.append("started_at <= {date_to:DateTime64}")
-            params["date_to"] = filters["date_to"]
+            where_conditions.append("started_at <= {date_to:String}")
+            # Remove 'Z' suffix if present for ClickHouse compatibility
+            date_to_str = filters["date_to"].replace("Z", "").replace("T", " ")
+            params["date_to"] = date_to_str
 
         # Only generation spans (for quality evaluation)
         where_conditions.append("span_type = 'generation'")
@@ -213,8 +217,8 @@ async def query_traces_batch(
         FROM task_traces
         WHERE {where_clause}
         ORDER BY started_at DESC
-        LIMIT {limit:UInt32}
-        OFFSET {offset:UInt32}
+        LIMIT {{limit:UInt32}}
+        OFFSET {{offset:UInt32}}
         """
 
         params["limit"] = limit

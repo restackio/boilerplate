@@ -30,6 +30,8 @@ export interface PerformanceTimeSeries {
 
 export interface QualitySummary {
   metricName: string;
+  metricId: string;
+  isDefault: boolean;
   passRate: number;
   avgScore?: number;
   evaluationCount: number;
@@ -50,18 +52,19 @@ export interface OverviewTimeSeries {
 
 export interface FeedbackTimeSeries {
   date: string;
+  totalTasks: number;
+  tasksWithFeedback: number;
   positiveCount: number;
   negativeCount: number;
-  totalCount: number;
-  negativePercentage: number;
+  feedbackCount: number;
+  feedbackCoverage: number;
 }
 
-export interface FeedbackSummary {
-  totalPositive: number;
-  totalNegative: number;
-  totalFeedback: number;
-  negativePercentage: number;
-  positivePercentage: number;
+export interface DetailedFeedback {
+  taskId: string;
+  isPositive: boolean;
+  comment?: string | null;
+  createdAt: string;
 }
 
 export interface AnalyticsData {
@@ -77,8 +80,8 @@ export interface AnalyticsData {
     timeseries: OverviewTimeSeries[];
   };
   feedback?: {
-    summary: FeedbackSummary;
     timeseries: FeedbackTimeSeries[];
+    detailed: DetailedFeedback[];
   };
 }
 

@@ -94,6 +94,11 @@ from src.functions.metrics_crud import (
     list_metric_definitions,
     update_metric_definition,
 )
+from src.functions.traces_query import (
+    aggregate_traces_for_task,
+    query_traces_batch,
+    query_traces_for_response,
+)
 from src.functions.metrics_evaluation import (
     evaluate_formula_metric,
     evaluate_llm_judge_metric,
@@ -491,6 +496,10 @@ async def run_restack_service() -> None:
             list_metric_definitions,
             get_task_metrics_clickhouse,
             get_task_traces_from_clickhouse,
+            # Trace query functions
+            query_traces_batch,
+            query_traces_for_response,
+            aggregate_traces_for_task,
             # Analytics function
             get_analytics_metrics,
             evaluate_llm_judge_metric,

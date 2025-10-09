@@ -80,7 +80,7 @@ export function SplitViewPanel({
           <div className="flex items-end gap-2">
             {headerActions}
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
               onClick={onClose}
               className="flex-shrink-0"

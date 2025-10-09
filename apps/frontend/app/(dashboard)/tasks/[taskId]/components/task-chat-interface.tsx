@@ -25,7 +25,6 @@ interface TaskChatInterfaceProps {
   taskId?: string;
   agentId?: string;
   workspaceId?: string;
-  onCreateMetricFromFeedback?: () => void;
 }
 
 export function TaskChatInterface({
@@ -42,7 +41,6 @@ export function TaskChatInterface({
   taskId,
   agentId,
   workspaceId,
-  onCreateMetricFromFeedback,
 }: TaskChatInterfaceProps) {
   const conversationEndRef = useRef<HTMLDivElement>(null);
 
@@ -88,7 +86,6 @@ export function TaskChatInterface({
                   workspaceId={workspaceId}
                   responseIndex={index}
                   messageCount={conversation.length}
-                  onCreateMetricFromFeedback={onCreateMetricFromFeedback}
                 />
               </div>
             ))}
@@ -133,7 +130,6 @@ function RenderConversationItem({
   workspaceId,
   responseIndex,
   messageCount,
-  onCreateMetricFromFeedback,
 }: {
   item: ConversationItem;
   onApproveRequest?: (itemId: string) => void;
@@ -144,7 +140,6 @@ function RenderConversationItem({
   workspaceId?: string;
   responseIndex: number;
   messageCount: number;
-  onCreateMetricFromFeedback?: () => void;
 }) {
   const conversationItemData = useConversationItem(item);
   switch (item.type) {
@@ -243,7 +238,6 @@ function RenderConversationItem({
                 workspaceId={workspaceId}
                 responseIndex={responseIndex}
                 messageCount={messageCount}
-                onCreateMetric={onCreateMetricFromFeedback}
               />
             )}
           </div>
@@ -297,7 +291,6 @@ function RenderConversationItem({
                 workspaceId={workspaceId}
                 responseIndex={responseIndex}
                 messageCount={messageCount}
-                onCreateMetric={onCreateMetricFromFeedback}
               />
             )}
           </div>

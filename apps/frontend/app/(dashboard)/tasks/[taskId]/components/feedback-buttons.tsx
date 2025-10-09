@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ThumbsUp, ThumbsDown, Plus } from "lucide-react";
+import { ThumbsUp, ThumbsDown } from "lucide-react";
 import { Button } from "@workspace/ui/components/ui/button";
 import { cn } from "@workspace/ui/lib/utils";
 import { FeedbackDialog } from "./feedback-dialog";
@@ -16,7 +16,6 @@ interface FeedbackButtonsProps {
   workspaceId: string;
   responseIndex: number;
   messageCount: number;
-  onCreateMetric?: () => void;
 }
 
 export function FeedbackButtons({
@@ -26,7 +25,6 @@ export function FeedbackButtons({
   workspaceId,
   responseIndex,
   messageCount,
-  onCreateMetric,
 }: FeedbackButtonsProps) {
   const [feedback, setFeedback] = useState<"positive" | "negative" | null>(null);
   const [showDialog, setShowDialog] = useState(false);
@@ -140,16 +138,6 @@ export function FeedbackButtons({
         </Button>
 
         <div className="h-4 w-px bg-border mx-1" />
-
-        <Button
-          size="sm"
-          variant="ghost"
-          className="h-7 px-2 gap-1 text-muted-foreground hover:text-foreground"
-          onClick={onCreateMetric}
-        >
-          <Plus className="h-3.5 w-3.5" />
-          <span className="text-xs">Create Metric</span>
-        </Button>
       </div>
 
       <FeedbackDialog

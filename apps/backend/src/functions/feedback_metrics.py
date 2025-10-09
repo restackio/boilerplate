@@ -136,7 +136,7 @@ async def get_task_feedback(
                 metric_type as feedback_type,
                 passed as is_positive,
                 reasoning as feedback_text,
-                formatDateTime(created_at, '%Y-%m-%dT%H:%M:%S') as created_at,
+                formatDateTime(created_at, '%Y-%m-%dT%H:%i:%S') as created_at,
                 trace_id,
                 span_id
             FROM task_metrics
@@ -343,7 +343,7 @@ async def get_detailed_feedbacks(
                 metric_type as feedback_type,
                 passed as is_positive,
                 reasoning as feedback_text,
-                formatDateTime(created_at, '%Y-%m-%dT%H:%M:%S') as created_at_formatted,
+                formatDateTime(created_at, '%Y-%m-%dT%H:%i:%S') as created_at_formatted,
                 created_at
             FROM task_metrics
             WHERE {where_clause}

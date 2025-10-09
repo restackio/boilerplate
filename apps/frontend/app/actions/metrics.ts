@@ -112,3 +112,83 @@ export async function getTaskMetrics(taskId: string) {
     return [];
   }
 }
+
+export interface MetricDefinition {
+  id: string;
+  workspace_id: string;
+  name: string;
+  description: string | null;
+  category: string;
+  metric_type: string;
+  config: Record<string, unknown> | string;
+  is_active: boolean;
+  is_default: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// List all metric definitions for a workspace
+export async function listMetrics(workspaceId: string): Promise<MetricDefinition[]> {
+  try {
+    const { workflowId, runId } = await runWorkflow({
+      workflowName: "ListMetricDefinitionsWorkflow",
+      input: { 
+        workspace_id: workspaceId,
+      },
+    });
+
+    const result = await getWorkflowResult({
+      workflowId,
+      runId,
+    });
+
+    return (result as { metrics?: MetricDefinition[] })?.metrics || [];
+  } catch (error) {
+    console.error("Error listing metrics:", error);
+    return [];
+  }
+}
+
+// Toggle metric active status
+export async function toggleMetricStatus(metricId: string, isActive: boolean): Promise<boolean> {
+  try {
+    const { workflowId, runId } = await runWorkflow({
+      workflowName: "UpdateMetricDefinitionWorkflow",
+      input: { 
+        metric_id: metricId,
+        is_active: isActive
+      },
+    });
+
+    const result = await getWorkflowResult({
+      workflowId,
+      runId,
+    });
+
+    return (result as { success?: boolean })?.success || false;
+  } catch (error) {
+    console.error("Error toggling metric status:", error);
+    return false;
+  }
+}
+
+// Delete metric (soft delete)
+export async function deleteMetric(metricId: string): Promise<boolean> {
+  try {
+    const { workflowId, runId } = await runWorkflow({
+      workflowName: "DeleteMetricDefinitionWorkflow",
+      input: { metric_id: metricId },
+    });
+
+    const result = await getWorkflowResult({
+      workflowId,
+      runId,
+    });
+
+    return (result as { success?: boolean })?.success || false;
+  } catch (error) {
+    console.error("Error deleting metric:", error);
+    return false;
+  }
+}

@@ -37,7 +37,7 @@ async def get_task_metrics_clickhouse(
                 response_id,
                 response_index,
                 message_count,
-                formatDateTime(created_at, '%Y-%m-%dT%H:%M:%S') as created_at,
+                formatDateTime(created_at, '%Y-%m-%dT%H:%i:%S') as created_at,
                 -- Performance fields
                 duration_ms,
                 input_tokens,

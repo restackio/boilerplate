@@ -57,15 +57,16 @@ class ListMetricDefinitionsWorkflow:
     @workflow.run
     async def run(
         self, workflow_input: ListMetricDefinitionsInput
-    ) -> list[dict[str, Any]]:
+    ) -> dict[str, Any]:
         log.info("ListMetricDefinitionsWorkflow started")
 
         try:
-            return await workflow.step(
+            metrics = await workflow.step(
                 function=list_metric_definitions,
                 function_input=workflow_input.model_dump(),
                 start_to_close_timeout=timedelta(seconds=30),
             )
+            return {"metrics": metrics}
         except Exception as e:
             error_message = (
                 f"Error listing metric definitions: {e}"
@@ -81,15 +82,16 @@ class UpdateMetricDefinitionWorkflow:
     @workflow.run
     async def run(
         self, workflow_input: UpdateMetricDefinitionInput
-    ) -> dict[str, Any] | None:
+    ) -> dict[str, Any]:
         log.info("UpdateMetricDefinitionWorkflow started")
 
         try:
-            return await workflow.step(
+            result = await workflow.step(
                 function=update_metric_definition,
                 function_input=workflow_input.model_dump(),
                 start_to_close_timeout=timedelta(seconds=30),
             )
+            return {"success": result is not None, "metric": result}
         except Exception as e:
             error_message = (
                 f"Error updating metric definition: {e}"
@@ -105,15 +107,16 @@ class DeleteMetricDefinitionWorkflow:
     @workflow.run
     async def run(
         self, workflow_input: DeleteMetricDefinitionInput
-    ) -> bool:
+    ) -> dict[str, Any]:
         log.info("DeleteMetricDefinitionWorkflow started")
 
         try:
-            return await workflow.step(
+            success = await workflow.step(
                 function=delete_metric_definition,
                 function_input=workflow_input.model_dump(),
                 start_to_close_timeout=timedelta(seconds=30),
             )
+            return {"success": success}
         except Exception as e:
             error_message = (
                 f"Error deleting metric definition: {e}"

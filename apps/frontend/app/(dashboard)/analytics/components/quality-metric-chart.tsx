@@ -13,8 +13,9 @@ export default function QualityMetricChart({ data, metricName }: QualityMetricCh
 
   if (filtered.length === 0) {
     return (
-      <div className="h-[250px] flex items-center justify-center bg-card rounded-lg border border-dashed">
-        <p className="text-sm text-muted-foreground">No data available</p>
+      <div className="h-[250px] flex flex-col items-center justify-center bg-muted/30 rounded-lg border border-dashed">
+        <p className="text-sm text-muted-foreground">No evaluation data yet</p>
+        <p className="text-xs text-muted-foreground mt-1">This metric will appear after evaluating tasks</p>
       </div>
     );
   }
