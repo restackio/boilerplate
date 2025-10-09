@@ -1,11 +1,10 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/src/components/ui/card";
-import { Badge } from "@/src/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/ui/card";
+import { Badge } from "@workspace/ui/components/ui/badge";
 import { CheckCircle2, XCircle, Clock, DollarSign } from "lucide-react";
 
 interface PlaygroundMetricsPanelProps {
-  agentId: string;
   taskResult?: {
     duration_ms: number;
     input_tokens: number;
@@ -21,7 +20,6 @@ interface PlaygroundMetricsPanelProps {
 }
 
 export default function PlaygroundMetricsPanel({
-  agentId,
   taskResult,
 }: PlaygroundMetricsPanelProps) {
   return (

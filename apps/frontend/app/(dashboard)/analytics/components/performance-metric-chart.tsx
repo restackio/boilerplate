@@ -6,11 +6,10 @@ import BaseLineChart from "./base-line-chart";
 interface PerformanceMetricChartProps {
   data: PerformanceTimeSeries[];
   metric: "duration" | "tokens" | "cost";
-  label: string;
   color: "blue" | "green" | "purple";
 }
 
-export default function PerformanceMetricChart({ data, metric, label, color }: PerformanceMetricChartProps) {
+export default function PerformanceMetricChart({ data, metric, color }: PerformanceMetricChartProps) {
   if (!data || data.length === 0) {
     return (
       <div className="h-[200px] flex items-center justify-center">
@@ -52,7 +51,7 @@ export default function PerformanceMetricChart({ data, metric, label, color }: P
       x: data.length === 1 ? 50 : (idx / (data.length - 1)) * 100,
       y: (1 - (value - minValue) / (maxValue - minValue || 1)) * 100,
       value,
-      label: new Date(item.date).toLocaleDateString()
+      label: new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
     };
   });
 

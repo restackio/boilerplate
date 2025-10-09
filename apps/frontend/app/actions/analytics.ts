@@ -48,6 +48,22 @@ export interface OverviewTimeSeries {
   successRate: number;
 }
 
+export interface FeedbackTimeSeries {
+  date: string;
+  positiveCount: number;
+  negativeCount: number;
+  totalCount: number;
+  negativePercentage: number;
+}
+
+export interface FeedbackSummary {
+  totalPositive: number;
+  totalNegative: number;
+  totalFeedback: number;
+  negativePercentage: number;
+  positivePercentage: number;
+}
+
 export interface AnalyticsData {
   performance?: {
     summary: PerformanceData;
@@ -59,6 +75,10 @@ export interface AnalyticsData {
   };
   overview?: {
     timeseries: OverviewTimeSeries[];
+  };
+  feedback?: {
+    summary: FeedbackSummary;
+    timeseries: FeedbackTimeSeries[];
   };
 }
 

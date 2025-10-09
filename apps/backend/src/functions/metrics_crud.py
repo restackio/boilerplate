@@ -5,7 +5,7 @@ Functions to create, read, update, and delete metric definitions and agent-metri
 
 from datetime import UTC, datetime
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from pydantic import BaseModel
 from restack_ai.function import function, log
@@ -30,6 +30,7 @@ class CreateMetricDefinitionInput(BaseModel):
     metric_type: str
     config: dict[str, Any]
     description: str | None = None
+    is_active: bool = True
     is_default: bool = False
     created_by: str | None = None
 
@@ -76,13 +77,30 @@ async def create_metric_definition(
     )
 
     async for session in get_async_db():
+        # Check if metric already exists (idempotency)
+        stmt = select(MetricDefinition).where(
+            MetricDefinition.workspace_id == UUID(input_data.workspace_id),
+            MetricDefinition.name == input_data.name,
+        )
+        result = await session.execute(stmt)
+        existing_metric = result.scalar_one_or_none()
+
+        if existing_metric:
+            log.info(
+                f"Metric {input_data.name} already exists in workspace {input_data.workspace_id}, returning existing metric"
+            )
+            return _metric_to_dict(existing_metric)
+
+        # Create new metric
         metric = MetricDefinition(
+            id=uuid4(),  # Generate UUID in Python
             workspace_id=UUID(input_data.workspace_id),
             name=input_data.name,
             description=input_data.description,
             category=input_data.category,
             metric_type=input_data.metric_type,
             config=input_data.config,
+            is_active=input_data.is_active,
             is_default=input_data.is_default,
             created_by=UUID(input_data.created_by)
             if input_data.created_by
@@ -94,6 +112,40 @@ async def create_metric_definition(
         await session.refresh(metric)
 
         return _metric_to_dict(metric)
+    return None
+
+
+@function.defn()
+async def get_metric_definition_by_id(
+    input_data: dict[str, Any],
+) -> dict[str, Any] | None:
+    """Get a single metric definition by ID.
+
+    Args:
+        input_data: Dict with metric_id and workspace_id
+
+    Returns:
+        Metric definition dict or None if not found
+    """
+    metric_id = input_data["metric_id"]
+    workspace_id = input_data["workspace_id"]
+
+    log.info(f"Fetching metric definition: {metric_id}")
+
+    async for session in get_async_db():
+        stmt = select(MetricDefinition).where(
+            MetricDefinition.id == UUID(metric_id),
+            MetricDefinition.workspace_id == UUID(workspace_id),
+        )
+
+        result = await session.execute(stmt)
+        metric = result.scalar_one_or_none()
+
+        if not metric:
+            log.warning(f"Metric {metric_id} not found")
+            return None
+
+        return {"metric": _metric_to_dict(metric)}
     return None
 
 

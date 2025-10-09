@@ -1,83 +1,85 @@
 "use server";
 
-import { executeWorkflow } from "./workflow";
+import { runWorkflow, getWorkflowResult } from "./workflow";
 
-/**
- * Create a new metric definition
- */
-export async function createMetricDefinition(data: {
-  workspaceId: string;
+export interface CreateMetricWithRetroactiveInput {
+  workspace_id: string;
   name: string;
   description?: string;
   category: string;
-  metricType: "llm_judge" | "python_code" | "formula";
-  config: any;
-}) {
-  const result = await executeWorkflow("CreateMetricDefinitionWorkflow", {
-    workspace_id: data.workspaceId,
-    name: data.name,
-    description: data.description,
-    category: data.category,
-    metric_type: data.metricType,
-    config: data.config,
-  });
-
-  return result;
+  metric_type: string;
+  config: Record<string, unknown>;
+  is_active?: boolean;
+  created_by?: string;
+  run_retroactive?: boolean;
+  retroactive_date_from?: string; // ISO format datetime string
+  retroactive_date_to?: string; // ISO format datetime string
+  retroactive_sample_percentage?: number;
+  retroactive_agent_id?: string;
+  retroactive_agent_version?: string;
+  retroactive_max_traces?: number;
 }
 
-/**
- * Update a metric definition
- */
-export async function updateMetricDefinition(data: {
-  metricId: string;
-  name?: string;
-  description?: string;
-  category?: string;
-  config?: any;
-  isActive?: boolean;
-}) {
-  const result = await executeWorkflow("UpdateMetricDefinitionWorkflow", {
-    metric_id: data.metricId,
-    name: data.name,
-    description: data.description,
-    category: data.category,
-    config: data.config,
-    is_active: data.isActive,
-  });
-  
-  return result;
+export interface CreateMetricWithRetroactiveOutput {
+  success: boolean;
+  metric_id?: string;
+  metric_name?: string;
+  retroactive_workflow_id?: string;
+  error?: string;
 }
 
-/**
- * Delete a metric definition
- */
-export async function deleteMetricDefinition(metricId: string) {
-  const result = await executeWorkflow("DeleteMetricDefinitionWorkflow", {
-    metric_id: metricId,
-  });
-  
-  return result;
+export async function createMetricWithRetroactive(
+  input: CreateMetricWithRetroactiveInput
+): Promise<CreateMetricWithRetroactiveOutput> {
+  try {
+    const { workflowId, runId } = await runWorkflow({
+      workflowName: "CreateMetricWithRetroactiveWorkflow",
+      input: input as unknown as Record<string, unknown>,
+    });
+
+    const result = await getWorkflowResult({
+      workflowId,
+      runId,
+    });
+
+    return {
+      success: true,
+      metric_id: (result as { metric_id?: string })?.metric_id,
+      metric_name: (result as { metric_name?: string })?.metric_name,
+      retroactive_workflow_id: (result as { retroactive_evaluation?: { workflow_id?: string } })?.retroactive_evaluation?.workflow_id,
+    };
+  } catch (error) {
+    console.error("Error creating metric with retroactive:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
 }
 
-/**
- * List all metric definitions for a workspace
- */
-export async function listMetricDefinitions(workspaceId: string) {
-  const result = await executeWorkflow("ListMetricDefinitionsWorkflow", { 
-    workspace_id: workspaceId 
-  });
-  
-  return result;
+// Fetch task quality metrics from ClickHouse
+export async function getTaskQualityMetrics(taskId: string) {
+  try {
+    const { workflowId, runId } = await runWorkflow({
+      workflowName: "GetTaskMetricsWorkflow",
+      input: { task_id: taskId },
+    });
+
+    const result = await getWorkflowResult({
+      workflowId,
+      runId,
+    });
+
+    // Return quality metrics only
+    const allMetrics = (result as { metrics?: Array<{ metric_category?: string }> })?.metrics || [];
+    return allMetrics.filter((m) => m.metric_category === "quality");
+  } catch (error) {
+    console.error("Error fetching task quality metrics:", error);
+    return [];
+  }
 }
 
-/**
- * Get all metric results for a specific task execution
- * Returns both performance and quality metrics from ClickHouse
- */
-
-// Quality metrics (LLM judge, python code, formula evaluations)
 export interface QualityMetricResult {
-  metricCategory: 'quality';
   metricName: string;
   metricType: string;
   passed: boolean;
@@ -86,53 +88,27 @@ export interface QualityMetricResult {
   evalDurationMs: number;
   evalCostUsd: number;
   evaluatedAt: string;
-  // Response tracking for continuous metrics
   responseId?: string;
   responseIndex?: number;
   messageCount?: number;
 }
 
-// Performance metrics (speed, tokens, cost)
-export interface PerformanceMetricResult {
-  metricCategory: 'performance';
-  agentName: string;
-  agentVersion: string;
-  durationMs: number;
-  inputTokens: number;
-  outputTokens: number;
-  costUsd: number;
-  status: string;
-  executedAt: string;
-  // Response tracking for continuous metrics
-  responseId?: string;
-  responseIndex?: number;
-  messageCount?: number;
-}
-
-export interface TaskMetricsResult {
-  performance: PerformanceMetricResult[];
-  quality: QualityMetricResult[];
-}
-
-export async function getTaskMetricResults(taskId: string): Promise<TaskMetricsResult> {
+// Fetch all metrics for a task (performance + quality)
+export async function getTaskMetrics(taskId: string) {
   try {
-    const result = await executeWorkflow("GetTaskMetricsWorkflow", { 
-      task_id: taskId 
+    const { workflowId, runId } = await runWorkflow({
+      workflowName: "GetTaskMetricsWorkflow",
+      input: { task_id: taskId },
     });
-    
-    if (result.success && result.data) {
-      return result.data as TaskMetricsResult;
-    }
-    
-    return { performance: [], quality: [] };
-  } catch (error) {
-    console.error("Failed to fetch task metric results:", error);
-    return { performance: [], quality: [] };
-  }
-}
 
-// Alias for backward compatibility - returns only quality metrics
-export async function getTaskQualityMetrics(taskId: string): Promise<QualityMetricResult[]> {
-  const result = await getTaskMetricResults(taskId);
-  return result.quality;
+    const result = await getWorkflowResult({
+      workflowId,
+      runId,
+    });
+
+    return (result as { metrics?: unknown[] })?.metrics || [];
+  } catch (error) {
+    console.error("Error fetching task metrics:", error);
+    return [];
+  }
 }

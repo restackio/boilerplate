@@ -23,7 +23,6 @@ from restack_ai.function import (
 )
 
 from src.client import stream_address
-from src.tracing.decorators import trace_llm_call
 
 from .send_agent_event import (
     SendAgentEventInput,
@@ -105,6 +104,9 @@ class LlmResponseInput(BaseModel):
     """Input to LLM response stream function."""
 
     create_params: dict[str, Any]
+    task_id: str | None = None
+    agent_id: str | None = None
+    workspace_id: str | None = None
 
 
 class OpenAIStreamWrapper:
@@ -183,9 +185,14 @@ class AsyncTee:
 
 async def send_non_delta_events_to_agent(
     stream: AsyncIterator[ResponseStreamEvent],
+    span: Any = None,
 ) -> None:
-    """Send only non-delta events to agent."""
+    """Send only non-delta events to agent and capture final response for tracing.
+
+    Following the SDK pattern from openai_responses.py for proper response tracing.
+    """
     temporal_agent_id = function_info().workflow_id
+    final_response = None  # Capture final Response object (SDK pattern)
 
     try:
         async for event in stream:
@@ -222,6 +229,15 @@ async def send_non_delta_events_to_agent(
                         if hasattr(event, "__dict__")
                         else str(event)
                     )
+
+                # Capture final Response object (SDK pattern from openai_responses.py)
+                if (
+                    hasattr(event, "type")
+                    and event.type == "response.completed"
+                    and hasattr(event, "response")
+                ):
+                    # ResponseCompletedEvent contains the full Response object
+                    final_response = event.response
 
                 # Check for error events and enhance them
                 if hasattr(event, "type") and (
@@ -292,11 +308,19 @@ async def send_non_delta_events_to_agent(
 
         error_msg = f"Critical error in stream processing: {e}"
         raise NonRetryableError(error_msg) from e
+    finally:
+        # Set final response on span (SDK pattern from openai_responses.py)
+        if span and final_response:
+            try:
+                if hasattr(span, "span_data"):
+                    span.span_data.response = final_response
+                    log.info("Set final Response object on span")
+            except Exception as e:
+                log.warning(f"Failed to set response on span: {e}")
 
 
 @function.defn()
-@trace_llm_call
-async def llm_response_stream(
+async def llm_response_stream(  # noqa: PLR0915
     function_input: LlmResponseInput,
 ) -> LlmResponseOutput:
     try:
@@ -308,10 +332,55 @@ async def llm_response_stream(
             api_key=os.environ.get("OPENAI_API_KEY")
         )
 
+        # Try to import tracing SDK
         try:
-            response_stream = await client.responses.create(
-                **function_input.create_params
-            )
+            from agents.tracing import response_span, trace
+            has_tracing = True
+        except ImportError:
+            has_tracing = False
+
+        # Initialize span reference and context manager
+        current_span = None
+        span_context = None
+        trace_context = None
+
+        # Make API call with optional tracing
+        # Note: We manually manage span lifecycle to update output after stream consumption
+        try:
+            if has_tracing:
+                # Get metadata for tracing
+                temporal_agent_id = function_info().workflow_id
+                temporal_run_id = function_info().workflow_run_id
+
+                # Enter trace context manually
+                trace_context = trace(
+                    workflow_name="llm_call",
+                    metadata={
+                        "temporal_agent_id": temporal_agent_id,
+                        "temporal_run_id": temporal_run_id,
+                        "task_id": function_input.task_id,
+                        "agent_id": function_input.agent_id,
+                        "workspace_id": function_input.workspace_id,
+                    }
+                )
+                trace_context.__enter__()
+
+                # Enter response span manually (we'll exit it after stream processing)
+                # Following SDK pattern from openai_responses.py
+                span_context = response_span()
+                current_span = span_context.__enter__()
+
+                # Set input immediately (SDK pattern)
+                # Input is at create_params["input"], prepared by llm_prepare_response
+                current_span.span_data.input = function_input.create_params.get("input", [])
+
+                response_stream = await client.responses.create(
+                    **function_input.create_params
+                )
+            else:
+                response_stream = await client.responses.create(
+                    **function_input.create_params
+                )
         except Exception as e:
             error_msg = f"OpenAI API error: {e!s}"
             log.error(
@@ -359,7 +428,7 @@ async def llm_response_stream(
         )
 
         agent_task = asyncio.create_task(
-            send_non_delta_events_to_agent(agent_stream)
+            send_non_delta_events_to_agent(agent_stream, current_span)
         )
 
         # Wait for both to complete, but don't let websocket failures fail the function
@@ -403,3 +472,18 @@ async def llm_response_stream(
     except (OSError, ValueError) as e:
         error_msg = f"llm_response failed: {e}"
         raise NonRetryableError(error_msg) from e
+    finally:
+        # Close span and trace contexts if they were opened
+        if span_context is not None:
+            try:
+                span_context.__exit__(None, None, None)
+                log.info("Closed generation span")
+            except Exception as e:
+                log.warning(f"Error closing span: {e}")
+
+        if trace_context is not None:
+            try:
+                trace_context.__exit__(None, None, None)
+                log.info("Closed trace context")
+            except Exception as e:
+                log.warning(f"Error closing trace: {e}")

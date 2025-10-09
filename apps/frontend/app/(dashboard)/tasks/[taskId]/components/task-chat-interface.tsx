@@ -8,6 +8,7 @@ import { Reasoning, ReasoningTrigger, ReasoningContent } from "@workspace/ui/com
 import { useConversationItem } from "../hooks/use-conversation-item";
 import { TaskTodosList } from "./task-todos-list";
 import { TaskSubtasksList } from "./task-subtasks-list";
+import { FeedbackButtons } from "./feedback-buttons";
 
 
 interface TaskChatInterfaceProps {
@@ -21,6 +22,10 @@ interface TaskChatInterfaceProps {
   agentLoading: boolean;
   showSplitView: boolean;
   responseState?: unknown; // Agent state for real-time updates
+  taskId?: string;
+  agentId?: string;
+  workspaceId?: string;
+  onCreateMetricFromFeedback?: () => void;
 }
 
 export function TaskChatInterface({
@@ -34,6 +39,10 @@ export function TaskChatInterface({
   agentLoading,
   showSplitView,
   responseState,
+  taskId,
+  agentId,
+  workspaceId,
+  onCreateMetricFromFeedback,
 }: TaskChatInterfaceProps) {
   const conversationEndRef = useRef<HTMLDivElement>(null);
 
@@ -67,13 +76,19 @@ export function TaskChatInterface({
         ) : (
           <>
             {/* Render conversation items from RxJS store */}
-            {conversation.map((item) => (
+            {conversation.map((item, index) => (
               <div key={item.id}>
                 <RenderConversationItem
                   item={item}
                   onApproveRequest={onApproveRequest}
                   onDenyRequest={onDenyRequest}
                   onCardClick={onCardClick}
+                  taskId={taskId}
+                  agentId={agentId}
+                  workspaceId={workspaceId}
+                  responseIndex={index}
+                  messageCount={conversation.length}
+                  onCreateMetricFromFeedback={onCreateMetricFromFeedback}
                 />
               </div>
             ))}
@@ -113,11 +128,23 @@ function RenderConversationItem({
   onApproveRequest,
   onDenyRequest,
   onCardClick,
+  taskId,
+  agentId,
+  workspaceId,
+  responseIndex,
+  messageCount,
+  onCreateMetricFromFeedback,
 }: {
   item: ConversationItem;
   onApproveRequest?: (itemId: string) => void;
   onDenyRequest?: (itemId: string) => void;
   onCardClick?: (item: ConversationItem) => void;
+  taskId?: string;
+  agentId?: string;
+  workspaceId?: string;
+  responseIndex: number;
+  messageCount: number;
+  onCreateMetricFromFeedback?: () => void;
 }) {
   const conversationItemData = useConversationItem(item);
   switch (item.type) {
@@ -186,24 +213,39 @@ function RenderConversationItem({
         
     case 'assistant': {
       const { isUser, textContent, isReasoningType } = conversationItemData;
+      const isAgentMessage = !isUser && item.openai_output?.role === 'assistant';
       return (
         <div key={item.id} className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
-          <div className="flex items-start space-x-2 max-w-[85%]">
-            <div
-              className={
-                isUser
-                  ? "p-3 rounded-lg bg-neutral-100 dark:bg-neutral-800"
-                  : isReasoningType
-                    ? "bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800"
-                    : "bg-transparent"
-              }
-            >
-              <div className="text-sm whitespace-pre-wrap break-words">
-                <Response>
-                  {textContent}
-                </Response>
+          <div className="flex flex-col max-w-[85%]">
+            <div className="flex items-start space-x-2">
+              <div
+                className={
+                  isUser
+                    ? "p-3 rounded-lg bg-neutral-100 dark:bg-neutral-800"
+                    : isReasoningType
+                      ? "bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800"
+                      : "bg-transparent"
+                }
+              >
+                <div className="text-sm whitespace-pre-wrap break-words">
+                  <Response>
+                    {textContent}
+                  </Response>
+                </div>
               </div>
             </div>
+            {/* Show feedback buttons only for agent messages */}
+            {isAgentMessage && taskId && agentId && workspaceId && (
+              <FeedbackButtons
+                item={item}
+                taskId={taskId}
+                agentId={agentId}
+                workspaceId={workspaceId}
+                responseIndex={responseIndex}
+                messageCount={messageCount}
+                onCreateMetric={onCreateMetricFromFeedback}
+              />
+            )}
           </div>
         </div>
       );
@@ -225,24 +267,39 @@ function RenderConversationItem({
       
     default: {
       const { isUser, textContent, isReasoningType } = conversationItemData;
+      const isAgentMessage = !isUser && item.openai_output?.role === 'assistant';
       return (
         <div key={item.id} className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
-          <div className="flex items-start space-x-2 max-w-[85%]">
-            <div
-              className={
-                isUser
-                  ? "p-3 rounded-lg bg-neutral-100 dark:bg-neutral-800"
-                  : isReasoningType
-                    ? "bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800"
-                    : "bg-transparent"
-              }
-            >
-              <div className="text-sm whitespace-pre-wrap break-words">
-                <Response>
-                  {textContent}
-                </Response>
+          <div className="flex flex-col max-w-[85%]">
+            <div className="flex items-start space-x-2">
+              <div
+                className={
+                  isUser
+                    ? "p-3 rounded-lg bg-neutral-100 dark:bg-neutral-800"
+                    : isReasoningType
+                      ? "bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800"
+                      : "bg-transparent"
+                }
+              >
+                <div className="text-sm whitespace-pre-wrap break-words">
+                  <Response>
+                    {textContent}
+                  </Response>
+                </div>
               </div>
             </div>
+            {/* Show feedback buttons only for agent messages */}
+            {isAgentMessage && taskId && agentId && workspaceId && (
+              <FeedbackButtons
+                item={item}
+                taskId={taskId}
+                agentId={agentId}
+                workspaceId={workspaceId}
+                responseIndex={responseIndex}
+                messageCount={messageCount}
+                onCreateMetric={onCreateMetricFromFeedback}
+              />
+            )}
           </div>
         </div>
       );

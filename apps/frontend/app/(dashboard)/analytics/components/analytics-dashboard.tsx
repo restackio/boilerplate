@@ -4,10 +4,12 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/ui/card";
 import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 import { getAnalytics, type AnalyticsData, type AnalyticsFilters } from "@/app/actions/analytics";
+import { getDetailedFeedbacks, type DetailedFeedback } from "@/app/actions/feedback";
 import MetricsFilters from "./metrics-filters";
 import TasksOverviewChart from "./tasks-overview-chart";
 import PerformanceMetricChart from "./performance-metric-chart";
 import QualityMetricChart from "./quality-metric-chart";
+import FeedbackChart from "./feedback-chart";
 
 export default function AnalyticsDashboard() {
   const { currentWorkspaceId, isReady, loading } = useDatabaseWorkspace();
@@ -19,6 +21,7 @@ export default function AnalyticsDashboard() {
   });
   
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
+  const [detailedFeedbacks, setDetailedFeedbacks] = useState<DetailedFeedback[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Update filters when workspace ID becomes available
@@ -36,14 +39,22 @@ export default function AnalyticsDashboard() {
       setIsLoading(true);
       
       try {
-        const data = await getAnalytics({
-          workspaceId: filters.workspaceId,
-          agentId: filters.agentId,
-          version: filters.version,
-          dateRange: filters.dateRange,
-        });
+        const [data, feedbacks] = await Promise.all([
+          getAnalytics({
+            workspaceId: filters.workspaceId,
+            agentId: filters.agentId,
+            version: filters.version,
+            dateRange: filters.dateRange,
+          }),
+          getDetailedFeedbacks(
+            filters.workspaceId,
+            filters.agentId || undefined,
+            filters.dateRange
+          ),
+        ]);
         
         setAnalyticsData(data);
+        setDetailedFeedbacks(feedbacks);
       } catch (error) {
         console.error("Error fetching analytics:", error);
       } finally {
@@ -100,7 +111,6 @@ export default function AnalyticsDashboard() {
                   <PerformanceMetricChart 
                     data={analyticsData?.performance?.timeseries || []}
                     metric="duration"
-                    label="ms"
                     color="blue"
                   />
                 </CardContent>
@@ -114,7 +124,6 @@ export default function AnalyticsDashboard() {
                   <PerformanceMetricChart 
                     data={analyticsData?.performance?.timeseries || []}
                     metric="tokens"
-                    label="tokens"
                     color="green"
                   />
                 </CardContent>
@@ -128,7 +137,6 @@ export default function AnalyticsDashboard() {
                   <PerformanceMetricChart 
                     data={analyticsData?.performance?.timeseries || []}
                     metric="cost"
-                    label="$"
                     color="purple"
                   />
                 </CardContent>
@@ -164,7 +172,34 @@ export default function AnalyticsDashboard() {
                   </div>
                 </CardContent>
               </Card>
-            )}</div>
+            )}
+          </div>
+
+          {/* User Feedback */}
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold">User Feedback</h2>
+            <Card>
+              <CardHeader>
+                <CardTitle>Feedback Trends</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Track positive and negative feedback from users over time
+                </p>
+              </CardHeader>
+              <CardContent>
+                <FeedbackChart
+                  data={analyticsData?.feedback?.timeseries || []}
+                  summary={analyticsData?.feedback?.summary || {
+                    totalPositive: 0,
+                    totalNegative: 0,
+                    totalFeedback: 0,
+                    negativePercentage: 0,
+                    positivePercentage: 0,
+                  }}
+                  detailedFeedbacks={detailedFeedbacks}
+                />
+              </CardContent>
+            </Card>
+          </div>
         </>
       )}
     </div>

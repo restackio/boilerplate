@@ -60,6 +60,7 @@ async def get_analytics_metrics(
     fetch_performance = fetch_all or "performance" in metric_types
     fetch_quality = fetch_all or "quality" in metric_types
     fetch_overview = fetch_all or "overview" in metric_types
+    fetch_feedback = fetch_all or "feedback" in metric_types
 
     log.info(
         f"Fetching analytics for workspace {filters.workspace_id}, types: {metric_types}"
@@ -85,6 +86,12 @@ async def get_analytics_metrics(
         # Overview (task counts & success rates)
         if fetch_overview:
             result["overview"] = await _get_overview_metrics(
+                client, filters
+            )
+
+        # Feedback metrics
+        if fetch_feedback:
+            result["feedback"] = await _get_feedback_metrics(
                 client, filters
             )
 
@@ -116,9 +123,9 @@ async def _get_performance_metrics(
             count(*) as task_count,
 
             -- Timeseries grouping
-            toDate(executed_at) as date
-        FROM task_performance_metrics
-        WHERE {where_clause}
+            toDate(created_at) as date
+        FROM task_metrics
+        WHERE metric_category = 'performance' AND {where_clause}
         GROUP BY date
         ORDER BY date ASC
     """
@@ -189,19 +196,16 @@ async def _get_quality_metrics(
 ) -> dict[str, Any]:
     """Fetch quality metrics (summary + timeseries) in one query."""
     where_clause, params = build_filter_clause(filters)
-    where_clause = where_clause.replace(
-        "executed_at", "evaluated_at"
-    )
 
     query = f"""
         SELECT
             metric_name,
-            toDate(evaluated_at) as date,
+            toDate(created_at) as date,
             countIf(passed = true) / count(*) as pass_rate,
             avg(score) as avg_score,
             count(*) as eval_count
-        FROM task_quality_metrics
-        WHERE {where_clause}
+        FROM task_metrics
+        WHERE metric_category = 'quality' AND {where_clause}
         GROUP BY metric_name, date
         ORDER BY metric_name, date ASC
     """
@@ -278,11 +282,11 @@ async def _get_overview_metrics(
 
     query = f"""
         SELECT
-            toDate(executed_at) as date,
+            toDate(created_at) as date,
             count(*) as task_count,
             countIf(status = 'completed') / count(*) as success_rate
-        FROM task_performance_metrics
-        WHERE {where_clause}
+        FROM task_metrics
+        WHERE metric_category = 'performance' AND {where_clause}
         GROUP BY date
         ORDER BY date ASC
     """
@@ -301,3 +305,63 @@ async def _get_overview_metrics(
     ]
 
     return {"timeseries": timeseries}
+
+
+async def _get_feedback_metrics(
+    client: Any, filters: AnalyticsFilters
+) -> dict[str, Any]:
+    """Get feedback metrics (positive/negative feedback over time)."""
+    where_filter, params = build_filter_clause(filters)
+    where_filter += " AND metric_category = 'feedback'"
+
+    # Timeseries query
+    timeseries_query = f"""
+        SELECT
+            toDate(created_at) as date,
+            countIf(passed = 1) as positive_count,
+            countIf(passed = 0) as negative_count,
+            count() as total_count,
+            if(count() > 0, (countIf(passed = 0) * 100.0 / count()), 0) as negative_percentage
+        FROM task_metrics
+        WHERE {where_filter}
+        GROUP BY date
+        ORDER BY date ASC
+    """
+
+    result = client.query(timeseries_query, parameters=params)
+
+    timeseries = [
+        {
+            "date": str(row["date"]),
+            "positiveCount": int(row["positive_count"]),
+            "negativeCount": int(row["negative_count"]),
+            "totalCount": int(row["total_count"]),
+            "negativePercentage": round(row["negative_percentage"], 1),
+        }
+        for row in result.named_results()
+    ]
+
+    # Summary query
+    summary_query = f"""
+        SELECT
+            countIf(passed = 1) as total_positive,
+            countIf(passed = 0) as total_negative,
+            count() as total_feedback,
+            if(count() > 0, (countIf(passed = 0) * 100.0 / count()), 0) as negative_percentage,
+            if(count() > 0, (countIf(passed = 1) * 100.0 / count()), 0) as positive_percentage
+        FROM task_metrics
+        WHERE {where_filter}
+    """
+
+    summary_result = client.query(summary_query, parameters=params)
+    summary_row = next(iter(summary_result.named_results())) if summary_result.named_results() else None
+
+    summary = {
+        "totalPositive": int(summary_row["total_positive"]) if summary_row else 0,
+        "totalNegative": int(summary_row["total_negative"]) if summary_row else 0,
+        "totalFeedback": int(summary_row["total_feedback"]) if summary_row else 0,
+        "negativePercentage": round(summary_row["negative_percentage"], 1) if summary_row else 0,
+        "positivePercentage": round(summary_row["positive_percentage"], 1) if summary_row else 0,
+    }
+
+    return {"summary": summary, "timeseries": timeseries}

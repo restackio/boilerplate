@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from "react";
-import { Button } from "@workspace/ui/components/ui/button";
 import { Textarea } from "@workspace/ui/components/ui/textarea";
 import { Input } from "@workspace/ui/components/ui/input";
 import { Label } from "@workspace/ui/components/ui/label";
@@ -95,7 +94,6 @@ export const AgentConfigurationForm = forwardRef<AgentConfigurationFormRef, Agen
   initialData,
   showNameField = true,
   showDescriptionField = true,
-  showInstructionsPreview = false,
   isReadOnly = false,
   variant = "full",
   instructionsMinHeight = "200px",

@@ -11,7 +11,7 @@ async def get_task_metrics_clickhouse(
     input_data: dict,
 ) -> dict:
     """Fetch all metrics for a task from ClickHouse (quality + performance).
-    
+
     Returns a dict with:
     - performance: list of performance metric records
     - quality: list of quality metric records
@@ -61,7 +61,7 @@ async def get_task_metrics_clickhouse(
 
         performance_metrics = []
         quality_metrics = []
-        
+
         for row in result.named_results():
             if row["metric_category"] == "performance":
                 performance_metrics.append({
@@ -97,7 +97,7 @@ async def get_task_metrics_clickhouse(
         log.info(
             f"Found {len(performance_metrics)} performance + {len(quality_metrics)} quality metrics for task {task_id}"
         )
-        
+
         return {
             "performance": performance_metrics,
             "quality": quality_metrics,

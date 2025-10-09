@@ -1,37 +1,34 @@
-"""Clean tracing architecture for Temporal + OpenAI Agents.
+"""SDK-native tracing - just use OpenAI Agents SDK directly.
 
-Architecture:
-1. Workflows set simple context (NO SDK imports)
-2. Functions self-trace via decorators (SDK isolated here)
-3. Processor batches to ClickHouse (async, high-scale)
+We only add:
+- ClickHouseTracingProcessor (writes spans to ClickHouse)
+
+Everything else comes from the SDK:
+- trace() - from agents.tracing
+- generation_span() - from agents.tracing
+- function_span() - from agents.tracing
+- All span data types - from agents.tracing.span_data
 
 Usage:
-    # In workflow:
-    from src.tracing.context import TracingContext, set_tracing_context
-    set_tracing_context(TracingContext(...))
-    
-    # In function:
-    from src.tracing.decorators import trace_llm_call
-    @trace_llm_call
-    async def my_function(...):
-        ...
+    # Initialize processor once at startup (services.py):
+    from agents import tracing
+    from src.tracing import ClickHouseTracingProcessor
 
-See TRACING_ARCHITECTURE.md for complete documentation.
+    processor = ClickHouseTracingProcessor()
+    tracing.add_trace_processor(processor)
+
+    # In functions that make LLM calls, use SDK directly:
+    from agents.tracing import generation_span
+
+    with generation_span(input=messages, model=model):
+        result = await llm_call()
+        # Processor automatically captures span data on exit
+
+    Note: Do NOT wrap long-running workflows in trace() context managers.
+    Traces are for discrete operations (LLM calls, function calls), not
+    workflows that run for extended periods.
 """
 
-from .clickhouse_processor import ClickHouseTracingProcessor, ConsoleTracingProcessor
-from .context import TracingContext, set_tracing_context, get_tracing_context
-from .decorators import trace_llm_call, trace_function_call
+from .clickhouse_processor import ClickHouseTracingProcessor
 
-__all__ = [
-    # Processors
-    "ClickHouseTracingProcessor",
-    "ConsoleTracingProcessor",
-    # Context
-    "TracingContext",
-    "set_tracing_context",
-    "get_tracing_context",
-    # Decorators
-    "trace_llm_call",
-    "trace_function_call",
-]
+__all__ = ["ClickHouseTracingProcessor"]

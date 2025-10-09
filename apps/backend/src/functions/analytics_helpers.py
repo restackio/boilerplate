@@ -53,7 +53,7 @@ def build_filter_clause(
         ... )
         >>> clause, params = build_filter_clause(filters)
         >>> clause
-        'workspace_id = {workspace_id:UUID} AND agent_id = {agent_id:UUID} AND executed_at >= now() - INTERVAL 7 DAY'
+        'workspace_id = {workspace_id:UUID} AND agent_id = {agent_id:UUID} AND created_at >= now() - INTERVAL 7 DAY'
         >>> params
         {'workspace_id': 'abc-123', 'agent_id': 'xyz-789'}
     """
@@ -70,10 +70,10 @@ def build_filter_clause(
         where_clauses.append("agent_version = {version:String}")
         params["version"] = filters.version
 
-    # Date range filter
+    # Date range filter (using created_at for unified task_metrics table)
     days = parse_date_range(filters.date_range)
     where_clauses.append(
-        f"executed_at >= now() - INTERVAL {days} DAY"
+        f"created_at >= now() - INTERVAL {days} DAY"
     )
 
     # Additional custom filters

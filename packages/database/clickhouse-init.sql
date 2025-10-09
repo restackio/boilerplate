@@ -91,6 +91,10 @@ CREATE TABLE IF NOT EXISTS task_metrics (
     task_input Nullable(String),
     task_output Nullable(String),
     
+    -- Trace linkage (links metrics to their source traces for full traceability)
+    trace_id Nullable(String), -- Links metric to originating trace
+    span_id Nullable(String),  -- Links metric to specific span within trace
+    
     -- Timestamps
     created_at DateTime64(3) DEFAULT now64(3),
     date Date MATERIALIZED toDate(created_at)
@@ -105,3 +109,67 @@ CREATE INDEX IF NOT EXISTS idx_task_metrics_agent_id ON task_metrics (agent_id) 
 CREATE INDEX IF NOT EXISTS idx_task_metrics_category ON task_metrics (metric_category) TYPE bloom_filter GRANULARITY 1;
 CREATE INDEX IF NOT EXISTS idx_task_metrics_name ON task_metrics (metric_name) TYPE bloom_filter GRANULARITY 1;
 CREATE INDEX IF NOT EXISTS idx_task_metrics_passed ON task_metrics (passed) TYPE bloom_filter GRANULARITY 1;
+CREATE INDEX IF NOT EXISTS idx_task_metrics_trace_id ON task_metrics (trace_id) TYPE bloom_filter GRANULARITY 1;
+CREATE INDEX IF NOT EXISTS idx_task_metrics_span_id ON task_metrics (span_id) TYPE bloom_filter GRANULARITY 1;
+
+
+-- ========================================
+-- Task Traces (OpenAI Agents SDK Tracing)
+-- ========================================
+
+-- Immutable trace spans from OpenAI Agents SDK
+-- Used for retroactive quality evaluation and detailed observability
+CREATE TABLE IF NOT EXISTS task_traces (
+    -- OpenTelemetry/OpenAI Agents trace identifiers
+    trace_id String,
+    span_id String,
+    parent_span_id Nullable(String),
+    
+    -- Business identifiers (from trace metadata)
+    task_id Nullable(UUID),
+    agent_id Nullable(UUID),
+    agent_name Nullable(String),
+    workspace_id Nullable(UUID),
+    agent_version String DEFAULT 'v1',
+    
+    -- Temporal workflow identifiers
+    temporal_agent_id Nullable(String), -- Temporal workflow ID
+    temporal_run_id Nullable(String),   -- Temporal run ID
+    
+    -- Span metadata
+    span_type LowCardinality(String), -- 'generation', 'function', 'agent', 'custom'
+    span_name String,
+    duration_ms UInt32,
+    status LowCardinality(String), -- 'ok', 'error'
+    
+    -- LLM-specific (for generation spans)
+    model_name Nullable(String),
+    input_tokens Nullable(UInt32),
+    output_tokens Nullable(UInt32),
+    cost_usd Nullable(Float64),
+    
+    -- Full I/O (CRITICAL for quality evaluation)
+    input String, -- JSON-serialized messages/input
+    output String, -- JSON-serialized response/output
+    
+    -- Metadata (tools, config, etc.)
+    metadata JSON,
+    
+    -- Error tracking
+    error_message Nullable(String),
+    error_type Nullable(String),
+    
+    -- Timestamps
+    started_at DateTime64(3),
+    ended_at DateTime64(3),
+    date Date MATERIALIZED toDate(started_at)
+) ENGINE = MergeTree()
+PARTITION BY toYYYYMM(date)
+ORDER BY (trace_id, started_at)
+SETTINGS index_granularity = 8192;
+
+-- Indexes for trace queries
+CREATE INDEX IF NOT EXISTS idx_traces_trace_id ON task_traces (trace_id) TYPE bloom_filter GRANULARITY 1;
+CREATE INDEX IF NOT EXISTS idx_traces_span_type ON task_traces (span_type) TYPE bloom_filter GRANULARITY 1;
+CREATE INDEX IF NOT EXISTS idx_traces_task_id ON task_traces (task_id) TYPE bloom_filter GRANULARITY 1;
+CREATE INDEX IF NOT EXISTS idx_traces_agent_id ON task_traces (agent_id) TYPE bloom_filter GRANULARITY 1;

@@ -11,6 +11,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@workspace/ui/components/ui/dialog";
+import { Input } from "@workspace/ui/components/ui/input";
+import { Label } from "@workspace/ui/components/ui/label";
+import { Textarea } from "@workspace/ui/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -18,85 +21,119 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@workspace/ui/components/ui/select";
-import { Input } from "@workspace/ui/components/ui/input";
-import { Label } from "@workspace/ui/components/ui/label";
-import { Textarea } from "@workspace/ui/components/ui/textarea";
-import { Plus } from "lucide-react";
-import { createMetricDefinition } from "@/app/actions/metrics";
-import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
+import { Switch } from "@workspace/ui/components/ui/switch";
+import { Slider } from "@workspace/ui/components/ui/slider";
+import { Plus, Loader2, Sparkles } from "lucide-react";
+import { createMetricWithRetroactive } from "@/app/actions/metrics";
 
-export default function CreateMetricDialog() {
-  const { currentWorkspaceId } = useDatabaseWorkspace();
+interface CreateMetricDialogProps {
+  workspaceId: string;
+  userId?: string;
+  onMetricCreated?: () => void;
+}
+
+export function CreateMetricDialog({
+  workspaceId,
+  userId,
+  onMetricCreated,
+}: CreateMetricDialogProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    name: "",
-    description: "",
-    category: "quality",
-    metricType: "llm_judge" as "llm_judge" | "python_code" | "formula",
-    judgePrompt: "",
-    judgeModel: "gpt-4o-mini",
-    pythonCode: "",
-    formula: "",
-    variables: "",
-  });
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  // Metric definition
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [category] = useState("quality");
+  const [metricType, setMetricType] = useState<"llm_judge" | "python_code" | "formula">("llm_judge");
+
+  // LLM Judge config
+  const [judgePrompt, setJudgePrompt] = useState("");
+  const [judgeModel, setJudgeModel] = useState("gpt-4o-mini");
+
+  // Retroactive options
+  const [runRetroactive, setRunRetroactive] = useState(false);
+  const [retroactiveWeeks, setRetroactiveWeeks] = useState(2);
+  const [samplePercentage, setSamplePercentage] = useState(10);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!currentWorkspaceId) {
-      alert("No workspace selected");
+    setError(null);
+    setSuccess(null);
+
+    if (!name.trim()) {
+      setError("Metric name is required");
+      return;
+    }
+
+    if (metricType === "llm_judge" && !judgePrompt.trim()) {
+      setError("Judge prompt is required for LLM judge metrics");
       return;
     }
 
     setLoading(true);
+
     try {
       // Build config based on metric type
-      let config: any = {};
-      
-      if (formData.metricType === "llm_judge") {
-        config = {
-          judge_prompt: formData.judgePrompt,
-          judge_model: formData.judgeModel,
-        };
-      } else if (formData.metricType === "python_code") {
-        config = {
-          code: formData.pythonCode,
-        };
-      } else if (formData.metricType === "formula") {
-        config = {
-          formula: formData.formula,
-          variables: formData.variables.split(",").map(v => v.trim()).filter(Boolean),
-        };
+      const config: Record<string, unknown> = {};
+      if (metricType === "llm_judge") {
+        config.judge_prompt = judgePrompt;
+        config.judge_model = judgeModel;
       }
 
-      await createMetricDefinition({
-        workspaceId: currentWorkspaceId,
-        name: formData.name,
-        description: formData.description,
-        category: formData.category,
-        metricType: formData.metricType,
+      // Calculate date range if retroactive
+      let retroactiveDateFrom: string | undefined;
+      let retroactiveDateTo: string | undefined;
+      if (runRetroactive) {
+        const now = new Date();
+        const weeksAgo = new Date(now);
+        weeksAgo.setDate(weeksAgo.getDate() - (retroactiveWeeks * 7));
+        retroactiveDateFrom = weeksAgo.toISOString();
+        retroactiveDateTo = now.toISOString();
+      }
+
+      const result = await createMetricWithRetroactive({
+        workspace_id: workspaceId,
+        name,
+        description: description || undefined,
+        category,
+        metric_type: metricType,
         config,
+        is_active: true,
+        created_by: userId || undefined,
+        run_retroactive: runRetroactive,
+        retroactive_date_from: retroactiveDateFrom,
+        retroactive_date_to: retroactiveDateTo,
+        retroactive_sample_percentage: runRetroactive ? samplePercentage / 100 : undefined,
       });
 
-      alert("Metric created successfully!");
-      setOpen(false);
-      
-      // Reset form
-      setFormData({
-        name: "",
-        description: "",
-        category: "quality",
-        metricType: "llm_judge",
-        judgePrompt: "",
-        judgeModel: "gpt-4o-mini",
-        pythonCode: "",
-        formula: "",
-        variables: "",
-      });
+      if (result.success) {
+        setSuccess(
+          runRetroactive
+            ? `${name} created and retroactive evaluation started on ${samplePercentage}% of traces from last ${retroactiveWeeks} weeks`
+            : `${name} created successfully. It will run on all new tasks.`
+        );
+
+        // Reset form after a brief delay to show success message
+        setTimeout(() => {
+          setName("");
+          setDescription("");
+          setJudgePrompt("");
+          setRunRetroactive(false);
+          setRetroactiveWeeks(2);
+          setSamplePercentage(10);
+          setOpen(false);
+          setSuccess(null);
+
+          // Notify parent
+          onMetricCreated?.();
+        }, 2000);
+      } else {
+        setError(result.error || "Failed to create metric");
+      }
     } catch (error) {
-      console.error("Failed to create metric:", error);
-      alert("Failed to create metric");
+      setError(error instanceof Error ? error.message : "Failed to create metric");
     } finally {
       setLoading(false);
     }
@@ -110,170 +147,200 @@ export default function CreateMetricDialog() {
           Create Metric
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Create Custom Metric</DialogTitle>
-          <DialogDescription>
-            Add a new metric to evaluate agent performance and quality
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <form onSubmit={handleSubmit}>
+          <DialogHeader>
+            <DialogTitle>Create Quality Metric</DialogTitle>
+            <DialogDescription>
+              Create a new metric to evaluate agent responses. Optionally run it on historical data.
+            </DialogDescription>
+          </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Basic Info */}
-          <div className="space-y-2">
-            <Label htmlFor="name">Metric Name *</Label>
-            <Input
-              id="name"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="e.g., Response Helpfulness"
-              required
-            />
-          </div>
+          {/* Success/Error Messages */}
+          {error && (
+            <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 rounded-lg p-3 text-sm">
+              <p className="font-semibold">Error</p>
+              <p>{error}</p>
+            </div>
+          )}
 
-          <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
-            <Textarea
-              id="description"
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="What does this metric measure?"
-              rows={2}
-            />
-          </div>
+          {success && (
+            <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-200 rounded-lg p-3 text-sm">
+              <p className="font-semibold">✅ Success</p>
+              <p>{success}</p>
+            </div>
+          )}
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-4 py-4">
+            {/* Metric Name */}
             <div className="space-y-2">
-              <Label htmlFor="category">Category *</Label>
-              <Select
-                value={formData.category}
-                onValueChange={(value) => setFormData({ ...formData, category: value })}
-              >
+              <Label htmlFor="name">Metric Name *</Label>
+              <Input
+                id="name"
+                placeholder="e.g., response_helpful, tone_professional"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
+            </div>
+
+            {/* Description */}
+            <div className="space-y-2">
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                placeholder="What does this metric evaluate?"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={2}
+              />
+            </div>
+
+            {/* Metric Type */}
+            <div className="space-y-2">
+              <Label htmlFor="type">Metric Type</Label>
+              <Select value={metricType} onValueChange={(v: "llm_judge" | "python_code" | "formula") => setMetricType(v)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="quality">Quality</SelectItem>
-                  <SelectItem value="cost">Cost</SelectItem>
-                  <SelectItem value="performance">Performance</SelectItem>
-                  <SelectItem value="custom">Custom</SelectItem>
+                  <SelectItem value="llm_judge">LLM Judge (GPT evaluates response)</SelectItem>
+                  <SelectItem value="python_code" disabled>Python Code (Coming soon)</SelectItem>
+                  <SelectItem value="formula" disabled>Formula (Coming soon)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="metricType">Metric Type *</Label>
-              <Select
-                value={formData.metricType}
-                onValueChange={(value: any) => setFormData({ ...formData, metricType: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="llm_judge">LLM Judge</SelectItem>
-                  <SelectItem value="python_code">Python Code</SelectItem>
-                  <SelectItem value="formula">Formula</SelectItem>
-                </SelectContent>
-              </Select>
+            {/* LLM Judge Config */}
+            {metricType === "llm_judge" && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="judgePrompt">Judge Prompt *</Label>
+                  <Textarea
+                    id="judgePrompt"
+                    placeholder={'Example:\n"Evaluate if this response is helpful and answers the user\'s question clearly. Consider accuracy, completeness, and tone.\n\nReturn JSON: {"passed": true/false, "score": 0-100, "reasoning": "..."}'}
+                    value={judgePrompt}
+                    onChange={(e) => setJudgePrompt(e.target.value)}
+                    rows={6}
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    The LLM will receive the task input and output, and evaluate based on your prompt.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="judgeModel">Judge Model</Label>
+                  <Select value={judgeModel} onValueChange={setJudgeModel}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="gpt-4o-mini">GPT-4o Mini (Fast & Cheap)</SelectItem>
+                      <SelectItem value="gpt-4o">GPT-4o (More Accurate)</SelectItem>
+                      <SelectItem value="gpt-5-mini">GPT-5 Mini</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
+
+            {/* Retroactive Evaluation Section */}
+            <div className="border-t pt-4 mt-4">
+              <div className="flex items-center justify-between mb-4">
+                <div className="space-y-0.5">
+                  <Label className="text-base flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-purple-500" />
+                    Run Retroactive Evaluation
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Test this metric on historical traces
+                  </p>
+                </div>
+                <Switch
+                  checked={runRetroactive}
+                  onCheckedChange={setRunRetroactive}
+                />
+              </div>
+
+              {runRetroactive && (
+                <div className="space-y-4 ml-6 border-l-2 border-purple-200 pl-4">
+                  {/* Time Range */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label>Time Range</Label>
+                      <span className="text-sm font-medium">
+                        Last {retroactiveWeeks} {retroactiveWeeks === 1 ? "week" : "weeks"}
+                      </span>
+                    </div>
+                    <Slider
+                      value={[retroactiveWeeks]}
+                      onValueChange={(v) => setRetroactiveWeeks(v[0])}
+                      min={1}
+                      max={12}
+                      step={1}
+                      className="w-full"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Evaluate traces from the last {retroactiveWeeks} {retroactiveWeeks === 1 ? "week" : "weeks"}
+                    </p>
+                  </div>
+
+                  {/* Sample Percentage */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label>Sample Size</Label>
+                      <span className="text-sm font-medium">
+                        {samplePercentage}% of traces
+                      </span>
+                    </div>
+                    <Slider
+                      value={[samplePercentage]}
+                      onValueChange={(v) => setSamplePercentage(v[0])}
+                      min={1}
+                      max={100}
+                      step={1}
+                      className="w-full"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Randomly sample {samplePercentage}% of traces for evaluation
+                      {samplePercentage < 100 && " (recommended for large datasets)"}
+                    </p>
+                  </div>
+
+                  <div className="bg-purple-50 dark:bg-purple-950/20 rounded-lg p-3 text-sm">
+                    <p className="text-purple-900 dark:text-purple-100">
+                      💡 <strong>Tip:</strong> Start with a small sample (10-20%) to validate your metric works correctly before running on 100%.
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-
-          {/* Type-specific fields */}
-          {formData.metricType === "llm_judge" && (
-            <>
-              <div className="space-y-2">
-                <Label htmlFor="judgePrompt">Judge Prompt *</Label>
-              <Textarea
-                id="judgePrompt"
-                value={formData.judgePrompt}
-                onChange={(e) => setFormData({ ...formData, judgePrompt: e.target.value })}
-                placeholder="Evaluate if the response is helpful and addresses the user's needs. Return true if it passes, false if it fails."
-                rows={4}
-                required
-              />
-              <p className="text-xs text-muted-foreground">
-                The prompt used to evaluate task input/output. Returns pass/fail (boolean). 
-                <strong> Advanced:</strong> Can also return a score (0-100) for granular tracking.
-              </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="judgeModel">Judge Model</Label>
-                <Select
-                  value={formData.judgeModel}
-                  onValueChange={(value) => setFormData({ ...formData, judgeModel: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="gpt-4o-mini">GPT-4o Mini (Recommended)</SelectItem>
-                    <SelectItem value="gpt-4o">GPT-4o</SelectItem>
-                    <SelectItem value="gpt-4-turbo">GPT-4 Turbo</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </>
-          )}
-
-          {formData.metricType === "python_code" && (
-            <div className="space-y-2">
-              <Label htmlFor="pythonCode">Python Code *</Label>
-              <Textarea
-                id="pythonCode"
-                value={formData.pythonCode}
-                onChange={(e) => setFormData({ ...formData, pythonCode: e.target.value })}
-                placeholder={`def evaluate(task_input, task_output, performance):\n    # Your evaluation logic here\n    length = len(task_output)\n    passed = 10 < length < 5000\n    return {"passed": passed, "reasoning": f"Length: {length}"}`}
-                rows={6}
-                className="font-mono text-sm"
-                required
-              />
-              <p className="text-xs text-muted-foreground">
-                Define an <code className="bg-muted px-1 py-0.5 rounded">evaluate()</code> function that returns a dict with "passed" (boolean) and optional "reasoning".
-                <strong> Advanced:</strong> Can also include "score" (0-100).
-              </p>
-            </div>
-          )}
-
-          {formData.metricType === "formula" && (
-            <>
-              <div className="space-y-2">
-                <Label htmlFor="formula">Formula *</Label>
-                <Input
-                  id="formula"
-                  value={formData.formula}
-                  onChange={(e) => setFormData({ ...formData, formula: e.target.value })}
-                  placeholder="(input_tokens * 0.0025 / 1000 + output_tokens * 0.01 / 1000) < 0.10"
-                  required
-                />
-                <p className="text-xs text-muted-foreground">
-                  Boolean expression using performance data (evaluates to True/False)
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="variables">Variables (comma-separated) *</Label>
-                <Input
-                  id="variables"
-                  value={formData.variables}
-                  onChange={(e) => setFormData({ ...formData, variables: e.target.value })}
-                  placeholder="input_tokens, output_tokens, duration_ms"
-                  required
-                />
-                <p className="text-xs text-muted-foreground">
-                  Available: input_tokens, output_tokens, duration_ms, status
-                </p>
-              </div>
-            </>
-          )}
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+              disabled={loading}
+            >
               Cancel
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? "Creating..." : "Create Metric"}
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : runRetroactive ? (
+                <>
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Create & Evaluate
+                </>
+              ) : (
+                "Create Metric"
+              )}
             </Button>
           </DialogFooter>
         </form>

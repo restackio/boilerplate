@@ -11,6 +11,9 @@ class LlmPrepareResponseInput(BaseModel):
     reasoning_effort: str | None = None
     previous_response_id: str | None = None
     approval_response: dict | None = None
+    task_id: str | None = None
+    agent_id: str | None = None
+    workspace_id: str | None = None
 
 
 @function.defn()
@@ -57,4 +60,9 @@ async def llm_prepare_response(
             function_input.approval_response
         ]
 
-    return LlmResponseInput(create_params=create_params)
+    return LlmResponseInput(
+        create_params=create_params,
+        task_id=function_input.task_id,
+        agent_id=function_input.agent_id,
+        workspace_id=function_input.workspace_id,
+    )

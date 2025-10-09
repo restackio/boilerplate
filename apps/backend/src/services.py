@@ -49,6 +49,12 @@ from src.functions.datasets_crud import (
     datasets_read,
     query_dataset_events,
 )
+from src.functions.feedback_metrics import (
+    get_detailed_feedbacks,
+    get_feedback_analytics,
+    get_task_feedback,
+    ingest_feedback_metric,
+)
 from src.functions.llm_prepare_response import (
     llm_prepare_response,
 )
@@ -84,6 +90,7 @@ from src.functions.mcp_tools_refresh import (
 from src.functions.metrics_crud import (
     create_metric_definition,
     delete_metric_definition,
+    get_metric_definition_by_id,
     list_metric_definitions,
     update_metric_definition,
 )
@@ -125,6 +132,9 @@ from src.functions.teams_crud import (
     teams_read,
     teams_update,
 )
+from src.functions.traces_crud import (
+    get_task_traces_from_clickhouse,
+)
 from src.functions.user_workspaces_crud import (
     user_workspaces_create,
     user_workspaces_delete,
@@ -149,6 +159,9 @@ from src.functions.workspaces_crud import (
     workspaces_update,
 )
 from src.workflows.analytics_metrics import GetAnalyticsMetrics
+from src.workflows.create_metric_with_retroactive import (
+    CreateMetricWithRetroactiveWorkflow,
+)
 from src.workflows.crud.agent_subagents_crud import (
     AgentSubagentsCreateWorkflow,
     AgentSubagentsDeleteWorkflow,
@@ -258,6 +271,16 @@ from src.workflows.crud.workspaces_crud import (
     WorkspacesReadWorkflow,
     WorkspacesUpdateWorkflow,
 )
+from src.workflows.feedback_submission import (
+    FeedbackSubmissionWorkflow,
+    GetDetailedFeedbacksWorkflow,
+    GetFeedbackAnalyticsWorkflow,
+    GetTaskFeedbackWorkflow,
+)
+from src.workflows.get_task_traces import GetTaskTracesWorkflow
+from src.workflows.retroactive_metrics import (
+    RetroactiveMetrics,
+)
 from src.workflows.task_metrics import TaskMetricsWorkflow
 
 # Create logger for this module
@@ -351,9 +374,17 @@ async def run_restack_service() -> None:
             DeleteMetricDefinitionWorkflow,
             ListMetricDefinitionsWorkflow,
             GetTaskMetricsWorkflow,
+            GetTaskTracesWorkflow,
             TaskMetricsWorkflow,
+            CreateMetricWithRetroactiveWorkflow,
+            RetroactiveMetrics,
             # Analytics workflow
             GetAnalyticsMetrics,
+            # Feedback workflows
+            FeedbackSubmissionWorkflow,
+            GetTaskFeedbackWorkflow,
+            GetFeedbackAnalyticsWorkflow,
+            GetDetailedFeedbacksWorkflow,
         ],
         functions=[
             send_agent_event,
@@ -454,10 +485,12 @@ async def run_restack_service() -> None:
             get_oauth_token_for_mcp_server,
             # Metrics functions
             create_metric_definition,
+            get_metric_definition_by_id,
             update_metric_definition,
             delete_metric_definition,
             list_metric_definitions,
             get_task_metrics_clickhouse,
+            get_task_traces_from_clickhouse,
             # Analytics function
             get_analytics_metrics,
             evaluate_llm_judge_metric,
@@ -465,24 +498,29 @@ async def run_restack_service() -> None:
             evaluate_formula_metric,
             ingest_performance_metrics,
             ingest_quality_metrics,
+            # Feedback functions
+            ingest_feedback_metric,
+            get_task_feedback,
+            get_feedback_analytics,
+            get_detailed_feedbacks,
         ],
     )
 
 
 def init_tracing() -> None:
     """Initialize OpenAI Agents tracing with ClickHouse processor.
-    
+
     Sets up tracing once at startup. Processor runs in background
     with async batching for high-scale parallel use cases.
     """
     try:
         from agents import tracing
-        from src.tracing import ClickHouseTracingProcessor, ConsoleTracingProcessor
-        
+        from src.tracing import ClickHouseTracingProcessor
+
         environment = os.getenv("ENVIRONMENT", "development")
-        
+
         if environment == "production":
-            # Production: High-scale ClickHouse processor only
+            # Production: High-scale ClickHouse processor
             processor = ClickHouseTracingProcessor(
                 batch_size=1000,        # Flush after 1000 spans
                 flush_interval_sec=5.0,  # Or every 5 seconds
@@ -490,17 +528,16 @@ def init_tracing() -> None:
             tracing.add_trace_processor(processor)
             logger.info("Tracing initialized: ClickHouse (production mode)")
         else:
-            # Development: Console + ClickHouse with smaller batches
-            tracing.add_trace_processor(ConsoleTracingProcessor())
+            # Development: Smaller batches for faster feedback
             processor = ClickHouseTracingProcessor(
-                batch_size=100,
-                flush_interval_sec=2.0,
+                batch_size=10,           # Small batch for dev
+                flush_interval_sec=2.0,  # Quick flush
             )
             tracing.add_trace_processor(processor)
-            logger.info("Tracing initialized: Console + ClickHouse (development mode)")
-    
+            logger.info("Tracing initialized: ClickHouse (development mode)")
+
     except Exception as e:
-        logger.warning(f"Failed to initialize tracing: {e}")
+        logger.warning("Failed to initialize tracing: %s", e)
         logger.warning("Continuing without tracing...")
 
 
@@ -509,7 +546,7 @@ async def main() -> None:
     # Initialize database
     await init_async_db()
     logger.info("Database initialized")
-    
+
     # Initialize tracing
     init_tracing()
 

@@ -13,7 +13,9 @@ import {
   EntityNotFoundState,
 } from "@workspace/ui/components";
 import { EmptyState } from "@workspace/ui/components/empty-state";
-import { PlaygroundMetricsResults } from "./playground-metrics-results";
+import { SplitViewPanel } from "@workspace/ui/components/split-view-panel";
+import { TaskMetrics } from "./task-metrics";
+import { PlaygroundTraces } from "./playground-traces";
 
 interface PlaygroundTaskExecutionProps {
   taskId: string | null;
@@ -30,6 +32,7 @@ export function PlaygroundTaskExecution({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [chatMessage, setChatMessage] = useState("");
+  const [showTracesSplit, setShowTracesSplit] = useState(false);
 
   const { getTaskById } = useWorkspaceScopedActions();
 
@@ -181,41 +184,58 @@ export function PlaygroundTaskExecution({
   }
 
   return (
-    <div className={`flex flex-col h-full ${className}`}>
-      {/* Agent header */}
-      <div className="p-3 border-b bg-muted/20">
-        <div className="flex items-center gap-2">
-          <div className="h-2 w-2 rounded-full bg-green-500" />
-          <span className="text-sm font-medium">{agentName}</span>
-          <span className="text-xs text-muted-foreground">
-            Task: {task.title}
-          </span>
+    <div className={`flex ${showTracesSplit ? 'h-full' : 'flex-col h-full'} ${className}`}>
+      <div className={`flex flex-col ${showTracesSplit ? 'flex-1 min-w-0' : 'h-full'}`}>
+        {/* Agent header */}
+        <div className="p-3 border-b bg-muted/20">
+          <div className="flex items-center gap-2">
+            <div className="h-2 w-2 rounded-full bg-green-500" />
+            <span className="text-sm font-medium">{agentName}</span>
+            <span className="text-xs text-muted-foreground">
+              Task: {task.title}
+            </span>
+          </div>
+        </div>
+
+        {/* Chat interface */}
+        <div className="flex-1 min-h-0 flex flex-col gap-4">
+          <div className="flex-1 min-h-0">
+            <TaskChatInterface
+              conversation={conversation}
+              chatMessage={chatMessage}
+              onChatMessageChange={setChatMessage}
+              onSendMessage={handleSendMessage}
+              onCardClick={handleCardClick}
+              onApproveRequest={handleApproveRequest}
+              onDenyRequest={handleDenyRequest}
+              agentLoading={agentLoading}
+              showSplitView={showTracesSplit}
+            />
+          </div>
+          
+          {/* Metrics - Inline view */}
+          {taskId && (
+            <div className="flex-shrink-0 px-4 pb-4">
+              <TaskMetrics 
+                taskId={taskId}
+                onViewTraces={() => setShowTracesSplit(true)}
+              />
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Chat interface */}
-      <div className="flex-1 min-h-0 flex flex-col gap-4">
-        <div className="flex-1 min-h-0">
-          <TaskChatInterface
-            conversation={conversation}
-            chatMessage={chatMessage}
-            onChatMessageChange={setChatMessage}
-            onSendMessage={handleSendMessage}
-            onCardClick={handleCardClick}
-            onApproveRequest={handleApproveRequest}
-            onDenyRequest={handleDenyRequest}
-            agentLoading={agentLoading}
-            showSplitView={false}
-          />
-        </div>
-        
-        {/* Metrics Results - Real-time, updates as metrics are evaluated */}
-        {taskId && (
-          <div className="flex-shrink-0 p-4">
-            <PlaygroundMetricsResults taskId={taskId} />
-          </div>
-        )}
-      </div>
+      {/* Traces Split Panel */}
+      {taskId && (
+        <SplitViewPanel
+          isOpen={showTracesSplit}
+          onClose={() => setShowTracesSplit(false)}
+          width="w-2/5"
+          position="right"
+        >
+          <PlaygroundTraces taskId={taskId} />
+        </SplitViewPanel>
+      )}
     </div>
   );
 }

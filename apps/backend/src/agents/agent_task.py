@@ -127,7 +127,6 @@ class AgentTask:
             0  # Track which response in conversation
         )
         self.message_count = 0  # Total messages exchanged
-        self.response_start_time = None  # Track response start time for duration calculation
         # Agent model configuration for GPT-5 features
         self.agent_model = None
         self.agent_reasoning_effort = None
@@ -235,6 +234,9 @@ class AgentTask:
                                 model=self.agent_model,
                                 reasoning_effort=self.agent_reasoning_effort,
                                 previous_response_id=self.last_response_id,
+                                task_id=str(self.task_id) if self.task_id else None,
+                                agent_id=self.agent_id,
+                                workspace_id=str(self.workspace_id) if self.workspace_id else None,
                             ),
                             start_to_close_timeout=timedelta(
                                 seconds=60
@@ -303,6 +305,9 @@ class AgentTask:
                 "approve": approval_event.approved,
                 "approval_request_id": approval_event.approval_id,
             },
+            task_id=str(self.task_id) if self.task_id else None,
+            agent_id=self.agent_id,
+            workspace_id=str(self.workspace_id) if self.workspace_id else None,
         )
 
         prepared = await agent.step(
@@ -577,9 +582,6 @@ class AgentTask:
                     self.response_index += (
                         1  # Increment response counter
                     )
-                    # Track response start time for duration calculation
-                    import time
-                    self.response_start_time = time.time()
 
             # Continuous metrics: Trigger evaluation after each response completes
             # Inspired by OpenAI agents tracing and Temporal interceptor patterns
@@ -633,15 +635,12 @@ class AgentTask:
                     output_tokens * 0.00003
                 )
 
-                # Calculate response duration
-                import time
-                duration_ms = 0
-                if self.response_start_time:
-                    duration_ms = int((time.time() - self.response_start_time) * 1000)
-                
+                # Duration is captured automatically by generation_span tracing in llm_response_stream
+                # No need to manually track it here - traces provide accurate wall-clock duration
+
                 log.info(
                     f"Response {self.response_index} completed for task {self.task_id}. "
-                    f"Duration: {duration_ms}ms. Triggering continuous metrics evaluation..."
+                    "Triggering continuous metrics evaluation..."
                 )
 
                 # Fire-and-forget child workflow for metrics evaluation (truly parallel, non-blocking)
@@ -668,7 +667,7 @@ class AgentTask:
                             if user_message
                             else "",
                             "task_output": assistant_content,
-                            "duration_ms": duration_ms,
+                            "duration_ms": 0,  # Duration from traces, not workflow time
                             "input_tokens": input_tokens,
                             "output_tokens": output_tokens,
                             "status": "completed",
@@ -759,17 +758,6 @@ class AgentTask:
         self.title = agent_input.title
         self.description = agent_input.description
         self.status = agent_input.status
-        
-        # Set tracing context once - functions will self-trace
-        from src.tracing.context import TracingContext, set_tracing_context
-        
-        set_tracing_context(TracingContext(
-            workflow_name=f"AgentTask-{self.task_id}",
-            task_id=str(self.task_id),
-            agent_id=str(self.agent_id),
-            workspace_id=str(self.workspace_id),
-            user_id=str(self.user_id) if self.user_id else None,
-        ))
 
         # Set parent info if this is a subtask (passed directly from workflow)
         self.parent_task_id = agent_input.parent_task_id
@@ -933,7 +921,10 @@ class AgentTask:
         self.initialized = True
 
         log.info("AgentTask agent_id", agent_id=self.agent_id)
-        
+
+        # Wait for workflow completion
+        # Note: Tracing happens at operation level (e.g., in llm_response_stream)
+        # not at workflow level, since workflows can run for extended periods
         await agent.condition(
             lambda: self.end and all_events_finished()
         )

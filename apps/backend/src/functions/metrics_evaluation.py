@@ -57,6 +57,9 @@ class IngestPerformanceMetricsInput(BaseModel):
     response_id: str | None = None
     response_index: int | None = None
     message_count: int | None = None
+    # NEW: Link to traces (source of truth)
+    trace_id: str | None = None
+    span_id: str | None = None
 
 
 class IngestQualityMetricsInput(BaseModel):
@@ -68,6 +71,9 @@ class IngestQualityMetricsInput(BaseModel):
     response_id: str | None = None
     response_index: int | None = None
     message_count: int | None = None
+    # NEW: Link to traces (for retroactive evaluation)
+    trace_id: str | None = None
+    span_id: str | None = None
 
 
 # ===================================
@@ -364,7 +370,7 @@ async def ingest_performance_metrics(
 
         client = get_clickhouse_client()
 
-        # Define column names for unified table
+        # Define column names for unified table (with trace linkage)
         column_names = [
             "task_id",
             "agent_id",
@@ -383,9 +389,11 @@ async def ingest_performance_metrics(
             "status",
             "task_input",
             "task_output",
+            "trace_id",  # NEW: Link to trace
+            "span_id",   # NEW: Link to span
         ]
 
-        # Prepare data as list of lists (ClickHouse format)
+        # Prepare data as list of lists (ClickHouse format, with trace linkage)
         row_data = [
             input_data.task_id,
             input_data.agent_id,
@@ -404,6 +412,8 @@ async def ingest_performance_metrics(
             input_data.status,
             input_data.task_input,
             input_data.task_output,
+            input_data.trace_id,  # NEW
+            input_data.span_id,   # NEW
         ]
 
         client.insert(
@@ -441,7 +451,7 @@ async def ingest_quality_metrics(
 
         client = get_clickhouse_client()
 
-        # Define column names for unified table
+        # Define column names for unified table (with trace linkage)
         column_names = [
             "task_id",
             "agent_id",
@@ -458,9 +468,13 @@ async def ingest_quality_metrics(
             "reasoning",
             "eval_duration_ms",
             "eval_cost_usd",
+            "trace_id",  # NEW: Link to trace
+            "span_id",   # NEW: Link to span
         ]
 
         # Prepare batch insert as list of lists (ClickHouse format)
+        # Each result may have its own trace_id/span_id (for retroactive eval)
+        # Or inherit from input_data (for continuous eval)
         rows = [
             [
                 input_data.task_id,
@@ -478,6 +492,8 @@ async def ingest_quality_metrics(
                 result.get("reasoning"),
                 result["eval_duration_ms"],
                 result["eval_cost_usd"],
+                result.get("trace_id") or input_data.trace_id,  # NEW: Use result's trace_id if available
+                result.get("span_id") or input_data.span_id,    # NEW: Use result's span_id if available
             ]
             for result in input_data.quality_results
         ]

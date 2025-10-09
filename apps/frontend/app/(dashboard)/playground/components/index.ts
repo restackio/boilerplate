@@ -4,4 +4,4 @@ export { PlaygroundMiddlePanel } from './playground-middle-panel';
 export { PlaygroundRightPanel } from './playground-right-panel';
 export { PlaygroundToolsDisplay } from './playground-tools-display';
 export { PlaygroundTaskExecution } from './playground-task-execution';
-export { PlaygroundMetricsResults } from './playground-metrics-results';
+export { TaskMetrics } from './task-metrics';

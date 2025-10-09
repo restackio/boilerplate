@@ -45,9 +45,14 @@ INSERT INTO pipeline_events (agent_id, task_id, workspace_id, dataset_id, event_
 
 
 -- ========================================
--- Task Metrics Seed Data
+-- Task Metrics Seed Data (DISABLED - using real traces instead)
 -- ========================================
 
+-- NOTE: Seed data for task_metrics is disabled.
+-- We now capture real metrics and traces from actual agent execution.
+-- Run an agent in the playground to generate real data.
+
+/*
 -- Performance metrics for Research & Writing Assistant (agent_id: 4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d)
 -- Version v1 (current version)
 INSERT INTO task_performance_metrics (task_id, agent_id, agent_name, parent_agent_id, workspace_id, agent_version, duration_ms, input_tokens, output_tokens, cost_usd, status, task_input, task_output, executed_at) VALUES 
@@ -115,3 +120,4 @@ INSERT INTO task_quality_metrics (task_id, agent_id, workspace_id, metric_defini
 ('66666666-6666-6666-6666-666666666666', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'a3a3a3a3-a3a3-a3a3-a3a3-a3a3a3a3a3a3', 'Factual Accuracy', 'llm_judge', 93.0, true, 'All facts check out', 1450, 0.0002, now() - INTERVAL 1 DAY),
 ('77777777-7777-7777-7777-777777777777', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'a3a3a3a3-a3a3-a3a3-a3a3-a3a3a3a3a3a3', 'Factual Accuracy', 'llm_judge', 95.0, true, 'Accurate and up-to-date information', 1500, 0.0002, now() - INTERVAL 2 DAY),
 ('88888888-8888-8888-8888-888888888888', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'a3a3a3a3-a3a3-a3a3-a3a3-a3a3a3a3a3a3', 'Factual Accuracy', 'llm_judge', 89.0, true, 'Accurate with good context', 1400, 0.0002, now() - INTERVAL 3 DAY);
+*/

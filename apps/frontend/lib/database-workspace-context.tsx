@@ -10,6 +10,7 @@ interface DatabaseWorkspaceContextType {
   currentWorkspaceId: string | null;
   workspaceId: string | null; // Alias for currentWorkspaceId for convenience
   currentUser: User | null;
+  currentUserId: string | null; // User ID for convenience
   loading: { isLoading: boolean; error: string | null };
   isReady: boolean;
   setCurrentWorkspaceId: (id: string) => void;
@@ -102,6 +103,7 @@ export function DatabaseWorkspaceProvider({ children }: { children: React.ReactN
     currentWorkspaceId,
     workspaceId: currentWorkspaceId, // Alias for currentWorkspaceId
     currentUser,
+    currentUserId: currentUser?.id || null, // User ID for convenience
     loading: { isLoading, error },
     isReady,
     setCurrentWorkspaceId,

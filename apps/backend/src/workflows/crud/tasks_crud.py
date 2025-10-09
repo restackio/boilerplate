@@ -12,10 +12,6 @@ from restack_ai.workflow import (
 )
 
 from src.agents.agent_task import AgentTask, AgentTaskInput
-from src.workflows.task_metrics import (
-    TaskMetricsInput,
-    TaskMetricsWorkflow,
-)
 
 with import_functions():
     from src.functions.agents_crud import (

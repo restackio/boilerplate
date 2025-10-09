@@ -30,6 +30,7 @@ export function SubagentsInline({ agentId, workspaceId, isReadOnly = false }: Su
 
   useEffect(() => {
     loadData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [agentId, workspaceId]);
 
   const loadData = async () => {
@@ -180,7 +181,7 @@ export function SubagentsInline({ agentId, workspaceId, isReadOnly = false }: Su
                 ))
               ) : (
                 <p className="text-xs text-muted-foreground italic py-2 text-center">
-                  No agents found matching "{searchQuery}"
+                  No agents found matching &quot;{searchQuery}&quot;
                 </p>
               )}
             </div>
