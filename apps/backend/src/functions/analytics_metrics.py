@@ -99,6 +99,7 @@ async def get_analytics_metrics(
         from src.utils.demo import (
             apply_demo_multiplier_to_analytics,
         )
+
         return apply_demo_multiplier_to_analytics(result)
 
     except Exception as e:
@@ -324,7 +325,9 @@ async def _get_feedback_metrics(
     )
 
     # Feedback-specific filter
-    feedback_where_filter, feedback_params = build_filter_clause(filters)
+    feedback_where_filter, feedback_params = build_filter_clause(
+        filters
+    )
     feedback_where_filter += " AND metric_category = 'feedback'"
 
     # Combined timeseries query with task counts and feedback
@@ -362,7 +365,9 @@ async def _get_feedback_metrics(
 
     # Merge params from both filters
     merged_params = {**task_params, **feedback_params}
-    result = client.query(timeseries_query, parameters=merged_params)
+    result = client.query(
+        timeseries_query, parameters=merged_params
+    )
 
     timeseries = [
         {
@@ -372,7 +377,16 @@ async def _get_feedback_metrics(
             "positiveCount": int(row["positive_count"]),
             "negativeCount": int(row["negative_count"]),
             "feedbackCount": int(row["feedback_count"]),
-            "feedbackCoverage": round((int(row["tasks_with_feedback"]) / int(row["total_tasks"]) * 100), 1) if int(row["total_tasks"]) > 0 else 0,
+            "feedbackCoverage": round(
+                (
+                    int(row["tasks_with_feedback"])
+                    / int(row["total_tasks"])
+                    * 100
+                ),
+                1,
+            )
+            if int(row["total_tasks"]) > 0
+            else 0,
         }
         for row in result.named_results()
     ]
@@ -390,7 +404,9 @@ async def _get_feedback_metrics(
         LIMIT 50
     """
 
-    detailed_result = client.query(detailed_query, parameters=feedback_params)
+    detailed_result = client.query(
+        detailed_query, parameters=feedback_params
+    )
 
     detailed_feedbacks = [
         {

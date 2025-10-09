@@ -79,7 +79,8 @@ async def create_metric_definition(
     async for session in get_async_db():
         # Check if metric already exists (idempotency)
         stmt = select(MetricDefinition).where(
-            MetricDefinition.workspace_id == UUID(input_data.workspace_id),
+            MetricDefinition.workspace_id
+            == UUID(input_data.workspace_id),
             MetricDefinition.name == input_data.name,
         )
         result = await session.execute(stmt)
@@ -181,7 +182,9 @@ async def list_metric_definitions(
                 == input_data.metric_type
             )
         if input_data.is_active is not None:
-            stmt = stmt.where(MetricDefinition.is_active == input_data.is_active)
+            stmt = stmt.where(
+                MetricDefinition.is_active == input_data.is_active
+            )
 
         stmt = stmt.order_by(MetricDefinition.created_at.desc())
 

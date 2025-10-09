@@ -20,7 +20,9 @@ with import_functions():
 @workflow.defn(name="FeedbackSubmissionWorkflow")
 class FeedbackSubmissionWorkflow:
     @workflow.run
-    async def run(self, input_data: IngestFeedbackMetricInput) -> dict:
+    async def run(
+        self, input_data: IngestFeedbackMetricInput
+    ) -> dict:
         """Submit user feedback on an agent response.
 
         Args:
@@ -82,7 +84,9 @@ class GetTaskFeedbackWorkflow:
 @workflow.defn(name="GetFeedbackAnalyticsWorkflow")
 class GetFeedbackAnalyticsWorkflow:
     @workflow.run
-    async def run(self, input_data: GetFeedbackAnalyticsInput) -> dict:
+    async def run(
+        self, input_data: GetFeedbackAnalyticsInput
+    ) -> dict:
         """Get feedback analytics for a workspace.
 
         Args:
@@ -100,11 +104,12 @@ class GetFeedbackAnalyticsWorkflow:
         )
 
 
-
 @workflow.defn(name="GetDetailedFeedbacksWorkflow")
 class GetDetailedFeedbacksWorkflow:
     @workflow.run
-    async def run(self, input_data: GetFeedbackAnalyticsInput) -> list:
+    async def run(
+        self, input_data: GetFeedbackAnalyticsInput
+    ) -> list:
         """Get detailed list of all feedbacks with task links.
 
         Args:
@@ -125,4 +130,3 @@ class GetDetailedFeedbacksWorkflow:
             "feedbacks": feedbacks,
             "count": len(feedbacks),
         }
-

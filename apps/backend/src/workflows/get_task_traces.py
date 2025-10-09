@@ -25,13 +25,19 @@ class GetTaskTracesWorkflow:
     """Fetches all trace spans for a task."""
 
     @workflow.run
-    async def run(self, workflow_input: GetTaskTracesInput) -> dict:
-        log.info(f"Fetching traces for task {workflow_input.task_id}")
+    async def run(
+        self, workflow_input: GetTaskTracesInput
+    ) -> dict:
+        log.info(
+            f"Fetching traces for task {workflow_input.task_id}"
+        )
 
         try:
             return await workflow.step(
                 function=get_task_traces_from_clickhouse,
-                function_input={"task_id": workflow_input.task_id},
+                function_input={
+                    "task_id": workflow_input.task_id
+                },
             )
 
         except Exception as e:
@@ -49,4 +55,3 @@ class GetTaskTracesWorkflow:
                 },
                 "error": str(e),
             }
-

@@ -33,8 +33,12 @@ class RetroactiveMetricsInput:
     metric_definition_id: str
     filters: dict  # agent_id, date_range, agent_version, etc.
     batch_size: int = 100
-    max_traces: int | None = None  # Limit total traces to evaluate
-    sample_percentage: float | None = None  # Sample X% of traces (e.g., 0.1 = 10%)
+    max_traces: int | None = (
+        None  # Limit total traces to evaluate
+    )
+    sample_percentage: float | None = (
+        None  # Sample X% of traces (e.g., 0.1 = 10%)
+    )
 
 
 @dataclass
@@ -84,10 +88,10 @@ class RetroactiveMetrics:
                 start_to_close_timeout=timedelta(seconds=30),
             )
 
-            if not metric_result or not metric_result.get("metric"):
-                error_msg = (
-                    f"Metric {workflow_input.metric_definition_id} not found"
-                )
+            if not metric_result or not metric_result.get(
+                "metric"
+            ):
+                error_msg = f"Metric {workflow_input.metric_definition_id} not found"
                 log.error(error_msg)
                 return RetroactiveMetricsOutput(
                     metric_id=workflow_input.metric_definition_id,
@@ -158,8 +162,15 @@ class RetroactiveMetrics:
                 spans_to_process = trace_batch["spans"]
                 if workflow_input.sample_percentage is not None:
                     import random
-                    sample_size = int(len(spans_to_process) * workflow_input.sample_percentage)
-                    spans_to_process = random.sample(spans_to_process, min(sample_size, len(spans_to_process)))
+
+                    sample_size = int(
+                        len(spans_to_process)
+                        * workflow_input.sample_percentage
+                    )
+                    spans_to_process = random.sample(
+                        spans_to_process,
+                        min(sample_size, len(spans_to_process)),
+                    )
                     log.info(
                         f"Sampling {workflow_input.sample_percentage * 100}%: "
                         f"{len(spans_to_process)}/{len(trace_batch['spans'])} traces"
@@ -201,11 +212,15 @@ class RetroactiveMetrics:
                         )
                     elif metric_type == "python_code":
                         # Build performance data from span
-                        performance_data = build_performance_data_dict(
-                            duration_ms=span["duration_ms"],
-                            input_tokens=span["input_tokens"],
-                            output_tokens=span["output_tokens"],
-                            status=span["status"],
+                        performance_data = (
+                            build_performance_data_dict(
+                                duration_ms=span["duration_ms"],
+                                input_tokens=span["input_tokens"],
+                                output_tokens=span[
+                                    "output_tokens"
+                                ],
+                                status=span["status"],
+                            )
                         )
                         task = workflow.step(
                             function=evaluate_python_code_metric,
@@ -216,14 +231,20 @@ class RetroactiveMetrics:
                                 "performance_data": performance_data,
                                 "metric_definition": metric_def,
                             },
-                            start_to_close_timeout=timedelta(seconds=30),
+                            start_to_close_timeout=timedelta(
+                                seconds=30
+                            ),
                         )
                     elif metric_type == "formula":
-                        performance_data = build_performance_data_dict(
-                            duration_ms=span["duration_ms"],
-                            input_tokens=span["input_tokens"],
-                            output_tokens=span["output_tokens"],
-                            status=span["status"],
+                        performance_data = (
+                            build_performance_data_dict(
+                                duration_ms=span["duration_ms"],
+                                input_tokens=span["input_tokens"],
+                                output_tokens=span[
+                                    "output_tokens"
+                                ],
+                                status=span["status"],
+                            )
                         )
                         task = workflow.step(
                             function=evaluate_formula_metric,
@@ -232,7 +253,9 @@ class RetroactiveMetrics:
                                 "performance_data": performance_data,
                                 "metric_definition": metric_def,
                             },
-                            start_to_close_timeout=timedelta(seconds=10),
+                            start_to_close_timeout=timedelta(
+                                seconds=10
+                            ),
                         )
                     else:
                         log.warning(
@@ -253,8 +276,12 @@ class RetroactiveMetrics:
                     ):
                         if result:
                             # Link result to trace
-                            result["trace_id"] = metadata["trace_id"]
-                            result["span_id"] = metadata["span_id"]
+                            result["trace_id"] = metadata[
+                                "trace_id"
+                            ]
+                            result["span_id"] = metadata[
+                                "span_id"
+                            ]
                             quality_results.append(result)
                             total_completed += 1
                         else:
@@ -264,7 +291,9 @@ class RetroactiveMetrics:
                     # Group by task_id
                     results_by_task = {}
                     for metadata, result in zip(
-                        trace_metadata, quality_results, strict=False
+                        trace_metadata,
+                        quality_results,
+                        strict=False,
                     ):
                         task_id = metadata["task_id"]
                         if task_id not in results_by_task:
@@ -273,7 +302,9 @@ class RetroactiveMetrics:
                                 "agent_id": metadata["agent_id"],
                                 "results": [],
                             }
-                        results_by_task[task_id]["results"].append(result)
+                        results_by_task[task_id][
+                            "results"
+                        ].append(result)
 
                     # Insert each task's results
                     for task_data in results_by_task.values():
@@ -281,8 +312,12 @@ class RetroactiveMetrics:
                             await workflow.step(
                                 function=ingest_quality_metrics,
                                 function_input={
-                                    "task_id": task_data["task_id"],
-                                    "agent_id": task_data["agent_id"],
+                                    "task_id": task_data[
+                                        "task_id"
+                                    ],
+                                    "agent_id": task_data[
+                                        "agent_id"
+                                    ],
                                     "workspace_id": workflow_input.workspace_id,
                                     "quality_results": task_data[
                                         "results"
@@ -313,9 +348,7 @@ class RetroactiveMetrics:
                     break
 
             except Exception as e:
-                error_msg = (
-                    f"Error processing batch at offset {offset}: {e}"
-                )
+                error_msg = f"Error processing batch at offset {offset}: {e}"
                 log.error(error_msg)
                 errors.append(error_msg)
                 break  # Stop on batch error
@@ -332,4 +365,3 @@ class RetroactiveMetrics:
             evaluations_failed=total_failed,
             errors=errors,
         )
-

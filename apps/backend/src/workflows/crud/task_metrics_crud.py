@@ -45,8 +45,6 @@ class GetTaskMetricsWorkflow:
             return {"success": True, "data": result}
 
         except Exception as e:
-            error_message = (
-                f"Error getting task metrics: {e}"
-            )
+            error_message = f"Error getting task metrics: {e}"
             log.error(error_message)
             return {"success": False, "data": [], "error": str(e)}

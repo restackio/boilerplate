@@ -91,7 +91,10 @@ class UpdateMetricDefinitionWorkflow:
                 function_input=workflow_input.model_dump(),
                 start_to_close_timeout=timedelta(seconds=30),
             )
-            return {"success": result is not None, "metric": result}
+            return {
+                "success": result is not None,
+                "metric": result,
+            }
         except Exception as e:
             error_message = (
                 f"Error updating metric definition: {e}"

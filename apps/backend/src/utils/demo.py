@@ -35,24 +35,32 @@ def apply_demo_multiplier_to_stats(real_stats: dict) -> dict:
         return real_stats
 
     demo_additions = {
-        "in_progress": DEMO_BASE_TASKS["in_progress"] * DEMO_MULTIPLIER,
-        "in_review": DEMO_BASE_TASKS["in_review"] * DEMO_MULTIPLIER,
+        "in_progress": DEMO_BASE_TASKS["in_progress"]
+        * DEMO_MULTIPLIER,
+        "in_review": DEMO_BASE_TASKS["in_review"]
+        * DEMO_MULTIPLIER,
         "closed": DEMO_BASE_TASKS["closed"] * DEMO_MULTIPLIER,
-        "completed": DEMO_BASE_TASKS["completed"] * DEMO_MULTIPLIER,
+        "completed": DEMO_BASE_TASKS["completed"]
+        * DEMO_MULTIPLIER,
     }
 
     total_demo_addition = sum(demo_additions.values())
 
     return {
-        "in_progress": real_stats["in_progress"] + demo_additions["in_progress"],
-        "in_review": real_stats["in_review"] + demo_additions["in_review"],
+        "in_progress": real_stats["in_progress"]
+        + demo_additions["in_progress"],
+        "in_review": real_stats["in_review"]
+        + demo_additions["in_review"],
         "closed": real_stats["closed"] + demo_additions["closed"],
-        "completed": real_stats["completed"] + demo_additions["completed"],
+        "completed": real_stats["completed"]
+        + demo_additions["completed"],
         "total": real_stats["total"] + total_demo_addition,
     }
 
 
-def apply_demo_multiplier_to_timeseries(timeseries: list[dict], field_multipliers: dict[str, int]) -> list[dict]:
+def apply_demo_multiplier_to_timeseries(
+    timeseries: list[dict], field_multipliers: dict[str, int]
+) -> list[dict]:
     """Apply demo multipliers to timeseries data.
 
     Args:
@@ -70,13 +78,17 @@ def apply_demo_multiplier_to_timeseries(timeseries: list[dict], field_multiplier
         enhanced_item = dict(item)
         for field, base_value in field_multipliers.items():
             if field in enhanced_item:
-                enhanced_item[field] = enhanced_item[field] + (base_value * DEMO_MULTIPLIER)
+                enhanced_item[field] = enhanced_item[field] + (
+                    base_value * DEMO_MULTIPLIER
+                )
         result.append(enhanced_item)
 
     return result
 
 
-def apply_demo_multiplier_to_analytics(analytics_data: dict) -> dict:
+def apply_demo_multiplier_to_analytics(
+    analytics_data: dict,
+) -> dict:
     """Apply demo multipliers to analytics data (overview, performance, quality, feedback).
 
     Args:
@@ -91,10 +103,15 @@ def apply_demo_multiplier_to_analytics(analytics_data: dict) -> dict:
     enhanced = dict(analytics_data)
 
     # Overview timeseries (task counts and success rates)
-    if "overview" in enhanced and "timeseries" in enhanced["overview"]:
-        enhanced["overview"]["timeseries"] = apply_demo_multiplier_to_timeseries(
-            enhanced["overview"]["timeseries"],
-            {"taskCount": 100}  # Base 100 tasks per day
+    if (
+        "overview" in enhanced
+        and "timeseries" in enhanced["overview"]
+    ):
+        enhanced["overview"]["timeseries"] = (
+            apply_demo_multiplier_to_timeseries(
+                enhanced["overview"]["timeseries"],
+                {"taskCount": 100},  # Base 100 tasks per day
+            )
         )
 
     # Performance timeseries and summary
@@ -106,19 +123,26 @@ def apply_demo_multiplier_to_analytics(analytics_data: dict) -> dict:
         if "summary" in enhanced["performance"]:
             # Multiply task count only
             summary = enhanced["performance"]["summary"]
-            summary["taskCount"] = summary.get("taskCount", 0) + (100 * DEMO_MULTIPLIER)
+            summary["taskCount"] = summary.get("taskCount", 0) + (
+                100 * DEMO_MULTIPLIER
+            )
 
     # Feedback timeseries
-    if "feedback" in enhanced and "timeseries" in enhanced["feedback"]:
-        enhanced["feedback"]["timeseries"] = apply_demo_multiplier_to_timeseries(
-            enhanced["feedback"]["timeseries"],
-            {
-                "totalTasks": 100,
-                "tasksWithFeedback": 25,
-                "positiveCount": 20,
-                "negativeCount": 5,
-                "feedbackCount": 25,
-            }
+    if (
+        "feedback" in enhanced
+        and "timeseries" in enhanced["feedback"]
+    ):
+        enhanced["feedback"]["timeseries"] = (
+            apply_demo_multiplier_to_timeseries(
+                enhanced["feedback"]["timeseries"],
+                {
+                    "totalTasks": 100,
+                    "tasksWithFeedback": 25,
+                    "positiveCount": 20,
+                    "negativeCount": 5,
+                    "feedbackCount": 25,
+                },
+            )
         )
 
     # Quality metrics timeseries and summary
@@ -137,13 +161,24 @@ def apply_demo_multiplier_to_analytics(analytics_data: dict) -> dict:
             for metric in enhanced["quality"]["summary"]:
                 enhanced_metric = dict(metric)
 
-                if "evaluationCount" in enhanced_metric and enhanced_metric["evaluationCount"] > 0:
+                if (
+                    "evaluationCount" in enhanced_metric
+                    and enhanced_metric["evaluationCount"] > 0
+                ):
                     # Add base evaluation count (80 per multiplier unit)
                     enhanced_metric["evaluationCount"] = (
-                        enhanced_metric["evaluationCount"] +
-                        (DEMO_BASE_ANALYTICS["quality_evaluations"] * DEMO_MULTIPLIER)
+                        enhanced_metric["evaluationCount"]
+                        + (
+                            DEMO_BASE_ANALYTICS[
+                                "quality_evaluations"
+                            ]
+                            * DEMO_MULTIPLIER
+                        )
                     )
-                elif "evaluationCount" in enhanced_metric and enhanced_metric["evaluationCount"] == 0:
+                elif (
+                    "evaluationCount" in enhanced_metric
+                    and enhanced_metric["evaluationCount"] == 0
+                ):
                     # For metrics with no evaluations, don't add demo data
                     # This keeps "no data yet" state clear
                     pass
@@ -152,4 +187,3 @@ def apply_demo_multiplier_to_analytics(analytics_data: dict) -> dict:
             enhanced["quality"]["summary"] = enhanced_summary
 
     return enhanced
-

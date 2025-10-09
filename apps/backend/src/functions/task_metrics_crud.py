@@ -57,42 +57,48 @@ async def get_task_metrics_clickhouse(
             ORDER BY metric_category, response_index ASC NULLS FIRST, created_at ASC
         """
 
-        result = client.query(query, parameters={"task_id": task_id})
+        result = client.query(
+            query, parameters={"task_id": task_id}
+        )
 
         performance_metrics = []
         quality_metrics = []
 
         for row in result.named_results():
             if row["metric_category"] == "performance":
-                performance_metrics.append({
-                    "metricCategory": "performance",
-                    "agentName": row["agent_name"],
-                    "agentVersion": row["agent_version"],
-                    "durationMs": row["duration_ms"],
-                    "inputTokens": row["input_tokens"],
-                    "outputTokens": row["output_tokens"],
-                    "costUsd": row["cost_usd"],
-                    "status": row["status"],
-                    "createdAt": row["created_at"],
-                    "responseId": row["response_id"],
-                    "responseIndex": row["response_index"],
-                    "messageCount": row["message_count"],
-                })
+                performance_metrics.append(
+                    {
+                        "metricCategory": "performance",
+                        "agentName": row["agent_name"],
+                        "agentVersion": row["agent_version"],
+                        "durationMs": row["duration_ms"],
+                        "inputTokens": row["input_tokens"],
+                        "outputTokens": row["output_tokens"],
+                        "costUsd": row["cost_usd"],
+                        "status": row["status"],
+                        "createdAt": row["created_at"],
+                        "responseId": row["response_id"],
+                        "responseIndex": row["response_index"],
+                        "messageCount": row["message_count"],
+                    }
+                )
             elif row["metric_category"] == "quality":
-                quality_metrics.append({
-                    "metricCategory": "quality",
-                    "metricName": row["metric_name"],
-                    "metricType": row["metric_type"],
-                    "passed": row["passed"],
-                    "score": row["score"],
-                    "reasoning": row["reasoning"],
-                    "evalDurationMs": row["eval_duration_ms"],
-                    "evalCostUsd": row["eval_cost_usd"],
-                    "createdAt": row["created_at"],
-                    "responseId": row["response_id"],
-                    "responseIndex": row["response_index"],
-                    "messageCount": row["message_count"],
-                })
+                quality_metrics.append(
+                    {
+                        "metricCategory": "quality",
+                        "metricName": row["metric_name"],
+                        "metricType": row["metric_type"],
+                        "passed": row["passed"],
+                        "score": row["score"],
+                        "reasoning": row["reasoning"],
+                        "evalDurationMs": row["eval_duration_ms"],
+                        "evalCostUsd": row["eval_cost_usd"],
+                        "createdAt": row["created_at"],
+                        "responseId": row["response_id"],
+                        "responseIndex": row["response_index"],
+                        "messageCount": row["message_count"],
+                    }
+                )
 
         log.info(
             f"Found {len(performance_metrics)} performance + {len(quality_metrics)} quality metrics for task {task_id}"

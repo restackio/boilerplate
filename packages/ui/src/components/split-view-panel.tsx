@@ -173,6 +173,7 @@ export function DetailPanel({
     <SplitViewPanel
       isOpen={isOpen}
       onClose={onClose}
+      title={title}
       tabs={allTabs}
       {...props}
     />

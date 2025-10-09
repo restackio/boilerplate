@@ -10,7 +10,7 @@ from src.database.connection import get_clickhouse_client
 
 @function.defn()
 async def get_task_traces_from_clickhouse(
-    function_input: dict[str, Any]
+    function_input: dict[str, Any],
 ) -> dict[str, Any]:
     """Fetch all trace spans for a given task from ClickHouse.
 
@@ -18,7 +18,9 @@ async def get_task_traces_from_clickhouse(
     """
     task_id = function_input["task_id"]
 
-    log.info(f"Querying ClickHouse for traces with task_id: {task_id}")
+    log.info(
+        f"Querying ClickHouse for traces with task_id: {task_id}"
+    )
 
     try:
         client = get_clickhouse_client()
@@ -56,7 +58,9 @@ async def get_task_traces_from_clickhouse(
         ORDER BY started_at ASC
         """
 
-        result = client.query(query, parameters={"task_id": task_id})
+        result = client.query(
+            query, parameters={"task_id": task_id}
+        )
 
         spans = []
         total_duration = 0
@@ -70,7 +74,11 @@ async def get_task_traces_from_clickhouse(
             metadata = {}
             if row[20]:  # metadata column
                 try:
-                    metadata = json.loads(row[20]) if isinstance(row[20], str) else row[20]
+                    metadata = (
+                        json.loads(row[20])
+                        if isinstance(row[20], str)
+                        else row[20]
+                    )
                 except (json.JSONDecodeError, TypeError):
                     metadata = {}
 
@@ -98,8 +106,12 @@ async def get_task_traces_from_clickhouse(
                 "metadata": metadata,
                 "error_message": row[21],
                 "error_type": row[22],
-                "started_at": row[23].isoformat() if row[23] else None,
-                "ended_at": row[24].isoformat() if row[24] else None,
+                "started_at": row[23].isoformat()
+                if row[23]
+                else None,
+                "ended_at": row[24].isoformat()
+                if row[24]
+                else None,
             }
 
             spans.append(span)
@@ -114,7 +126,9 @@ async def get_task_traces_from_clickhouse(
             elif row[10] == "function":
                 function_count += 1
 
-        log.info(f"Found {len(spans)} trace spans for task {task_id}")
+        log.info(
+            f"Found {len(spans)} trace spans for task {task_id}"
+        )
 
         return {
             "spans": spans,
@@ -131,4 +145,3 @@ async def get_task_traces_from_clickhouse(
     except Exception as e:
         log.error(f"Error querying traces from ClickHouse: {e}")
         raise
-

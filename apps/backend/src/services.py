@@ -544,19 +544,23 @@ def init_tracing() -> None:
         if environment == "production":
             # Production: High-scale ClickHouse processor
             processor = ClickHouseTracingProcessor(
-                batch_size=1000,        # Flush after 1000 spans
+                batch_size=1000,  # Flush after 1000 spans
                 flush_interval_sec=5.0,  # Or every 5 seconds
             )
             tracing.add_trace_processor(processor)
-            logger.info("Tracing initialized: ClickHouse (production mode)")
+            logger.info(
+                "Tracing initialized: ClickHouse (production mode)"
+            )
         else:
             # Development: Smaller batches for faster feedback
             processor = ClickHouseTracingProcessor(
-                batch_size=10,           # Small batch for dev
+                batch_size=10,  # Small batch for dev
                 flush_interval_sec=2.0,  # Quick flush
             )
             tracing.add_trace_processor(processor)
-            logger.info("Tracing initialized: ClickHouse (development mode)")
+            logger.info(
+                "Tracing initialized: ClickHouse (development mode)"
+            )
 
     except Exception as e:
         logger.warning("Failed to initialize tracing: %s", e)

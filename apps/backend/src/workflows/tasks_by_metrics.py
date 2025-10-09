@@ -42,7 +42,9 @@ class GetTasksByMetricWorkflow:
     """Workflow to get task IDs that failed/passed a specific metric."""
 
     @workflow.run
-    async def run(self, workflow_input: TasksByMetricWorkflowInput) -> dict:
+    async def run(
+        self, workflow_input: TasksByMetricWorkflowInput
+    ) -> dict:
         log.info(
             f"Getting tasks that {workflow_input.status} metric "
             f"'{workflow_input.metric_name}' in workspace {workflow_input.workspace_id}"
@@ -83,7 +85,9 @@ class GetTasksByFeedbackWorkflow:
     """Workflow to get task IDs with specific feedback."""
 
     @workflow.run
-    async def run(self, workflow_input: TasksByFeedbackWorkflowInput) -> dict:
+    async def run(
+        self, workflow_input: TasksByFeedbackWorkflowInput
+    ) -> dict:
         log.info(
             f"Getting tasks with {workflow_input.feedback_type} feedback "
             f"in workspace {workflow_input.workspace_id}"
@@ -108,7 +112,9 @@ class GetTasksByFeedbackWorkflow:
                 "count": result.count,
             }
         except Exception as e:
-            error_message = f"Error getting tasks by feedback: {e}"
+            error_message = (
+                f"Error getting tasks by feedback: {e}"
+            )
             log.error(error_message)
             return {
                 "success": False,
@@ -116,4 +122,3 @@ class GetTasksByFeedbackWorkflow:
                 "task_ids": [],
                 "count": 0,
             }
-

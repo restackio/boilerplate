@@ -23,7 +23,7 @@ import {
 } from "@workspace/ui/components/ui/select";
 import { Switch } from "@workspace/ui/components/ui/switch";
 import { Slider } from "@workspace/ui/components/ui/slider";
-import { Plus, Loader2, Sparkles } from "lucide-react";
+import { Plus, Loader2 } from "lucide-react";
 import { createMetricWithRetroactive } from "@/app/actions/metrics";
 
 interface CreateMetricDialogProps {

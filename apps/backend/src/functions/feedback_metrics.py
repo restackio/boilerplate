@@ -13,6 +13,7 @@ from src.database.connection import get_clickhouse_client
 
 class IngestFeedbackMetricInput(BaseModel):
     """Input for submitting feedback on an agent response."""
+
     task_id: str
     agent_id: str
     workspace_id: str
@@ -29,11 +30,13 @@ class IngestFeedbackMetricInput(BaseModel):
 
 class GetTaskFeedbackInput(BaseModel):
     """Input for querying feedback for a task."""
+
     task_id: str
 
 
 class GetFeedbackAnalyticsInput(BaseModel):
     """Input for querying feedback analytics."""
+
     workspace_id: str
     agent_id: str | None = None
     date_range: str = "7d"  # 7d, 30d, 90d
@@ -107,6 +110,7 @@ async def ingest_feedback_metric(
     except Exception as e:
         log.error(f"Failed to ingest feedback metric: {e}")
         import traceback
+
         log.error(traceback.format_exc())
         raise
 
@@ -145,28 +149,35 @@ async def get_task_feedback(
             ORDER BY created_at DESC
         """
 
-        result = client.query(query, parameters={"task_id": input_data.task_id})
+        result = client.query(
+            query, parameters={"task_id": input_data.task_id}
+        )
 
         feedback_list = []
         for row in result.named_results():
-            feedback_list.append({
-                "responseId": row["response_id"],
-                "responseIndex": row["response_index"],
-                "messageCount": row["message_count"],
-                "feedbackType": row["feedback_type"],
-                "isPositive": row["is_positive"],
-                "feedbackText": row["feedback_text"],
-                "createdAt": row["created_at"],
-                "traceId": row["trace_id"],
-                "spanId": row["span_id"],
-            })
+            feedback_list.append(
+                {
+                    "responseId": row["response_id"],
+                    "responseIndex": row["response_index"],
+                    "messageCount": row["message_count"],
+                    "feedbackType": row["feedback_type"],
+                    "isPositive": row["is_positive"],
+                    "feedbackText": row["feedback_text"],
+                    "createdAt": row["created_at"],
+                    "traceId": row["trace_id"],
+                    "spanId": row["span_id"],
+                }
+            )
 
-        log.info(f"Found {len(feedback_list)} feedback records for task {input_data.task_id}")
+        log.info(
+            f"Found {len(feedback_list)} feedback records for task {input_data.task_id}"
+        )
         return feedback_list
 
     except Exception as e:
         log.error(f"Failed to get task feedback: {e}")
         import traceback
+
         log.error(traceback.format_exc())
         return []
 
@@ -233,17 +244,23 @@ async def get_feedback_analytics(
         if input_data.agent_id:
             parameters["agent_id"] = input_data.agent_id
 
-        result = client.query(timeseries_query, parameters=parameters)
+        result = client.query(
+            timeseries_query, parameters=parameters
+        )
 
         timeseries = []
         for row in result.named_results():
-            timeseries.append({
-                "date": row["date"].isoformat(),
-                "positiveCount": row["positive_count"],
-                "negativeCount": row["negative_count"],
-                "totalCount": row["total_count"],
-                "negativePercentage": round(row["negative_percentage"], 1),
-            })
+            timeseries.append(
+                {
+                    "date": row["date"].isoformat(),
+                    "positiveCount": row["positive_count"],
+                    "negativeCount": row["negative_count"],
+                    "totalCount": row["total_count"],
+                    "negativePercentage": round(
+                        row["negative_percentage"], 1
+                    ),
+                }
+            )
 
         # Query for summary statistics
         summary_query = f"""
@@ -257,15 +274,21 @@ async def get_feedback_analytics(
             WHERE {where_clause}
         """
 
-        summary_result = client.query(summary_query, parameters=parameters)
+        summary_result = client.query(
+            summary_query, parameters=parameters
+        )
         summary_row = next(iter(summary_result.named_results()))
 
         summary = {
             "totalPositive": summary_row["total_positive"],
             "totalNegative": summary_row["total_negative"],
             "totalFeedback": summary_row["total_feedback"],
-            "negativePercentage": round(summary_row["negative_percentage"], 1),
-            "positivePercentage": round(summary_row["positive_percentage"], 1),
+            "negativePercentage": round(
+                summary_row["negative_percentage"], 1
+            ),
+            "positivePercentage": round(
+                summary_row["positive_percentage"], 1
+            ),
         }
 
         log.info(
@@ -281,6 +304,7 @@ async def get_feedback_analytics(
     except Exception as e:
         log.error(f"Failed to get feedback analytics: {e}")
         import traceback
+
         log.error(traceback.format_exc())
         return {
             "timeseries": [],
@@ -361,24 +385,28 @@ async def get_detailed_feedbacks(
 
         feedbacks = []
         for row in result.named_results():
-            feedbacks.append({
-                "taskId": str(row["task_id"]),
-                "agentId": str(row["agent_id"]),
-                "responseId": row["response_id"],
-                "responseIndex": row["response_index"],
-                "messageCount": row["message_count"],
-                "feedbackType": row["feedback_type"],
-                "isPositive": row["is_positive"],
-                "feedbackText": row["feedback_text"],
-                "createdAt": row["created_at_formatted"],
-            })
+            feedbacks.append(
+                {
+                    "taskId": str(row["task_id"]),
+                    "agentId": str(row["agent_id"]),
+                    "responseId": row["response_id"],
+                    "responseIndex": row["response_index"],
+                    "messageCount": row["message_count"],
+                    "feedbackType": row["feedback_type"],
+                    "isPositive": row["is_positive"],
+                    "feedbackText": row["feedback_text"],
+                    "createdAt": row["created_at_formatted"],
+                }
+            )
 
-        log.info(f"Found {len(feedbacks)} detailed feedback records")
+        log.info(
+            f"Found {len(feedbacks)} detailed feedback records"
+        )
         return feedbacks
 
     except Exception as e:
         log.error(f"Failed to get detailed feedbacks: {e}")
         import traceback
+
         log.error(traceback.format_exc())
         return []
-

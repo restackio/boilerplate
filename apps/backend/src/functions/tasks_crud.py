@@ -836,7 +836,9 @@ async def tasks_get_stats(
                 "total": total,
             }
 
-            enhanced_stats = apply_demo_multiplier_to_stats(real_stats)
+            enhanced_stats = apply_demo_multiplier_to_stats(
+                real_stats
+            )
 
             return TaskStatsOutput(
                 in_progress=enhanced_stats["in_progress"],

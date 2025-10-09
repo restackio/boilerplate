@@ -3,7 +3,6 @@
 Performant queries against ClickHouse to filter tasks by metric results.
 """
 
-
 from pydantic import BaseModel, Field
 from restack_ai.function import function, log
 
@@ -20,7 +19,9 @@ class TasksByMetricInput(BaseModel):
     )
     agent_id: str | None = None
     version: str | None = None
-    date_range: str = Field(default="7d", pattern="^(1d|7d|30d|90d|all)$")
+    date_range: str = Field(
+        default="7d", pattern="^(1d|7d|30d|90d|all)$"
+    )
 
 
 class TasksByFeedbackInput(BaseModel):
@@ -32,7 +33,9 @@ class TasksByFeedbackInput(BaseModel):
     )
     agent_id: str | None = None
     version: str | None = None
-    date_range: str = Field(default="7d", pattern="^(1d|7d|30d|90d|all)$")
+    date_range: str = Field(
+        default="7d", pattern="^(1d|7d|30d|90d|all)$"
+    )
 
 
 class TaskIdsOutput(BaseModel):
@@ -85,15 +88,23 @@ async def get_tasks_by_metric_failure(
 
         # Optional filters
         if function_input.agent_id:
-            where_conditions.append("agent_id = {agent_id:String}")
+            where_conditions.append(
+                "agent_id = {agent_id:String}"
+            )
 
         if function_input.version:
-            where_conditions.append("agent_version = {version:String}")
+            where_conditions.append(
+                "agent_version = {version:String}"
+            )
 
         # Date filter
-        date_filter = _build_date_filter(function_input.date_range)
+        date_filter = _build_date_filter(
+            function_input.date_range
+        )
         if date_filter:
-            where_conditions.append(date_filter.replace("AND ", ""))
+            where_conditions.append(
+                date_filter.replace("AND ", "")
+            )
 
         where_clause = " AND ".join(where_conditions)
 
@@ -118,14 +129,18 @@ async def get_tasks_by_metric_failure(
             params["version"] = function_input.version
 
         result = client.query(query, parameters=params)
-        task_ids = [row["task_id"] for row in result.named_results()]
+        task_ids = [
+            row["task_id"] for row in result.named_results()
+        ]
 
         log.info(
             f"Found {len(task_ids)} tasks that {function_input.status} "
             f"metric '{function_input.metric_name}' in workspace {function_input.workspace_id}"
         )
 
-        return TaskIdsOutput(task_ids=task_ids, count=len(task_ids))
+        return TaskIdsOutput(
+            task_ids=task_ids, count=len(task_ids)
+        )
 
     except Exception as e:
         log.error(f"Error querying tasks by metric failure: {e}")
@@ -158,15 +173,23 @@ async def get_tasks_by_feedback(
 
         # Optional filters
         if function_input.agent_id:
-            where_conditions.append("agent_id = {agent_id:String}")
+            where_conditions.append(
+                "agent_id = {agent_id:String}"
+            )
 
         if function_input.version:
-            where_conditions.append("agent_version = {version:String}")
+            where_conditions.append(
+                "agent_version = {version:String}"
+            )
 
         # Date filter
-        date_filter = _build_date_filter(function_input.date_range)
+        date_filter = _build_date_filter(
+            function_input.date_range
+        )
         if date_filter:
-            where_conditions.append(date_filter.replace("AND ", ""))
+            where_conditions.append(
+                date_filter.replace("AND ", "")
+            )
 
         where_clause = " AND ".join(where_conditions)
 
@@ -190,16 +213,19 @@ async def get_tasks_by_feedback(
             params["version"] = function_input.version
 
         result = client.query(query, parameters=params)
-        task_ids = [row["task_id"] for row in result.named_results()]
+        task_ids = [
+            row["task_id"] for row in result.named_results()
+        ]
 
         log.info(
             f"Found {len(task_ids)} tasks with {function_input.feedback_type} "
             f"feedback in workspace {function_input.workspace_id}"
         )
 
-        return TaskIdsOutput(task_ids=task_ids, count=len(task_ids))
+        return TaskIdsOutput(
+            task_ids=task_ids, count=len(task_ids)
+        )
 
     except Exception as e:
         log.error(f"Error querying tasks by feedback: {e}")
         return TaskIdsOutput(task_ids=[], count=0)
-

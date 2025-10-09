@@ -116,7 +116,9 @@ def _merge_quality_metrics(
         if metric_name in definitions_map:
             definition = definitions_map[metric_name]
             metric["metricId"] = definition["id"]
-            metric["isDefault"] = definition.get("is_default", False)
+            metric["isDefault"] = definition.get(
+                "is_default", False
+            )
             metric["isActive"] = definition.get("is_active", True)
             metric["config"] = definition.get("config", {})
 
@@ -127,16 +129,20 @@ def _merge_quality_metrics(
         metric_name = definition["name"]
         if metric_name not in existing_names:
             # Add metric with empty data
-            enriched_summary.append({
-                "metricName": metric_name,
-                "metricId": definition["id"],
-                "isDefault": definition.get("is_default", False),
-                "isActive": definition.get("is_active", True),
-                "config": definition.get("config", {}),
-                "passRate": 0,
-                "avgScore": None,
-                "evaluationCount": 0,
-            })
+            enriched_summary.append(
+                {
+                    "metricName": metric_name,
+                    "metricId": definition["id"],
+                    "isDefault": definition.get(
+                        "is_default", False
+                    ),
+                    "isActive": definition.get("is_active", True),
+                    "config": definition.get("config", {}),
+                    "passRate": 0,
+                    "avgScore": None,
+                    "evaluationCount": 0,
+                }
+            )
 
     return {
         "summary": enriched_summary,

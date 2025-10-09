@@ -192,7 +192,9 @@ async def send_non_delta_events_to_agent(
     Following the SDK pattern from openai_responses.py for proper response tracing.
     """
     temporal_agent_id = function_info().workflow_id
-    final_response = None  # Capture final Response object (SDK pattern)
+    final_response = (
+        None  # Capture final Response object (SDK pattern)
+    )
 
     try:
         async for event in stream:
@@ -316,7 +318,9 @@ async def send_non_delta_events_to_agent(
                     span.span_data.response = final_response
                     log.info("Set final Response object on span")
             except Exception as e:
-                log.warning(f"Failed to set response on span: {e}")
+                log.warning(
+                    f"Failed to set response on span: {e}"
+                )
 
 
 @function.defn()
@@ -335,6 +339,7 @@ async def llm_response_stream(  # noqa: PLR0915
         # Try to import tracing SDK
         try:
             from agents.tracing import response_span, trace
+
             has_tracing = True
         except ImportError:
             has_tracing = False
@@ -361,7 +366,7 @@ async def llm_response_stream(  # noqa: PLR0915
                         "task_id": function_input.task_id,
                         "agent_id": function_input.agent_id,
                         "workspace_id": function_input.workspace_id,
-                    }
+                    },
                 )
                 trace_context.__enter__()
 
@@ -372,7 +377,9 @@ async def llm_response_stream(  # noqa: PLR0915
 
                 # Set input immediately (SDK pattern)
                 # Input is at create_params["input"], prepared by llm_prepare_response
-                current_span.span_data.input = function_input.create_params.get("input", [])
+                current_span.span_data.input = (
+                    function_input.create_params.get("input", [])
+                )
 
                 response_stream = await client.responses.create(
                     **function_input.create_params
@@ -428,7 +435,9 @@ async def llm_response_stream(  # noqa: PLR0915
         )
 
         agent_task = asyncio.create_task(
-            send_non_delta_events_to_agent(agent_stream, current_span)
+            send_non_delta_events_to_agent(
+                agent_stream, current_span
+            )
         )
 
         # Wait for both to complete, but don't let websocket failures fail the function

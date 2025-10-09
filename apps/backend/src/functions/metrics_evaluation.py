@@ -390,7 +390,7 @@ async def ingest_performance_metrics(
             "task_input",
             "task_output",
             "trace_id",  # NEW: Link to trace
-            "span_id",   # NEW: Link to span
+            "span_id",  # NEW: Link to span
         ]
 
         # Prepare data as list of lists (ClickHouse format, with trace linkage)
@@ -413,7 +413,7 @@ async def ingest_performance_metrics(
             input_data.task_input,
             input_data.task_output,
             input_data.trace_id,  # NEW
-            input_data.span_id,   # NEW
+            input_data.span_id,  # NEW
         ]
 
         client.insert(
@@ -432,6 +432,7 @@ async def ingest_performance_metrics(
         log.error(f"Error type: {type(e).__name__}")
         log.error(f"Error args: {getattr(e, 'args', 'No args')}")
         import traceback
+
         log.error(f"Traceback: {traceback.format_exc()}")
         raise  # Re-raise so workflow can handle it properly
 
@@ -469,7 +470,7 @@ async def ingest_quality_metrics(
             "eval_duration_ms",
             "eval_cost_usd",
             "trace_id",  # NEW: Link to trace
-            "span_id",   # NEW: Link to span
+            "span_id",  # NEW: Link to span
         ]
 
         # Prepare batch insert as list of lists (ClickHouse format)
@@ -492,8 +493,10 @@ async def ingest_quality_metrics(
                 result.get("reasoning"),
                 result["eval_duration_ms"],
                 result["eval_cost_usd"],
-                result.get("trace_id") or input_data.trace_id,  # NEW: Use result's trace_id if available
-                result.get("span_id") or input_data.span_id,    # NEW: Use result's span_id if available
+                result.get("trace_id")
+                or input_data.trace_id,  # NEW: Use result's trace_id if available
+                result.get("span_id")
+                or input_data.span_id,  # NEW: Use result's span_id if available
             ]
             for result in input_data.quality_results
         ]
@@ -514,5 +517,6 @@ async def ingest_quality_metrics(
         log.error(f"Error type: {type(e).__name__}")
         log.error(f"Error args: {getattr(e, 'args', 'No args')}")
         import traceback
+
         log.error(f"Traceback: {traceback.format_exc()}")
         raise  # Re-raise so workflow can handle it properly

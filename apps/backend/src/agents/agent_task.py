@@ -234,9 +234,15 @@ class AgentTask:
                                 model=self.agent_model,
                                 reasoning_effort=self.agent_reasoning_effort,
                                 previous_response_id=self.last_response_id,
-                                task_id=str(self.task_id) if self.task_id else None,
+                                task_id=str(self.task_id)
+                                if self.task_id
+                                else None,
                                 agent_id=self.agent_id,
-                                workspace_id=str(self.workspace_id) if self.workspace_id else None,
+                                workspace_id=str(
+                                    self.workspace_id
+                                )
+                                if self.workspace_id
+                                else None,
                             ),
                             start_to_close_timeout=timedelta(
                                 seconds=60
@@ -307,7 +313,9 @@ class AgentTask:
             },
             task_id=str(self.task_id) if self.task_id else None,
             agent_id=self.agent_id,
-            workspace_id=str(self.workspace_id) if self.workspace_id else None,
+            workspace_id=str(self.workspace_id)
+            if self.workspace_id
+            else None,
         )
 
         prepared = await agent.step(

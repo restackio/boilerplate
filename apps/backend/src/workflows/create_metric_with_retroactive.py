@@ -24,6 +24,7 @@ with import_functions():
         create_metric_definition,
     )
 
+
 @dataclass
 class CreateMetricWithRetroactiveInput:
     """Input for creating metric with optional retroactive evaluation."""
@@ -42,12 +43,24 @@ class CreateMetricWithRetroactiveInput:
 
     # Retroactive evaluation options (optional)
     run_retroactive: bool = False
-    retroactive_date_from: str | None = None  # ISO format datetime string
-    retroactive_date_to: str | None = None  # ISO format datetime string
-    retroactive_sample_percentage: float | None = None  # Y% of traces
-    retroactive_agent_id: str | None = None  # Optional: specific agent
-    retroactive_agent_version: str | None = None  # Optional: specific version
-    retroactive_max_traces: int | None = None  # Optional: hard limit
+    retroactive_date_from: str | None = (
+        None  # ISO format datetime string
+    )
+    retroactive_date_to: str | None = (
+        None  # ISO format datetime string
+    )
+    retroactive_sample_percentage: float | None = (
+        None  # Y% of traces
+    )
+    retroactive_agent_id: str | None = (
+        None  # Optional: specific agent
+    )
+    retroactive_agent_version: str | None = (
+        None  # Optional: specific version
+    )
+    retroactive_max_traces: int | None = (
+        None  # Optional: hard limit
+    )
 
 
 @dataclass
@@ -151,9 +164,13 @@ class CreateMetricWithRetroactiveWorkflow:
 
                 # Add date range if provided
                 if workflow_input.retroactive_date_from:
-                    filters["date_from"] = workflow_input.retroactive_date_from
+                    filters["date_from"] = (
+                        workflow_input.retroactive_date_from
+                    )
                 if workflow_input.retroactive_date_to:
-                    filters["date_to"] = workflow_input.retroactive_date_to
+                    filters["date_to"] = (
+                        workflow_input.retroactive_date_to
+                    )
 
                 # Start retroactive workflow as child (fire-and-forget)
                 retroactive_workflow_id = (
@@ -204,4 +221,3 @@ class CreateMetricWithRetroactiveWorkflow:
             retroactive_evaluation=retroactive_result,
             errors=errors if errors else None,
         )
-
