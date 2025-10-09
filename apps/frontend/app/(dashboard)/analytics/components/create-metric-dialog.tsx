@@ -250,11 +250,10 @@ export function CreateMetricDialog({
               <div className="flex items-center justify-between mb-4">
                 <div className="space-y-0.5">
                   <Label className="text-base flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-purple-500" />
-                    Run Retroactive Evaluation
+                    Retroactive evaluation
                   </Label>
                   <p className="text-sm text-muted-foreground">
-                    Test this metric on historical traces
+                    Test this metric on historical tasks
                   </p>
                 </div>
                 <Switch
@@ -264,11 +263,11 @@ export function CreateMetricDialog({
               </div>
 
               {runRetroactive && (
-                <div className="space-y-4 ml-6 border-l-2 border-purple-200 pl-4">
+                <div className="space-y-4 ml-6 border-l-2 border-neutral-200 pl-4">
                   {/* Time Range */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label>Time Range</Label>
+                      <Label>Time range</Label>
                       <span className="text-sm font-medium">
                         Last {retroactiveWeeks} {retroactiveWeeks === 1 ? "week" : "weeks"}
                       </span>
@@ -282,16 +281,16 @@ export function CreateMetricDialog({
                       className="w-full"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Evaluate traces from the last {retroactiveWeeks} {retroactiveWeeks === 1 ? "week" : "weeks"}
+                      Evaluate tasks from the last {retroactiveWeeks} {retroactiveWeeks === 1 ? "week" : "weeks"}
                     </p>
                   </div>
 
                   {/* Sample Percentage */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label>Sample Size</Label>
+                      <Label>Sample size</Label>
                       <span className="text-sm font-medium">
-                        {samplePercentage}% of traces
+                        {samplePercentage}% of tasks
                       </span>
                     </div>
                     <Slider
@@ -303,13 +302,13 @@ export function CreateMetricDialog({
                       className="w-full"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Randomly sample {samplePercentage}% of traces for evaluation
+                      Randomly sample {samplePercentage}% of tasks
                       {samplePercentage < 100 && " (recommended for large datasets)"}
                     </p>
                   </div>
 
-                  <div className="bg-purple-50 dark:bg-purple-950/20 rounded-lg p-3 text-sm">
-                    <p className="text-purple-900 dark:text-purple-100">
+                  <div className="bg-neutral-50 dark:bg-neutral-950/20 rounded-lg p-3 text-sm">
+                    <p className="text-neutral-900 dark:text-neutral-100">
                       💡 <strong>Tip:</strong> Start with a small sample (10-20%) to validate your metric works correctly before running on 100%.
                     </p>
                   </div>
@@ -335,11 +334,10 @@ export function CreateMetricDialog({
                 </>
               ) : runRetroactive ? (
                 <>
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  Create & Evaluate
+                  Create & evaluate
                 </>
-              ) : (
-                "Create Metric"
+              ) : ( 
+                "Create"
               )}
             </Button>
           </DialogFooter>
