@@ -793,6 +793,8 @@ async def tasks_get_stats(
     function_input: TaskGetByWorkspaceInput,
 ) -> TaskStatsOutput:
     """Get task statistics by status for a specific workspace."""
+    from src.utils.demo import apply_demo_multiplier_to_stats
+
     async for db in get_async_db():
         try:
             # Query to count tasks by status
@@ -825,12 +827,23 @@ async def tasks_get_stats(
                     stats[status] = count
                     total += count
 
+            # Add demo multipliers if enabled
+            real_stats = {
+                "in_progress": stats["in_progress"],
+                "in_review": stats["in_review"],
+                "closed": stats["closed"],
+                "completed": stats["completed"],
+                "total": total,
+            }
+
+            enhanced_stats = apply_demo_multiplier_to_stats(real_stats)
+
             return TaskStatsOutput(
-                in_progress=stats["in_progress"],
-                in_review=stats["in_review"],
-                closed=stats["closed"],
-                completed=stats["completed"],
-                total=total,
+                in_progress=enhanced_stats["in_progress"],
+                in_review=enhanced_stats["in_review"],
+                closed=enhanced_stats["closed"],
+                completed=enhanced_stats["completed"],
+                total=enhanced_stats["total"],
             )
         except Exception as e:
             raise NonRetryableError(

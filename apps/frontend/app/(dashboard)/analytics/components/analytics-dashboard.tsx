@@ -4,13 +4,14 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/ui/card";
 import { Button } from "@workspace/ui/components/ui/button";
-import { AlertCircle, Edit2, Ellipsis } from "lucide-react";
+import { AlertCircle, Ellipsis } from "lucide-react";
 import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 import { getAnalytics, type AnalyticsData, type AnalyticsFilters } from "@/app/actions/analytics";
 import MetricsFilters from "./metrics-filters";
 import TasksOverviewChart from "./tasks-overview-chart";
 import PerformanceMetricChart from "./performance-metric-chart";
 import QualityMetricChart from "./quality-metric-chart";
+import { EditMetricDialog } from "./edit-metric-dialog";
 
 export default function AnalyticsDashboard() {
   const { currentWorkspaceId, isReady, loading } = useDatabaseWorkspace();
@@ -23,6 +24,23 @@ export default function AnalyticsDashboard() {
   
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedMetric, setSelectedMetric] = useState<{
+    id: string;
+    name: string;
+    isActive: boolean;
+    config: Record<string, unknown>;
+  } | null>(null);
+
+  const handleEditMetric = (metric: { metricId: string; metricName: string; isActive: boolean; config: Record<string, unknown> }) => {
+    setSelectedMetric({
+      id: metric.metricId,
+      name: metric.metricName,
+      isActive: metric.isActive,
+      config: metric.config,
+    });
+    setEditDialogOpen(true);
+  };
 
   // Update filters when workspace ID becomes available
   useEffect(() => {
@@ -151,7 +169,7 @@ export default function AnalyticsDashboard() {
                         className="h-8 px-2"
                         asChild
                       >
-                        <Link href="/tasks?feedback=negative">
+                        <Link href={`/tasks?feedback=negative&dateRange=${filters.dateRange}${filters.agentId ? `&agentId=${filters.agentId}` : ''}${filters.version ? `&version=${encodeURIComponent(filters.version)}` : ''}`}>
                           <AlertCircle className="h-4 w-4 mr-1" />
                           See fails
                         </Link>
@@ -193,7 +211,7 @@ export default function AnalyticsDashboard() {
                           className="h-8 px-2"
                           asChild
                         >
-                          <Link href={`/tasks?metric=${encodeURIComponent(metric.metricName)}&status=failed`}>
+                          <Link href={`/tasks?metric=${encodeURIComponent(metric.metricName)}&status=failed&dateRange=${filters.dateRange}${filters.agentId ? `&agentId=${filters.agentId}` : ''}${filters.version ? `&version=${encodeURIComponent(filters.version)}` : ''}`}>
                             <AlertCircle className="h-4 w-4 mr-1" />
                             See fails
                           </Link>
@@ -203,10 +221,7 @@ export default function AnalyticsDashboard() {
                             variant="ghost"
                             size="sm"
                             className="h-8 px-2"
-                            onClick={() => {
-                              // TODO: Open edit dialog for this metric
-                              alert(`Edit metric: ${metric.metricName} (ID: ${metric.metricId})`);
-                            }}
+                            onClick={() => handleEditMetric(metric)}
                           >
                             <Ellipsis className="h-4 w-4" />
                           </Button>
@@ -237,6 +252,19 @@ export default function AnalyticsDashboard() {
             )}
           </div>
         </>
+      )}
+
+      {/* Edit Metric Dialog */}
+      {selectedMetric && (
+        <EditMetricDialog
+          metricId={selectedMetric.id}
+          metricName={selectedMetric.name}
+          isActive={selectedMetric.isActive}
+          config={selectedMetric.config}
+          open={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
+          onMetricUpdated={fetchAnalytics}
+        />
       )}
     </div>
   );

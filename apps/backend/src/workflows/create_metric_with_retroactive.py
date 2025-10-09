@@ -6,10 +6,17 @@ Allows creating a new metric and immediately running it against historical trace
 from dataclasses import dataclass
 from typing import Any
 
-from restack_ai.workflow import import_functions, log, workflow, uuid, ParentClosePolicy
+from restack_ai.workflow import (
+    ParentClosePolicy,
+    import_functions,
+    log,
+    uuid,
+    workflow,
+)
+
 from src.workflows.retroactive_metrics import (
-    RetroactiveMetricsInput,
     RetroactiveMetrics,
+    RetroactiveMetricsInput,
 )
 
 with import_functions():
@@ -27,7 +34,7 @@ class CreateMetricWithRetroactiveInput:
     category: str  # 'quality', 'performance', 'security', etc.
     metric_type: str  # 'llm_judge', 'python_code', 'formula'
     config: dict[str, Any]
-    
+
     # Metric definition fields (optional)
     description: str | None = None
     is_active: bool = True
@@ -67,7 +74,7 @@ class CreateMetricWithRetroactiveWorkflow:
     - Create a new quality metric and test it on historical data
     - Create a metric and sample traces to validate it works
     - Create and immediately evaluate without waiting for new tasks
-    
+
     Note: Date ranges should be calculated by the caller and passed as ISO strings
     to maintain workflow determinism.
     """

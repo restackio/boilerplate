@@ -94,11 +94,6 @@ from src.functions.metrics_crud import (
     list_metric_definitions,
     update_metric_definition,
 )
-from src.functions.traces_query import (
-    aggregate_traces_for_task,
-    query_traces_batch,
-    query_traces_for_response,
-)
 from src.functions.metrics_evaluation import (
     evaluate_formula_metric,
     evaluate_llm_judge_metric,
@@ -120,6 +115,10 @@ from src.functions.subtask_notify import subtask_notify
 from src.functions.task_metrics_crud import (
     get_task_metrics_clickhouse,
 )
+from src.functions.tasks_by_metrics import (
+    get_tasks_by_feedback,
+    get_tasks_by_metric_failure,
+)
 from src.functions.tasks_crud import (
     tasks_create,
     tasks_delete,
@@ -139,6 +138,11 @@ from src.functions.teams_crud import (
 )
 from src.functions.traces_crud import (
     get_task_traces_from_clickhouse,
+)
+from src.functions.traces_query import (
+    aggregate_traces_for_task,
+    query_traces_batch,
+    query_traces_for_response,
 )
 from src.functions.user_workspaces_crud import (
     user_workspaces_create,
@@ -287,6 +291,10 @@ from src.workflows.retroactive_metrics import (
     RetroactiveMetrics,
 )
 from src.workflows.task_metrics import TaskMetricsWorkflow
+from src.workflows.tasks_by_metrics import (
+    GetTasksByFeedbackWorkflow,
+    GetTasksByMetricWorkflow,
+)
 
 # Create logger for this module
 logger = logging.getLogger(__name__)
@@ -390,6 +398,9 @@ async def run_restack_service() -> None:
             GetTaskFeedbackWorkflow,
             GetFeedbackAnalyticsWorkflow,
             GetDetailedFeedbacksWorkflow,
+            # Tasks filtering workflows
+            GetTasksByMetricWorkflow,
+            GetTasksByFeedbackWorkflow,
         ],
         functions=[
             send_agent_event,
@@ -416,6 +427,8 @@ async def run_restack_service() -> None:
             tasks_get_by_parent_id,
             tasks_get_stats,
             tasks_update_agent_task_id,
+            get_tasks_by_metric_failure,
+            get_tasks_by_feedback,
             schedule_create_workflow,
             schedule_update_workflow,
             schedule_get_task_info,

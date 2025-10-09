@@ -7,6 +7,20 @@ interface TasksOverviewChartProps {
   data: OverviewTimeSeries[];
 }
 
+// Format large numbers for display (1.2K, 1.5M, etc.)
+function formatNumber(num: number): string {
+  if (num >= 1_000_000) {
+    return `${(num / 1_000_000).toFixed(1)}M`;
+  }
+  if (num >= 10_000) {
+    return `${(num / 1_000).toFixed(1)}K`;
+  }
+  if (num >= 1_000) {
+    return num.toLocaleString();
+  }
+  return num.toString();
+}
+
 export default function TasksOverviewChart({ data }: TasksOverviewChartProps) {
   // Handle no data case
   if (!data || data.length === 0) {
@@ -28,7 +42,7 @@ export default function TasksOverviewChart({ data }: TasksOverviewChartProps) {
         <div>
           <p className="text-sm text-muted-foreground">Total tasks</p>
           <p className="text-2xl font-bold">
-            {data.reduce((sum, d) => sum + d.taskCount, 0)}
+            {formatNumber(data.reduce((sum, d) => sum + d.taskCount, 0))}
           </p>
         </div>
         <div>
@@ -47,7 +61,7 @@ export default function TasksOverviewChart({ data }: TasksOverviewChartProps) {
         <div>
           <p className="text-sm text-muted-foreground">Avg daily tasks</p>
           <p className="text-2xl font-bold">
-            {Math.round(data.reduce((sum, d) => sum + d.taskCount, 0) / data.length)}
+            {formatNumber(Math.round(data.reduce((sum, d) => sum + d.taskCount, 0) / data.length))}
           </p>
         </div>
       </div>
@@ -63,7 +77,7 @@ export default function TasksOverviewChart({ data }: TasksOverviewChartProps) {
                 key={idx}
                 className="flex-1 bg-blue-500 rounded-t transition-all hover:bg-blue-600 cursor-pointer"
                 style={{ height: `${(item.taskCount / maxTasks) * 100}%` }}
-                title={`${new Date(item.date).toLocaleDateString()}\n${item.taskCount} tasks`}
+                title={`${new Date(item.date).toLocaleDateString()}\n${formatNumber(item.taskCount)} tasks`}
               />
             ))}
           </div>

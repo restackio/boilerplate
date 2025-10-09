@@ -13,7 +13,6 @@ import { ScrollArea } from "@workspace/ui/components/ui/scroll-area";
 import { MetricCard } from "./metric-card";
 import { CreateMetricDialog } from "@/app/(dashboard)/analytics/components/create-metric-dialog";
 import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
-import { Plus } from "lucide-react";
 
 interface TaskQualityMetric {
   metricName: string;

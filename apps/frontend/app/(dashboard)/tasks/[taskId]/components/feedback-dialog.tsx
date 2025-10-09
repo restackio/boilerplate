@@ -12,7 +12,6 @@ import {
 import { Button } from "@workspace/ui/components/ui/button";
 import { Textarea } from "@workspace/ui/components/ui/textarea";
 import { Label } from "@workspace/ui/components/ui/label";
-import { ThumbsUp, ThumbsDown } from "lucide-react";
 
 interface FeedbackDialogProps {
   open: boolean;

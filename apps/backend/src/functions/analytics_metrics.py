@@ -95,7 +95,11 @@ async def get_analytics_metrics(
                 client, filters
             )
 
-        return result
+        # Apply demo multipliers if enabled
+        from src.utils.demo import (
+            apply_demo_multiplier_to_analytics,
+        )
+        return apply_demo_multiplier_to_analytics(result)
 
     except Exception as e:
         log.error(f"Failed to fetch analytics metrics: {e}")
@@ -311,14 +315,14 @@ async def _get_feedback_metrics(
     client: Any, filters: AnalyticsFilters
 ) -> dict[str, Any]:
     """Get feedback metrics timeseries with task counts for proper coverage calculation.
-    
+
     Returns only timeseries data - frontend calculates summaries from it.
     """
     # Get base filter for tasks
     task_where_filter, task_params = build_filter_clause(
         filters, include_version=True
     )
-    
+
     # Feedback-specific filter
     feedback_where_filter, feedback_params = build_filter_clause(filters)
     feedback_where_filter += " AND metric_category = 'feedback'"
@@ -387,7 +391,7 @@ async def _get_feedback_metrics(
     """
 
     detailed_result = client.query(detailed_query, parameters=feedback_params)
-    
+
     detailed_feedbacks = [
         {
             "taskId": row["task_id"],

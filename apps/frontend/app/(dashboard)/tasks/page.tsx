@@ -12,6 +12,7 @@ import { CreateTaskForm } from "./components/create-task-form";
 import { TaskStatsCard } from "./components/task-stats-card";
 import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 import TasksTabs from "./tasks-tabs";
+import { getTasksByMetric, getTasksByFeedback } from "@/app/actions/tasks-filter";
 
 export default function TasksPage() {
   const router = useRouter();
@@ -19,6 +20,9 @@ export default function TasksPage() {
   const { currentWorkspaceId, isReady } = useDatabaseWorkspace();
   const { tasks, tasksLoading, fetchTasks, deleteTask, createTask, teams, fetchTeams } = useWorkspaceScopedActions();
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [filteredTaskIds, setFilteredTaskIds] = useState<string[] | null>(null);
+  const [filterLoading, setFilterLoading] = useState(false);
+  const [filterError, setFilterError] = useState<string | null>(null);
 
 
   useEffect(() => {
@@ -27,6 +31,74 @@ export default function TasksPage() {
       fetchTeams();
     }
   }, [isReady, currentWorkspaceId, fetchTasks, fetchTeams]);
+
+  // Fetch filtered task IDs when metric or feedback filters are present
+  useEffect(() => {
+    const fetchFilteredTasks = async () => {
+      if (!isReady || !currentWorkspaceId) return;
+
+      const metricParam = searchParams.get('metric');
+      const statusParam = searchParams.get('status');
+      const feedbackParam = searchParams.get('feedback');
+      const dateRangeParam = searchParams.get('dateRange') as "1d" | "7d" | "30d" | "90d" | "all" | null;
+      const agentIdParam = searchParams.get('agentId');
+      const versionParam = searchParams.get('version');
+
+      // Only filter if metric or feedback params are present
+      if (!metricParam && !feedbackParam) {
+        setFilteredTaskIds(null);
+        return;
+      }
+
+      setFilterLoading(true);
+      setFilterError(null);
+
+      try {
+        if (metricParam) {
+          // Filter by metric failure/pass
+          const result = await getTasksByMetric({
+            workspaceId: currentWorkspaceId,
+            metricName: metricParam,
+            status: (statusParam as "failed" | "passed") || "failed",
+            dateRange: dateRangeParam || "7d",
+            agentId: agentIdParam,
+            version: versionParam,
+          });
+
+          if (result.success) {
+            setFilteredTaskIds(result.task_ids);
+          } else {
+            setFilterError(result.error || "Failed to fetch filtered tasks");
+            setFilteredTaskIds([]);
+          }
+        } else if (feedbackParam) {
+          // Filter by feedback
+          const result = await getTasksByFeedback({
+            workspaceId: currentWorkspaceId,
+            feedbackType: (feedbackParam as "positive" | "negative") || "negative",
+            dateRange: dateRangeParam || "7d",
+            agentId: agentIdParam,
+            version: versionParam,
+          });
+
+          if (result.success) {
+            setFilteredTaskIds(result.task_ids);
+          } else {
+            setFilterError(result.error || "Failed to fetch filtered tasks");
+            setFilteredTaskIds([]);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching filtered tasks:", error);
+        setFilterError("An error occurred while filtering tasks");
+        setFilteredTaskIds([]);
+      } finally {
+        setFilterLoading(false);
+      }
+    };
+
+    fetchFilteredTasks();
+  }, [isReady, currentWorkspaceId, searchParams]);
 
   const handleTaskClick = (taskId: string) => {
     router.push(`/tasks/${taskId}`);
@@ -74,7 +146,12 @@ export default function TasksPage() {
         updated: task.updated_at || new Date().toISOString(),
       }));
 
-    // Filter by specific task IDs if provided in URL params
+    // Filter by metric/feedback if filteredTaskIds is set
+    if (filteredTaskIds !== null) {
+      return transformedTasks.filter(task => filteredTaskIds.includes(task.id));
+    }
+
+    // Filter by specific task IDs if provided in URL params (for newly created tasks)
     const tasksParam = searchParams.get('tasks');
     if (tasksParam && searchParams.get('highlight') === 'true') {
       const taskIds = tasksParam.split(',').filter(id => id.trim());
@@ -82,7 +159,7 @@ export default function TasksPage() {
     }
 
     return transformedTasks;
-  }, [tasks, searchParams]);
+  }, [tasks, searchParams, filteredTaskIds]);
 
   // Create team options for filtering
   const teamOptions = useMemo(() => {
@@ -150,8 +227,10 @@ export default function TasksPage() {
     const tasksParam = searchParams.get('tasks');
     const assignedParam = searchParams.get('assigned');
     const statusParam = searchParams.get('status');
+    const metricParam = searchParams.get('metric');
+    const feedbackParam = searchParams.get('feedback');
     
-    return !!(teamParam || tasksParam || assignedParam || statusParam);
+    return !!(teamParam || tasksParam || assignedParam || statusParam || metricParam || feedbackParam);
   }, [searchParams]);
 
   const breadcrumbs = [{ label: "Tasks" }];
@@ -183,6 +262,11 @@ export default function TasksPage() {
   // const createdParam = searchParams.get('created'); // Currently unused
   const isShowingNewTasks = tasksParam && highlightParam === 'true';
 
+  // Check if we're showing filtered tasks by metric or feedback
+  const metricParam = searchParams.get('metric');
+  const feedbackParam = searchParams.get('feedback');
+  const isShowingFilteredTasks = !!(metricParam || feedbackParam);
+
   return (
     <div className="flex-1">
       <PageHeader breadcrumbs={breadcrumbs} actions={actions} />
@@ -210,6 +294,50 @@ export default function TasksPage() {
                 Clear filter
               </button>
             </div>
+          </div>
+        )}
+
+        {/* Show notification for filtered tasks by metric/feedback */}
+        {isShowingFilteredTasks && (
+          <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
+            {filterLoading ? (
+              <div className="flex items-center gap-2">
+                <RefreshCw className="h-4 w-4 animate-spin text-blue-600" />
+                <p className="text-blue-800 text-sm">Loading filtered tasks...</p>
+              </div>
+            ) : filterError ? (
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-red-800 text-sm font-medium">Error loading filtered tasks</p>
+                  <p className="text-red-700 text-xs mt-1">{filterError}</p>
+                </div>
+                <button
+                  onClick={() => router.push('/tasks')}
+                  className="text-red-600 hover:text-red-800 text-xs underline"
+                >
+                  Clear filter
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-blue-800 text-sm font-medium">
+                    {metricParam 
+                      ? `Showing tasks that ${searchParams.get('status') || 'failed'} "${metricParam}"`
+                      : `Showing tasks with ${feedbackParam} feedback`}
+                  </p>
+                  <p className="text-blue-700 text-xs mt-1">
+                    Found {filteredTaskIds?.length || 0} tasks matching the criteria. Clear filters to see all tasks.
+                  </p>
+                </div>
+                <button
+                  onClick={() => router.push('/tasks')}
+                  className="text-blue-600 hover:text-blue-800 text-xs underline"
+                >
+                  Clear filter
+                </button>
+              </div>
+            )}
           </div>
         )}
 

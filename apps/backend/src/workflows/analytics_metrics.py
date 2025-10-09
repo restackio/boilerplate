@@ -95,31 +95,33 @@ def _merge_quality_metrics(
     definitions: list[dict], quality_data: dict
 ) -> dict:
     """Merge metric definitions with actual results.
-    
+
     Ensures all active quality metrics appear in the summary,
     even if they have no evaluation data yet. Also enriches with metric_id and is_default.
     """
     existing_summary = quality_data.get("summary", [])
-    
+
     # Create a lookup map from definitions for enrichment
     definitions_map = {d["name"]: d for d in definitions}
-    
+
     # Enrich existing summary items with metric_id and is_default
     enriched_summary = []
     existing_names = set()
-    
+
     for metric in existing_summary:
         metric_name = metric["metricName"]
         existing_names.add(metric_name)
-        
-        # Add metric_id and is_default from definitions
+
+        # Add metric_id, is_default, is_active, and config from definitions
         if metric_name in definitions_map:
             definition = definitions_map[metric_name]
             metric["metricId"] = definition["id"]
             metric["isDefault"] = definition.get("is_default", False)
-        
+            metric["isActive"] = definition.get("is_active", True)
+            metric["config"] = definition.get("config", {})
+
         enriched_summary.append(metric)
-    
+
     # Add metrics that don't have data yet
     for definition in definitions:
         metric_name = definition["name"]
@@ -129,11 +131,13 @@ def _merge_quality_metrics(
                 "metricName": metric_name,
                 "metricId": definition["id"],
                 "isDefault": definition.get("is_default", False),
+                "isActive": definition.get("is_active", True),
+                "config": definition.get("config", {}),
                 "passRate": 0,
                 "avgScore": None,
                 "evaluationCount": 0,
             })
-    
+
     return {
         "summary": enriched_summary,
         "timeseries": quality_data.get("timeseries", []),
