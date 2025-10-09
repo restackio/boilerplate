@@ -62,7 +62,7 @@ class ClickHouseListDatabases:
             # Ensure we have a valid input object even if None is passed
             if workflow_input is None:
                 workflow_input = ClickHouseListDatabasesInput()
-            
+
             return await workflow.step(
                 task_queue="mcp_server",
                 function=clickhouse_list_databases,
