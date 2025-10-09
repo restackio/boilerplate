@@ -4,6 +4,7 @@ Allows running new quality metrics against historical traces.
 This enables evaluating past agent runs with newly defined metrics.
 """
 
+import asyncio
 from dataclasses import dataclass
 from datetime import timedelta
 
@@ -158,104 +159,63 @@ class RetroactiveMetrics:
                     f"Processing batch: {len(trace_batch['spans'])} traces (offset {offset})"
                 )
 
-                # Apply sampling if specified
+                # Apply deterministic sampling if specified
+                # Use modulo-based sampling (every Nth item) for deterministic results
                 spans_to_process = trace_batch["spans"]
                 if workflow_input.sample_percentage is not None:
-                    import random
-
-                    sample_size = int(
-                        len(spans_to_process)
-                        * workflow_input.sample_percentage
-                    )
-                    spans_to_process = random.sample(
-                        spans_to_process,
-                        min(sample_size, len(spans_to_process)),
-                    )
+                    # Calculate step size: if sample_percentage=0.1 (10%), step=10 (take every 10th)
+                    step = int(1 / workflow_input.sample_percentage)
+                    if step < 1:
+                        step = 1
+                    
+                    # Take every Nth span deterministically
+                    spans_to_process = [
+                        span for i, span in enumerate(spans_to_process) 
+                        if i % step == 0
+                    ]
                     log.info(
-                        f"Sampling {workflow_input.sample_percentage * 100}%: "
+                        f"Deterministic sampling (every {step}th): "
                         f"{len(spans_to_process)}/{len(trace_batch['spans'])} traces"
                     )
 
-                # Step 3: Evaluate metric for each trace (in parallel)
+                # Step 3: Evaluate and save each trace (in parallel batches)
                 eval_tasks = []
-                trace_metadata = []  # Store (trace_id, span_id, task_id, agent_id) for each eval
-
+                
                 for span in spans_to_process:
-                    if span["span_type"] != "generation":
-                        continue  # Only evaluate generation spans
+                    if span["span_type"] != "response":
+                        continue  # Only evaluate response spans
 
-                    # Store metadata for linking results back to traces
-                    trace_metadata.append(
-                        {
-                            "trace_id": span["trace_id"],
-                            "span_id": span["span_id"],
-                            "task_id": span["task_id"],
-                            "agent_id": span["agent_id"],
-                        }
-                    )
-
-                    # Create evaluation task based on metric type
+                    total_processed += 1
+                    
+                    # Create evaluation + save task based on metric type
                     metric_type = metric_def["metric_type"]
+                    
+                    # Prepare trace linkage
+                    trace_metadata = {
+                        "trace_id": span["trace_id"],
+                        "span_id": span["span_id"],
+                    }
 
                     if metric_type == "llm_judge":
-                        task = workflow.step(
-                            function=evaluate_llm_judge_metric,
-                            function_input={
-                                "task_id": span["task_id"],
-                                "task_input": span["input"],
-                                "task_output": span["output"],
-                                "metric_definition": metric_def,
-                            },
-                            start_to_close_timeout=timedelta(
-                                minutes=2
-                            ),  # LLM calls can take time
+                        task = self._evaluate_and_save_llm_judge(
+                            workflow_input=workflow_input,
+                            metric_def=metric_def,
+                            span=span,
+                            trace_metadata=trace_metadata,
                         )
                     elif metric_type == "python_code":
-                        # Build performance data from span
-                        performance_data = (
-                            build_performance_data_dict(
-                                duration_ms=span["duration_ms"],
-                                input_tokens=span["input_tokens"],
-                                output_tokens=span[
-                                    "output_tokens"
-                                ],
-                                status=span["status"],
-                            )
-                        )
-                        task = workflow.step(
-                            function=evaluate_python_code_metric,
-                            function_input={
-                                "task_id": span["task_id"],
-                                "task_input": span["input"],
-                                "task_output": span["output"],
-                                "performance_data": performance_data,
-                                "metric_definition": metric_def,
-                            },
-                            start_to_close_timeout=timedelta(
-                                seconds=30
-                            ),
+                        task = self._evaluate_and_save_python_code(
+                            workflow_input=workflow_input,
+                            metric_def=metric_def,
+                            span=span,
+                            trace_metadata=trace_metadata,
                         )
                     elif metric_type == "formula":
-                        performance_data = (
-                            build_performance_data_dict(
-                                duration_ms=span["duration_ms"],
-                                input_tokens=span["input_tokens"],
-                                output_tokens=span[
-                                    "output_tokens"
-                                ],
-                                status=span["status"],
-                            )
-                        )
-                        task = workflow.step(
-                            function=evaluate_formula_metric,
-                            function_input={
-                                "task_id": span["task_id"],
-                                "performance_data": performance_data,
-                                "metric_definition": metric_def,
-                            },
-                            start_to_close_timeout=timedelta(
-                                seconds=10
-                            ),
+                        task = self._evaluate_and_save_formula(
+                            workflow_input=workflow_input,
+                            metric_def=metric_def,
+                            span=span,
+                            trace_metadata=trace_metadata,
                         )
                     else:
                         log.warning(
@@ -265,82 +225,25 @@ class RetroactiveMetrics:
 
                     eval_tasks.append(task)
 
-                # Wait for all evaluations in this batch
+                # Run all evaluations in parallel (return_exceptions to not fail on single errors)
                 if eval_tasks:
-                    eval_results = await workflow.all(eval_tasks)
-
-                    # Step 4: Link results to traces and save
-                    quality_results = []
-                    for metadata, result in zip(
-                        trace_metadata, eval_results, strict=False
-                    ):
-                        if result:
-                            # Link result to trace
-                            result["trace_id"] = metadata[
-                                "trace_id"
-                            ]
-                            result["span_id"] = metadata[
-                                "span_id"
-                            ]
-                            quality_results.append(result)
+                    log.info(f"Running {len(eval_tasks)} evaluations in parallel")
+                    results = await asyncio.gather(*eval_tasks, return_exceptions=True)
+                    
+                    # Count successes/failures
+                    for result in results:
+                        if isinstance(result, Exception):
+                            log.error(f"Evaluation failed: {result}")
+                            total_failed += 1
+                        elif result:
                             total_completed += 1
                         else:
                             total_failed += 1
-
-                    # Save batch of results (grouped by task for efficiency)
-                    # Group by task_id
-                    results_by_task = {}
-                    for metadata, result in zip(
-                        trace_metadata,
-                        quality_results,
-                        strict=False,
-                    ):
-                        task_id = metadata["task_id"]
-                        if task_id not in results_by_task:
-                            results_by_task[task_id] = {
-                                "task_id": task_id,
-                                "agent_id": metadata["agent_id"],
-                                "results": [],
-                            }
-                        results_by_task[task_id][
-                            "results"
-                        ].append(result)
-
-                    # Insert each task's results
-                    for task_data in results_by_task.values():
-                        try:
-                            await workflow.step(
-                                function=ingest_quality_metrics,
-                                function_input={
-                                    "task_id": task_data[
-                                        "task_id"
-                                    ],
-                                    "agent_id": task_data[
-                                        "agent_id"
-                                    ],
-                                    "workspace_id": workflow_input.workspace_id,
-                                    "quality_results": task_data[
-                                        "results"
-                                    ],
-                                    # No response_id for retroactive eval (not tied to specific conversation turn)
-                                    "response_id": None,
-                                    "response_index": None,
-                                    "message_count": None,
-                                },
-                                start_to_close_timeout=timedelta(
-                                    seconds=30
-                                ),
-                            )
-                        except Exception as e:
-                            error_msg = f"Failed to save results for task {task_data['task_id']}: {e}"
-                            log.error(error_msg)
-                            errors.append(error_msg)
-
+                    
                     log.info(
                         f"Batch complete: {total_completed} succeeded, {total_failed} failed"
                     )
 
-                total_processed += len(trace_batch["spans"])
                 offset += len(trace_batch["spans"])
 
                 # Check if there are more traces
@@ -365,3 +268,154 @@ class RetroactiveMetrics:
             evaluations_failed=total_failed,
             errors=errors,
         )
+
+    async def _evaluate_and_save_llm_judge(
+        self,
+        workflow_input: RetroactiveMetricsInput,
+        metric_def: dict,
+        span: dict,
+        trace_metadata: dict,
+    ) -> bool:
+        """Evaluate LLM judge metric and save result."""
+        try:
+            # Step 1: Evaluate
+            result = await workflow.step(
+                function=evaluate_llm_judge_metric,
+                function_input={
+                    "task_id": span["task_id"],
+                    "task_input": span["input"],
+                    "task_output": span["output"],
+                    "metric_definition": metric_def,
+                },
+                start_to_close_timeout=timedelta(minutes=2),
+            )
+
+            if not result:
+                return False
+
+            # Step 2: Save result
+            await workflow.step(
+                function=ingest_quality_metrics,
+                function_input={
+                    "task_id": span["task_id"],
+                    "agent_id": span["agent_id"],
+                    "workspace_id": workflow_input.workspace_id,
+                    "trace_id": trace_metadata["trace_id"],
+                    "span_id": trace_metadata["span_id"],
+                    "quality_results": [result],
+                    "response_id": None,
+                    "response_index": None,
+                    "message_count": None,
+                },
+                start_to_close_timeout=timedelta(seconds=30),
+            )
+            return True
+        except Exception as e:
+            log.error(f"Failed to evaluate and save LLM judge: {e}")
+            return False
+
+    async def _evaluate_and_save_python_code(
+        self,
+        workflow_input: RetroactiveMetricsInput,
+        metric_def: dict,
+        span: dict,
+        trace_metadata: dict,
+    ) -> bool:
+        """Evaluate Python code metric and save result."""
+        try:
+            # Build performance data
+            performance_data = build_performance_data_dict(
+                duration_ms=span["duration_ms"],
+                input_tokens=span["input_tokens"],
+                output_tokens=span["output_tokens"],
+                status=span["status"],
+            )
+
+            # Step 1: Evaluate
+            result = await workflow.step(
+                function=evaluate_python_code_metric,
+                function_input={
+                    "task_id": span["task_id"],
+                    "task_input": span["input"],
+                    "task_output": span["output"],
+                    "performance_data": performance_data,
+                    "metric_definition": metric_def,
+                },
+                start_to_close_timeout=timedelta(seconds=30),
+            )
+
+            if not result:
+                return False
+
+            # Step 2: Save result
+            await workflow.step(
+                function=ingest_quality_metrics,
+                function_input={
+                    "task_id": span["task_id"],
+                    "agent_id": span["agent_id"],
+                    "workspace_id": workflow_input.workspace_id,
+                    "trace_id": trace_metadata["trace_id"],
+                    "span_id": trace_metadata["span_id"],
+                    "quality_results": [result],
+                    "response_id": None,
+                    "response_index": None,
+                    "message_count": None,
+                },
+                start_to_close_timeout=timedelta(seconds=30),
+            )
+            return True
+        except Exception as e:
+            log.error(f"Failed to evaluate and save Python code: {e}")
+            return False
+
+    async def _evaluate_and_save_formula(
+        self,
+        workflow_input: RetroactiveMetricsInput,
+        metric_def: dict,
+        span: dict,
+        trace_metadata: dict,
+    ) -> bool:
+        """Evaluate formula metric and save result."""
+        try:
+            # Build performance data
+            performance_data = build_performance_data_dict(
+                duration_ms=span["duration_ms"],
+                input_tokens=span["input_tokens"],
+                output_tokens=span["output_tokens"],
+                status=span["status"],
+            )
+
+            # Step 1: Evaluate
+            result = await workflow.step(
+                function=evaluate_formula_metric,
+                function_input={
+                    "task_id": span["task_id"],
+                    "performance_data": performance_data,
+                    "metric_definition": metric_def,
+                },
+                start_to_close_timeout=timedelta(seconds=10),
+            )
+
+            if not result:
+                return False
+
+            # Step 2: Save result
+            await workflow.step(
+                function=ingest_quality_metrics,
+                function_input={
+                    "task_id": span["task_id"],
+                    "agent_id": span["agent_id"],
+                    "workspace_id": workflow_input.workspace_id,
+                    "trace_id": trace_metadata["trace_id"],
+                    "span_id": trace_metadata["span_id"],
+                    "quality_results": [result],
+                    "response_id": None,
+                    "response_index": None,
+                    "message_count": None,
+                },
+                start_to_close_timeout=timedelta(seconds=30),
+            )
+            return True
+        except Exception as e:
+            log.error(f"Failed to evaluate and save formula: {e}")
+            return False

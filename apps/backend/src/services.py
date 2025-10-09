@@ -141,6 +141,7 @@ from src.functions.traces_crud import (
 )
 from src.functions.traces_query import (
     aggregate_traces_for_task,
+    count_traces_for_retroactive,
     query_traces_batch,
     query_traces_for_response,
 )
@@ -513,6 +514,7 @@ async def run_restack_service() -> None:
             query_traces_batch,
             query_traces_for_response,
             aggregate_traces_for_task,
+            count_traces_for_retroactive,
             # Analytics function
             get_analytics_metrics,
             evaluate_llm_judge_metric,

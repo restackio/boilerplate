@@ -102,7 +102,7 @@ async def evaluate_llm_judge_metric(
     try:
         config = input_data.metric_definition["config"]
         judge_prompt = config.get("judge_prompt")
-        judge_model = config.get("judge_model", "gpt-4o-mini")
+        judge_model = config.get("judge_model", "gpt-5-nano")
 
         if not judge_prompt:
             log.error("No judge_prompt in config")
@@ -138,7 +138,6 @@ Please evaluate and respond in JSON format:
                 {"role": "user", "content": full_prompt},
             ],
             response_format={"type": "json_object"},
-            temperature=0.2,
         )
 
         # Parse response
@@ -178,7 +177,10 @@ Please evaluate and respond in JSON format:
         }
 
     except Exception as e:
-        log.error(f"LLM judge evaluation failed: {e}")
+        log.error(
+            f"LLM judge evaluation failed for metric {input_data.metric_definition['name']}: {e}",
+            exc_info=True,
+        )
         return None
 
 

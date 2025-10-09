@@ -192,3 +192,69 @@ export async function deleteMetric(metricId: string): Promise<boolean> {
     return false;
   }
 }
+
+export interface RunRetroactiveEvaluationInput {
+  workspace_id: string;
+  metric_definition_id: string;
+  retroactive_date_from?: string;
+  retroactive_date_to?: string;
+  retroactive_sample_percentage?: number;
+  retroactive_agent_id?: string;
+  retroactive_agent_version?: string;
+  retroactive_max_traces?: number;
+}
+
+export interface RunRetroactiveEvaluationOutput {
+  success: boolean;
+  workflow_id?: string;
+  total_traces?: number;
+  error?: string;
+}
+
+// Run retroactive evaluation on an existing metric
+export async function runRetroactiveEvaluation(
+  input: RunRetroactiveEvaluationInput
+): Promise<RunRetroactiveEvaluationOutput> {
+  try {
+    // Build filters
+    const filters: Record<string, unknown> = {};
+    
+    if (input.retroactive_date_from) {
+      filters.date_from = input.retroactive_date_from;
+    }
+    if (input.retroactive_date_to) {
+      filters.date_to = input.retroactive_date_to;
+    }
+    if (input.retroactive_agent_id) {
+      filters.agent_id = input.retroactive_agent_id;
+    }
+    if (input.retroactive_agent_version) {
+      filters.agent_version = input.retroactive_agent_version;
+    }
+
+    const { workflowId, runId } = await runWorkflow({
+      workflowName: "RetroactiveMetrics",
+      input: {
+        workspace_id: input.workspace_id,
+        metric_definition_id: input.metric_definition_id,
+        filters,
+        batch_size: 100,
+        max_traces: input.retroactive_max_traces,
+        sample_percentage: input.retroactive_sample_percentage,
+      },
+    });
+
+    // Note: RetroactiveMetrics may run for a while, so we don't wait for result
+    // Just return the workflow ID for tracking
+    return {
+      success: true,
+      workflow_id: `${workflowId}`,
+    };
+  } catch (error) {
+    console.error("Error running retroactive evaluation:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}

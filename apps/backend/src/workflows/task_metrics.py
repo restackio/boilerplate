@@ -3,6 +3,7 @@
 Evaluates task performance and runs quality metrics in parallel.
 """
 
+import asyncio
 from dataclasses import dataclass
 
 from restack_ai.workflow import import_functions, log, workflow
@@ -10,12 +11,14 @@ from restack_ai.workflow import import_functions, log, workflow
 with import_functions():
     from src.functions.metrics_crud import list_metric_definitions
     from src.functions.metrics_evaluation import (
+        evaluate_formula_metric,
+        evaluate_llm_judge_metric,
+        evaluate_python_code_metric,
         ingest_performance_metrics,
         ingest_quality_metrics,
     )
     from src.functions.metrics_helpers import (
         build_performance_data_dict,
-        create_metric_evaluation_task,
     )
 
 
@@ -269,16 +272,19 @@ class TaskMetricsWorkflow:
                         )
                         eval_tasks.append(task)
 
-                    # Run all evaluations in parallel
+                    # Run all evaluations in parallel (return_exceptions=True means failures don't block)
                     log.info(
                         f"Running {len(eval_tasks)} metric evaluations in parallel"
                     )
-                    eval_results = await workflow.all(eval_tasks)
+                    eval_results = await asyncio.gather(*eval_tasks, return_exceptions=True)
 
-                    # Filter out None results (failed evaluations)
-                    quality_results = [
-                        r for r in eval_results if r is not None
-                    ]
+                    # Filter out None results and exceptions (failed evaluations)
+                    quality_results = []
+                    for r in eval_results:
+                        if isinstance(r, Exception):
+                            log.error(f"Metric evaluation failed: {r}")
+                        elif r is not None:
+                            quality_results.append(r)
                     log.info(
                         f"Completed {len(quality_results)}/{len(eval_tasks)} metric evaluations successfully"
                     )

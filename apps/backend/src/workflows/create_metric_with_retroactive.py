@@ -23,6 +23,9 @@ with import_functions():
     from src.functions.metrics_crud import (
         create_metric_definition,
     )
+    from src.functions.traces_query import (
+        count_traces_for_retroactive,
+    )
 
 
 @dataclass
@@ -172,6 +175,20 @@ class CreateMetricWithRetroactiveWorkflow:
                         workflow_input.retroactive_date_to
                     )
 
+                # Step 2a: Count traces that will be evaluated
+                count_result = await workflow.step(
+                    function=count_traces_for_retroactive,
+                    function_input={
+                        "workspace_id": workflow_input.workspace_id,
+                        "filters": filters,
+                    },
+                )
+
+                total_traces = count_result.get("total_count", 0)
+                log.info(
+                    f"Found {total_traces} traces to evaluate for metric {metric_id}"
+                )
+
                 # Start retroactive workflow as child (fire-and-forget)
                 retroactive_workflow_id = (
                     f"retroactive_{metric_id}_{uuid()}"
@@ -197,6 +214,7 @@ class CreateMetricWithRetroactiveWorkflow:
                     "filters": filters,
                     "sample_percentage": workflow_input.retroactive_sample_percentage,
                     "max_traces": workflow_input.retroactive_max_traces,
+                    "total_traces": total_traces,
                 }
 
                 log.info(

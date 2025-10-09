@@ -34,9 +34,9 @@ async def query_traces_for_response(
     try:
         client = get_clickhouse_client()
 
-        # Query for generation span (the LLM call)
+        # Query for response span (the LLM call)
         # If response_id provided, filter by it in metadata
-        where_clause = "WHERE task_id = {task_id:UUID} AND span_type = 'generation'"
+        where_clause = "WHERE task_id = {task_id:UUID} AND span_type = 'response'"
         if response_id:
             where_clause += " AND JSONExtractString(metadata, 'response_id') = {response_id:String}"
 
@@ -216,8 +216,8 @@ async def query_traces_batch(
             )
             params["date_to"] = date_to_str
 
-        # Only generation spans (for quality evaluation)
-        where_conditions.append("span_type = 'generation'")
+        # Only response spans (for quality evaluation)
+        where_conditions.append("span_type = 'response'")
 
         where_clause = " AND ".join(where_conditions)
 
@@ -342,7 +342,7 @@ async def aggregate_traces_for_task(
         query = """
         SELECT
             count() as total_spans,
-            countIf(span_type = 'generation') as generation_count,
+            countIf(span_type = 'response') as response_count,
             countIf(span_type = 'function') as function_count,
             sum(duration_ms) as total_duration_ms,
             sum(input_tokens) as total_input_tokens,
@@ -371,7 +371,7 @@ async def aggregate_traces_for_task(
             "found": True,
             "task_id": task_id,
             "total_spans": row[0],
-            "generation_count": row[1],
+            "response_count": row[1],
             "function_count": row[2],
             "total_duration_ms": row[3] or 0,
             "total_input_tokens": row[4] or 0,
@@ -389,4 +389,91 @@ async def aggregate_traces_for_task(
 
     except Exception as e:
         log.error(f"Error aggregating traces: {e}")
+        raise
+
+
+@function.defn()
+async def count_traces_for_retroactive(
+    function_input: dict[str, Any],
+) -> dict[str, Any]:
+    """Count traces matching retroactive evaluation filters.
+
+    Used to show progress on the frontend before starting evaluation.
+
+    Args:
+        function_input: Dict with workspace_id and filters
+
+    Returns:
+        Dict with total_count of matching traces
+    """
+    workspace_id = function_input["workspace_id"]
+    filters = function_input.get("filters", {})
+
+    log.info(
+        f"Counting traces for workspace {workspace_id} with filters {filters}"
+    )
+
+    try:
+        client = get_clickhouse_client()
+
+        # Build WHERE clause (same logic as query_traces_batch)
+        where_conditions = ["workspace_id = {workspace_id:UUID}"]
+        params = {"workspace_id": workspace_id}
+
+        if filters.get("agent_id"):
+            where_conditions.append("agent_id = {agent_id:UUID}")
+            params["agent_id"] = filters["agent_id"]
+
+        if filters.get("agent_version"):
+            where_conditions.append(
+                "agent_version = {agent_version:String}"
+            )
+            params["agent_version"] = filters["agent_version"]
+
+        if filters.get("date_from"):
+            where_conditions.append(
+                "started_at >= {date_from:String}"
+            )
+            date_from_str = (
+                filters["date_from"]
+                .replace("Z", "")
+                .replace("T", " ")
+            )
+            params["date_from"] = date_from_str
+
+        if filters.get("date_to"):
+            where_conditions.append(
+                "started_at <= {date_to:String}"
+            )
+            date_to_str = (
+                filters["date_to"]
+                .replace("Z", "")
+                .replace("T", " ")
+            )
+            params["date_to"] = date_to_str
+
+        # Only response spans (for quality evaluation)
+        where_conditions.append("span_type = 'response'")
+
+        where_clause = " AND ".join(where_conditions)
+
+        query = f"""
+        SELECT COUNT(*) as total
+        FROM task_traces
+        WHERE {where_clause}
+        """
+
+        result = client.query(query, parameters=params)
+
+        if not result.result_rows:
+            return {"total_count": 0}
+
+        total_count = result.result_rows[0][0]
+
+        log.info(f"Found {total_count} traces matching filters")
+
+        return {"total_count": total_count}
+
+    except Exception as e:
+        log.error(f"Error counting traces: {e}")
         raise

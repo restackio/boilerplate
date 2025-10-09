@@ -50,7 +50,7 @@ class GetTaskTracesWorkflow:
                     "total_duration_ms": 0,
                     "total_tokens": 0,
                     "total_cost_usd": 0,
-                    "generation_spans": 0,
+                    "response_spans": 0,
                     "function_spans": 0,
                 },
                 "error": str(e),

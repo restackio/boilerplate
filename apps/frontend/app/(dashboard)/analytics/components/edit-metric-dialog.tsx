@@ -20,14 +20,16 @@ import {
   SelectValue,
 } from "@workspace/ui/components/ui/select";
 import { Switch } from "@workspace/ui/components/ui/switch";
-import { Loader2, Trash2 } from "lucide-react";
-import { toggleMetricStatus, deleteMetric } from "@/app/actions/metrics";
+import { Loader2, Trash2, Play } from "lucide-react";
+import { Slider } from "@workspace/ui/components/ui/slider";
+import { toggleMetricStatus, deleteMetric, runRetroactiveEvaluation } from "@/app/actions/metrics";
 
 interface EditMetricDialogProps {
   metricId: string;
   metricName: string;
   isActive: boolean;
   config: Record<string, unknown> | string;
+  workspaceId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onMetricUpdated?: () => void;
@@ -38,6 +40,7 @@ export function EditMetricDialog({
   metricName,
   isActive: initialIsActive,
   config,
+  workspaceId,
   open,
   onOpenChange,
   onMetricUpdated,
@@ -54,7 +57,13 @@ export function EditMetricDialog({
   // Form state
   const [isActive, setIsActive] = useState(initialIsActive);
   const judgePrompt = parsedConfig.judge_prompt || "";
-  const judgeModel = parsedConfig.judge_model || "gpt-4o-mini";
+  const judgeModel = parsedConfig.judge_model || "gpt-5-nano";
+
+  // Retroactive evaluation state
+  const [retroLoading, setRetroLoading] = useState(false);
+  const [runRetroactive, setRunRetroactive] = useState(false);
+  const [retroactiveWeeks, setRetroactiveWeeks] = useState(2);
+  const [samplePercentage, setSamplePercentage] = useState(10);
 
   const handleToggleActive = async () => {
     setError(null);
@@ -104,10 +113,45 @@ export function EditMetricDialog({
     }
   };
 
+  const handleRunRetroactive = async () => {
+    setError(null);
+    setSuccess(null);
+    setRetroLoading(true);
+
+    try {
+      // Calculate date range
+      const now = new Date();
+      const weeksAgo = new Date(now);
+      weeksAgo.setDate(weeksAgo.getDate() - (retroactiveWeeks * 7));
+
+      const result = await runRetroactiveEvaluation({
+        workspace_id: workspaceId,
+        metric_definition_id: metricId,
+        retroactive_date_from: weeksAgo.toISOString(),
+        retroactive_date_to: now.toISOString(),
+        retroactive_sample_percentage: samplePercentage / 100,
+      });
+
+      if (result.success) {
+        setSuccess(
+          `Retroactive evaluation started on ${samplePercentage}% of traces from last ${retroactiveWeeks} weeks. Check back shortly to see results.`
+        );
+        setRunRetroactive(false);
+        onMetricUpdated?.();
+      } else {
+        setError(result.error || "Failed to start retroactive evaluation");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to start retroactive evaluation");
+    } finally {
+      setRetroLoading(false);
+    }
+  };
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Metric: {metricName}</DialogTitle>
             <DialogDescription>
@@ -179,6 +223,88 @@ export function EditMetricDialog({
                   placeholder="Judge prompt..."
                 />
               </div>
+            </div>
+
+            {/* Retroactive Evaluation Section */}
+            <div className="rounded-lg border p-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-base flex items-center gap-2">
+                    <Play className="h-4 w-4" />
+                    Retroactive evaluation
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Run this metric on historical tasks
+                  </p>
+                </div>
+                <Switch
+                  checked={runRetroactive}
+                  onCheckedChange={setRunRetroactive}
+                  disabled={loading || retroLoading}
+                />
+              </div>
+
+              {runRetroactive && (
+                <div className="space-y-4 ml-6 border-l-2 border-neutral-200 pl-4">
+                  {/* Time Range */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label>Time range</Label>
+                      <span className="text-sm font-medium">
+                        Last {retroactiveWeeks} {retroactiveWeeks === 1 ? "week" : "weeks"}
+                      </span>
+                    </div>
+                    <Slider
+                      value={[retroactiveWeeks]}
+                      onValueChange={(v) => setRetroactiveWeeks(v[0])}
+                      min={1}
+                      max={12}
+                      step={1}
+                      className="w-full"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Evaluate tasks from the last {retroactiveWeeks} {retroactiveWeeks === 1 ? "week" : "weeks"}
+                    </p>
+                  </div>
+
+                  {/* Sample Percentage */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label>Sample size</Label>
+                      <span className="text-sm font-medium">
+                        {samplePercentage}% of tasks
+                      </span>
+                    </div>
+                    <Slider
+                      value={[samplePercentage]}
+                      onValueChange={(v) => setSamplePercentage(v[0])}
+                      min={1}
+                      max={100}
+                      step={1}
+                      className="w-full"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Evaluate {samplePercentage}% of tasks
+                      {samplePercentage < 100 && " (recommended for large datasets)"}
+                    </p>
+                  </div>
+
+                  <Button
+                    onClick={handleRunRetroactive}
+                    disabled={retroLoading}
+                    className="w-full"
+                  >
+                    {retroLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {retroLoading ? "Starting evaluation..." : "Start evaluation"}
+                  </Button>
+
+                  <div className="bg-neutral-50 dark:bg-neutral-950/20 rounded-lg p-3 text-sm">
+                    <p className="text-neutral-900 dark:text-neutral-100">
+                      💡 <strong>Tip:</strong> Results will be added to your analytics as they complete. This runs in the background.
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Danger Zone */}

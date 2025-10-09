@@ -255,12 +255,13 @@ export default function AnalyticsDashboard() {
       )}
 
       {/* Edit Metric Dialog */}
-      {selectedMetric && (
+      {selectedMetric && currentWorkspaceId && (
         <EditMetricDialog
           metricId={selectedMetric.id}
           metricName={selectedMetric.name}
           isActive={selectedMetric.isActive}
           config={selectedMetric.config}
+          workspaceId={currentWorkspaceId}
           open={editDialogOpen}
           onOpenChange={setEditDialogOpen}
           onMetricUpdated={fetchAnalytics}

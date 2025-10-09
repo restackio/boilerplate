@@ -66,7 +66,7 @@ async def get_task_traces_from_clickhouse(
         total_duration = 0
         total_tokens = 0
         total_cost = 0.0
-        generation_count = 0
+        response_count = 0
         function_count = 0
 
         for row in result.result_rows:
@@ -121,8 +121,8 @@ async def get_task_traces_from_clickhouse(
             total_tokens += (row[15] or 0) + (row[16] or 0)
             total_cost += float(row[17]) if row[17] else 0.0
 
-            if row[10] == "generation":
-                generation_count += 1
+            if row[10] == "response":
+                response_count += 1
             elif row[10] == "function":
                 function_count += 1
 
@@ -137,7 +137,7 @@ async def get_task_traces_from_clickhouse(
                 "total_duration_ms": total_duration,
                 "total_tokens": total_tokens,
                 "total_cost_usd": round(total_cost, 6),
-                "generation_spans": generation_count,
+                "response_spans": response_count,
                 "function_spans": function_count,
             },
         }
