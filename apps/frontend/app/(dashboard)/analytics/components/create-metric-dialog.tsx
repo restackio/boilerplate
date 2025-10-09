@@ -50,7 +50,7 @@ export function CreateMetricDialog({
 
   // LLM Judge config
   const [judgePrompt, setJudgePrompt] = useState("");
-  const [judgeModel, setJudgeModel] = useState("gpt-4o-mini");
+  const [judgeModel, setJudgeModel] = useState("gpt-5-nano");
 
   // Retroactive options
   const [runRetroactive, setRunRetroactive] = useState(false);
@@ -144,37 +144,22 @@ export function CreateMetricDialog({
       <DialogTrigger asChild>
         <Button>
           <Plus className="h-4 w-4 mr-2" />
-          Create Metric
+          Create metric
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>Create Quality Metric</DialogTitle>
+            <DialogTitle>Create metric</DialogTitle>
             <DialogDescription>
               Create a new metric to evaluate agent responses. Optionally run it on historical data.
             </DialogDescription>
           </DialogHeader>
 
-          {/* Success/Error Messages */}
-          {error && (
-            <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 rounded-lg p-3 text-sm">
-              <p className="font-semibold">Error</p>
-              <p>{error}</p>
-            </div>
-          )}
-
-          {success && (
-            <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-200 rounded-lg p-3 text-sm">
-              <p className="font-semibold">✅ Success</p>
-              <p>{success}</p>
-            </div>
-          )}
-
           <div className="space-y-4 py-4">
             {/* Metric Name */}
             <div className="space-y-2">
-              <Label htmlFor="name">Metric Name *</Label>
+              <Label htmlFor="name">Name</Label>
               <Input
                 id="name"
                 placeholder="e.g., response_helpful, tone_professional"
@@ -198,15 +183,15 @@ export function CreateMetricDialog({
 
             {/* Metric Type */}
             <div className="space-y-2">
-              <Label htmlFor="type">Metric Type</Label>
+              <Label htmlFor="type">Type</Label>
               <Select value={metricType} onValueChange={(v: "llm_judge" | "python_code" | "formula") => setMetricType(v)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="llm_judge">LLM Judge (GPT evaluates response)</SelectItem>
-                  <SelectItem value="python_code" disabled>Python Code (Coming soon)</SelectItem>
-                  <SelectItem value="formula" disabled>Formula (Coming soon)</SelectItem>
+                  <SelectItem value="llm_judge">LLM as judge</SelectItem>
+                  <SelectItem aria-disabled={true} value="python_code" disabled>Python Code</SelectItem>
+                  <SelectItem aria-disabled={true} value="formula" disabled>Formula</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -215,7 +200,7 @@ export function CreateMetricDialog({
             {metricType === "llm_judge" && (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="judgePrompt">Judge Prompt *</Label>
+                  <Label htmlFor="judgePrompt">Prompt</Label>
                   <Textarea
                     id="judgePrompt"
                     placeholder={'Example:\n"Evaluate if this response is helpful and answers the user\'s question clearly. Consider accuracy, completeness, and tone.\n\nReturn JSON: {"passed": true/false, "score": 0-100, "reasoning": "..."}'}
@@ -225,27 +210,27 @@ export function CreateMetricDialog({
                     required
                   />
                   <p className="text-xs text-muted-foreground">
-                    The LLM will receive the task input and output, and evaluate based on your prompt.
+                    LLM will receive the task input and output, and evaluate based on your prompt.
                   </p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="judgeModel">Judge Model</Label>
+                  <Label htmlFor="judgeModel">Model</Label>
                   <Select value={judgeModel} onValueChange={setJudgeModel}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="gpt-4o-mini">GPT-4o Mini (Fast & Cheap)</SelectItem>
-                      <SelectItem value="gpt-4o">GPT-4o (More Accurate)</SelectItem>
+                      <SelectItem value="gpt-5-nano">GPT-5 Nano</SelectItem>
                       <SelectItem value="gpt-5-mini">GPT-5 Mini</SelectItem>
+                      <SelectItem value="gpt-5">GPT-5</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </>
             )}
 
-            {/* Retroactive Evaluation Section */}
+            {/* Retroactive evaluation section */}
             <div className="border-t pt-4 mt-4">
               <div className="flex items-center justify-between mb-4">
                 <div className="space-y-0.5">
@@ -316,6 +301,21 @@ export function CreateMetricDialog({
               )}
             </div>
           </div>
+
+          {/* Success/Error Messages */}
+          {error && (
+            <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 rounded-lg p-3 text-sm">
+              <p className="font-semibold">Error</p>
+              <p>{error}</p>
+            </div>
+          )}
+
+          {success && (
+            <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-200 rounded-lg p-3 text-sm">
+              <p className="font-semibold">Success</p>
+              <p>{success}</p>
+            </div>
+          )}
 
           <DialogFooter>
             <Button
