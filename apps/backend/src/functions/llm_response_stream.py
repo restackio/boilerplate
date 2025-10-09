@@ -23,6 +23,7 @@ from restack_ai.function import (
 )
 
 from src.client import stream_address
+from src.tracing.decorators import trace_llm_call
 
 from .send_agent_event import (
     SendAgentEventInput,
@@ -294,6 +295,7 @@ async def send_non_delta_events_to_agent(
 
 
 @function.defn()
+@trace_llm_call
 async def llm_response_stream(
     function_input: LlmResponseInput,
 ) -> LlmResponseOutput:

@@ -10,6 +10,7 @@ dependencies = [
     "watchfiles>=1.1.0",
     "python-dotenv>=1.1.1",
     "openai[aiohttp]==1.107.1",
+    "openai-agents>=0.3.3",
     "restack-ai>=0.0.114",
     "psycopg2-binary>=2.9.9",
     "asyncpg>=0.29.0",
@@ -43,7 +44,22 @@ line-length = 66
 
 [tool.ruff.lint]
 extend-select = ["ALL"]
-ignore = ["ANN401", "E501", "D100", "D101", "D102", "D103", "D107", "TRY002", "D213", "D203", "COM812", "D104", "INP001", "PLC0415"]
+ignore = [
+    "ANN401", "E501", "D100", "D101", "D102", "D103", "D107", 
+    "TRY002", "D213", "D203", "COM812", "D104", "INP001", "PLC0415",
+    # Intentional catches for error handling
+    "BLE001",
+    # Boolean args are intentional API design
+    "FBT001", "FBT002",
+    # Complexity warnings would require significant refactoring
+    "C901", "PLR0912",
+    # exec/eval are intentional for metrics evaluation
+    "S102", "S307",
+    # Stylistic preference for return placement
+    "TRY300",
+    # Allow loops for clarity over list comprehensions
+    "PERF401",
+]
 
 [tool.ruff.format]
 quote-style = "double"

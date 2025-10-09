@@ -153,7 +153,7 @@ class McpOAuthInitializeWorkflow:
             query_params = parse_qs(parsed_url.query)
             client_id = query_params.get("client_id", [None])[0]
 
-            return {  # noqa: TRY300
+            return {
                 "success": True,
                 "authorization_url": auth_url_result.auth_url.authorization_url,
                 "state": auth_url_result.auth_url.state,
@@ -329,7 +329,7 @@ class McpOAuthCallbackWorkflow:
                 }
 
             log.info("OAuth flow completed successfully")
-            return {  # noqa: TRY300
+            return {
                 "success": True,
                 "message": "OAuth connection established successfully",
                 "token_id": save_result.token.id,
@@ -367,7 +367,7 @@ class OAuthTokensGetByWorkspaceWorkflow:
             log.info(
                 f"Successfully retrieved {len(result.tokens)} tokens"
             )
-            return result  # noqa: TRY300
+            return result
 
         except (ValueError, TypeError, AttributeError) as e:
             error_message = (
@@ -400,7 +400,7 @@ class BearerTokenCreateWorkflow:
             log.info(
                 f"Successfully created Bearer token with ID: {result.token.id}"
             )
-            return result  # noqa: TRY300
+            return result
 
         except (ValueError, TypeError, AttributeError) as e:
             error_message = f"Error creating Bearer token: {e}"
@@ -431,7 +431,7 @@ class OAuthTokenDeleteWorkflow:
             log.info(
                 f"Successfully deleted OAuth token for user: {workflow_input.user_id}, server: {workflow_input.mcp_server_id}"
             )
-            return result  # noqa: TRY300
+            return result
 
         except (ValueError, TypeError, AttributeError) as e:
             error_message = f"Error deleting OAuth token: {e}"
@@ -462,7 +462,7 @@ class OAuthTokenRefreshWorkflow:
             log.info(
                 f"Successfully refreshed OAuth token for user: {workflow_input.user_id}, server: {workflow_input.mcp_server_id}"
             )
-            return result  # noqa: TRY300
+            return result
 
         except (ValueError, TypeError, AttributeError) as e:
             error_message = f"Error refreshing OAuth token: {e}"
@@ -499,7 +499,7 @@ class OAuthTokenSetDefaultWorkflow:
                 }
 
             log.info("Token set as default successfully")
-            return {  # noqa: TRY300
+            return {
                 "success": True,
                 "message": "Token set as default successfully",
                 "token": result.token,
@@ -542,7 +542,7 @@ class OAuthTokenSetDefaultByIdWorkflow:
                 }
 
             log.info("Token set as default by ID successfully")
-            return {  # noqa: TRY300
+            return {
                 "success": True,
                 "message": "Token set as default successfully",
                 "token": result.token,

@@ -911,7 +911,7 @@ async def agents_get_versions(
 
             output_result = []
             for agent in agents:
-                output_result.append(  # noqa: PERF401
+                output_result.append(
                     AgentOutput(
                         id=str(agent.id),
                         workspace_id=str(agent.workspace_id),

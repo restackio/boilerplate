@@ -38,7 +38,7 @@ class DatasetsReadWorkflow:
                 start_to_close_timeout=timedelta(seconds=30),
             )
             log.info(f"DatasetsReadWorkflow result: {result}")
-            return result  # noqa: TRY300
+            return result
         except Exception as e:
             error_message = f"Error during datasets_read: {e}"
             log.error(error_message)
@@ -62,7 +62,7 @@ class DatasetsGetByIdWorkflow:
                 start_to_close_timeout=timedelta(seconds=30),
             )
             log.info(f"DatasetsGetByIdWorkflow result: {result}")
-            return result  # noqa: TRY300
+            return result
         except Exception as e:
             error_message = (
                 f"Error during datasets_get_by_id: {e}"
@@ -88,7 +88,7 @@ class DatasetsCreateWorkflow:
                 start_to_close_timeout=timedelta(seconds=30),
             )
             log.info(f"DatasetsCreateWorkflow result: {result}")
-            return result  # noqa: TRY300
+            return result
         except Exception as e:
             error_message = f"Error during datasets_create: {e}"
             log.error(error_message)
@@ -117,7 +117,7 @@ class QueryDatasetEventsWorkflow:
                 "QueryDatasetEventsWorkflow completed successfully"
             )
             # Return the step result directly
-            return step_result  # noqa: TRY300
+            return step_result
         except Exception as e:
             error_message = (
                 f"Error during query_dataset_events: {e}"

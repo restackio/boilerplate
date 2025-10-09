@@ -250,7 +250,7 @@ class AgentMcpToolAvailableListOutput(BaseModel):
 
 
 @function.defn()
-async def agent_tools_read_by_agent(  # noqa: C901, PLR0912
+async def agent_tools_read_by_agent(
     function_input: AgentToolsGetByAgentInput,
 ) -> AgentToolsOutput:
     """Read agent tools formatted for workflow consumption."""

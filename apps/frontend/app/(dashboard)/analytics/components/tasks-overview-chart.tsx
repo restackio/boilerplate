@@ -1,56 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { type MetricsFilters } from "@/app/actions/metrics";
+import type { OverviewTimeSeries } from "@/app/actions/analytics";
 import { TrendingUp, TrendingDown } from "lucide-react";
 
-interface TasksOverviewData {
-  date: string;
-  taskCount: number;
-  successRate: number;
-}
-
 interface TasksOverviewChartProps {
-  filters: MetricsFilters;
+  data: OverviewTimeSeries[];
 }
 
-export default function TasksOverviewChart({ filters }: TasksOverviewChartProps) {
-  const [data, setData] = useState<TasksOverviewData[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchData() {
-      setLoading(true);
-      try {
-        // TODO: Fetch from ClickHouse via MCP
-        // For now, generate mock time-series data
-        const days = filters.dateRange === "1d" ? 1 : filters.dateRange === "7d" ? 7 : 30;
-        const mockData: TasksOverviewData[] = [];
-        
-        for (let i = days - 1; i >= 0; i--) {
-          const date = new Date();
-          date.setDate(date.getDate() - i);
-          mockData.push({
-            date: date.toISOString().split('T')[0],
-            taskCount: Math.floor(10 + Math.random() * 20), // 10-30 tasks per day
-            successRate: 0.85 + Math.random() * 0.14, // 85-99% success rate
-          });
-        }
-        
-        setData(mockData);
-      } catch (error) {
-        console.error("Failed to fetch tasks overview:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchData();
-  }, [filters]);
-
-  if (loading) {
+export default function TasksOverviewChart({ data }: TasksOverviewChartProps) {
+  // Handle no data case
+  if (!data || data.length === 0) {
     return (
       <div className="h-[300px] flex items-center justify-center">
-        <p className="text-sm text-muted-foreground">Loading chart...</p>
+        <p className="text-sm text-muted-foreground">No data available</p>
       </div>
     );
   }
@@ -119,21 +81,47 @@ export default function TasksOverviewChart({ filters }: TasksOverviewChartProps)
             </div>
             
             {/* Line chart */}
-            <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
-              <polyline
-                fill="none"
-                stroke="rgb(34, 197, 94)"
-                strokeWidth="2"
-                points={data.map((item, idx) => {
-                  const x = (idx / (data.length - 1)) * 100;
-                  const y = (1 - item.successRate) * 100;
-                  return `${x}%,${y}%`;
-                }).join(' ')}
-              />
+            <svg className="absolute inset-0 w-full h-full p-2" viewBox="0 0 100 100" preserveAspectRatio="none">
+              {data.length === 1 ? (
+                // Single point - show as horizontal line
+                <>
+                  <line 
+                    x1="10" 
+                    y1={(1 - data[0].successRate) * 100} 
+                    x2="90" 
+                    y2={(1 - data[0].successRate) * 100} 
+                    stroke="rgb(34, 197, 94)"
+                    strokeWidth="2"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                  <circle
+                    cx="50"
+                    cy={(1 - data[0].successRate) * 100}
+                    r="2"
+                    fill="rgb(34, 197, 94)"
+                    stroke="white"
+                    strokeWidth="1"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                </>
+              ) : (
+                // Multiple points - show as connected line
+                <polyline
+                  fill="none"
+                  stroke="rgb(34, 197, 94)"
+                  strokeWidth="2"
+                  vectorEffect="non-scaling-stroke"
+                  points={data.map((item, idx) => {
+                    const x = (idx / (data.length - 1)) * 100;
+                    const y = (1 - item.successRate) * 100;
+                    return `${x},${y}`;
+                  }).join(' ')}
+                />
+              )}
             </svg>
             
             {/* Y-axis labels */}
-            <div className="absolute -left-8 inset-y-0 flex flex-col justify-between text-xs text-muted-foreground">
+            <div className="absolute -left-8 inset-y-0 flex flex-col justify-between text-xs text-muted-foreground py-1">
               <span>100%</span>
               <span>90%</span>
               <span>80%</span>
@@ -143,10 +131,11 @@ export default function TasksOverviewChart({ filters }: TasksOverviewChartProps)
           {/* X-axis labels */}
           <div className="flex justify-between mt-1 text-xs text-muted-foreground">
             <span>{new Date(data[0].date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-            <span>{new Date(data[data.length - 1].date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+            {data.length > 1 && <span>{new Date(data[data.length - 1].date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
           </div>
         </div>
       </div>
     </div>
   );
 }
+

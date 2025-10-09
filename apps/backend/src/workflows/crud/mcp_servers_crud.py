@@ -163,7 +163,7 @@ class McpToolsListWorkflow:
     """Simple workflow to disclistover tools from an MCP server URL."""
 
     @workflow.run
-    async def run(  # noqa: C901, PLR0911, PLR0912, PLR0915
+    async def run(  # noqa: PLR0911, PLR0915
         self, workflow_input: McpToolsListInput
     ) -> McpToolsListOutput:
         try:
@@ -386,7 +386,7 @@ class McpToolsListWorkflow:
                 tools=tools_with_desc,
             )
 
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             error_message = (
                 f"Error during mcp_tools_list workflow: {e}"
             )

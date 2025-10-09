@@ -77,9 +77,6 @@ export default function CreateMetricDialog() {
         category: formData.category,
         metricType: formData.metricType,
         config,
-        outputType: "score",
-        minValue: 0,
-        maxValue: 100,
       });
 
       alert("Metric created successfully!");
@@ -187,17 +184,18 @@ export default function CreateMetricDialog() {
             <>
               <div className="space-y-2">
                 <Label htmlFor="judgePrompt">Judge Prompt *</Label>
-                <Textarea
-                  id="judgePrompt"
-                  value={formData.judgePrompt}
-                  onChange={(e) => setFormData({ ...formData, judgePrompt: e.target.value })}
-                  placeholder="Evaluate if the response is helpful and addresses the user's needs. Score from 0-100..."
-                  rows={4}
-                  required
-                />
-                <p className="text-xs text-muted-foreground">
-                  The prompt used to evaluate task input/output. Task data will be appended automatically.
-                </p>
+              <Textarea
+                id="judgePrompt"
+                value={formData.judgePrompt}
+                onChange={(e) => setFormData({ ...formData, judgePrompt: e.target.value })}
+                placeholder="Evaluate if the response is helpful and addresses the user's needs. Return true if it passes, false if it fails."
+                rows={4}
+                required
+              />
+              <p className="text-xs text-muted-foreground">
+                The prompt used to evaluate task input/output. Returns pass/fail (boolean). 
+                <strong> Advanced:</strong> Can also return a score (0-100) for granular tracking.
+              </p>
               </div>
 
               <div className="space-y-2">
@@ -226,13 +224,14 @@ export default function CreateMetricDialog() {
                 id="pythonCode"
                 value={formData.pythonCode}
                 onChange={(e) => setFormData({ ...formData, pythonCode: e.target.value })}
-                placeholder={`def evaluate(task_input, task_output, performance):\n    # Your evaluation logic here\n    score = len(task_output) / 10\n    return {"score": score, "passed": score > 50}`}
+                placeholder={`def evaluate(task_input, task_output, performance):\n    # Your evaluation logic here\n    length = len(task_output)\n    passed = 10 < length < 5000\n    return {"passed": passed, "reasoning": f"Length: {length}"}`}
                 rows={6}
                 className="font-mono text-sm"
                 required
               />
               <p className="text-xs text-muted-foreground">
-                Define an <code className="bg-muted px-1 py-0.5 rounded">evaluate()</code> function that returns a score or dict.
+                Define an <code className="bg-muted px-1 py-0.5 rounded">evaluate()</code> function that returns a dict with "passed" (boolean) and optional "reasoning".
+                <strong> Advanced:</strong> Can also include "score" (0-100).
               </p>
             </div>
           )}
@@ -245,11 +244,11 @@ export default function CreateMetricDialog() {
                   id="formula"
                   value={formData.formula}
                   onChange={(e) => setFormData({ ...formData, formula: e.target.value })}
-                  placeholder="input_tokens * 0.0025 / 1000 + output_tokens * 0.01 / 1000"
+                  placeholder="(input_tokens * 0.0025 / 1000 + output_tokens * 0.01 / 1000) < 0.10"
                   required
                 />
                 <p className="text-xs text-muted-foreground">
-                  Mathematical formula using performance data variables
+                  Boolean expression using performance data (evaluates to True/False)
                 </p>
               </div>
 

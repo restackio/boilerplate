@@ -1,9 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/src/components/ui/card";
 import { Badge } from "@/src/components/ui/badge";
-import { getPlaygroundMetrics } from "@/app/actions/metrics";
 import { CheckCircle2, XCircle, Clock, DollarSign } from "lucide-react";
 
 interface PlaygroundMetricsPanelProps {
@@ -26,27 +24,6 @@ export default function PlaygroundMetricsPanel({
   agentId,
   taskResult,
 }: PlaygroundMetricsPanelProps) {
-  const [configuredMetrics, setConfiguredMetrics] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchMetrics() {
-      try {
-        const metrics = await getPlaygroundMetrics(agentId);
-        setConfiguredMetrics(metrics || []);
-      } catch (error) {
-        console.error("Failed to fetch playground metrics:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchMetrics();
-  }, [agentId]);
-
-  if (loading) {
-    return <div className="text-sm text-muted-foreground">Loading metrics...</div>;
-  }
-
   return (
     <Card>
       <CardHeader>
@@ -112,26 +89,9 @@ export default function PlaygroundMetricsPanel({
           </div>
         )}
 
-        {/* Configured Metrics (for reference) */}
-        {configuredMetrics.length > 0 && !taskResult && (
-          <div className="space-y-2">
-            <h4 className="text-sm font-medium">Configured Metrics</h4>
-            <div className="space-y-1">
-              {configuredMetrics.map((metric: any) => (
-                <div key={metric.id} className="text-sm text-muted-foreground">
-                  • {metric.metric_definition?.name || "Unknown"}
-                </div>
-              ))}
-            </div>
-            <p className="text-xs text-muted-foreground italic mt-2">
-              Run a task to see evaluation results
-            </p>
-          </div>
-        )}
-
-        {configuredMetrics.length === 0 && (
+        {!taskResult?.quality_metrics && (
           <div className="text-sm text-muted-foreground">
-            No metrics configured for this agent.
+            Run a task to see quality metric evaluations
           </div>
         )}
       </CardContent>

@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 import webbrowser
 from pathlib import Path
 
@@ -36,6 +37,7 @@ from src.functions.agents_crud import (
     agents_update,
     agents_update_status,
 )
+from src.functions.analytics_metrics import get_analytics_metrics
 from src.functions.auth_crud import user_login, user_signup
 from src.functions.data_ingestion import (
     ingest_pipeline_events,
@@ -79,6 +81,19 @@ from src.functions.mcp_tools_refresh import (
     mcp_tools_list,
     mcp_tools_list_direct,
 )
+from src.functions.metrics_crud import (
+    create_metric_definition,
+    delete_metric_definition,
+    list_metric_definitions,
+    update_metric_definition,
+)
+from src.functions.metrics_evaluation import (
+    evaluate_formula_metric,
+    evaluate_llm_judge_metric,
+    evaluate_python_code_metric,
+    ingest_performance_metrics,
+    ingest_quality_metrics,
+)
 from src.functions.restack_engine import (
     restack_engine_api_schedule,
 )
@@ -90,6 +105,9 @@ from src.functions.schedule_crud import (
 )
 from src.functions.send_agent_event import send_agent_event
 from src.functions.subtask_notify import subtask_notify
+from src.functions.task_metrics_crud import (
+    get_task_metrics_clickhouse,
+)
 from src.functions.tasks_crud import (
     tasks_create,
     tasks_delete,
@@ -130,24 +148,7 @@ from src.functions.workspaces_crud import (
     workspaces_read,
     workspaces_update,
 )
-from src.functions.metrics_crud import (
-    create_metric_definition,
-    get_metric_definition,
-    list_metric_definitions,
-    update_metric_definition,
-    delete_metric_definition,
-    assign_metric_to_agent,
-    get_agent_metrics,
-    get_playground_metrics,
-    unassign_metric_from_agent,
-)
-from src.functions.metrics_evaluation import (
-    evaluate_llm_judge_metric,
-    evaluate_python_code_metric,
-    evaluate_formula_metric,
-    ingest_performance_metrics,
-    ingest_quality_metrics,
-)
+from src.workflows.analytics_metrics import GetAnalyticsMetrics
 from src.workflows.crud.agent_subagents_crud import (
     AgentSubagentsCreateWorkflow,
     AgentSubagentsDeleteWorkflow,
@@ -202,11 +203,20 @@ from src.workflows.crud.mcp_servers_crud import (
     McpServersUpdateWorkflow,
     McpToolsListWorkflow,
 )
+from src.workflows.crud.metrics_crud import (
+    CreateMetricDefinitionWorkflow,
+    DeleteMetricDefinitionWorkflow,
+    ListMetricDefinitionsWorkflow,
+    UpdateMetricDefinitionWorkflow,
+)
 from src.workflows.crud.schedule_crud import (
     ScheduleControlWorkflow,
     ScheduleCreateWorkflow,
     ScheduleEditWorkflow,
     ScheduleUpdateWorkflow,
+)
+from src.workflows.crud.task_metrics_crud import (
+    GetTaskMetricsWorkflow,
 )
 from src.workflows.crud.tasks_crud import (
     PlaygroundCreateDualTasksWorkflow,
@@ -247,17 +257,6 @@ from src.workflows.crud.workspaces_crud import (
     WorkspacesGetByIdWorkflow,
     WorkspacesReadWorkflow,
     WorkspacesUpdateWorkflow,
-)
-from src.workflows.crud.metrics_crud import (
-    CreateMetricDefinitionWorkflow,
-    GetMetricDefinitionWorkflow,
-    ListMetricDefinitionsWorkflow,
-    UpdateMetricDefinitionWorkflow,
-    DeleteMetricDefinitionWorkflow,
-    AssignMetricToAgentWorkflow,
-    GetAgentMetricsWorkflow,
-    GetPlaygroundMetricsWorkflow,
-    UnassignMetricFromAgentWorkflow,
 )
 from src.workflows.task_metrics import TaskMetricsWorkflow
 
@@ -348,15 +347,13 @@ async def run_restack_service() -> None:
             OAuthTokenSetDefaultByIdWorkflow,
             # Metrics workflows
             CreateMetricDefinitionWorkflow,
-            GetMetricDefinitionWorkflow,
-            ListMetricDefinitionsWorkflow,
             UpdateMetricDefinitionWorkflow,
             DeleteMetricDefinitionWorkflow,
-            AssignMetricToAgentWorkflow,
-            GetAgentMetricsWorkflow,
-            GetPlaygroundMetricsWorkflow,
-            UnassignMetricFromAgentWorkflow,
+            ListMetricDefinitionsWorkflow,
+            GetTaskMetricsWorkflow,
             TaskMetricsWorkflow,
+            # Analytics workflow
+            GetAnalyticsMetrics,
         ],
         functions=[
             send_agent_event,
@@ -457,14 +454,12 @@ async def run_restack_service() -> None:
             get_oauth_token_for_mcp_server,
             # Metrics functions
             create_metric_definition,
-            get_metric_definition,
-            list_metric_definitions,
             update_metric_definition,
             delete_metric_definition,
-            assign_metric_to_agent,
-            get_agent_metrics,
-            get_playground_metrics,
-            unassign_metric_from_agent,
+            list_metric_definitions,
+            get_task_metrics_clickhouse,
+            # Analytics function
+            get_analytics_metrics,
             evaluate_llm_judge_metric,
             evaluate_python_code_metric,
             evaluate_formula_metric,
@@ -474,11 +469,49 @@ async def run_restack_service() -> None:
     )
 
 
+def init_tracing() -> None:
+    """Initialize OpenAI Agents tracing with ClickHouse processor.
+    
+    Sets up tracing once at startup. Processor runs in background
+    with async batching for high-scale parallel use cases.
+    """
+    try:
+        from agents import tracing
+        from src.tracing import ClickHouseTracingProcessor, ConsoleTracingProcessor
+        
+        environment = os.getenv("ENVIRONMENT", "development")
+        
+        if environment == "production":
+            # Production: High-scale ClickHouse processor only
+            processor = ClickHouseTracingProcessor(
+                batch_size=1000,        # Flush after 1000 spans
+                flush_interval_sec=5.0,  # Or every 5 seconds
+            )
+            tracing.add_trace_processor(processor)
+            logger.info("Tracing initialized: ClickHouse (production mode)")
+        else:
+            # Development: Console + ClickHouse with smaller batches
+            tracing.add_trace_processor(ConsoleTracingProcessor())
+            processor = ClickHouseTracingProcessor(
+                batch_size=100,
+                flush_interval_sec=2.0,
+            )
+            tracing.add_trace_processor(processor)
+            logger.info("Tracing initialized: Console + ClickHouse (development mode)")
+    
+    except Exception as e:
+        logger.warning(f"Failed to initialize tracing: {e}")
+        logger.warning("Continuing without tracing...")
+
+
 async def main() -> None:
     """Main function to run Restack services."""
     # Initialize database
     await init_async_db()
     logger.info("Database initialized")
+    
+    # Initialize tracing
+    init_tracing()
 
     logger.info(
         "Starting Restack services on default port (5233)"

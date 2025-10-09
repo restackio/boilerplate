@@ -89,7 +89,7 @@ async def user_workspaces_get_by_user(
 
             output_result = []
             for uw in user_workspaces:
-                output_result.append(  # noqa: PERF401
+                output_result.append(
                     UserWorkspaceOutput(
                         id=str(uw.id),
                         user_id=str(uw.user_id),
@@ -143,7 +143,7 @@ async def user_workspaces_get_by_workspace(
 
             output_result = []
             for uw in user_workspaces:
-                output_result.append(  # noqa: PERF401
+                output_result.append(
                     UserWorkspaceOutput(
                         id=str(uw.id),
                         user_id=str(uw.user_id),

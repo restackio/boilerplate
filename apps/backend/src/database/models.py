@@ -6,7 +6,6 @@ from sqlalchemy import (
     CheckConstraint,
     Column,
     DateTime,
-    Float,
     ForeignKey,
     Index,
     Integer,
@@ -652,26 +651,28 @@ class MetricDefinition(Base):
         ForeignKey("workspaces.id", ondelete="CASCADE"),
         nullable=False,
     )
-    
+
     # Metric details
     name = Column(String(255), nullable=False)
     description = Column(Text)
-    category = Column(String(50), nullable=False)  # quality, cost, performance, custom
-    metric_type = Column(String(50), nullable=False)  # llm_judge, python_code, formula
-    
-    # Type-specific configuration
+    category = Column(
+        String(50), nullable=False
+    )  # quality, cost, performance, custom
+    metric_type = Column(
+        String(50), nullable=False
+    )  # llm_judge, python_code, formula
+
+    # Type-specific configuration (judge_prompt for llm_judge, code for python_code, formula for formula)
     config = Column(JSONB, nullable=False)
-    
-    # Output configuration
-    output_type = Column(String(20), nullable=False, default="score")
-    min_value = Column(Float)
-    max_value = Column(Float)
-    
+
     # Metadata
     is_active = Column(Boolean, nullable=False, default=True)
     is_default = Column(Boolean, nullable=False, default=False)
-    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"))
-    
+    created_by = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+    )
+
     created_at = Column(
         DateTime,
         default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
@@ -679,18 +680,18 @@ class MetricDefinition(Base):
     updated_at = Column(
         DateTime,
         default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
-        onupdate=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+        onupdate=lambda: datetime.now(tz=UTC).replace(
+            tzinfo=None
+        ),
     )
-    
+
     # Constraints
     __table_args__ = (
         CheckConstraint(
-            metric_type.in_(["llm_judge", "python_code", "formula"]),
+            metric_type.in_(
+                ["llm_judge", "python_code", "formula"]
+            ),
             name="valid_metric_type",
-        ),
-        CheckConstraint(
-            output_type.in_(["score", "pass_fail", "numeric", "boolean"]),
-            name="valid_output_type",
         ),
         UniqueConstraint(
             "workspace_id",
@@ -698,66 +699,6 @@ class MetricDefinition(Base):
             name="unique_metric_per_workspace",
         ),
     )
-    
+
     # Relationships
     workspace = relationship("Workspace")
-    agent_metrics = relationship(
-        "AgentMetric",
-        back_populates="metric_definition",
-        cascade="all, delete-orphan",
-    )
-
-
-class AgentMetric(Base):
-    __tablename__ = "agent_metrics"
-
-    id = Column(UUID(as_uuid=True), primary_key=True)
-    agent_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("agents.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    metric_definition_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("metric_definitions.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    
-    # Configuration
-    enabled = Column(Boolean, nullable=False, default=True)
-    run_on_completion = Column(Boolean, nullable=False, default=True)
-    run_on_playground = Column(Boolean, nullable=False, default=True)
-    
-    # Alerting
-    alert_threshold = Column(Float)
-    alert_condition = Column(String(20))  # below, above, equals
-    
-    created_at = Column(
-        DateTime,
-        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
-    )
-    updated_at = Column(
-        DateTime,
-        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
-        onupdate=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
-    )
-    
-    # Constraints
-    __table_args__ = (
-        UniqueConstraint(
-            "agent_id",
-            "metric_definition_id",
-            name="unique_agent_metric",
-        ),
-        CheckConstraint(
-            alert_condition.in_(["below", "above", "equals"]),
-            name="valid_alert_condition",
-        ),
-    )
-    
-    # Relationships
-    agent = relationship("Agent", backref="agent_metrics")
-    metric_definition = relationship(
-        "MetricDefinition",
-        back_populates="agent_metrics",
-    )

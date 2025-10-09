@@ -477,7 +477,7 @@ async def query_dataset_events(
         )
 
 
-async def _query_clickhouse_events(  # noqa: C901
+async def _query_clickhouse_events(
     dataset: DatasetOutput,
     function_input: QueryDatasetEventsInput,
 ) -> QueryDatasetEventsOutput:

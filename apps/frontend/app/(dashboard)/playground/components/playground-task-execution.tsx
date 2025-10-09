@@ -13,6 +13,7 @@ import {
   EntityNotFoundState,
 } from "@workspace/ui/components";
 import { EmptyState } from "@workspace/ui/components/empty-state";
+import { PlaygroundMetricsResults } from "./playground-metrics-results";
 
 interface PlaygroundTaskExecutionProps {
   taskId: string | null;
@@ -193,18 +194,27 @@ export function PlaygroundTaskExecution({
       </div>
 
       {/* Chat interface */}
-      <div className="flex-1 min-h-0">
-        <TaskChatInterface
-          conversation={conversation}
-          chatMessage={chatMessage}
-          onChatMessageChange={setChatMessage}
-          onSendMessage={handleSendMessage}
-          onCardClick={handleCardClick}
-          onApproveRequest={handleApproveRequest}
-          onDenyRequest={handleDenyRequest}
-          agentLoading={agentLoading}
-          showSplitView={false}
-        />
+      <div className="flex-1 min-h-0 flex flex-col gap-4">
+        <div className="flex-1 min-h-0">
+          <TaskChatInterface
+            conversation={conversation}
+            chatMessage={chatMessage}
+            onChatMessageChange={setChatMessage}
+            onSendMessage={handleSendMessage}
+            onCardClick={handleCardClick}
+            onApproveRequest={handleApproveRequest}
+            onDenyRequest={handleDenyRequest}
+            agentLoading={agentLoading}
+            showSplitView={false}
+          />
+        </div>
+        
+        {/* Metrics Results - Real-time, updates as metrics are evaluated */}
+        {taskId && (
+          <div className="flex-shrink-0 p-4">
+            <PlaygroundMetricsResults taskId={taskId} />
+          </div>
+        )}
       </div>
     </div>
   );

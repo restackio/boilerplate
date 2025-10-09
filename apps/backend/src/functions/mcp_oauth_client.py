@@ -369,7 +369,7 @@ async def discover_oauth_metadata(
                         log.info(
                             f"Successfully discovered OAuth metadata at: {url}"
                         )
-                        return metadata  # noqa: TRY300
+                        return metadata
                     except (ValueError, TypeError, KeyError) as e:
                         log.warning(
                             f"Invalid OAuth metadata at {url}: {e}"
@@ -552,7 +552,7 @@ async def oauth_parse_callback(
 
 
 @function.defn()
-async def oauth_exchange_code_for_token(  # noqa: C901, PLR0915
+async def oauth_exchange_code_for_token(  # noqa: PLR0915
     function_input: ExchangeCodeForTokenInput,
 ) -> TokenExchangeResultOutput:
     """Exchange OAuth authorization code for access token using MCP SDK."""

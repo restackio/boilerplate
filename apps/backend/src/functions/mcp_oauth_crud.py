@@ -406,7 +406,7 @@ async def oauth_token_get_by_user_and_server(
 
 
 @function.defn()
-async def get_oauth_token_for_mcp_server(  # noqa: C901
+async def get_oauth_token_for_mcp_server(
     function_input: GetOAuthTokenForMcpServerInput,
 ) -> str | None:
     """Get OAuth token for MCP server, refreshing if needed.

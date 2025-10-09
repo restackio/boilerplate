@@ -2,6 +2,7 @@ import { SplitViewPanel } from "@workspace/ui/components/split-view-panel";
 import { StatusIcon } from "@workspace/ui/components/status-indicators";
 import { ConversationItem } from "../types";
 import { TaskDetailsTab } from "./task-details-tab";
+import { TaskAnalyticsTab } from "./task-analytics-tab";
 import { Task } from "@/hooks/use-workspace-scoped-actions";
 
 interface TaskSplitViewProps {
@@ -214,6 +215,11 @@ export function TaskSplitView({
           isLoading={isUpdating}
         />
       ),
+    },
+    {
+      id: "analytics",
+      label: "Analytics",
+      content: <TaskAnalyticsTab taskId={task.id} />,
     },
   ];
 

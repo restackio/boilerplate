@@ -232,7 +232,7 @@ async def mcp_session_init(
                 error="Failed to initialize MCP session - no valid endpoint found",
             )
 
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         return McpSessionInitOutput(
             success=False,
             error=f"Error initializing MCP session: {e!s}",
@@ -375,7 +375,7 @@ async def mcp_tools_list(
                     error=f"Failed to get tools list: HTTP {tools_response.status}",
                 )
 
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         return McpToolsSessionOutput(
             success=False,
             error=f"Error getting tools list: {e!s}",
@@ -503,7 +503,7 @@ async def mcp_tools_list_direct(
                     error=f"Failed to get tools list: HTTP {tools_response.status}",
                 )
 
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         return McpToolsListDirectOutput(
             success=False,
             error=f"Error getting tools list: {e!s}",

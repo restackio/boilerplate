@@ -12,6 +12,10 @@ from restack_ai.workflow import (
 )
 
 from src.agents.agent_task import AgentTask, AgentTaskInput
+from src.workflows.task_metrics import (
+    TaskMetricsInput,
+    TaskMetricsWorkflow,
+)
 
 with import_functions():
     from src.functions.agents_crud import (
@@ -355,7 +359,7 @@ class TasksUpdateAgentTaskIdWorkflow:
 
 @workflow.defn()
 class PlaygroundCreateDualTasksWorkflow:
-    """Workflow to create two tasks simultaneously for playground A/B comparison."""
+    """Workflow to create two tasks simultaneously for playground A/B comparison with metrics evaluation."""
 
     @workflow.run
     async def run(
@@ -388,6 +392,9 @@ class PlaygroundCreateDualTasksWorkflow:
             )
 
             # Execute both TasksCreateWorkflow instances in parallel
+            log.info(
+                "Creating and executing both playground tasks in parallel"
+            )
             (
                 draft_result,
                 comparison_result,
@@ -404,6 +411,37 @@ class PlaygroundCreateDualTasksWorkflow:
                 ),
             )
 
+            draft_task_id = draft_result.task.id
+            comparison_task_id = comparison_result.task.id
+
+            log.info(
+                f"Both tasks completed. Draft: {draft_task_id}, Comparison: {comparison_task_id}"
+            )
+
+            # Fetch the completed tasks to get output and performance data
+            (
+                draft_task_details,
+                comparison_task_details,
+            ) = await asyncio.gather(
+                workflow.step(
+                    function=tasks_get_by_id,
+                    function_input=TaskGetByIdInput(
+                        task_id=draft_task_id
+                    ),
+                    start_to_close_timeout=timedelta(seconds=10),
+                ),
+                workflow.step(
+                    function=tasks_get_by_id,
+                    function_input=TaskGetByIdInput(
+                        task_id=comparison_task_id
+                    ),
+                    start_to_close_timeout=timedelta(seconds=10),
+                ),
+            )
+
+            # NOTE: Metrics evaluation for playground comparison disabled
+            # Agent metrics assignment system needs to be redesigned
+
         except Exception as e:
             error_message = (
                 f"Error during playground dual task creation: {e}"
@@ -412,10 +450,11 @@ class PlaygroundCreateDualTasksWorkflow:
             raise NonRetryableError(message=error_message) from e
         else:
             return {
-                "draft_task_id": draft_result.task.id,
-                "comparison_task_id": comparison_result.task.id,
+                "draft_task_id": draft_task_id,
+                "comparison_task_id": comparison_task_id,
                 "draft_temporal_agent_id": draft_result.task.temporal_agent_id,
                 "comparison_temporal_agent_id": comparison_result.task.temporal_agent_id,
+                "metrics_enabled": False,  # Metrics disabled - assignment system needs redesign
             }
 
 

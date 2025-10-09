@@ -177,7 +177,7 @@ async def tasks_read(
 
             output_result = []
             for task in tasks:
-                output_result.append(  # noqa: PERF401
+                output_result.append(
                     TaskOutput(
                         id=str(task.id),
                         workspace_id=str(task.workspace_id),
@@ -647,7 +647,7 @@ async def tasks_get_by_status(
 
             output_result = []
             for task in tasks:
-                output_result.append(  # noqa: PERF401
+                output_result.append(
                     TaskOutput(
                         id=str(task.id),
                         workspace_id=str(task.workspace_id),

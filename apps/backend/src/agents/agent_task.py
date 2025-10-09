@@ -7,6 +7,7 @@ from openai.types.responses.response_error_event import (
 from pydantic import BaseModel
 from restack_ai.agent import (
     NonRetryableError,
+    ParentClosePolicy,
     agent,
     agent_info,
     all_events_finished,
@@ -121,6 +122,12 @@ class AgentTask:
         self.last_response_id = (
             None  # For conversation continuity
         )
+        # Response tracking for continuous metrics
+        self.response_index = (
+            0  # Track which response in conversation
+        )
+        self.message_count = 0  # Total messages exchanged
+        self.response_start_time = None  # Track response start time for duration calculation
         # Agent model configuration for GPT-5 features
         self.agent_model = None
         self.agent_reasoning_effort = None
@@ -234,7 +241,7 @@ class AgentTask:
                             ),
                         )
 
-                        # Step 2: execute with streaming so both steps are visible in logs
+                        # Step 2: execute with streaming (function self-traces via decorator)
                         completion = await agent.step(
                             function=llm_response_stream,
                             function_input=prepared,
@@ -372,13 +379,13 @@ class AgentTask:
                 f"Todos updated: {completed}/{total} completed, {in_progress} in progress"
             )
 
-            return {  # noqa: TRY300
+            return {
                 "success": True,
                 "todos": todos_values,
                 "message": f"✓ Todos updated: {completed}/{total} completed, {in_progress} in progress",
             }
 
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             log.error(f"Error updating todos: {e}")
             error_event = create_agent_error_event(
                 message=f"Error updating todos: {e}",
@@ -456,13 +463,13 @@ class AgentTask:
                 f"Subtask created and registered: {child_task_id} for parent: {self.task_id}"
             )
 
-            return {  # noqa: TRY300
+            return {
                 "success": True,
                 "task_id": child_task_id,
                 "message": f"✓ Subtask '{task_title}' created",
             }
 
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             log.error(f"Error creating subtask: {e}")
             return {"success": False, "error": str(e)}
 
@@ -504,9 +511,9 @@ class AgentTask:
                     f"Subtask {task_id} not found in state"
                 )
 
-            return {"success": True}  # noqa: TRY300
+            return {"success": True}
 
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             log.error(f"Error handling subtask notification: {e}")
             return {"success": False, "error": str(e)}
 
@@ -567,6 +574,116 @@ class AgentTask:
                 response = event_data["response"]
                 if "id" in response:
                     self.last_response_id = response["id"]
+                    self.response_index += (
+                        1  # Increment response counter
+                    )
+                    # Track response start time for duration calculation
+                    import time
+                    self.response_start_time = time.time()
+
+            # Continuous metrics: Trigger evaluation after each response completes
+            # Inspired by OpenAI agents tracing and Temporal interceptor patterns
+            if (
+                event_data.get("type") == "response.completed"
+                and "response" in event_data
+                and self.task_id
+                and self.workspace_id
+            ):
+                response = event_data["response"]
+                response_id = response.get("id")
+
+                # Extract the last user message and assistant response
+                user_message = next(
+                    (
+                        msg
+                        for msg in reversed(self.messages)
+                        if msg.role == "user"
+                    ),
+                    None,
+                )
+
+                # Get assistant response from the completed response
+                assistant_content = ""
+                if "output" in response:
+                    for output_item in response["output"]:
+                        if (
+                            output_item.get("type") == "message"
+                            and output_item.get("role")
+                            == "assistant"
+                        ):
+                            for content in output_item.get(
+                                "content", []
+                            ):
+                                if (
+                                    content.get("type")
+                                    == "output_text"
+                                ):
+                                    assistant_content += (
+                                        content.get("text", "")
+                                    )
+
+                # Extract usage data for performance metrics
+                usage = response.get("usage", {})
+                input_tokens = usage.get("input_tokens", 0)
+                output_tokens = usage.get("output_tokens", 0)
+                input_tokens + output_tokens
+
+                # Approximate cost (GPT-5-mini pricing)
+                (input_tokens * 0.00001) + (
+                    output_tokens * 0.00003
+                )
+
+                # Calculate response duration
+                import time
+                duration_ms = 0
+                if self.response_start_time:
+                    duration_ms = int((time.time() - self.response_start_time) * 1000)
+                
+                log.info(
+                    f"Response {self.response_index} completed for task {self.task_id}. "
+                    f"Duration: {duration_ms}ms. Triggering continuous metrics evaluation..."
+                )
+
+                # Fire-and-forget child workflow for metrics evaluation (truly parallel, non-blocking)
+                # Uses ABANDON policy so agent can continue even if metrics fail
+                try:
+                    await agent.child_start(
+                        workflow="TaskMetricsWorkflow",
+                        workflow_id=f"metrics_{self.task_id}_{response_id}",
+                        workflow_input={
+                            "task_id": self.task_id,
+                            "agent_id": self.agent_id,
+                            "agent_name": getattr(
+                                self, "agent_name", "Unknown"
+                            ),
+                            "parent_agent_id": None,
+                            "workspace_id": self.workspace_id,
+                            "agent_version": "draft"
+                            if self.parent_task_id is None
+                            else "v1",
+                            "response_id": response_id,
+                            "response_index": self.response_index,
+                            "message_count": len(self.messages),
+                            "task_input": user_message.content
+                            if user_message
+                            else "",
+                            "task_output": assistant_content,
+                            "duration_ms": duration_ms,
+                            "input_tokens": input_tokens,
+                            "output_tokens": output_tokens,
+                            "status": "completed",
+                            "run_quality_metrics": True,
+                        },
+                        parent_close_policy=ParentClosePolicy.ABANDON,  # Ensures true parallelism
+                    )
+                    log.info(
+                        f"✓ Continuous metrics workflow started (parallel) for response {self.response_index}"
+                    )
+                except Exception as e:
+                    # Don't fail the agent if metrics evaluation fails
+                    log.warning(
+                        f"Failed to start continuous metrics workflow: {e}"
+                    )
 
             if (
                 self.agent_type == "pipeline"
@@ -642,6 +759,17 @@ class AgentTask:
         self.title = agent_input.title
         self.description = agent_input.description
         self.status = agent_input.status
+        
+        # Set tracing context once - functions will self-trace
+        from src.tracing.context import TracingContext, set_tracing_context
+        
+        set_tracing_context(TracingContext(
+            workflow_name=f"AgentTask-{self.task_id}",
+            task_id=str(self.task_id),
+            agent_id=str(self.agent_id),
+            workspace_id=str(self.workspace_id),
+            user_id=str(self.user_id) if self.user_id else None,
+        ))
 
         # Set parent info if this is a subtask (passed directly from workflow)
         self.parent_task_id = agent_input.parent_task_id
@@ -795,7 +923,7 @@ class AgentTask:
                         agent_id=self.agent_id,
                     )
 
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 log.error(
                     "AgentTask: Failed to load subagents",
                     error=str(e),
@@ -805,6 +933,7 @@ class AgentTask:
         self.initialized = True
 
         log.info("AgentTask agent_id", agent_id=self.agent_id)
+        
         await agent.condition(
             lambda: self.end and all_events_finished()
         )

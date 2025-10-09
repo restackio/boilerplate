@@ -9,14 +9,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@workspace/ui/components/ui/select";
-import { type MetricsFilters } from "@/app/actions/metrics";
+import { type AnalyticsFilters } from "@/app/actions/analytics";
+import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
 
 interface MetricsFiltersProps {
-  filters: MetricsFilters;
-  onFiltersChange: (filters: MetricsFilters) => void;
+  filters: AnalyticsFilters;
+  onFiltersChange: (filters: AnalyticsFilters) => void;
 }
 
 export default function MetricsFilters({ filters, onFiltersChange }: MetricsFiltersProps) {
+  const { agents } = useWorkspaceScopedActions();
+
+  const handleReset = () => {
+    onFiltersChange({
+      ...filters,
+      agentId: null,
+      version: null,
+      dateRange: "7d"
+    });
+  };
+
   return (
     <Card>
       <CardContent className="pt-6">
@@ -25,7 +37,7 @@ export default function MetricsFilters({ filters, onFiltersChange }: MetricsFilt
             <Select
               value={filters.dateRange || "7d"}
               onValueChange={(value) =>
-                onFiltersChange({ ...filters, dateRange: value as any })
+                onFiltersChange({ ...filters, dateRange: value as "1d" | "7d" | "30d" | "90d" })
               }
             >
               <SelectTrigger>
@@ -41,16 +53,27 @@ export default function MetricsFilters({ filters, onFiltersChange }: MetricsFilt
           </div>
 
           <div className="flex-1">
-            {/* TODO: Add agent selector */}
-            <Select disabled>
+            <Select
+              value={filters.agentId || "all"}
+              onValueChange={(value) =>
+                onFiltersChange({ ...filters, agentId: value === "all" ? null : value })
+              }
+            >
               <SelectTrigger>
                 <SelectValue placeholder="All agents" />
               </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All agents</SelectItem>
+                {agents.map((agent) => (
+                  <SelectItem key={agent.id} value={agent.id}>
+                    {agent.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
             </Select>
           </div>
 
           <div className="flex-1">
-            {/* TODO: Add version selector */}
             <Select disabled>
               <SelectTrigger>
                 <SelectValue placeholder="All versions" />
@@ -58,7 +81,7 @@ export default function MetricsFilters({ filters, onFiltersChange }: MetricsFilt
             </Select>
           </div>
 
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={handleReset}>
             Reset
           </Button>
         </div>
