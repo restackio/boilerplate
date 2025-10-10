@@ -909,31 +909,30 @@ async def agents_get_versions(
             result = await db.execute(agents_query)
             agents = result.scalars().all()
 
-            output_result = []
-            for agent in agents:
-                output_result.append(
-                    AgentOutput(
-                        id=str(agent.id),
-                        workspace_id=str(agent.workspace_id),
-                        name=agent.name,
-                        description=agent.description,
-                        instructions=agent.instructions,
-                        status=agent.status,
-                        parent_agent_id=str(agent.parent_agent_id)
-                        if agent.parent_agent_id
-                        else None,
-                        # New GPT-5 model configuration fields
-                        model=agent.model or "gpt-5",
-                        reasoning_effort=agent.reasoning_effort
-                        or "medium",
-                        created_at=agent.created_at.isoformat()
-                        if agent.created_at
-                        else None,
-                        updated_at=agent.updated_at.isoformat()
-                        if agent.updated_at
-                        else None,
-                    )
+            output_result = [
+                AgentOutput(
+                    id=str(agent.id),
+                    workspace_id=str(agent.workspace_id),
+                    name=agent.name,
+                    description=agent.description,
+                    instructions=agent.instructions,
+                    status=agent.status,
+                    parent_agent_id=str(agent.parent_agent_id)
+                    if agent.parent_agent_id
+                    else None,
+                    # New GPT-5 model configuration fields
+                    model=agent.model or "gpt-5",
+                    reasoning_effort=agent.reasoning_effort
+                    or "medium",
+                    created_at=agent.created_at.isoformat()
+                    if agent.created_at
+                    else None,
+                    updated_at=agent.updated_at.isoformat()
+                    if agent.updated_at
+                    else None,
                 )
+                for agent in agents
+            ]
             return AgentListOutput(agents=output_result)
         except Exception as e:
             raise NonRetryableError(

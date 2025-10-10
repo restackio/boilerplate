@@ -123,13 +123,8 @@ class ClickHouseTracingProcessor:
         except Exception as e:
             log.error(f"Flush error: {e}")
 
-    def _span_to_row(self, span: Any) -> list[Any] | None:  # noqa: PLR0915
-        """Convert span using SDK's .export() - DRY."""
-        if not span.ended_at:
-            return None
-
-        # Duration
-        duration_ms = 0
+    def _calculate_duration_ms(self, span: Any) -> int:
+        """Calculate span duration in milliseconds."""
         try:
             if span.started_at and span.ended_at:
                 s = datetime.fromisoformat(
@@ -138,84 +133,64 @@ class ClickHouseTracingProcessor:
                 e = datetime.fromisoformat(
                     span.ended_at.replace("Z", "+00:00")
                 )
-                duration_ms = int((e - s).total_seconds() * 1000)
+                return int((e - s).total_seconds() * 1000)
         except Exception as e:
             log.debug("Failed to parse span duration: %s", e)
+        return 0
 
-        # SDK's export() - standardized format
-        exported = {}
+    def _export_span_data(self, span: Any) -> dict:
+        """Export span data using SDK's export method."""
         if hasattr(span.span_data, "export"):
             result = span.span_data.export()
-            exported = result if result is not None else {}
+            return result if result is not None else {}
+        return {}
 
-        # Extract from SDK export
-        span_type = exported.get("type", "unknown")
+    def _extract_response_data(self, span: Any, exported: dict) -> tuple[str, str, str | None]:
+        """Extract input, output, and model from response span.
+        
+        Returns:
+            Tuple of (input, output, model)
+        """
+        inp = json.dumps(exported.get("input", "")) if exported.get("input") else ""
+        out = json.dumps(exported.get("output", "")) if exported.get("output") else ""
         model = exported.get("model")
-        name = exported.get("name", span_type)
-        inp = (
-            json.dumps(exported.get("input", ""))
-            if exported.get("input")
-            else ""
-        )
-        out = (
-            json.dumps(exported.get("output", ""))
-            if exported.get("output")
-            else ""
+
+        if not hasattr(span.span_data, "response"):
+            return inp, out, model
+
+        log.info(
+            f"Processing response span - has response: {hasattr(span.span_data, 'response')}, "
+            f"response is None: {not getattr(span.span_data, 'response', None)}"
         )
 
-        # Special handling for ResponseSpanData (it only exports response_id, not full data)
-        # We need to extract input/output from the Response object directly
-        if span_type == "response":
-            log.info(
-                f"Processing response span - has response: {hasattr(span.span_data, 'response')}, "
-                f"response is None: {not getattr(span.span_data, 'response', None)}"
-            )
+        # Extract input from span_data.input
+        if hasattr(span.span_data, "input") and span.span_data.input:
+            inp = json.dumps(span.span_data.input) if span.span_data.input else ""
+            log.info(f"Extracted input: {len(inp)} chars")
 
-            if hasattr(span.span_data, "response"):
-                # Extract input from span_data.input
-                if (
-                    hasattr(span.span_data, "input")
-                    and span.span_data.input
-                ):
-                    inp = (
-                        json.dumps(span.span_data.input)
-                        if span.span_data.input
-                        else ""
-                    )
-                    log.info(f"Extracted input: {len(inp)} chars")
+        # Extract output and model from Response object
+        if span.span_data.response:
+            response = span.span_data.response
+            if hasattr(response, "output") and response.output:
+                output_texts = [
+                    content_part.text
+                    for item in response.output
+                    if hasattr(item, "content") and item.content
+                    for content_part in item.content
+                    if hasattr(content_part, "text")
+                ]
+                if output_texts:
+                    out = json.dumps("".join(output_texts))
 
-                # Extract output and usage from Response object
-                if span.span_data.response:
-                    response = span.span_data.response
-                    # Extract output text from response.output
-                    if (
-                        hasattr(response, "output")
-                        and response.output
-                    ):
-                        output_texts = []
-                        for item in response.output:
-                            if (
-                                hasattr(item, "content")
-                                and item.content
-                            ):
-                                for content_part in item.content:
-                                    if hasattr(
-                                        content_part, "text"
-                                    ):
-                                        output_texts.append(
-                                            content_part.text
-                                        )
-                        if output_texts:
-                            out = json.dumps(
-                                "".join(output_texts)
-                            )
+            if hasattr(response, "model"):
+                model = response.model
 
-                    # Extract model and usage from response
-                    if hasattr(response, "model"):
-                        model = response.model
+        return inp, out, model
 
-        # Usage (SDK exports for generation spans, or we extract from Response)
+    def _extract_usage(self, span: Any, span_type: str, exported: dict) -> dict:
+        """Extract token usage from span."""
         usage = exported.get("usage") or {}
+
         if (
             span_type == "response"
             and hasattr(span.span_data, "response")
@@ -229,26 +204,71 @@ class ClickHouseTracingProcessor:
                     "total_tokens": response.usage.total_tokens,
                 }
 
-        tokens_in = usage.get("prompt_tokens", 0) or usage.get(
-            "input_tokens", 0
-        )
-        tokens_out = usage.get(
-            "completion_tokens", 0
-        ) or usage.get("output_tokens", 0)
+        return usage
+
+    def _calculate_cost(self, usage: dict) -> float | None:
+        """Calculate cost from usage data."""
+        tokens_in = usage.get("prompt_tokens", 0) or usage.get("input_tokens", 0)
+        tokens_out = usage.get("completion_tokens", 0) or usage.get("output_tokens", 0)
         cost = usage.get("cost_usd")
+
         if not cost and tokens_in and tokens_out:
             cost = (tokens_in * 0.0025 + tokens_out * 0.01) / 1000
 
+        return cost
+
+    def _extract_trace_metadata(self) -> tuple[str | None, str | None, str | None, str | None, str | None]:
+        """Extract business IDs from trace.
+        
+        Returns:
+            Tuple of (task_id, agent_id, workspace_id, temporal_agent_id, temporal_run_id)
+        """
+        try:
+            from agents.tracing import get_current_trace
+
+            t = get_current_trace()
+            if t and hasattr(t, "metadata") and t.metadata:
+                return (
+                    t.metadata.get("task_id"),
+                    t.metadata.get("agent_id"),
+                    t.metadata.get("workspace_id"),
+                    t.metadata.get("temporal_agent_id"),
+                    t.metadata.get("temporal_run_id"),
+                )
+        except Exception as e:
+            log.debug("Failed to extract trace metadata: %s", e)
+
+        return None, None, None, None, None
+
+    def _span_to_row(self, span: Any) -> list[Any] | None:
+        """Convert span using SDK's .export() - DRY."""
+        if not span.ended_at:
+            return None
+
+        # Calculate duration
+        duration_ms = self._calculate_duration_ms(span)
+
+        # Export span data
+        exported = self._export_span_data(span)
+        span_type = exported.get("type", "unknown")
+        name = exported.get("name", span_type)
+
+        # Extract input, output, and model (with special handling for response spans)
+        if span_type == "response":
+            inp, out, model = self._extract_response_data(span, exported)
+        else:
+            inp = json.dumps(exported.get("input", "")) if exported.get("input") else ""
+            out = json.dumps(exported.get("output", "")) if exported.get("output") else ""
+            model = exported.get("model")
+
+        # Extract usage and calculate cost
+        usage = self._extract_usage(span, span_type, exported)
+        tokens_in = usage.get("prompt_tokens", 0) or usage.get("input_tokens", 0)
+        tokens_out = usage.get("completion_tokens", 0) or usage.get("output_tokens", 0)
+        cost = self._calculate_cost(usage)
+
         # Metadata - collect ALL span-specific data (excluding already-extracted fields)
-        # This ensures we capture all span types: agent, function, handoff, guardrail, custom, mcp_tools, etc.
-        excluded_keys = {
-            "type",
-            "name",
-            "input",
-            "output",
-            "model",
-            "usage",
-        }
+        excluded_keys = {"type", "name", "input", "output", "model", "usage"}
         meta = {
             k: v
             for k, v in exported.items()
@@ -256,36 +276,14 @@ class ClickHouseTracingProcessor:
         }
 
         # Business IDs from trace
-        task_id = agent_id = workspace_id = temporal_agent_id = (
-            temporal_run_id
-        ) = None
-        try:
-            from agents.tracing import get_current_trace
+        task_id, agent_id, workspace_id, temporal_agent_id, temporal_run_id = (
+            self._extract_trace_metadata()
+        )
 
-            t = get_current_trace()
-            if t and hasattr(t, "metadata") and t.metadata:
-                task_id = t.metadata.get("task_id")
-                agent_id = t.metadata.get("agent_id")
-                workspace_id = t.metadata.get("workspace_id")
-                temporal_agent_id = t.metadata.get(
-                    "temporal_agent_id"
-                )
-                temporal_run_id = t.metadata.get(
-                    "temporal_run_id"
-                )
-        except Exception as e:
-            log.debug("Failed to extract trace metadata: %s", e)
-
-        # Error
+        # Error status
         status = "ok" if not span.error else "error"
-        err_msg = (
-            span.error.get("message") if span.error else None
-        )
-        err_type = (
-            span.error.get("data", {}).get("type")
-            if span.error
-            else None
-        )
+        err_msg = span.error.get("message") if span.error else None
+        err_type = span.error.get("data", {}).get("type") if span.error else None
 
         return [
             str(span.trace_id),

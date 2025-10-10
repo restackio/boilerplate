@@ -34,6 +34,7 @@ def parse_date_range(date_range: DateRange) -> int:
 
 def build_filter_clause(
     filters: AnalyticsFilters,
+    *,
     include_version: bool = False,
     additional_filters: list[str] | None = None,
 ) -> tuple[str, dict]:

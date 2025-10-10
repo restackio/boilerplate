@@ -87,28 +87,27 @@ async def user_workspaces_get_by_user(
             result = await db.execute(user_workspaces_query)
             user_workspaces = result.scalars().all()
 
-            output_result = []
-            for uw in user_workspaces:
-                output_result.append(
-                    UserWorkspaceOutput(
-                        id=str(uw.id),
-                        user_id=str(uw.user_id),
-                        workspace_id=str(uw.workspace_id),
-                        role=uw.role,
-                        created_at=uw.created_at.isoformat()
-                        if uw.created_at
-                        else None,
-                        user_name=uw.user.name
-                        if uw.user
-                        else "N/A",
-                        user_email=uw.user.email
-                        if uw.user
-                        else "N/A",
-                        workspace_name=uw.workspace.name
-                        if uw.workspace
-                        else "N/A",
-                    )
+            output_result = [
+                UserWorkspaceOutput(
+                    id=str(uw.id),
+                    user_id=str(uw.user_id),
+                    workspace_id=str(uw.workspace_id),
+                    role=uw.role,
+                    created_at=uw.created_at.isoformat()
+                    if uw.created_at
+                    else None,
+                    user_name=uw.user.name
+                    if uw.user
+                    else "N/A",
+                    user_email=uw.user.email
+                    if uw.user
+                    else "N/A",
+                    workspace_name=uw.workspace.name
+                    if uw.workspace
+                    else "N/A",
                 )
+                for uw in user_workspaces
+            ]
 
             return UserWorkspaceListOutput(
                 user_workspaces=output_result
@@ -141,28 +140,27 @@ async def user_workspaces_get_by_workspace(
             result = await db.execute(user_workspaces_query)
             user_workspaces = result.scalars().all()
 
-            output_result = []
-            for uw in user_workspaces:
-                output_result.append(
-                    UserWorkspaceOutput(
-                        id=str(uw.id),
-                        user_id=str(uw.user_id),
-                        workspace_id=str(uw.workspace_id),
-                        role=uw.role,
-                        created_at=uw.created_at.isoformat()
-                        if uw.created_at
-                        else None,
-                        user_name=uw.user.name
-                        if uw.user
-                        else "N/A",
-                        user_email=uw.user.email
-                        if uw.user
-                        else "N/A",
-                        workspace_name=uw.workspace.name
-                        if uw.workspace
-                        else "N/A",
-                    )
+            output_result = [
+                UserWorkspaceOutput(
+                    id=str(uw.id),
+                    user_id=str(uw.user_id),
+                    workspace_id=str(uw.workspace_id),
+                    role=uw.role,
+                    created_at=uw.created_at.isoformat()
+                    if uw.created_at
+                    else None,
+                    user_name=uw.user.name
+                    if uw.user
+                    else "N/A",
+                    user_email=uw.user.email
+                    if uw.user
+                    else "N/A",
+                    workspace_name=uw.workspace.name
+                    if uw.workspace
+                    else "N/A",
                 )
+                for uw in user_workspaces
+            ]
 
             return UserWorkspaceListOutput(
                 user_workspaces=output_result

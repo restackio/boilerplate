@@ -392,12 +392,6 @@ class AgentTask:
                 f"Todos updated: {completed}/{total} completed, {in_progress} in progress"
             )
 
-            return {
-                "success": True,
-                "todos": todos_values,
-                "message": f"✓ Todos updated: {completed}/{total} completed, {in_progress} in progress",
-            }
-
         except Exception as e:
             log.error(f"Error updating todos: {e}")
             error_event = create_agent_error_event(
@@ -410,6 +404,12 @@ class AgentTask:
                 "success": False,
                 "error": str(e),
                 "todos": [],
+            }
+        else:
+            return {
+                "success": True,
+                "todos": todos_values,
+                "message": f"✓ Todos updated: {completed}/{total} completed, {in_progress} in progress",
             }
 
     @agent.event
@@ -476,15 +476,15 @@ class AgentTask:
                 f"Subtask created and registered: {child_task_id} for parent: {self.task_id}"
             )
 
+        except Exception as e:
+            log.error(f"Error creating subtask: {e}")
+            return {"success": False, "error": str(e)}
+        else:
             return {
                 "success": True,
                 "task_id": child_task_id,
                 "message": f"✓ Subtask '{task_title}' created",
             }
-
-        except Exception as e:
-            log.error(f"Error creating subtask: {e}")
-            return {"success": False, "error": str(e)}
 
     @agent.event
     async def subtask_notify(self, notify_data: dict) -> dict:
@@ -524,11 +524,11 @@ class AgentTask:
                     f"Subtask {task_id} not found in state"
                 )
 
-            return {"success": True}
-
         except Exception as e:
             log.error(f"Error handling subtask notification: {e}")
             return {"success": False, "error": str(e)}
+        else:
+            return {"success": True}
 
     @agent.event
     async def response_item(self, event_data: dict) -> dict:

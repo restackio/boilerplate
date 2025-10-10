@@ -183,6 +183,90 @@ class AsyncTee:
         return OpenAIStreamWrapper(_consumer())
 
 
+def _serialize_event(event: ResponseStreamEvent) -> dict | str:
+    """Serialize event to dict using OpenAI SDK patterns."""
+    if hasattr(event, "model_dump"):
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", UserWarning)
+                return event.model_dump()
+        except (APIResponseValidationError, ValueError, TypeError) as e:
+            log.warning(
+                f"OpenAI model_dump failed for event {getattr(event, 'type', 'unknown')}: {e}"
+            )
+            return event.__dict__ if hasattr(event, "__dict__") else {"error": str(e)}
+    return event.__dict__ if hasattr(event, "__dict__") else str(event)
+
+
+async def _send_event_to_agent(
+    temporal_agent_id: str,
+    event_data: dict | str,
+) -> None:
+    """Send event to agent with error handling."""
+    try:
+        await send_agent_event(
+            SendAgentEventInput(
+                event_name="response_item",
+                temporal_agent_id=temporal_agent_id,
+                event_input=event_data,
+            )
+        )
+    except (OSError, ValueError, RuntimeError) as e:
+        log.warning(f"Failed to send event to agent: {e}")
+        
+        # Send error event for failed transmission
+        error_event = create_error_event(
+            message=f"Failed to send event to agent: {e}",
+            error_type="event_transmission_failed",
+            code="network_error",
+        )
+        try:
+            await send_agent_event(
+                SendAgentEventInput(
+                    event_name="response_item",
+                    temporal_agent_id=temporal_agent_id,
+                    event_input=error_event.model_dump(),
+                )
+            )
+        except (OSError, ValueError, RuntimeError):
+            log.error(f"Critical: Failed to send error event to agent: {error_event}")
+
+
+async def _send_critical_error_to_agent(
+    temporal_agent_id: str,
+    error: Exception,
+) -> None:
+    """Send critical error event to agent."""
+    log.error(f"Critical error in stream processing: {error}")
+    
+    critical_error_event = create_error_event(
+        message=f"Critical error in stream processing: {error}",
+        error_type="critical_stream_processing_error",
+        code="stream_error",
+    )
+    try:
+        await send_agent_event(
+            SendAgentEventInput(
+                event_name="response_item",
+                temporal_agent_id=temporal_agent_id,
+                event_input=critical_error_event.model_dump(),
+            )
+        )
+    except (OSError, ValueError, RuntimeError):
+        log.error(f"Critical: Failed to send critical error event: {critical_error_event}")
+
+
+def _finalize_response_span(span: Any, final_response: Any) -> None:
+    """Set final response on span for tracing."""
+    if span and final_response:
+        try:
+            if hasattr(span, "span_data"):
+                span.span_data.response = final_response
+                log.info("Set final Response object on span")
+        except Exception as e:
+            log.warning(f"Failed to set response on span: {e}")
+
+
 async def send_non_delta_events_to_agent(
     stream: AsyncIterator[ResponseStreamEvent],
     span: Any = None,
@@ -192,135 +276,41 @@ async def send_non_delta_events_to_agent(
     Following the SDK pattern from openai_responses.py for proper response tracing.
     """
     temporal_agent_id = function_info().workflow_id
-    final_response = (
-        None  # Capture final Response object (SDK pattern)
-    )
+    final_response = None
 
     try:
         async for event in stream:
+            if not (hasattr(event, "type") and ".delta" not in event.type):
+                continue
+            
+            # Serialize event using SDK patterns
+            event_data = _serialize_event(event)
+            
+            # Capture final Response object (SDK pattern)
             if (
                 hasattr(event, "type")
-                and ".delta" not in event.type
+                and event.type == "response.completed"
+                and hasattr(event, "response")
             ):
-                # Use standard OpenAI SDK serialization with error handling
-                if hasattr(event, "model_dump"):
-                    try:
-                        # Temporarily suppress Pydantic warnings during serialization
-                        with warnings.catch_warnings():
-                            warnings.simplefilter(
-                                "ignore", UserWarning
-                            )
-                            event_data = event.model_dump()
-                    except (
-                        APIResponseValidationError,
-                        ValueError,
-                        TypeError,
-                    ) as e:
-                        # Handle OpenAI SDK serialization errors
-                        log.warning(
-                            f"OpenAI model_dump failed for event {getattr(event, 'type', 'unknown')}: {e}"
-                        )
-                        event_data = (
-                            event.__dict__
-                            if hasattr(event, "__dict__")
-                            else {"error": str(e)}
-                        )
-                else:
-                    event_data = (
-                        event.__dict__
-                        if hasattr(event, "__dict__")
-                        else str(event)
-                    )
-
-                # Capture final Response object (SDK pattern from openai_responses.py)
-                if (
-                    hasattr(event, "type")
-                    and event.type == "response.completed"
-                    and hasattr(event, "response")
-                ):
-                    # ResponseCompletedEvent contains the full Response object
-                    final_response = event.response
-
-                # Check for error events and enhance them
-                if hasattr(event, "type") and (
-                    "error" in event.type
-                    or "failed" in event.type
-                ):
-                    log.error(f"OpenAI error event: {event_data}")
-
-                try:
-                    # Send event data directly (already JSON serializable from model_dump())
-                    await send_agent_event(
-                        SendAgentEventInput(
-                            event_name="response_item",
-                            temporal_agent_id=temporal_agent_id,
-                            event_input=event_data,
-                        )
-                    )
-                except (OSError, ValueError, RuntimeError) as e:
-                    log.warning(
-                        f"Failed to send event to agent: {e}"
-                    )
-
-                    # Send OpenAI-native error event to agent for failed event transmission
-                    error_event = create_error_event(
-                        message=f"Failed to send event to agent: {e}",
-                        error_type="event_transmission_failed",
-                        code="network_error",
-                    )
-                    try:
-                        await send_agent_event(
-                            SendAgentEventInput(
-                                event_name="response_item",
-                                temporal_agent_id=temporal_agent_id,
-                                event_input=error_event.model_dump(),
-                            )
-                        )
-                    except (OSError, ValueError, RuntimeError):
-                        # If we can't even send the error event, just log it
-                        log.error(
-                            f"Critical: Failed to send error event to agent: {error_event}"
-                        )
+                final_response = event.response
+            
+            # Log error events
+            if hasattr(event, "type") and ("error" in event.type or "failed" in event.type):
+                log.error(f"OpenAI error event: {event_data}")
+            
+            # Send event to agent with error handling
+            await _send_event_to_agent(temporal_agent_id, event_data)
     except (
         OSError,
         ValueError,
         RuntimeError,
         asyncio.CancelledError,
     ) as e:
-        log.error(f"Critical error in stream processing: {e}")
-
-        # Try to send a critical error event
-        critical_error_event = create_error_event(
-            message=f"Critical error in stream processing: {e}",
-            error_type="critical_stream_processing_error",
-            code="stream_error",
-        )
-        try:
-            await send_agent_event(
-                SendAgentEventInput(
-                    event_name="response_item",
-                    temporal_agent_id=temporal_agent_id,
-                    event_input=critical_error_event.model_dump(),
-                )
-            )
-        except (OSError, ValueError, RuntimeError):
-            log.error(
-                f"Critical: Failed to send critical error event: {critical_error_event}"
-            )
-
+        await _send_critical_error_to_agent(temporal_agent_id, e)
         error_msg = f"Critical error in stream processing: {e}"
         raise NonRetryableError(error_msg) from e
     finally:
-        # Set final response on span (SDK pattern from openai_responses.py)
-        if span and final_response:
-            try:
-                if hasattr(span, "span_data"):
-                    span.span_data.response = final_response
-                    log.info("Set final Response object on span")
-            except Exception as e:
-                log.warning(
-                    f"Failed to set response on span: {e}"
-                )
+        _finalize_response_span(span, final_response)
 
 
 @function.defn()

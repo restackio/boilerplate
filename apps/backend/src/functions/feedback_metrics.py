@@ -153,21 +153,20 @@ async def get_task_feedback(
             query, parameters={"task_id": input_data.task_id}
         )
 
-        feedback_list = []
-        for row in result.named_results():
-            feedback_list.append(
-                {
-                    "responseId": row["response_id"],
-                    "responseIndex": row["response_index"],
-                    "messageCount": row["message_count"],
-                    "feedbackType": row["feedback_type"],
-                    "isPositive": row["is_positive"],
-                    "feedbackText": row["feedback_text"],
-                    "createdAt": row["created_at"],
-                    "traceId": row["trace_id"],
-                    "spanId": row["span_id"],
-                }
-            )
+        feedback_list = [
+            {
+                "responseId": row["response_id"],
+                "responseIndex": row["response_index"],
+                "messageCount": row["message_count"],
+                "feedbackType": row["feedback_type"],
+                "isPositive": row["is_positive"],
+                "feedbackText": row["feedback_text"],
+                "createdAt": row["created_at"],
+                "traceId": row["trace_id"],
+                "spanId": row["span_id"],
+            }
+            for row in result.named_results()
+        ]
 
         log.info(
             f"Found {len(feedback_list)} feedback records for task {input_data.task_id}"
@@ -248,19 +247,18 @@ async def get_feedback_analytics(
             timeseries_query, parameters=parameters
         )
 
-        timeseries = []
-        for row in result.named_results():
-            timeseries.append(
-                {
-                    "date": row["date"].isoformat(),
-                    "positiveCount": row["positive_count"],
-                    "negativeCount": row["negative_count"],
-                    "totalCount": row["total_count"],
-                    "negativePercentage": round(
-                        row["negative_percentage"], 1
-                    ),
-                }
-            )
+        timeseries = [
+            {
+                "date": row["date"].isoformat(),
+                "positiveCount": row["positive_count"],
+                "negativeCount": row["negative_count"],
+                "totalCount": row["total_count"],
+                "negativePercentage": round(
+                    row["negative_percentage"], 1
+                ),
+            }
+            for row in result.named_results()
+        ]
 
         # Query for summary statistics
         summary_query = f"""
@@ -383,21 +381,20 @@ async def get_detailed_feedbacks(
 
         result = client.query(query, parameters=parameters)
 
-        feedbacks = []
-        for row in result.named_results():
-            feedbacks.append(
-                {
-                    "taskId": str(row["task_id"]),
-                    "agentId": str(row["agent_id"]),
-                    "responseId": row["response_id"],
-                    "responseIndex": row["response_index"],
-                    "messageCount": row["message_count"],
-                    "feedbackType": row["feedback_type"],
-                    "isPositive": row["is_positive"],
-                    "feedbackText": row["feedback_text"],
-                    "createdAt": row["created_at_formatted"],
-                }
-            )
+        feedbacks = [
+            {
+                "taskId": str(row["task_id"]),
+                "agentId": str(row["agent_id"]),
+                "responseId": row["response_id"],
+                "responseIndex": row["response_index"],
+                "messageCount": row["message_count"],
+                "feedbackType": row["feedback_type"],
+                "isPositive": row["is_positive"],
+                "feedbackText": row["feedback_text"],
+                "createdAt": row["created_at_formatted"],
+            }
+            for row in result.named_results()
+        ]
 
         log.info(
             f"Found {len(feedbacks)} detailed feedback records"
