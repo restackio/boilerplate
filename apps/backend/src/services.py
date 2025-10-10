@@ -564,7 +564,14 @@ def init_tracing() -> None:
                 "Tracing initialized: ClickHouse (development mode)"
             )
 
-    except Exception as e:
+    except (
+        ValueError,
+        TypeError,
+        RuntimeError,
+        AttributeError,
+        ConnectionError,
+        OSError,
+    ) as e:
         logger.warning("Failed to initialize tracing: %s", e)
         logger.warning("Continuing without tracing...")
 

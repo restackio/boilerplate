@@ -73,8 +73,14 @@ class GetAnalyticsMetrics:
                     metric_definitions, result["quality"]
                 )
 
-            return {"success": True, "data": result}
-        except Exception as e:
+        except (
+            ValueError,
+            TypeError,
+            RuntimeError,
+            AttributeError,
+            ConnectionError,
+            OSError,
+        ) as e:
             error_message = f"Error fetching analytics: {e}"
             log.error(error_message)
             return {
@@ -89,6 +95,8 @@ class GetAnalyticsMetrics:
                 },
                 "error": str(e),
             }
+        else:
+            return {"success": True, "data": result}
 
 
 def _merge_quality_metrics(

@@ -42,9 +42,16 @@ class GetTaskMetricsWorkflow:
                 start_to_close_timeout=timedelta(seconds=10),
             )
 
-            return {"success": True, "data": result}
-
-        except Exception as e:
+        except (
+            ValueError,
+            TypeError,
+            RuntimeError,
+            AttributeError,
+            ConnectionError,
+            OSError,
+        ) as e:
             error_message = f"Error getting task metrics: {e}"
             log.error(error_message)
             return {"success": False, "data": [], "error": str(e)}
+        else:
+            return {"success": True, "data": result}

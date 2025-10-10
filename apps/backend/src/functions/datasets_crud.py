@@ -477,6 +477,83 @@ async def query_dataset_events(
         )
 
 
+def _build_dataset_filters(
+    storage_config: dict, workspace_id: str
+) -> list[str]:
+    """Build WHERE conditions from dataset storage config."""
+    conditions = [f"workspace_id = '{workspace_id}'"]
+
+    if "dataset_id" in storage_config:
+        conditions.append(
+            f"dataset_id = '{storage_config['dataset_id']}'"
+        )
+
+    return conditions
+
+
+def _build_tag_filters(storage_config: dict) -> list[str]:
+    """Build tag-based WHERE conditions from storage config."""
+    if (
+        "filter" not in storage_config
+        or "tags" not in storage_config["filter"]
+    ):
+        return []
+
+    tag_conditions = [
+        f"has(tags, '{tag}')"
+        for tag in storage_config["filter"]["tags"]
+    ]
+    if tag_conditions:
+        return [f"({' OR '.join(tag_conditions)})"]
+    return []
+
+
+def _build_other_storage_filters(
+    storage_config: dict,
+) -> list[str]:
+    """Build non-tag WHERE conditions from storage config."""
+    if "filter" not in storage_config:
+        return []
+
+    conditions = []
+    for key, value in storage_config["filter"].items():
+        if key == "tags":  # Skip tags, handled separately
+            continue
+        if isinstance(value, str):
+            conditions.append(f"{key} = '{value}'")
+        else:
+            conditions.append(f"{key} = {value}")
+    return conditions
+
+
+def _build_user_filters(
+    function_input: QueryDatasetEventsInput,
+) -> list[str]:
+    """Build WHERE conditions from user-provided filters."""
+    conditions = []
+
+    if function_input.tags:
+        user_tag_conditions = [
+            f"has(tags, '{tag}')" for tag in function_input.tags
+        ]
+        conditions.append(f"({' OR '.join(user_tag_conditions)})")
+
+    if function_input.search_query:
+        conditions.append(
+            f"(event_name ILIKE '%{function_input.search_query}%' OR "
+            f"JSONExtractString(raw_data, 'content') ILIKE '%{function_input.search_query}%')"
+        )
+
+    return conditions
+
+
+def _validate_table_name(table_name: str) -> None:
+    """Validate table name to prevent SQL injection."""
+    if not table_name.replace("_", "").isalnum():
+        msg = "Invalid table name"
+        raise ValueError(msg)
+
+
 async def _query_clickhouse_events(
     dataset: DatasetOutput,
     function_input: QueryDatasetEventsInput,
@@ -486,61 +563,22 @@ async def _query_clickhouse_events(
         client = get_clickhouse_client()
         storage_config = dataset.storage_config
 
-        # Build WHERE conditions
-        where_conditions = [
-            f"workspace_id = '{function_input.workspace_id}'"
-        ]
-
-        # Apply dataset-specific filters from storage config
-        if "dataset_id" in storage_config:
-            where_conditions.append(
-                f"dataset_id = '{storage_config['dataset_id']}'"
+        # Build WHERE conditions from various sources
+        where_conditions = []
+        where_conditions.extend(
+            _build_dataset_filters(
+                storage_config, function_input.workspace_id
             )
-
-        # Handle tag-based filtering from storage config
-        if (
-            "filter" in storage_config
-            and "tags" in storage_config["filter"]
-        ):
-            tag_conditions = [
-                f"has(tags, '{tag}')"
-                for tag in storage_config["filter"]["tags"]
-            ]
-            if tag_conditions:
-                where_conditions.append(
-                    f"({' OR '.join(tag_conditions)})"
-                )
-
-        # Handle other filters from storage config
-        if "filter" in storage_config:
-            for key, value in storage_config["filter"].items():
-                if (
-                    key != "tags"
-                ):  # Skip tags as we handled them above
-                    if isinstance(value, str):
-                        where_conditions.append(
-                            f"{key} = '{value}'"
-                        )
-                    else:
-                        where_conditions.append(
-                            f"{key} = {value}"
-                        )
-
-        # Apply user-provided filters
-        if function_input.tags:
-            user_tag_conditions = [
-                f"has(tags, '{tag}')"
-                for tag in function_input.tags
-            ]
-            where_conditions.append(
-                f"({' OR '.join(user_tag_conditions)})"
-            )
-
-        if function_input.search_query:
-            # Search in raw_data JSON and event_name
-            where_conditions.append(
-                f"(event_name ILIKE '%{function_input.search_query}%' OR JSONExtractString(raw_data, 'content') ILIKE '%{function_input.search_query}%')"
-            )
+        )
+        where_conditions.extend(
+            _build_tag_filters(storage_config)
+        )
+        where_conditions.extend(
+            _build_other_storage_filters(storage_config)
+        )
+        where_conditions.extend(
+            _build_user_filters(function_input)
+        )
 
         where_clause = " AND ".join(where_conditions)
         table_name = storage_config.get(
@@ -548,12 +586,7 @@ async def _query_clickhouse_events(
         )
 
         # Validate table name to prevent SQL injection
-        def _raise_invalid_table_name() -> None:
-            msg = "Invalid table name"
-            raise ValueError(msg)  # noqa: TRY301
-
-        if not table_name.replace("_", "").isalnum():
-            _raise_invalid_table_name()
+        _validate_table_name(table_name)
 
         # Query for events
         # table_name is validated above to contain only alphanumeric and underscores

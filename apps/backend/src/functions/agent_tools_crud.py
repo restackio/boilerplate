@@ -1,5 +1,6 @@
 import os
 import uuid
+from typing import Any
 
 from pydantic import BaseModel, Field
 from restack_ai.function import NonRetryableError, function, log
@@ -249,6 +250,154 @@ class AgentMcpToolAvailableListOutput(BaseModel):
     error: str | None = None
 
 
+async def _load_mcp_servers(
+    db: Any, mcp_ids: list
+) -> dict[str, McpServer]:
+    """Load MCP servers by IDs and return as a map."""
+    if not mcp_ids:
+        return {}
+
+    mq = select(McpServer).where(McpServer.id.in_(mcp_ids))
+    mres = await db.execute(mq)
+    return {str(ms.id): ms for ms in mres.scalars().all()}
+
+
+def _get_mcp_server_url(mcp_server: McpServer) -> str:
+    """Get the appropriate URL for an MCP server."""
+    if getattr(mcp_server, "local", False):
+        return os.getenv("RESTACK_ENGINE_MCP_ADDRESS")
+    return mcp_server.server_url
+
+
+def _init_mcp_server_config(mcp_server: McpServer) -> dict:
+    """Initialize configuration for an MCP server."""
+    return {
+        "type": "mcp",
+        "server_label": mcp_server.server_label,
+        "server_url": _get_mcp_server_url(mcp_server),
+        "server_description": mcp_server.server_description or "",
+        "headers": mcp_server.headers or {},
+        "allowed_tools": [],
+        "tools_approval": {},
+        "mcp_server": mcp_server,
+    }
+
+
+def _add_tool_to_server_config(
+    server_config: dict, tool_name: str, *, require_approval: bool
+) -> None:
+    """Add a tool to server configuration with approval settings."""
+    if tool_name not in server_config["allowed_tools"]:
+        server_config["allowed_tools"].append(tool_name)
+    server_config["tools_approval"][tool_name] = (
+        require_approval or False
+    )
+
+
+def _group_mcp_tools_by_server(
+    rows: list, mcp_map: dict[str, McpServer]
+) -> dict[str, dict]:
+    """Group MCP tools by their server."""
+    mcp_servers_config: dict[str, dict] = {}
+
+    for r in rows:
+        if r.tool_type != "mcp" or not r.mcp_server_id:
+            continue
+
+        ms = mcp_map.get(str(r.mcp_server_id))
+        if not ms:
+            continue
+
+        server_key = str(r.mcp_server_id)
+
+        if server_key not in mcp_servers_config:
+            mcp_servers_config[server_key] = (
+                _init_mcp_server_config(ms)
+            )
+
+        # Add tool(s) to this server's configuration
+        if r.tool_name:
+            _add_tool_to_server_config(
+                mcp_servers_config[server_key],
+                r.tool_name,
+                require_approval=r.require_approval,
+            )
+        elif r.allowed_tools:
+            for tool_name in r.allowed_tools:
+                _add_tool_to_server_config(
+                    mcp_servers_config[server_key],
+                    tool_name,
+                    require_approval=r.require_approval,
+                )
+
+    return mcp_servers_config
+
+
+async def _create_mcp_tool_configs(
+    mcp_servers_config: dict,
+    user_id: str | None,
+) -> list[dict]:
+    """Create final tool configurations with OAuth for MCP servers."""
+    tools = []
+
+    for server_config in mcp_servers_config.values():
+        ms = server_config["mcp_server"]
+
+        # Get OAuth token for this server
+        oauth_token = await get_oauth_token_for_mcp_server(
+            GetOAuthTokenForMcpServerInput(
+                mcp_server_id=str(ms.id),
+                user_id=user_id,
+            )
+        )
+
+        tool_obj = {
+            "type": server_config["type"],
+            "server_label": server_config["server_label"],
+            "server_url": server_config["server_url"],
+            "server_description": server_config[
+                "server_description"
+            ],
+            "headers": server_config["headers"],
+            "allowed_tools": server_config["allowed_tools"],
+            "require_approval": _create_granular_require_approval(
+                server_config["tools_approval"]
+            ),
+        }
+
+        if oauth_token:
+            tool_obj["authorization"] = oauth_token
+            user_context = (
+                f"user {user_id}"
+                if user_id
+                else "most recent token"
+            )
+            log.info(
+                f"Added OAuth authorization for MCP server {ms.server_label} using {user_context}"
+            )
+        elif ms.server_url and (
+            "oauth" in (ms.server_url or "").lower()
+            or "api." in (ms.server_url or "").lower()
+        ):
+            log.info(
+                f"No OAuth token found for MCP server {ms.server_label} - may need authentication"
+            )
+
+        tools.append(tool_obj)
+
+    return tools
+
+
+def _add_non_mcp_tools(rows: list, tools: list[dict]) -> None:
+    """Add non-MCP tools (OpenAI official tools) to the tools list."""
+    for r in rows:
+        if r.tool_type != "mcp":
+            tool_obj = {"type": r.tool_type}
+            if r.config:
+                tool_obj.update(r.config)
+            tools.append(tool_obj)
+
+
 @function.defn()
 async def agent_tools_read_by_agent(
     function_input: AgentToolsGetByAgentInput,
@@ -256,6 +405,7 @@ async def agent_tools_read_by_agent(
     """Read agent tools formatted for workflow consumption."""
     async for db in get_async_db():
         try:
+            # Fetch agent tools from database
             agent_uuid = uuid.UUID(function_input.agent_id)
             q = select(AgentTool).where(
                 AgentTool.agent_id == agent_uuid
@@ -263,150 +413,27 @@ async def agent_tools_read_by_agent(
             res = await db.execute(q)
             rows = res.scalars().all()
 
-            # Preload MCP servers
+            # Preload MCP servers for efficiency
             mcp_ids = [
                 r.mcp_server_id
                 for r in rows
                 if r.tool_type == "mcp" and r.mcp_server_id
             ]
-            mcp_map: dict[str, McpServer] = {}
-            if mcp_ids:
-                mq = select(McpServer).where(
-                    McpServer.id.in_(mcp_ids)
-                )
-                mres = await db.execute(mq)
-                for ms in mres.scalars().all():
-                    mcp_map[str(ms.id)] = ms
+            mcp_map = await _load_mcp_servers(db, mcp_ids)
 
-            # Group MCP tools by server to create granular approval settings
-            mcp_servers_config: dict[str, dict] = {}
+            # Group MCP tools by server with approval settings
+            mcp_servers_config = _group_mcp_tools_by_server(
+                rows, mcp_map
+            )
 
-            # First pass: collect all MCP tools grouped by server
-            for r in rows:
-                if r.tool_type == "mcp" and r.mcp_server_id:
-                    ms = mcp_map.get(str(r.mcp_server_id))
-                    if ms:
-                        server_key = str(r.mcp_server_id)
+            # Create MCP tool configurations with OAuth
+            tools = await _create_mcp_tool_configs(
+                mcp_servers_config,
+                function_input.user_id,
+            )
 
-                        if server_key not in mcp_servers_config:
-                            # For local MCP servers, use RESTACK_ENGINE_MCP_ADDRESS environment variable instead of stored URL
-                            server_url = ms.server_url
-                            if getattr(ms, "local", False):
-                                server_url = os.getenv(
-                                    "RESTACK_ENGINE_MCP_ADDRESS"
-                                )
-
-                            mcp_servers_config[server_key] = {
-                                "type": "mcp",
-                                "server_label": ms.server_label,
-                                "server_url": server_url,
-                                "server_description": ms.server_description
-                                or "",
-                                "headers": ms.headers or {},
-                                "allowed_tools": [],
-                                "tools_approval": {},  # Track per-tool approval settings
-                                "mcp_server": ms,
-                            }
-
-                        # Add tool to this server's configuration
-                        if r.tool_name:
-                            # Specific tool configuration
-                            if (
-                                r.tool_name
-                                not in mcp_servers_config[
-                                    server_key
-                                ]["allowed_tools"]
-                            ):
-                                mcp_servers_config[server_key][
-                                    "allowed_tools"
-                                ].append(r.tool_name)
-                            mcp_servers_config[server_key][
-                                "tools_approval"
-                            ][r.tool_name] = (
-                                r.require_approval or False
-                            )
-                        elif r.allowed_tools:
-                            # Server-level configuration with multiple tools
-                            for tool_name in r.allowed_tools:
-                                if (
-                                    tool_name
-                                    not in mcp_servers_config[
-                                        server_key
-                                    ]["allowed_tools"]
-                                ):
-                                    mcp_servers_config[
-                                        server_key
-                                    ]["allowed_tools"].append(
-                                        tool_name
-                                    )
-                                mcp_servers_config[server_key][
-                                    "tools_approval"
-                                ][tool_name] = (
-                                    r.require_approval or False
-                                )
-
-            # Second pass: create final tool configurations with granular approval
-            tools: list[dict] = []
-            for server_config in mcp_servers_config.values():
-                tools_approval = server_config["tools_approval"]
-                ms = server_config["mcp_server"]
-
-                # Get OAuth token for this server
-                oauth_token = (
-                    await get_oauth_token_for_mcp_server(
-                        GetOAuthTokenForMcpServerInput(
-                            mcp_server_id=str(ms.id),
-                            user_id=function_input.user_id,
-                        )
-                    )
-                )
-
-                # Create single tool configuration with granular approval settings
-                tool_obj = {
-                    "type": server_config["type"],
-                    "server_label": server_config["server_label"],
-                    "server_url": server_config["server_url"],
-                    "server_description": server_config[
-                        "server_description"
-                    ],
-                    "headers": server_config["headers"],
-                    "allowed_tools": server_config[
-                        "allowed_tools"
-                    ],
-                    "require_approval": _create_granular_require_approval(
-                        tools_approval
-                    ),
-                }
-
-                if oauth_token:
-                    tool_obj["authorization"] = oauth_token
-                    user_context = (
-                        f"user {function_input.user_id}"
-                        if function_input.user_id
-                        else "most recent token"
-                    )
-                    log.info(
-                        f"Added OAuth authorization for MCP server {ms.server_label} using {user_context}"
-                    )
-                # Only log if we expect OAuth (don't spam logs for non-OAuth servers)
-                elif ms.server_url and (
-                    "oauth" in (ms.server_url or "").lower()
-                    or "api." in (ms.server_url or "").lower()
-                ):
-                    log.info(
-                        f"No OAuth token found for MCP server {ms.server_label} - may need authentication"
-                    )
-
-                tools.append(tool_obj)
-
-            # Handle non-MCP tools (OpenAI official tools)
-            for r in rows:
-                if r.tool_type != "mcp":
-                    # Standard OpenAI tools (web_search, etc.)
-                    tool_obj = {"type": r.tool_type}
-                    if r.config:
-                        tool_obj.update(r.config)
-                    tools.append(tool_obj)
+            # Add non-MCP tools (OpenAI official tools)
+            _add_non_mcp_tools(rows, tools)
 
             return AgentToolsOutput(tools=tools)
         except Exception as e:

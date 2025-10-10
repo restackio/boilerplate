@@ -64,12 +64,14 @@ class GetTasksByMetricWorkflow:
                 start_to_close_timeout=timedelta(seconds=10),
             )
 
-            return {
-                "success": True,
-                "task_ids": result.task_ids,
-                "count": result.count,
-            }
-        except Exception as e:
+        except (
+            ValueError,
+            TypeError,
+            RuntimeError,
+            AttributeError,
+            ConnectionError,
+            OSError,
+        ) as e:
             error_message = f"Error getting tasks by metric: {e}"
             log.error(error_message)
             return {
@@ -77,6 +79,12 @@ class GetTasksByMetricWorkflow:
                 "error": str(e),
                 "task_ids": [],
                 "count": 0,
+            }
+        else:
+            return {
+                "success": True,
+                "task_ids": result.task_ids,
+                "count": result.count,
             }
 
 
@@ -106,12 +114,14 @@ class GetTasksByFeedbackWorkflow:
                 start_to_close_timeout=timedelta(seconds=10),
             )
 
-            return {
-                "success": True,
-                "task_ids": result.task_ids,
-                "count": result.count,
-            }
-        except Exception as e:
+        except (
+            ValueError,
+            TypeError,
+            RuntimeError,
+            AttributeError,
+            ConnectionError,
+            OSError,
+        ) as e:
             error_message = (
                 f"Error getting tasks by feedback: {e}"
             )
@@ -121,4 +131,10 @@ class GetTasksByFeedbackWorkflow:
                 "error": str(e),
                 "task_ids": [],
                 "count": 0,
+            }
+        else:
+            return {
+                "success": True,
+                "task_ids": result.task_ids,
+                "count": result.count,
             }

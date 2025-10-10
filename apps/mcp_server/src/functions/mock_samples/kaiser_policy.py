@@ -1,4 +1,5 @@
-"""Kaiser Permanente Healthcare Insurance Policy Sample
+"""Kaiser Permanente Healthcare Insurance Policy Sample.
+
 Mock data structure for health insurance policy queries and coverage verification.
 """
 
