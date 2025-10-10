@@ -15,6 +15,9 @@ from src.functions.mock_samples.github_pr import (
 from src.functions.mock_samples.hello_world import (
     HELLO_WORLD_SAMPLE,
 )
+from src.functions.mock_samples.kaiser_policy import (
+    KAISER_POLICY_SAMPLE,
+)
 from src.functions.mock_samples.knowledge_base import (
     KNOWLEDGE_BASE_SEARCH_SAMPLE,
 )
@@ -76,6 +79,7 @@ TEMPLATE_CONFIGS = {
     "linkedin_profiles_post": {
         "sample": LINKEDIN_PROFILES_POST_SAMPLE
     },
+    "kaiser_policy": {"sample": KAISER_POLICY_SAMPLE, "model": "gpt-4o-mini"},
 }
 
 # Generate the integration templates using the factory function
