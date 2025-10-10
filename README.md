@@ -29,6 +29,7 @@ pnpm quickstart
 - **Agent Orchestration**: http://localhost:3000  
 - **Developer Tracing**: http://localhost:5233
 - **API**: http://localhost:8000
+- **ClickHouse**: http://localhost:8123 (metrics and analytics)
 
 **Performance tip:** quickstart runs nextjs with hot reloading, changing pages takes a second. For instant loading, use `pnpm build && pnpm start` instead of dev mode.
 

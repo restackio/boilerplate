@@ -73,8 +73,8 @@ boilerplate/
 ┌─────────────────────────────────────────────────────────────────────┐
 │                           Data Layer                                │
 ├─────────────────────────────────────────────────────────────────────┤
-│                          PostgreSQL                                 │
-│              (Agents, Tasks, Runs, Users, Workspaces)               │
+│      PostgreSQL                  │         ClickHouse               │
+│  (Agents, Tasks, Users)          │   (Metrics, Analytics, Logs)     │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -107,10 +107,10 @@ cp env.development.example .env
 ### Start infrastructure (background services)
 
 ```bash
-# Start PostgreSQL and Restack Engine in Docker
+# Start PostgreSQL, ClickHouse, and Restack Engine in Docker
 pnpm infra:start
 
-# Initialize database
+# Initialize databases
 pnpm db:setup
 ```
 
@@ -147,6 +147,7 @@ pnpm dev
 - **Restack Engine**: http://localhost:5233 (Restack Developer Tracing)
 - **Webhook Server**: http://localhost:8000 (FastAPI with auto-reload)
 - **PostgreSQL**: localhost:5432
+- **ClickHouse**: http://localhost:8123 (metrics and analytics)
 
 ### External access setup (optional)
 
@@ -165,8 +166,8 @@ RESTACK_ENGINE_MCP_ADDRESS=https://your-ngrok-url.ngrok-free.app
 ```bash
 # Start development environment
 pnpm dev            # Start all applications with hot reloading
-pnpm infra:start    # Start PostgreSQL and Restack Engine
-pnpm db:setup       # Initialize database with schema and seed data
+pnpm infra:start    # Start PostgreSQL, ClickHouse, and Restack Engine
+pnpm db:setup       # Initialize databases with schema and seed data
 
 # Code quality
 pnpm lint           # Lint all applications
@@ -360,12 +361,18 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
 
 ### Database schema changes
 
+**PostgreSQL**:
 1. **Update Models** (`apps/backend/src/database/models.py`)
 2. **Create Migration** (`packages/database/migrations/`)
 3. **Update Example Seed Data** (`packages/database/*-seed.sql`) - for development/testing only
-4. **Test Migration**:
+
+**ClickHouse**:
+1. **Update Schema** (`packages/database/clickhouse-schema.sql`)
+2. **Update Example Seed Data** (`packages/database/clickhouse-*-seed.sql`) - for development/testing only
+
+**Test Changes**:
 ```bash
-pnpm db:reset  # Apply new schema
+pnpm db:reset  # Apply new schemas
 pnpm db:seed   # Test with example seed data
 ```
 
@@ -483,7 +490,10 @@ pnpm dev
 # Check PostgreSQL status
 pnpm infra:logs | grep postgres
 
-# Reset database
+# Check ClickHouse status
+pnpm infra:logs | grep clickhouse
+
+# Reset databases
 pnpm db:reset
 ```
 
@@ -510,8 +520,11 @@ pnpm type-check
 ### Performance debugging
 
 ```bash
-# Profile database queries
+# Profile PostgreSQL queries
 EXPLAIN ANALYZE SELECT * FROM agents WHERE workspace_id = 'xxx';
+
+# Query ClickHouse metrics
+curl 'http://localhost:8123/' --data 'SELECT * FROM boilerplate_clickhouse.task_metrics LIMIT 10'
 
 # Monitor Restack workflows
 curl http://localhost:5233/workflows
@@ -546,6 +559,7 @@ async def debug_function(data: dict) -> dict:
 - [shadcn/ui](https://ui.shadcn.com/)
 - [Tailwind CSS](https://tailwindcss.com/docs)
 - [PostgreSQL](https://www.postgresql.org/docs/)
+- [ClickHouse](https://clickhouse.com/docs)
 
 ### Architecture patterns
 - [Model Context Protocol](https://modelcontextprotocol.io/)
@@ -556,6 +570,7 @@ async def debug_function(data: dict) -> dict:
 - [Vercel Deployment](https://vercel.com/docs)
 - [Docker Best Practices](https://docs.docker.com/develop/dev-best-practices/)
 - [PostgreSQL Performance](https://www.postgresql.org/docs/current/performance-tips.html)
+- [ClickHouse Performance](https://clickhouse.com/docs/en/operations/performance)
 
 ### Development tools
 - [pnpm Documentation](https://pnpm.io/motivation)
