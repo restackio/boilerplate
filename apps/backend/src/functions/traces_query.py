@@ -457,11 +457,11 @@ async def count_traces_for_retroactive(
 
         where_clause = " AND ".join(where_conditions)
 
-        query = f"""
-        SELECT COUNT(*) as total
-        FROM task_traces
-        WHERE {where_clause}
-        """
+        query = (
+            "SELECT COUNT(*) as total "
+            "FROM task_traces "
+            "WHERE " + where_clause
+        )
 
         result = client.query(query, parameters=params)
 

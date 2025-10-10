@@ -11,14 +11,12 @@ from restack_ai.workflow import import_functions, log, workflow
 with import_functions():
     from src.functions.metrics_crud import list_metric_definitions
     from src.functions.metrics_evaluation import (
-        evaluate_formula_metric,
-        evaluate_llm_judge_metric,
-        evaluate_python_code_metric,
         ingest_performance_metrics,
         ingest_quality_metrics,
     )
     from src.functions.metrics_helpers import (
         build_performance_data_dict,
+        create_metric_evaluation_task,
     )
 
 

@@ -165,12 +165,11 @@ class RetroactiveMetrics:
                 if workflow_input.sample_percentage is not None:
                     # Calculate step size: if sample_percentage=0.1 (10%), step=10 (take every 10th)
                     step = int(1 / workflow_input.sample_percentage)
-                    if step < 1:
-                        step = 1
-                    
+                    step = max(step, 1)
+
                     # Take every Nth span deterministically
                     spans_to_process = [
-                        span for i, span in enumerate(spans_to_process) 
+                        span for i, span in enumerate(spans_to_process)
                         if i % step == 0
                     ]
                     log.info(
@@ -180,16 +179,16 @@ class RetroactiveMetrics:
 
                 # Step 3: Evaluate and save each trace (in parallel batches)
                 eval_tasks = []
-                
+
                 for span in spans_to_process:
                     if span["span_type"] != "response":
                         continue  # Only evaluate response spans
 
                     total_processed += 1
-                    
+
                     # Create evaluation + save task based on metric type
                     metric_type = metric_def["metric_type"]
-                    
+
                     # Prepare trace linkage
                     trace_metadata = {
                         "trace_id": span["trace_id"],
@@ -229,7 +228,7 @@ class RetroactiveMetrics:
                 if eval_tasks:
                     log.info(f"Running {len(eval_tasks)} evaluations in parallel")
                     results = await asyncio.gather(*eval_tasks, return_exceptions=True)
-                    
+
                     # Count successes/failures
                     for result in results:
                         if isinstance(result, Exception):
@@ -239,7 +238,7 @@ class RetroactiveMetrics:
                             total_completed += 1
                         else:
                             total_failed += 1
-                    
+
                     log.info(
                         f"Batch complete: {total_completed} succeeded, {total_failed} failed"
                     )
