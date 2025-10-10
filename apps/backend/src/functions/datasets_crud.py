@@ -623,12 +623,7 @@ async def _query_clickhouse_events(
         )
 
         # Count total - table name already validated above
-        count_query = (
-            "SELECT count() FROM "
-            + table_name
-            + " WHERE "
-            + where_clause
-        )  # noqa: S608
+        count_query = f"SELECT count() FROM {table_name} WHERE {where_clause}"  # noqa: S608
 
         events_result = client.query(events_query)
         count_result = client.query(count_query)

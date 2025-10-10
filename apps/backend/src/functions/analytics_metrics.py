@@ -313,7 +313,8 @@ async def _get_overview_metrics(
         GROUP BY date
         ORDER BY date ASC
     """
-  
+    )
+
     result = client.query(query, parameters=params)
 
     timeseries = [
