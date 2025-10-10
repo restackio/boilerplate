@@ -86,6 +86,56 @@ def apply_demo_multiplier_to_timeseries(
     return result
 
 
+def _enhance_overview_section(enhanced: dict) -> None:
+    """Enhance overview section with demo data."""
+    if "overview" in enhanced and "timeseries" in enhanced["overview"]:
+        enhanced["overview"]["timeseries"] = apply_demo_multiplier_to_timeseries(
+            enhanced["overview"]["timeseries"],
+            {"taskCount": 100},  # Base 100 tasks per day
+        )
+
+
+def _enhance_performance_section(enhanced: dict) -> None:
+    """Enhance performance section with demo data."""
+    if "performance" in enhanced and "summary" in enhanced["performance"]:
+        summary = enhanced["performance"]["summary"]
+        summary["taskCount"] = summary.get("taskCount", 0) + (100 * DEMO_MULTIPLIER)
+
+
+def _enhance_feedback_section(enhanced: dict) -> None:
+    """Enhance feedback section with demo data."""
+    if "feedback" in enhanced and "timeseries" in enhanced["feedback"]:
+        enhanced["feedback"]["timeseries"] = apply_demo_multiplier_to_timeseries(
+            enhanced["feedback"]["timeseries"],
+            {
+                "totalTasks": 100,
+                "tasksWithFeedback": 25,
+                "positiveCount": 20,
+                "negativeCount": 5,
+                "feedbackCount": 25,
+            },
+        )
+
+
+def _enhance_quality_section(enhanced: dict) -> None:
+    """Enhance quality section with demo data."""
+    if "quality" not in enhanced or "summary" not in enhanced["quality"]:
+        return
+
+    enhanced_summary = []
+    for metric in enhanced["quality"]["summary"]:
+        enhanced_metric = dict(metric)
+
+        if "evaluationCount" in enhanced_metric and enhanced_metric["evaluationCount"] > 0:
+            enhanced_metric["evaluationCount"] = (
+                enhanced_metric["evaluationCount"]
+                + (DEMO_BASE_ANALYTICS["quality_evaluations"] * DEMO_MULTIPLIER)
+            )
+
+        enhanced_summary.append(enhanced_metric)
+    enhanced["quality"]["summary"] = enhanced_summary
+
+
 def apply_demo_multiplier_to_analytics(
     analytics_data: dict,
 ) -> dict:
@@ -102,88 +152,9 @@ def apply_demo_multiplier_to_analytics(
 
     enhanced = dict(analytics_data)
 
-    # Overview timeseries (task counts and success rates)
-    if (
-        "overview" in enhanced
-        and "timeseries" in enhanced["overview"]
-    ):
-        enhanced["overview"]["timeseries"] = (
-            apply_demo_multiplier_to_timeseries(
-                enhanced["overview"]["timeseries"],
-                {"taskCount": 100},  # Base 100 tasks per day
-            )
-        )
-
-    # Performance timeseries and summary
-    if "performance" in enhanced:
-        if "timeseries" in enhanced["performance"]:
-            # Don't multiply costs/tokens/duration - keep realistic ratios
-            pass
-
-        if "summary" in enhanced["performance"]:
-            # Multiply task count only
-            summary = enhanced["performance"]["summary"]
-            summary["taskCount"] = summary.get("taskCount", 0) + (
-                100 * DEMO_MULTIPLIER
-            )
-
-    # Feedback timeseries
-    if (
-        "feedback" in enhanced
-        and "timeseries" in enhanced["feedback"]
-    ):
-        enhanced["feedback"]["timeseries"] = (
-            apply_demo_multiplier_to_timeseries(
-                enhanced["feedback"]["timeseries"],
-                {
-                    "totalTasks": 100,
-                    "tasksWithFeedback": 25,
-                    "positiveCount": 20,
-                    "negativeCount": 5,
-                    "feedbackCount": 25,
-                },
-            )
-        )
-
-    # Quality metrics timeseries and summary
-    if "quality" in enhanced:
-        if "timeseries" in enhanced["quality"]:
-            # For timeseries, we don't add demo data as it would be too complex
-            # to maintain consistent pass rates across dates
-            # The charts will show real quality metrics only
-            pass
-
-        if "summary" in enhanced["quality"]:
-            # Multiply evaluation counts in summary
-            # This shows that the metric has been evaluated many times (impressive!)
-            # while keeping pass rates and scores realistic
-            enhanced_summary = []
-            for metric in enhanced["quality"]["summary"]:
-                enhanced_metric = dict(metric)
-
-                if (
-                    "evaluationCount" in enhanced_metric
-                    and enhanced_metric["evaluationCount"] > 0
-                ):
-                    # Add base evaluation count (80 per multiplier unit)
-                    enhanced_metric["evaluationCount"] = (
-                        enhanced_metric["evaluationCount"]
-                        + (
-                            DEMO_BASE_ANALYTICS[
-                                "quality_evaluations"
-                            ]
-                            * DEMO_MULTIPLIER
-                        )
-                    )
-                elif (
-                    "evaluationCount" in enhanced_metric
-                    and enhanced_metric["evaluationCount"] == 0
-                ):
-                    # For metrics with no evaluations, don't add demo data
-                    # This keeps "no data yet" state clear
-                    pass
-
-                enhanced_summary.append(enhanced_metric)
-            enhanced["quality"]["summary"] = enhanced_summary
+    _enhance_overview_section(enhanced)
+    _enhance_performance_section(enhanced)
+    _enhance_feedback_section(enhanced)
+    _enhance_quality_section(enhanced)
 
     return enhanced

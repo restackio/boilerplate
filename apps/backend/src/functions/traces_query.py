@@ -472,8 +472,8 @@ async def count_traces_for_retroactive(
 
         log.info(f"Found {total_count} traces matching filters")
 
-        return {"total_count": total_count}
-
     except Exception as e:
         log.error(f"Error counting traces: {e}")
         raise
+    else:
+        return {"total_count": total_count}

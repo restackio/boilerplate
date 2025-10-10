@@ -40,7 +40,7 @@ class GetTaskTracesWorkflow:
                 },
             )
 
-        except Exception as e:
+        except (ValueError, TypeError, RuntimeError, AttributeError, ConnectionError, OSError) as e:
             error_message = f"Error fetching traces: {e}"
             log.error(error_message)
             return {

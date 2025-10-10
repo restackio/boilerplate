@@ -392,7 +392,7 @@ class AgentTask:
                 f"Todos updated: {completed}/{total} completed, {in_progress} in progress"
             )
 
-        except Exception as e:
+        except (ValueError, TypeError, RuntimeError, AttributeError) as e:
             log.error(f"Error updating todos: {e}")
             error_event = create_agent_error_event(
                 message=f"Error updating todos: {e}",
@@ -476,7 +476,7 @@ class AgentTask:
                 f"Subtask created and registered: {child_task_id} for parent: {self.task_id}"
             )
 
-        except Exception as e:
+        except (ValueError, TypeError, RuntimeError, AttributeError) as e:
             log.error(f"Error creating subtask: {e}")
             return {"success": False, "error": str(e)}
         else:
@@ -524,75 +524,160 @@ class AgentTask:
                     f"Subtask {task_id} not found in state"
                 )
 
-        except Exception as e:
+        except (ValueError, TypeError, RuntimeError, AttributeError) as e:
             log.error(f"Error handling subtask notification: {e}")
             return {"success": False, "error": str(e)}
         else:
             return {"success": True}
 
+    async def _handle_error_event(self, event_data: dict) -> None:
+        """Handle OpenAI/MCP error events."""
+        error_info = event_data.get("error", {})
+        event_type = event_data.get("type", "")
+
+        error_event = create_agent_error_event(
+            message=error_info.get("message", "Unknown OpenAI error"),
+            error_type=error_info.get("type", "unknown_error"),
+            code=error_info.get("code") or (
+                "openai_error" if "mcp" not in event_type else "mcp_error"
+            ),
+            param=error_info.get("param"),
+        )
+        self.events.append(error_event.model_dump())
+        log.error(f"OpenAI/MCP error: {error_info}")
+
+        # Notify parent of error if this is a subtask
+        if self.temporal_parent_agent_id and self.task_id:
+            await agent.step(
+                function=subtask_notify,
+                function_input=SubtaskNotifyInput(
+                    temporal_parent_agent_id=self.temporal_parent_agent_id,
+                    task_id=self.task_id,
+                    title=self.title,
+                    status="failed",
+                    message=error_info.get("message", "Unknown error"),
+                ),
+                start_to_close_timeout=timedelta(seconds=10),
+            )
+
+    def _handle_response_created(self, event_data: dict) -> None:
+        """Extract and store response_id from response.created event."""
+        if event_data.get("type") == "response.created" and "response" in event_data:
+            response = event_data["response"]
+            if "id" in response:
+                self.last_response_id = response["id"]
+                self.response_index += 1
+
+    def _extract_assistant_content(self, response: dict) -> str:
+        """Extract assistant content from response output."""
+        assistant_content = ""
+        if "output" in response:
+            for output_item in response["output"]:
+                if (
+                    output_item.get("type") == "message"
+                    and output_item.get("role") == "assistant"
+                ):
+                    for content in output_item.get("content", []):
+                        if content.get("type") == "output_text":
+                            assistant_content += content.get("text", "")
+        return assistant_content
+
+    async def _trigger_metrics_evaluation(
+        self, response: dict, response_id: str, assistant_content: str
+    ) -> None:
+        """Trigger continuous metrics evaluation workflow."""
+        user_message = next(
+            (msg for msg in reversed(self.messages) if msg.role == "user"),
+            None,
+        )
+
+        usage = response.get("usage", {})
+        input_tokens = usage.get("input_tokens", 0)
+        output_tokens = usage.get("output_tokens", 0)
+
+        log.info(
+            f"Response {self.response_index} completed for task {self.task_id}. "
+            "Triggering continuous metrics evaluation..."
+        )
+
+        try:
+            await agent.child_start(
+                workflow="TaskMetricsWorkflow",
+                workflow_id=f"metrics_{self.task_id}_{response_id}",
+                workflow_input={
+                    "task_id": self.task_id,
+                    "agent_id": self.agent_id,
+                    "agent_name": getattr(self, "agent_name", "Unknown"),
+                    "parent_agent_id": None,
+                    "workspace_id": self.workspace_id,
+                    "agent_version": "draft" if self.parent_task_id is None else "v1",
+                    "response_id": response_id,
+                    "response_index": self.response_index,
+                    "message_count": len(self.messages),
+                    "task_input": user_message.content if user_message else "",
+                    "task_output": assistant_content,
+                    "duration_ms": 0,
+                    "input_tokens": input_tokens,
+                    "output_tokens": output_tokens,
+                    "status": "completed",
+                    "run_quality_metrics": True,
+                },
+                parent_close_policy=ParentClosePolicy.ABANDON,
+            )
+            log.info(
+                f"✓ Continuous metrics workflow started (parallel) for response {self.response_index}"
+            )
+        except (ValueError, TypeError, RuntimeError, AttributeError) as e:
+            log.warning(f"Failed to start continuous metrics workflow: {e}")
+
+    async def _handle_pipeline_completion(self) -> None:
+        """Handle pipeline MCP call completion."""
+        log.info(
+            f"Pipeline agent {self.agent_id} completed data loading for task {self.task_id}"
+        )
+
+        await agent.step(
+            function=tasks_update,
+            function_input=TaskUpdateInput(
+                task_id=self.task_id,
+                status="completed",
+            ),
+            start_to_close_timeout=timedelta(seconds=30),
+        )
+
+        # Notify parent of completion if this is a subtask
+        if self.temporal_parent_agent_id and self.task_id:
+            await agent.step(
+                function=subtask_notify,
+                function_input=SubtaskNotifyInput(
+                    temporal_parent_agent_id=self.temporal_parent_agent_id,
+                    task_id=self.task_id,
+                    title=self.title,
+                    status="completed",
+                ),
+                start_to_close_timeout=timedelta(seconds=10),
+            )
+
+        self.end = True
+        log.info(f"Pipeline agent {self.agent_id} workflow marked for completion")
+
     @agent.event
     async def response_item(self, event_data: dict) -> dict:
         """Store OpenAI ResponseStreamEvent in simple format."""
         try:
-            # Check for OpenAI error events and convert them to our error format
             event_type = event_data.get("type", "")
 
+            # Handle error events
             if "error" in event_type or event_data.get("error"):
-                # Handle OpenAI/MCP errors using native OpenAI error format
-                error_info = event_data.get("error", {})
-                error_event = create_agent_error_event(
-                    message=error_info.get(
-                        "message", "Unknown OpenAI error"
-                    ),
-                    error_type=error_info.get(
-                        "type", "unknown_error"
-                    ),
-                    code=error_info.get("code")
-                    or (
-                        "openai_error"
-                        if "mcp" not in event_type
-                        else "mcp_error"
-                    ),
-                    param=error_info.get("param"),
-                )
-                self.events.append(error_event.model_dump())
-                log.error(f"OpenAI/MCP error: {error_info}")
-
-                # Notify parent of error if this is a subtask
-                if self.temporal_parent_agent_id and self.task_id:
-                    await agent.step(
-                        function=subtask_notify,
-                        function_input=SubtaskNotifyInput(
-                            temporal_parent_agent_id=self.temporal_parent_agent_id,
-                            task_id=self.task_id,
-                            title=self.title,
-                            status="failed",
-                            message=error_info.get(
-                                "message", "Unknown error"
-                            ),
-                        ),
-                        start_to_close_timeout=timedelta(
-                            seconds=10
-                        ),
-                    )
+                await self._handle_error_event(event_data)
             else:
                 # Store normal events
                 self.events.append(event_data)
 
-            # Extract response_id from response.created event for conversation continuity
-            if (
-                event_data.get("type") == "response.created"
-                and "response" in event_data
-            ):
-                response = event_data["response"]
-                if "id" in response:
-                    self.last_response_id = response["id"]
-                    self.response_index += (
-                        1  # Increment response counter
-                    )
+            # Handle response.created events
+            self._handle_response_created(event_data)
 
-            # Continuous metrics: Trigger evaluation after each response completes
-            # Inspired by OpenAI agents tracing and Temporal interceptor patterns
+            # Handle response.completed events with metrics
             if (
                 event_data.get("type") == "response.completed"
                 and "response" in event_data
@@ -601,145 +686,23 @@ class AgentTask:
             ):
                 response = event_data["response"]
                 response_id = response.get("id")
-
-                # Extract the last user message and assistant response
-                user_message = next(
-                    (
-                        msg
-                        for msg in reversed(self.messages)
-                        if msg.role == "user"
-                    ),
-                    None,
+                assistant_content = self._extract_assistant_content(response)
+                await self._trigger_metrics_evaluation(
+                    response, response_id, assistant_content
                 )
 
-                # Get assistant response from the completed response
-                assistant_content = ""
-                if "output" in response:
-                    for output_item in response["output"]:
-                        if (
-                            output_item.get("type") == "message"
-                            and output_item.get("role")
-                            == "assistant"
-                        ):
-                            for content in output_item.get(
-                                "content", []
-                            ):
-                                if (
-                                    content.get("type")
-                                    == "output_text"
-                                ):
-                                    assistant_content += (
-                                        content.get("text", "")
-                                    )
-
-                # Extract usage data for performance metrics
-                usage = response.get("usage", {})
-                input_tokens = usage.get("input_tokens", 0)
-                output_tokens = usage.get("output_tokens", 0)
-                input_tokens + output_tokens
-
-                # Approximate cost (GPT-5-mini pricing)
-                (input_tokens * 0.00001) + (
-                    output_tokens * 0.00003
-                )
-
-                # Duration is captured automatically by generation_span tracing in llm_response_stream
-                # No need to manually track it here - traces provide accurate wall-clock duration
-
-                log.info(
-                    f"Response {self.response_index} completed for task {self.task_id}. "
-                    "Triggering continuous metrics evaluation..."
-                )
-
-                # Fire-and-forget child workflow for metrics evaluation (truly parallel, non-blocking)
-                # Uses ABANDON policy so agent can continue even if metrics fail
-                try:
-                    await agent.child_start(
-                        workflow="TaskMetricsWorkflow",
-                        workflow_id=f"metrics_{self.task_id}_{response_id}",
-                        workflow_input={
-                            "task_id": self.task_id,
-                            "agent_id": self.agent_id,
-                            "agent_name": getattr(
-                                self, "agent_name", "Unknown"
-                            ),
-                            "parent_agent_id": None,
-                            "workspace_id": self.workspace_id,
-                            "agent_version": "draft"
-                            if self.parent_task_id is None
-                            else "v1",
-                            "response_id": response_id,
-                            "response_index": self.response_index,
-                            "message_count": len(self.messages),
-                            "task_input": user_message.content
-                            if user_message
-                            else "",
-                            "task_output": assistant_content,
-                            "duration_ms": 0,  # Duration from traces, not workflow time
-                            "input_tokens": input_tokens,
-                            "output_tokens": output_tokens,
-                            "status": "completed",
-                            "run_quality_metrics": True,
-                        },
-                        parent_close_policy=ParentClosePolicy.ABANDON,  # Ensures true parallelism
-                    )
-                    log.info(
-                        f"✓ Continuous metrics workflow started (parallel) for response {self.response_index}"
-                    )
-                except Exception as e:
-                    # Don't fail the agent if metrics evaluation fails
-                    log.warning(
-                        f"Failed to start continuous metrics workflow: {e}"
-                    )
-
+            # Handle pipeline MCP call completion
             if (
                 self.agent_type == "pipeline"
-                and event_data.get("type")
-                == "response.output_item.done"
-                and event_data.get("item", {}).get("type")
-                == "mcp_call"
-                and event_data.get("item", {}).get("name")
-                == "loadintodataset"
-                and event_data.get("item", {}).get("status")
-                == "completed"
+                and event_data.get("type") == "response.output_item.done"
+                and event_data.get("item", {}).get("type") == "mcp_call"
+                and event_data.get("item", {}).get("name") == "loadintodataset"
+                and event_data.get("item", {}).get("status") == "completed"
             ):
-                log.info(
-                    f"Pipeline agent {self.agent_id} completed data loading for task {self.task_id}"
-                )
-
-                await agent.step(
-                    function=tasks_update,
-                    function_input=TaskUpdateInput(
-                        task_id=self.task_id,
-                        status="completed",
-                    ),
-                    start_to_close_timeout=timedelta(seconds=30),
-                )
-
-                # Notify parent of completion if this is a subtask
-                if self.temporal_parent_agent_id and self.task_id:
-                    await agent.step(
-                        function=subtask_notify,
-                        function_input=SubtaskNotifyInput(
-                            temporal_parent_agent_id=self.temporal_parent_agent_id,
-                            task_id=self.task_id,
-                            title=self.title,
-                            status="completed",
-                        ),
-                        start_to_close_timeout=timedelta(
-                            seconds=10
-                        ),
-                    )
-
-                self.end = True
-                log.info(
-                    f"Pipeline agent {self.agent_id} workflow marked for completion"
-                )
+                await self._handle_pipeline_completion()
 
         except ValueError as e:
             log.error(f"Error handling response_item: {e}")
-
-            # Create error event for this processing error
             error_event = create_agent_error_event(
                 message=f"Error processing response item: {e}",
                 error_type="response_processing_failed",
@@ -919,7 +882,7 @@ class AgentTask:
                         agent_id=self.agent_id,
                     )
 
-            except Exception as e:
+            except (ValueError, TypeError, RuntimeError, AttributeError) as e:
                 log.error(
                     "AgentTask: Failed to load subagents",
                     error=str(e),

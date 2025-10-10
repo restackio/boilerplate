@@ -1,5 +1,6 @@
 import os
 import uuid
+from typing import Any
 
 from pydantic import BaseModel, Field
 from restack_ai.function import NonRetryableError, function, log
@@ -249,7 +250,7 @@ class AgentMcpToolAvailableListOutput(BaseModel):
     error: str | None = None
 
 
-async def _load_mcp_servers(db, mcp_ids: list) -> dict[str, McpServer]:
+async def _load_mcp_servers(db: Any, mcp_ids: list) -> dict[str, McpServer]:
     """Load MCP servers by IDs and return as a map."""
     if not mcp_ids:
         return {}
@@ -280,7 +281,7 @@ def _init_mcp_server_config(mcp_server: McpServer) -> dict:
     }
 
 
-def _add_tool_to_server_config(server_config: dict, tool_name: str, require_approval: bool):
+def _add_tool_to_server_config(server_config: dict, tool_name: str, *, require_approval: bool) -> None:
     """Add a tool to server configuration with approval settings."""
     if tool_name not in server_config["allowed_tools"]:
         server_config["allowed_tools"].append(tool_name)
@@ -309,14 +310,14 @@ def _group_mcp_tools_by_server(rows: list, mcp_map: dict[str, McpServer]) -> dic
             _add_tool_to_server_config(
                 mcp_servers_config[server_key],
                 r.tool_name,
-                r.require_approval,
+                require_approval=r.require_approval,
             )
         elif r.allowed_tools:
             for tool_name in r.allowed_tools:
                 _add_tool_to_server_config(
                     mcp_servers_config[server_key],
                     tool_name,
-                    r.require_approval,
+                    require_approval=r.require_approval,
                 )
 
     return mcp_servers_config
@@ -371,7 +372,7 @@ async def _create_mcp_tool_configs(
     return tools
 
 
-def _add_non_mcp_tools(rows: list, tools: list[dict]):
+def _add_non_mcp_tools(rows: list, tools: list[dict]) -> None:
     """Add non-MCP tools (OpenAI official tools) to the tools list."""
     for r in rows:
         if r.tool_type != "mcp":

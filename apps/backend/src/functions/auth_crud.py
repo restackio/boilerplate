@@ -141,7 +141,7 @@ async def user_signup(user_data: UserSignupInput) -> AuthOutput:
             return AuthOutput(
                 success=True, user=user_data_response
             )
-        except Exception as e:
+        except (ValueError, TypeError, RuntimeError, AttributeError, ConnectionError, OSError) as e:
             await db.rollback()
             return AuthOutput(success=False, error=str(e))
     return None
@@ -206,6 +206,6 @@ async def user_login(login_data: UserLoginInput) -> AuthOutput:
             return AuthOutput(
                 success=True, user=user_data_response
             )
-        except Exception as e:
+        except (ValueError, TypeError, RuntimeError, AttributeError, ConnectionError, OSError) as e:
             return AuthOutput(success=False, error=str(e))
     return None

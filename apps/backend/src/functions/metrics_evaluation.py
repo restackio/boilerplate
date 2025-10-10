@@ -176,7 +176,7 @@ Please evaluate and respond in JSON format:
             "eval_cost_usd": cost_usd,
         }
 
-    except Exception as e:
+    except (ValueError, TypeError, RuntimeError, OSError, ConnectionError, AttributeError) as e:
         log.error(
             f"LLM judge evaluation failed for metric {input_data.metric_definition['name']}: {e}",
             exc_info=True,
@@ -219,7 +219,9 @@ async def evaluate_python_code_metric(
         }
 
         # Execute the user code
-        exec(code, context)
+        # Security: exec is intentional for user-defined metrics feature.
+        # Context is sandboxed with restricted __builtins__ and only approved variables
+        exec(code, context)  # noqa: S102
 
         # The code should define an 'evaluate' function
         if "evaluate" not in context:
@@ -274,7 +276,7 @@ async def evaluate_python_code_metric(
             "eval_cost_usd": 0.0,  # No cost for local execution
         }
 
-    except Exception as e:
+    except (ValueError, TypeError, RuntimeError, NameError, SyntaxError, AttributeError) as e:
         log.error(f"Python code evaluation failed: {e}")
         return None
 
@@ -319,9 +321,10 @@ async def evaluate_formula_metric(
 
         # Evaluate formula safely (formula should return a boolean)
         try:
-            result = eval(formula, {"__builtins__": {}}, context)
+            # Security: eval is sandboxed with disabled __builtins__ for user-defined formulas
+            result = eval(formula, {"__builtins__": {}}, context)  # noqa: S307
             passed = bool(result)
-        except Exception as e:
+        except (ValueError, TypeError, RuntimeError, NameError, SyntaxError, ZeroDivisionError, AttributeError) as e:
             log.error(f"Formula evaluation failed: {e}")
             return None
 
@@ -345,7 +348,7 @@ async def evaluate_formula_metric(
             "eval_cost_usd": 0.0,  # No cost for formula evaluation
         }
 
-    except Exception as e:
+    except (ValueError, TypeError, RuntimeError, NameError, SyntaxError, ZeroDivisionError, AttributeError) as e:
         log.error(f"Formula evaluation failed: {e}")
         return None
 
@@ -427,7 +430,6 @@ async def ingest_performance_metrics(
         log.info(
             f"Performance metrics saved for task {input_data.task_id}"
         )
-        return True
 
     except Exception as e:
         log.error(f"Failed to ingest performance metrics: {e}")
@@ -437,6 +439,8 @@ async def ingest_performance_metrics(
 
         log.error(f"Traceback: {traceback.format_exc()}")
         raise  # Re-raise so workflow can handle it properly
+    else:
+        return True
 
 
 @function.defn()
@@ -512,7 +516,6 @@ async def ingest_quality_metrics(
         log.info(
             f"Quality metrics saved for task {input_data.task_id}"
         )
-        return True
 
     except Exception as e:
         log.error(f"Failed to ingest quality metrics: {e}")
@@ -522,3 +525,5 @@ async def ingest_quality_metrics(
 
         log.error(f"Traceback: {traceback.format_exc()}")
         raise  # Re-raise so workflow can handle it properly
+    else:
+        return True

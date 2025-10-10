@@ -105,7 +105,6 @@ async def ingest_feedback_metric(
         log.info(
             f"Feedback metric saved for task {input_data.task_id}"
         )
-        return True
 
     except Exception as e:
         log.error(f"Failed to ingest feedback metric: {e}")
@@ -113,6 +112,8 @@ async def ingest_feedback_metric(
 
         log.error(traceback.format_exc())
         raise
+    else:
+        return True
 
 
 @function.defn()
@@ -171,14 +172,15 @@ async def get_task_feedback(
         log.info(
             f"Found {len(feedback_list)} feedback records for task {input_data.task_id}"
         )
-        return feedback_list
 
-    except Exception as e:
+    except (ValueError, TypeError, ConnectionError, OSError) as e:
         log.error(f"Failed to get task feedback: {e}")
         import traceback
 
         log.error(traceback.format_exc())
         return []
+    else:
+        return feedback_list
 
 
 @function.defn()
@@ -294,12 +296,7 @@ async def get_feedback_analytics(
             f"{summary['negativePercentage']}% negative"
         )
 
-        return {
-            "timeseries": timeseries,
-            "summary": summary,
-        }
-
-    except Exception as e:
+    except (ValueError, TypeError, ConnectionError, OSError) as e:
         log.error(f"Failed to get feedback analytics: {e}")
         import traceback
 
@@ -313,6 +310,11 @@ async def get_feedback_analytics(
                 "negativePercentage": 0,
                 "positivePercentage": 0,
             },
+        }
+    else:
+        return {
+            "timeseries": timeseries,
+            "summary": summary,
         }
 
 
@@ -399,11 +401,12 @@ async def get_detailed_feedbacks(
         log.info(
             f"Found {len(feedbacks)} detailed feedback records"
         )
-        return feedbacks
 
-    except Exception as e:
+    except (ValueError, TypeError, ConnectionError, OSError) as e:
         log.error(f"Failed to get detailed feedbacks: {e}")
         import traceback
 
         log.error(traceback.format_exc())
         return []
+    else:
+        return feedbacks

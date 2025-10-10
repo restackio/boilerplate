@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from pydantic import BaseModel, Field
 from restack_ai.function import NonRetryableError, function, log
@@ -405,6 +406,112 @@ async def oauth_token_get_by_user_and_server(
     raise NonRetryableError(message="Database connection failed")
 
 
+async def _get_connection_by_user(
+    db: Any, user_id: str, mcp_server_id: str
+) -> Any:
+    """Get OAuth connection for specific user."""
+    query = select(UserOAuthConnection).where(
+        UserOAuthConnection.user_id == uuid.UUID(user_id),
+        UserOAuthConnection.mcp_server_id == uuid.UUID(mcp_server_id),
+    )
+    result = await db.execute(query)
+    return result.scalar_one_or_none()
+
+
+async def _get_connection_by_workspace(
+    db: Any, workspace_id: str, mcp_server_id: str
+) -> Any:
+    """Get OAuth connection for workspace, preferring default, falling back to most recent."""
+    # Try default token first
+    query = select(UserOAuthConnection).where(
+        UserOAuthConnection.workspace_id == uuid.UUID(workspace_id),
+        UserOAuthConnection.mcp_server_id == uuid.UUID(mcp_server_id),
+        UserOAuthConnection.is_default,
+    )
+    result = await db.execute(query)
+    connection = result.scalar_one_or_none()
+
+    if connection:
+        return connection
+
+    # Fallback to most recent
+    query = (
+        select(UserOAuthConnection)
+        .where(
+            UserOAuthConnection.workspace_id == uuid.UUID(workspace_id),
+            UserOAuthConnection.mcp_server_id == uuid.UUID(mcp_server_id),
+        )
+        .order_by(
+            UserOAuthConnection.last_refreshed_at.desc().nulls_last(),
+            UserOAuthConnection.connected_at.desc(),
+        )
+    )
+    result = await db.execute(query)
+    return result.scalar_one_or_none()
+
+
+async def _get_connection_fallback(db: Any, mcp_server_id: str) -> Any:
+    """Get most recent OAuth connection for MCP server (any user)."""
+    query = (
+        select(UserOAuthConnection)
+        .where(UserOAuthConnection.mcp_server_id == uuid.UUID(mcp_server_id))
+        .order_by(
+            UserOAuthConnection.last_refreshed_at.desc().nulls_last(),
+            UserOAuthConnection.connected_at.desc(),
+        )
+    )
+    result = await db.execute(query)
+    return result.scalar_one_or_none()
+
+
+async def _refresh_token_if_expired(
+    db: Any, oauth_connection: Any, function_input: Any
+) -> Any:
+    """Check if token is expired and refresh if needed. Returns updated connection."""
+    now = datetime.now(UTC).replace(tzinfo=None)
+    if oauth_connection.expires_at and oauth_connection.expires_at <= now:
+        log.info(
+            f"OAuth token expired for MCP server {function_input.mcp_server_id}, attempting refresh"
+        )
+
+        try:
+            refresh_user_id = function_input.user_id or str(oauth_connection.user_id)
+            refresh_result = await oauth_token_refresh_and_update(
+                GetOAuthTokenInput(
+                    user_id=refresh_user_id,
+                    mcp_server_id=function_input.mcp_server_id,
+                )
+            )
+
+            if refresh_result and refresh_result.token:
+                log.info(
+                    f"Successfully refreshed OAuth token for MCP server {function_input.mcp_server_id}"
+                )
+                # Get refreshed token from database
+                refreshed_query = select(UserOAuthConnection).where(
+                    UserOAuthConnection.user_id == uuid.UUID(refresh_user_id),
+                    UserOAuthConnection.mcp_server_id == uuid.UUID(
+                        function_input.mcp_server_id
+                    ),
+                )
+                refreshed_result = await db.execute(refreshed_query)
+                return refreshed_result.scalar_one_or_none()
+
+            log.error(
+                f"Failed to refresh OAuth token for MCP server {function_input.mcp_server_id}"
+            )
+
+        except (ValueError, TypeError, AttributeError) as e:
+            log.error(
+                f"Error refreshing OAuth token for MCP server {function_input.mcp_server_id}: {e}"
+            )
+            return None
+        else:
+            return None
+
+    return oauth_connection
+
+
 @function.defn()
 async def get_oauth_token_for_mcp_server(
     function_input: GetOAuthTokenForMcpServerInput,
@@ -419,66 +526,19 @@ async def get_oauth_token_for_mcp_server(
     """
     try:
         async for db in get_async_db():
-            oauth_connection = None
-
+            # Get OAuth connection based on priority: user_id > workspace_id > fallback
             if function_input.user_id:
-                # Get OAuth token for specific user and MCP server
-                query = select(UserOAuthConnection).where(
-                    UserOAuthConnection.user_id
-                    == uuid.UUID(function_input.user_id),
-                    UserOAuthConnection.mcp_server_id
-                    == uuid.UUID(function_input.mcp_server_id),
+                oauth_connection = await _get_connection_by_user(
+                    db, function_input.user_id, function_input.mcp_server_id
                 )
-                result = await db.execute(query)
-                oauth_connection = result.scalar_one_or_none()
             elif function_input.workspace_id:
-                # First try to get the default token for this workspace and MCP server
-                query = select(UserOAuthConnection).where(
-                    UserOAuthConnection.workspace_id
-                    == uuid.UUID(function_input.workspace_id),
-                    UserOAuthConnection.mcp_server_id
-                    == uuid.UUID(function_input.mcp_server_id),
-                    UserOAuthConnection.is_default,
+                oauth_connection = await _get_connection_by_workspace(
+                    db, function_input.workspace_id, function_input.mcp_server_id
                 )
-                result = await db.execute(query)
-                oauth_connection = result.scalar_one_or_none()
-
-                # If no default token found, fall back to the most recent token for this workspace and MCP server
-                if not oauth_connection:
-                    query = (
-                        select(UserOAuthConnection)
-                        .where(
-                            UserOAuthConnection.workspace_id
-                            == uuid.UUID(
-                                function_input.workspace_id
-                            ),
-                            UserOAuthConnection.mcp_server_id
-                            == uuid.UUID(
-                                function_input.mcp_server_id
-                            ),
-                        )
-                        .order_by(
-                            UserOAuthConnection.last_refreshed_at.desc().nulls_last(),
-                            UserOAuthConnection.connected_at.desc(),
-                        )
-                    )
-                    result = await db.execute(query)
-                    oauth_connection = result.scalar_one_or_none()
             else:
-                # Get the most recent OAuth token for this MCP server (any user)
-                query = (
-                    select(UserOAuthConnection)
-                    .where(
-                        UserOAuthConnection.mcp_server_id
-                        == uuid.UUID(function_input.mcp_server_id)
-                    )
-                    .order_by(
-                        UserOAuthConnection.last_refreshed_at.desc().nulls_last(),
-                        UserOAuthConnection.connected_at.desc(),
-                    )
+                oauth_connection = await _get_connection_fallback(
+                    db, function_input.mcp_server_id
                 )
-                result = await db.execute(query)
-                oauth_connection = result.scalar_one_or_none()
 
             if not oauth_connection:
                 user_context = (
@@ -491,71 +551,17 @@ async def get_oauth_token_for_mcp_server(
                 )
                 return None
 
-            # Check if token is expired or about to expire (within 5 minutes)
-            now = datetime.now(UTC).replace(tzinfo=None)
-            if (
-                oauth_connection.expires_at
-                and oauth_connection.expires_at <= now
-            ):
-                log.info(
-                    f"OAuth token expired for MCP server {function_input.mcp_server_id}, attempting refresh"
-                )
+            # Refresh token if expired
+            oauth_connection = await _refresh_token_if_expired(
+                db, oauth_connection, function_input
+            )
 
-                try:
-                    # Attempt to refresh the token using the connection's user_id
-                    refresh_user_id = (
-                        function_input.user_id
-                        or str(oauth_connection.user_id)
-                    )
-                    refresh_result = await oauth_token_refresh_and_update(
-                        GetOAuthTokenInput(
-                            user_id=refresh_user_id,
-                            mcp_server_id=function_input.mcp_server_id,
-                        )
-                    )
-
-                    if refresh_result and refresh_result.token:
-                        log.info(
-                            f"Successfully refreshed OAuth token for MCP server {function_input.mcp_server_id}"
-                        )
-                        # Get the refreshed token from database
-                        refreshed_query = select(
-                            UserOAuthConnection
-                        ).where(
-                            UserOAuthConnection.user_id
-                            == uuid.UUID(refresh_user_id),
-                            UserOAuthConnection.mcp_server_id
-                            == uuid.UUID(
-                                function_input.mcp_server_id
-                            ),
-                        )
-                        refreshed_result = await db.execute(
-                            refreshed_query
-                        )
-                        oauth_connection = (
-                            refreshed_result.scalar_one_or_none()
-                        )
-                    else:
-                        log.error(
-                            f"Failed to refresh OAuth token for MCP server {function_input.mcp_server_id}"
-                        )
-                        return None
-
-                except (
-                    ValueError,
-                    TypeError,
-                    AttributeError,
-                ) as e:
-                    log.error(
-                        f"Error refreshing OAuth token for MCP server {function_input.mcp_server_id}: {e}"
-                    )
-                    return None
+            if not oauth_connection:
+                return None
 
             # Decrypt and return the access token
-            if oauth_connection and oauth_connection.access_token:
-                return decrypt_token(
-                    oauth_connection.access_token
-                )
+            if oauth_connection.access_token:
+                return decrypt_token(oauth_connection.access_token)
 
             return None
 

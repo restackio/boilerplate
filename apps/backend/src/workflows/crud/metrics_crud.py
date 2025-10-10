@@ -66,13 +66,14 @@ class ListMetricDefinitionsWorkflow:
                 function_input=workflow_input.model_dump(),
                 start_to_close_timeout=timedelta(seconds=30),
             )
-            return {"metrics": metrics}
         except Exception as e:
             error_message = (
                 f"Error listing metric definitions: {e}"
             )
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e
+        else:
+            return {"metrics": metrics}
 
 
 @workflow.defn()
@@ -91,16 +92,17 @@ class UpdateMetricDefinitionWorkflow:
                 function_input=workflow_input.model_dump(),
                 start_to_close_timeout=timedelta(seconds=30),
             )
-            return {
-                "success": result is not None,
-                "metric": result,
-            }
         except Exception as e:
             error_message = (
                 f"Error updating metric definition: {e}"
             )
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e
+        else:
+            return {
+                "success": result is not None,
+                "metric": result,
+            }
 
 
 @workflow.defn()
@@ -119,10 +121,11 @@ class DeleteMetricDefinitionWorkflow:
                 function_input=workflow_input.model_dump(),
                 start_to_close_timeout=timedelta(seconds=30),
             )
-            return {"success": success}
         except Exception as e:
             error_message = (
                 f"Error deleting metric definition: {e}"
             )
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e
+        else:
+            return {"success": success}

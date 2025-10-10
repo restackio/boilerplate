@@ -140,7 +140,7 @@ async def get_tasks_by_metric_failure(
             task_ids=task_ids, count=len(task_ids)
         )
 
-    except Exception as e:
+    except (ValueError, TypeError, RuntimeError, AttributeError, ConnectionError, OSError) as e:
         log.error(f"Error querying tasks by metric failure: {e}")
         return TaskIdsOutput(task_ids=[], count=0)
 
@@ -222,6 +222,6 @@ async def get_tasks_by_feedback(
             task_ids=task_ids, count=len(task_ids)
         )
 
-    except Exception as e:
+    except (ValueError, TypeError, RuntimeError, AttributeError, ConnectionError, OSError) as e:
         log.error(f"Error querying tasks by feedback: {e}")
         return TaskIdsOutput(task_ids=[], count=0)

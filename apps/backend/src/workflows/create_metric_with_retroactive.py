@@ -134,7 +134,7 @@ class CreateMetricWithRetroactiveWorkflow:
             metric_id = str(metric_result["id"])
             log.info(f"Metric created: {metric_id}")
 
-        except Exception as e:
+        except (ValueError, TypeError, RuntimeError, AttributeError, ConnectionError, OSError) as e:
             error_msg = f"Error creating metric: {e}"
             log.error(error_msg)
             return CreateMetricWithRetroactiveOutput(
@@ -221,7 +221,7 @@ class CreateMetricWithRetroactiveWorkflow:
                     f"Retroactive evaluation started: {retroactive_workflow_id}"
                 )
 
-            except Exception as e:
+            except (ValueError, TypeError, RuntimeError, AttributeError, ConnectionError, OSError) as e:
                 error_msg = (
                     f"Error starting retroactive evaluation: {e}"
                 )

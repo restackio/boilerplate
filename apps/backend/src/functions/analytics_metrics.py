@@ -102,7 +102,7 @@ async def get_analytics_metrics(
 
         return apply_demo_multiplier_to_analytics(result)
 
-    except Exception as e:
+    except (ValueError, TypeError, RuntimeError, AttributeError, ConnectionError, OSError) as e:
         log.error(f"Failed to fetch analytics metrics: {e}")
         # Return partial results if available
         return result

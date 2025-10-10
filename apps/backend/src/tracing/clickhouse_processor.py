@@ -120,7 +120,7 @@ class ClickHouseTracingProcessor:
                     ],
                 )
                 log.info(f"Flushed {len(rows)} spans")
-        except Exception as e:
+        except (ValueError, TypeError, ConnectionError, OSError, AttributeError) as e:
             log.error(f"Flush error: {e}")
 
     def _calculate_duration_ms(self, span: Any) -> int:
@@ -134,7 +134,7 @@ class ClickHouseTracingProcessor:
                     span.ended_at.replace("Z", "+00:00")
                 )
                 return int((e - s).total_seconds() * 1000)
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             log.debug("Failed to parse span duration: %s", e)
         return 0
 
@@ -147,7 +147,7 @@ class ClickHouseTracingProcessor:
 
     def _extract_response_data(self, span: Any, exported: dict) -> tuple[str, str, str | None]:
         """Extract input, output, and model from response span.
-        
+
         Returns:
             Tuple of (input, output, model)
         """
@@ -219,7 +219,7 @@ class ClickHouseTracingProcessor:
 
     def _extract_trace_metadata(self) -> tuple[str | None, str | None, str | None, str | None, str | None]:
         """Extract business IDs from trace.
-        
+
         Returns:
             Tuple of (task_id, agent_id, workspace_id, temporal_agent_id, temporal_run_id)
         """
@@ -235,7 +235,7 @@ class ClickHouseTracingProcessor:
                     t.metadata.get("temporal_agent_id"),
                     t.metadata.get("temporal_run_id"),
                 )
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             log.debug("Failed to extract trace metadata: %s", e)
 
         return None, None, None, None, None

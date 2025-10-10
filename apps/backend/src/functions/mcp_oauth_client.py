@@ -369,13 +369,14 @@ async def discover_oauth_metadata(
                         log.info(
                             f"Successfully discovered OAuth metadata at: {url}"
                         )
-                        return metadata
                     except (ValueError, TypeError, KeyError) as e:
                         log.warning(
                             f"Invalid OAuth metadata at {url}: {e}"
                         )
                         last_error = e
                         continue
+                    else:
+                        return metadata
                 elif response.status_code >= http_server_error:
                     # Server error, stop trying other URLs
                     log.error(
@@ -552,7 +553,73 @@ async def oauth_parse_callback(
 
 
 @function.defn()
-async def oauth_exchange_code_for_token(  # noqa: PLR0915
+async def _prepare_token_data_with_existing_credentials(
+    function_input: ExchangeCodeForTokenInput,
+) -> tuple[dict, str | None, str | None]:
+    """Prepare token exchange data using existing client credentials from auth phase."""
+    client_secret = None
+    code_verifier = None
+
+    # Unpack client_secret and code_verifier (format: "secret|verifier")
+    if function_input.client_secret and "|" in function_input.client_secret:
+        client_secret, code_verifier = function_input.client_secret.split("|", 1)
+    else:
+        client_secret = function_input.client_secret
+
+    token_data = {
+        "grant_type": "authorization_code",
+        "code": function_input.code,
+        "redirect_uri": function_input.redirect_uri,
+        "client_id": function_input.client_id,
+        "client_secret": client_secret,
+        "resource": resource_url_from_server_url(function_input.server_url),
+    }
+
+    if code_verifier:
+        token_data["code_verifier"] = code_verifier
+        log.info("Using PKCE code_verifier for token exchange")
+
+    log.info(f"Using client credentials from authorization phase: {function_input.client_id}")
+    return (token_data, client_secret, None)
+
+
+async def _register_new_client_and_prepare_token_data(
+    function_input: ExchangeCodeForTokenInput,
+    client: httpx.AsyncClient,
+    base_url: str,
+    client_metadata: OAuthClientMetadata,
+) -> tuple[dict, str | None, str]:
+    """Register a new OAuth client and prepare token exchange data."""
+    registration_url = f"{base_url}/register"
+    registration_data = client_metadata.model_dump(
+        by_alias=True,
+        mode="json",
+        exclude_none=True,
+    )
+
+    reg_response = await client.post(registration_url, json=registration_data)
+    if reg_response.status_code not in (200, 201):
+        await reg_response.aread()
+        _raise_client_registration_failed_error(reg_response.status_code)
+
+    client_info = OAuthClientInformationFull.model_validate_json(reg_response.content)
+
+    token_data = {
+        "grant_type": "authorization_code",
+        "code": function_input.code,
+        "redirect_uri": function_input.redirect_uri,
+        "client_id": client_info.client_id,
+        "resource": resource_url_from_server_url(function_input.server_url),
+    }
+
+    if client_info.client_secret:
+        token_data["client_secret"] = client_info.client_secret
+
+    return (token_data, client_info.client_secret, client_info.client_id)
+
+
+@function.defn()
+async def oauth_exchange_code_for_token(
     function_input: ExchangeCodeForTokenInput,
 ) -> TokenExchangeResultOutput:
     """Exchange OAuth authorization code for access token using MCP SDK."""
@@ -594,94 +661,15 @@ async def oauth_exchange_code_for_token(  # noqa: PLR0915
             fallback_client_secret = None
 
             async with httpx.AsyncClient() as client:
-                # Step 2: Use client credentials and PKCE from authorization phase
-                if (
-                    function_input.client_id
-                    and function_input.client_secret
-                ):
-                    # Unpack client_secret and code_verifier (format: "secret|verifier")
-                    if "|" in function_input.client_secret:
-                        client_secret, code_verifier = (
-                            function_input.client_secret.split(
-                                "|", 1
-                            )
-                        )
-                    else:
-                        client_secret = (
-                            function_input.client_secret
-                        )
-                        code_verifier = None
-
-                    # Use the client credentials from the authorization phase
-                    token_data = {
-                        "grant_type": "authorization_code",
-                        "code": function_input.code,
-                        "redirect_uri": function_input.redirect_uri,
-                        "client_id": function_input.client_id,
-                        "client_secret": client_secret,
-                        # RFC 8707: Include resource parameter for token scoping
-                        "resource": resource_url_from_server_url(
-                            function_input.server_url
-                        ),
-                    }
-
-                    # Add PKCE code_verifier if available
-                    if code_verifier:
-                        token_data["code_verifier"] = (
-                            code_verifier
-                        )
-                        log.info(
-                            "Using PKCE code_verifier for token exchange"
-                        )
-
-                    log.info(
-                        f"Using client credentials from authorization phase: {function_input.client_id}"
+                # Step 2: Prepare token exchange data (use existing credentials or register new client)
+                if function_input.client_id and function_input.client_secret:
+                    token_data, client_secret, _ = await _prepare_token_data_with_existing_credentials(
+                        function_input
                     )
                 else:
-                    # Fallback: register a new client (this was causing the mismatch)
-                    registration_url = f"{base_url}/register"
-                    registration_data = (
-                        client_metadata.model_dump(
-                            by_alias=True,
-                            mode="json",
-                            exclude_none=True,
-                        )
+                    token_data, fallback_client_secret, fallback_client_id = await _register_new_client_and_prepare_token_data(
+                        function_input, client, base_url, client_metadata
                     )
-
-                    reg_response = await client.post(
-                        registration_url, json=registration_data
-                    )
-                    if reg_response.status_code not in (200, 201):
-                        await reg_response.aread()
-                        _raise_client_registration_failed_error(
-                            reg_response.status_code
-                        )
-
-                    client_info = OAuthClientInformationFull.model_validate_json(
-                        reg_response.content
-                    )
-
-                    # Store fallback credentials
-                    fallback_client_id = client_info.client_id
-                    fallback_client_secret = (
-                        client_info.client_secret
-                    )
-
-                    token_data = {
-                        "grant_type": "authorization_code",
-                        "code": function_input.code,
-                        "redirect_uri": function_input.redirect_uri,
-                        "client_id": client_info.client_id,
-                        # RFC 8707: Include resource parameter for token scoping
-                        "resource": resource_url_from_server_url(
-                            function_input.server_url
-                        ),
-                    }
-
-                    if client_info.client_secret:
-                        token_data["client_secret"] = (
-                            client_info.client_secret
-                        )
 
                 token_response = await client.post(
                     token_endpoint,
