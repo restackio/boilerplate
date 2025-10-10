@@ -35,8 +35,8 @@ importers:
         specifier: ^0.0.147
         version: 0.0.147
       '@restackio/react':
-        specifier: ^0.10.15
-        version: 0.10.15(@types/react@19.1.7)(react@19.1.0)
+        specifier: ^0.10.16
+        version: 0.10.16(@types/react@19.1.7)(react@19.1.0)
       '@workspace/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -1525,8 +1525,8 @@ packages:
     resolution: {integrity: sha512-ewAfBADBaEnj1sewk5UV6+UfkcK0gW+Y/DC7rMcEWjMmdyZIqQ4IoduY+FIZrExqJytWvU/NXCvR+K6/chINUw==}
     engines: {node: '>=20'}
 
-  '@restackio/react@0.10.15':
-    resolution: {integrity: sha512-Qswwu1qd3jXmNkRj2KjxokcmERU7PpOHC50VuoK1hLLmlsip2G1g+8FJsERZTvVNlLp9B23v928NmvR0wdRxeg==}
+  '@restackio/react@0.10.16':
+    resolution: {integrity: sha512-aMvF1u7eF/7HB0vEBmOtwKRvuMsylrF/1ociM1rhCjhraGiFJRL6d1IaEq+sQVDfdY4w187SJQUIkGYSiAN0+Q==}
     engines: {node: '>=20'}
     peerDependencies:
       '@types/react': ^18 || ^19
@@ -6065,7 +6065,7 @@ snapshots:
       - utf-8-validate
       - webpack-cli
 
-  '@restackio/react@0.10.15(@types/react@19.1.7)(react@19.1.0)':
+  '@restackio/react@0.10.16(@types/react@19.1.7)(react@19.1.0)':
     dependencies:
       '@temporalio/proto': 1.12.1
       '@types/react': 19.1.7
