@@ -43,7 +43,8 @@ async def query_traces_for_response(
                 " AND metadata.response_id = {response_id:String}"
             )
 
-        query = f"""
+        query = (
+            """
         SELECT
             trace_id,
             span_id,
@@ -67,10 +68,13 @@ async def query_traces_for_response(
             started_at,
             ended_at
         FROM task_traces
-        {where_clause}
+        """
+            + where_clause
+            + """
         ORDER BY started_at DESC
         LIMIT 1
         """
+        )
 
         params = {"task_id": task_id}
         if response_id:
@@ -224,7 +228,8 @@ async def query_traces_batch(
 
         where_clause = " AND ".join(where_conditions)
 
-        query = f"""
+        query = (
+            """
         SELECT
             trace_id,
             span_id,
@@ -247,11 +252,14 @@ async def query_traces_batch(
             started_at,
             ended_at
         FROM task_traces
-        WHERE {where_clause}
+        WHERE """
+            + where_clause
+            + """
         ORDER BY started_at DESC
         LIMIT {{limit:UInt32}}
         OFFSET {{offset:UInt32}}
         """
+        )
 
         params["limit"] = limit
         params["offset"] = offset

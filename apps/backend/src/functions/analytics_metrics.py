@@ -126,7 +126,8 @@ async def _get_performance_metrics(
     )
 
     # Combined query for both summary and timeseries
-    query = f"""
+    query = (
+        """
         SELECT
             -- Summary metrics
             avg(duration_ms) as avg_duration,
@@ -137,10 +138,13 @@ async def _get_performance_metrics(
             -- Timeseries grouping
             toDate(created_at) as date
         FROM task_metrics
-        WHERE metric_category = 'performance' AND {where_clause}
+        WHERE metric_category = 'performance' AND """
+        + where_clause
+        + """
         GROUP BY date
         ORDER BY date ASC
     """
+    )
 
     result = client.query(query, parameters=params)
     rows = list(result.named_results())
@@ -209,7 +213,8 @@ async def _get_quality_metrics(
     """Fetch quality metrics (summary + timeseries) in one query."""
     where_clause, params = build_filter_clause(filters)
 
-    query = f"""
+    query = (
+        """
         SELECT
             metric_name,
             toDate(created_at) as date,
@@ -217,10 +222,13 @@ async def _get_quality_metrics(
             avg(score) as avg_score,
             count(*) as eval_count
         FROM task_metrics
-        WHERE metric_category = 'quality' AND {where_clause}
+        WHERE metric_category = 'quality' AND """
+        + where_clause
+        + """
         GROUP BY metric_name, date
         ORDER BY metric_name, date ASC
     """
+    )
 
     result = client.query(query, parameters=params)
     rows = list(result.named_results())
@@ -292,17 +300,20 @@ async def _get_overview_metrics(
         filters, include_version=True
     )
 
-    query = f"""
+    query = (
+        """
         SELECT
             toDate(created_at) as date,
             count(*) as task_count,
             countIf(status = 'completed') / count(*) as success_rate
         FROM task_metrics
-        WHERE metric_category = 'performance' AND {where_clause}
+        WHERE metric_category = 'performance' AND """
+        + where_clause
+        + """
         GROUP BY date
         ORDER BY date ASC
     """
-
+  
     result = client.query(query, parameters=params)
 
     timeseries = [
@@ -338,13 +349,16 @@ async def _get_feedback_metrics(
     feedback_where_filter += " AND metric_category = 'feedback'"
 
     # Combined timeseries query with task counts and feedback
-    timeseries_query = f"""
+    timeseries_query = (
+        """
         WITH task_counts AS (
             SELECT
                 toDate(created_at) as date,
                 count(DISTINCT task_id) as total_tasks
             FROM task_metrics
-            WHERE metric_category = 'performance' AND {task_where_filter}
+            WHERE metric_category = 'performance' AND """
+        + task_where_filter
+        + """
             GROUP BY date
         ),
         feedback_counts AS (
@@ -355,7 +369,9 @@ async def _get_feedback_metrics(
                 count() as feedback_count,
                 count(DISTINCT task_id) as tasks_with_feedback
             FROM task_metrics
-            WHERE {feedback_where_filter}
+            WHERE """
+        + feedback_where_filter
+        + """
             GROUP BY date
         )
         SELECT
@@ -369,6 +385,7 @@ async def _get_feedback_metrics(
         FULL OUTER JOIN feedback_counts f ON t.date = f.date
         ORDER BY date ASC
     """
+    )
 
     # Merge params from both filters
     merged_params = {**task_params, **feedback_params}
@@ -399,17 +416,21 @@ async def _get_feedback_metrics(
     ]
 
     # Get detailed feedback entries (last 50)
-    detailed_query = f"""
+    detailed_query = (
+        """
         SELECT
             task_id,
             passed as is_positive,
             reasoning as comment,
             created_at
         FROM task_metrics
-        WHERE {feedback_where_filter}
+        WHERE """
+        + feedback_where_filter
+        + """
         ORDER BY created_at DESC
         LIMIT 50
     """
+    )
 
     detailed_result = client.query(
         detailed_query, parameters=feedback_params

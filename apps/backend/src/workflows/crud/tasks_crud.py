@@ -416,8 +416,8 @@ class PlaygroundCreateDualTasksWorkflow:
 
             # Fetch the completed tasks to get output and performance data
             (
-                draft_task_details,
-                comparison_task_details,
+                _draft_task_details,
+                _comparison_task_details,
             ) = await asyncio.gather(
                 workflow.step(
                     function=tasks_get_by_id,

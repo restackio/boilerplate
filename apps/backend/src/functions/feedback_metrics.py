@@ -226,7 +226,8 @@ async def get_feedback_analytics(
         where_clause = " AND ".join(where_clauses)
 
         # Query for timeseries data (daily aggregation)
-        timeseries_query = f"""
+        timeseries_query = (
+            """
             SELECT
                 toDate(created_at) as date,
                 countIf(passed = 1) as positive_count,
@@ -234,10 +235,13 @@ async def get_feedback_analytics(
                 count() as total_count,
                 if(count() > 0, (countIf(passed = 0) * 100.0 / count()), 0) as negative_percentage
             FROM task_metrics
-            WHERE {where_clause}
+            WHERE """
+            + where_clause
+            + """
             GROUP BY date
             ORDER BY date ASC
         """
+        )
 
         parameters = {
             "workspace_id": input_data.workspace_id,
@@ -263,7 +267,8 @@ async def get_feedback_analytics(
         ]
 
         # Query for summary statistics
-        summary_query = f"""
+        summary_query = (
+            """
             SELECT
                 countIf(passed = 1) as total_positive,
                 countIf(passed = 0) as total_negative,
@@ -271,8 +276,11 @@ async def get_feedback_analytics(
                 if(count() > 0, (countIf(passed = 0) * 100.0 / count()), 0) as negative_percentage,
                 if(count() > 0, (countIf(passed = 1) * 100.0 / count()), 0) as positive_percentage
             FROM task_metrics
-            WHERE {where_clause}
+            WHERE """
+            + where_clause
+            + """
         """
+        )
 
         summary_result = client.query(
             summary_query, parameters=parameters
@@ -357,7 +365,8 @@ async def get_detailed_feedbacks(
 
         where_clause = " AND ".join(where_clauses)
 
-        query = f"""
+        query = (
+            """
             SELECT
                 task_id,
                 agent_id,
@@ -370,10 +379,13 @@ async def get_detailed_feedbacks(
                 formatDateTime(created_at, '%Y-%m-%dT%H:%i:%S') as created_at_formatted,
                 created_at
             FROM task_metrics
-            WHERE {where_clause}
+            WHERE """
+            + where_clause
+            + """
             ORDER BY created_at DESC
             LIMIT 1000
         """
+        )
 
         parameters = {
             "workspace_id": input_data.workspace_id,

@@ -144,14 +144,20 @@ async def _get_clickhouse_stats(
 
         # Get stats for this dataset
         # table_name is validated above to contain only alphanumeric and underscores
-        stats_query = f"""
+        stats_query = (
+            """
         SELECT
             max(ingested_at) as last_updated_at,
             uniq(event_name) as unique_event_names,
             uniq(agent_id) as unique_agents
-        FROM {table_name}
-        WHERE {where_clause}
+        FROM """
+            + table_name
+            + """
+        WHERE """
+            + where_clause
+            + """
         """
+        )
 
         query_result = client.query(stats_query)
         if query_result.result_rows:
@@ -590,7 +596,8 @@ async def _query_clickhouse_events(
 
         # Query for events
         # table_name is validated above to contain only alphanumeric and underscores
-        events_query = f"""
+        events_query = (
+            """
         SELECT
             id,
             agent_id,
@@ -600,14 +607,28 @@ async def _query_clickhouse_events(
             transformed_data,
             tags,
             event_timestamp
-        FROM {table_name}
-        WHERE {where_clause}
+        FROM """
+            + table_name
+            + """
+        WHERE """
+            + where_clause
+            + """
         ORDER BY event_timestamp DESC
-        LIMIT {function_input.limit} OFFSET {function_input.offset}
+        LIMIT """
+            + str(function_input.limit)
+            + """ OFFSET """
+            + str(function_input.offset)
+            + """
         """
+        )
 
         # Count total - table name already validated above
-        count_query = f"SELECT count() FROM {table_name} WHERE {where_clause}"  # noqa: S608
+        count_query = (
+            "SELECT count() FROM "
+            + table_name
+            + " WHERE "
+            + where_clause
+        )  # noqa: S608
 
         events_result = client.query(events_query)
         count_result = client.query(count_query)

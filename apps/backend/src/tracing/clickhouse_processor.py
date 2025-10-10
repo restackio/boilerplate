@@ -133,12 +133,19 @@ class ClickHouseTracingProcessor:
         """Calculate span duration in milliseconds."""
         try:
             if span.started_at and span.ended_at:
-                s = datetime.fromisoformat(
+                # Handle both "Z" and "+00:00" timezone formats
+                start_time = (
                     span.started_at.replace("Z", "+00:00")
+                    if "Z" in span.started_at
+                    else span.started_at
                 )
-                e = datetime.fromisoformat(
+                end_time = (
                     span.ended_at.replace("Z", "+00:00")
+                    if "Z" in span.ended_at
+                    else span.ended_at
                 )
+                s = datetime.fromisoformat(start_time)
+                e = datetime.fromisoformat(end_time)
                 return int((e - s).total_seconds() * 1000)
         except (
             ValueError,
