@@ -274,13 +274,17 @@ class TaskMetricsWorkflow:
                     log.info(
                         f"Running {len(eval_tasks)} metric evaluations in parallel"
                     )
-                    eval_results = await asyncio.gather(*eval_tasks, return_exceptions=True)
+                    eval_results = await asyncio.gather(
+                        *eval_tasks, return_exceptions=True
+                    )
 
                     # Filter out None results and exceptions (failed evaluations)
                     quality_results = []
                     for r in eval_results:
                         if isinstance(r, Exception):
-                            log.error(f"Metric evaluation failed: {r}")
+                            log.error(
+                                f"Metric evaluation failed: {r}"
+                            )
                         elif r is not None:
                             quality_results.append(r)
                     log.info(

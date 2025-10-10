@@ -55,7 +55,9 @@ class ClickHouseListDatabases:
 
     @workflow.run
     async def run(
-        self, workflow_input: ClickHouseListDatabasesInput | None = None
+        self,
+        workflow_input: ClickHouseListDatabasesInput
+        | None = None,
     ) -> ClickHouseListDatabasesOutput:
         log.info("ClickHouseListDatabases started")
         try:

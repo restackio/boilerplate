@@ -88,9 +88,7 @@ async def get_tasks_by_metric_failure(
 
         # Optional filters
         if function_input.agent_id:
-            where_conditions.append(
-                "agent_id = {agent_id:UUID}"
-            )
+            where_conditions.append("agent_id = {agent_id:UUID}")
 
         if function_input.version:
             where_conditions.append(
@@ -173,9 +171,7 @@ async def get_tasks_by_feedback(
 
         # Optional filters
         if function_input.agent_id:
-            where_conditions.append(
-                "agent_id = {agent_id:UUID}"
-            )
+            where_conditions.append("agent_id = {agent_id:UUID}")
 
         if function_input.version:
             where_conditions.append(

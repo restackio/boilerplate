@@ -164,12 +164,15 @@ class RetroactiveMetrics:
                 spans_to_process = trace_batch["spans"]
                 if workflow_input.sample_percentage is not None:
                     # Calculate step size: if sample_percentage=0.1 (10%), step=10 (take every 10th)
-                    step = int(1 / workflow_input.sample_percentage)
+                    step = int(
+                        1 / workflow_input.sample_percentage
+                    )
                     step = max(step, 1)
 
                     # Take every Nth span deterministically
                     spans_to_process = [
-                        span for i, span in enumerate(spans_to_process)
+                        span
+                        for i, span in enumerate(spans_to_process)
                         if i % step == 0
                     ]
                     log.info(
@@ -203,11 +206,13 @@ class RetroactiveMetrics:
                             trace_metadata=trace_metadata,
                         )
                     elif metric_type == "python_code":
-                        task = self._evaluate_and_save_python_code(
-                            workflow_input=workflow_input,
-                            metric_def=metric_def,
-                            span=span,
-                            trace_metadata=trace_metadata,
+                        task = (
+                            self._evaluate_and_save_python_code(
+                                workflow_input=workflow_input,
+                                metric_def=metric_def,
+                                span=span,
+                                trace_metadata=trace_metadata,
+                            )
                         )
                     elif metric_type == "formula":
                         task = self._evaluate_and_save_formula(
@@ -226,13 +231,19 @@ class RetroactiveMetrics:
 
                 # Run all evaluations in parallel (return_exceptions to not fail on single errors)
                 if eval_tasks:
-                    log.info(f"Running {len(eval_tasks)} evaluations in parallel")
-                    results = await asyncio.gather(*eval_tasks, return_exceptions=True)
+                    log.info(
+                        f"Running {len(eval_tasks)} evaluations in parallel"
+                    )
+                    results = await asyncio.gather(
+                        *eval_tasks, return_exceptions=True
+                    )
 
                     # Count successes/failures
                     for result in results:
                         if isinstance(result, Exception):
-                            log.error(f"Evaluation failed: {result}")
+                            log.error(
+                                f"Evaluation failed: {result}"
+                            )
                             total_failed += 1
                         elif result:
                             total_completed += 1
@@ -310,7 +321,9 @@ class RetroactiveMetrics:
             )
             return True
         except Exception as e:
-            log.error(f"Failed to evaluate and save LLM judge: {e}")
+            log.error(
+                f"Failed to evaluate and save LLM judge: {e}"
+            )
             return False
 
     async def _evaluate_and_save_python_code(
@@ -364,7 +377,9 @@ class RetroactiveMetrics:
             )
             return True
         except Exception as e:
-            log.error(f"Failed to evaluate and save Python code: {e}")
+            log.error(
+                f"Failed to evaluate and save Python code: {e}"
+            )
             return False
 
     async def _evaluate_and_save_formula(

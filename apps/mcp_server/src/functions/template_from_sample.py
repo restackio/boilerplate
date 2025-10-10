@@ -79,7 +79,10 @@ TEMPLATE_CONFIGS = {
     "linkedin_profiles_post": {
         "sample": LINKEDIN_PROFILES_POST_SAMPLE
     },
-    "kaiser_policy": {"sample": KAISER_POLICY_SAMPLE, "model": "gpt-4o-mini"},
+    "kaiser_policy": {
+        "sample": KAISER_POLICY_SAMPLE,
+        "model": "gpt-4o-mini",
+    },
 }
 
 # Generate the integration templates using the factory function
