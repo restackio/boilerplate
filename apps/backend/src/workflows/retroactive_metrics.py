@@ -84,25 +84,43 @@ class RetroactiveMetrics:
                 start_to_close_timeout=timedelta(seconds=30),
             )
 
-            if not metric_result or not metric_result.get("metric"):
-                log.error(f"Metric {workflow_input.metric_definition_id} not found")
+            if not metric_result or not metric_result.get(
+                "metric"
+            ):
+                log.error(
+                    f"Metric {workflow_input.metric_definition_id} not found"
+                )
                 return None
 
             metric_def = metric_result["metric"]
-            log.info(f"Found metric: {metric_def['name']} ({metric_def['metric_type']})")
+            log.info(
+                f"Found metric: {metric_def['name']} ({metric_def['metric_type']})"
+            )
 
-        except (ValueError, TypeError, RuntimeError, AttributeError) as e:
+        except (
+            ValueError,
+            TypeError,
+            RuntimeError,
+            AttributeError,
+        ) as e:
             log.error(f"Failed to fetch metric definition: {e}")
             return None
         else:
             return metric_def
 
     def _should_stop_batch_processing(
-        self, workflow_input: RetroactiveMetricsInput, total_processed: int
+        self,
+        workflow_input: RetroactiveMetricsInput,
+        total_processed: int,
     ) -> bool:
         """Check if batch processing should stop."""
-        if workflow_input.max_traces and total_processed >= workflow_input.max_traces:
-            log.info(f"Reached max_traces limit: {workflow_input.max_traces}")
+        if (
+            workflow_input.max_traces
+            and total_processed >= workflow_input.max_traces
+        ):
+            log.info(
+                f"Reached max_traces limit: {workflow_input.max_traces}"
+            )
             return True
         return False
 
@@ -114,7 +132,9 @@ class RetroactiveMetrics:
             return spans
 
         step = max(int(1 / workflow_input.sample_percentage), 1)
-        sampled = [span for i, span in enumerate(spans) if i % step == 0]
+        sampled = [
+            span for i, span in enumerate(spans) if i % step == 0
+        ]
         log.info(
             f"Deterministic sampling (every {step}th): {len(sampled)}/{len(spans)} traces"
         )
@@ -146,7 +166,9 @@ class RetroactiveMetrics:
             return self._evaluate_and_save_formula(
                 workflow_input, metric_def, span, trace_metadata
             )
-        log.warning(f"Unknown metric type: {metric_type}, skipping")
+        log.warning(
+            f"Unknown metric type: {metric_type}, skipping"
+        )
         return None
 
     async def _process_batch(
@@ -189,7 +211,9 @@ class RetroactiveMetrics:
                 continue
 
             processed_count += 1
-            task = await self._create_evaluation_task(workflow_input, metric_def, span)
+            task = await self._create_evaluation_task(
+                workflow_input, metric_def, span
+            )
             if task:
                 eval_tasks.append(task)
 
@@ -197,8 +221,12 @@ class RetroactiveMetrics:
         completed = 0
         failed = 0
         if eval_tasks:
-            log.info(f"Running {len(eval_tasks)} evaluations in parallel")
-            results = await asyncio.gather(*eval_tasks, return_exceptions=True)
+            log.info(
+                f"Running {len(eval_tasks)} evaluations in parallel"
+            )
+            results = await asyncio.gather(
+                *eval_tasks, return_exceptions=True
+            )
 
             for result in results:
                 if isinstance(result, Exception):
@@ -209,7 +237,9 @@ class RetroactiveMetrics:
                 else:
                     failed += 1
 
-            log.info(f"Batch complete: {completed} succeeded, {failed} failed")
+            log.info(
+                f"Batch complete: {completed} succeeded, {failed} failed"
+            )
 
         has_more = trace_batch.get("has_more", False)
         return (processed_count, completed, failed, has_more)
@@ -223,7 +253,9 @@ class RetroactiveMetrics:
         )
 
         # Step 1: Fetch metric definition
-        metric_def = await self._fetch_metric_definition(workflow_input)
+        metric_def = await self._fetch_metric_definition(
+            workflow_input
+        )
         if not metric_def:
             error_msg = "Failed to fetch metric definition"
             return RetroactiveMetricsOutput(
@@ -243,11 +275,18 @@ class RetroactiveMetrics:
         errors = []
 
         while True:
-            if self._should_stop_batch_processing(workflow_input, total_processed):
+            if self._should_stop_batch_processing(
+                workflow_input, total_processed
+            ):
                 break
 
             try:
-                processed, completed, failed, has_more = await self._process_batch(
+                (
+                    processed,
+                    completed,
+                    failed,
+                    has_more,
+                ) = await self._process_batch(
                     workflow_input, metric_def, offset
                 )
 
@@ -263,7 +302,12 @@ class RetroactiveMetrics:
                 if not has_more:
                     break
 
-            except (ValueError, TypeError, RuntimeError, AttributeError) as e:
+            except (
+                ValueError,
+                TypeError,
+                RuntimeError,
+                AttributeError,
+            ) as e:
                 error_msg = f"Error processing batch at offset {offset}: {e}"
                 log.error(error_msg)
                 errors.append(error_msg)
@@ -322,7 +366,12 @@ class RetroactiveMetrics:
                 },
                 start_to_close_timeout=timedelta(seconds=30),
             )
-        except (ValueError, TypeError, RuntimeError, AttributeError) as e:
+        except (
+            ValueError,
+            TypeError,
+            RuntimeError,
+            AttributeError,
+        ) as e:
             log.error(
                 f"Failed to evaluate and save LLM judge: {e}"
             )
@@ -379,7 +428,12 @@ class RetroactiveMetrics:
                 },
                 start_to_close_timeout=timedelta(seconds=30),
             )
-        except (ValueError, TypeError, RuntimeError, AttributeError) as e:
+        except (
+            ValueError,
+            TypeError,
+            RuntimeError,
+            AttributeError,
+        ) as e:
             log.error(
                 f"Failed to evaluate and save Python code: {e}"
             )
@@ -434,7 +488,12 @@ class RetroactiveMetrics:
                 },
                 start_to_close_timeout=timedelta(seconds=30),
             )
-        except (ValueError, TypeError, RuntimeError, AttributeError) as e:
+        except (
+            ValueError,
+            TypeError,
+            RuntimeError,
+            AttributeError,
+        ) as e:
             log.error(f"Failed to evaluate and save formula: {e}")
             return False
         else:

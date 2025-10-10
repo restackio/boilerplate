@@ -176,7 +176,14 @@ Please evaluate and respond in JSON format:
             "eval_cost_usd": cost_usd,
         }
 
-    except (ValueError, TypeError, RuntimeError, OSError, ConnectionError, AttributeError) as e:
+    except (
+        ValueError,
+        TypeError,
+        RuntimeError,
+        OSError,
+        ConnectionError,
+        AttributeError,
+    ) as e:
         log.error(
             f"LLM judge evaluation failed for metric {input_data.metric_definition['name']}: {e}",
             exc_info=True,
@@ -276,7 +283,14 @@ async def evaluate_python_code_metric(
             "eval_cost_usd": 0.0,  # No cost for local execution
         }
 
-    except (ValueError, TypeError, RuntimeError, NameError, SyntaxError, AttributeError) as e:
+    except (
+        ValueError,
+        TypeError,
+        RuntimeError,
+        NameError,
+        SyntaxError,
+        AttributeError,
+    ) as e:
         log.error(f"Python code evaluation failed: {e}")
         return None
 
@@ -324,7 +338,15 @@ async def evaluate_formula_metric(
             # Security: eval is sandboxed with disabled __builtins__ for user-defined formulas
             result = eval(formula, {"__builtins__": {}}, context)  # noqa: S307
             passed = bool(result)
-        except (ValueError, TypeError, RuntimeError, NameError, SyntaxError, ZeroDivisionError, AttributeError) as e:
+        except (
+            ValueError,
+            TypeError,
+            RuntimeError,
+            NameError,
+            SyntaxError,
+            ZeroDivisionError,
+            AttributeError,
+        ) as e:
             log.error(f"Formula evaluation failed: {e}")
             return None
 
@@ -348,7 +370,15 @@ async def evaluate_formula_metric(
             "eval_cost_usd": 0.0,  # No cost for formula evaluation
         }
 
-    except (ValueError, TypeError, RuntimeError, NameError, SyntaxError, ZeroDivisionError, AttributeError) as e:
+    except (
+        ValueError,
+        TypeError,
+        RuntimeError,
+        NameError,
+        SyntaxError,
+        ZeroDivisionError,
+        AttributeError,
+    ) as e:
         log.error(f"Formula evaluation failed: {e}")
         return None
 

@@ -73,7 +73,14 @@ class GetAnalyticsMetrics:
                     metric_definitions, result["quality"]
                 )
 
-        except (ValueError, TypeError, RuntimeError, AttributeError, ConnectionError, OSError) as e:
+        except (
+            ValueError,
+            TypeError,
+            RuntimeError,
+            AttributeError,
+            ConnectionError,
+            OSError,
+        ) as e:
             error_message = f"Error fetching analytics: {e}"
             log.error(error_message)
             return {

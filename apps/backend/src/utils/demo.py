@@ -88,48 +88,71 @@ def apply_demo_multiplier_to_timeseries(
 
 def _enhance_overview_section(enhanced: dict) -> None:
     """Enhance overview section with demo data."""
-    if "overview" in enhanced and "timeseries" in enhanced["overview"]:
-        enhanced["overview"]["timeseries"] = apply_demo_multiplier_to_timeseries(
-            enhanced["overview"]["timeseries"],
-            {"taskCount": 100},  # Base 100 tasks per day
+    if (
+        "overview" in enhanced
+        and "timeseries" in enhanced["overview"]
+    ):
+        enhanced["overview"]["timeseries"] = (
+            apply_demo_multiplier_to_timeseries(
+                enhanced["overview"]["timeseries"],
+                {"taskCount": 100},  # Base 100 tasks per day
+            )
         )
 
 
 def _enhance_performance_section(enhanced: dict) -> None:
     """Enhance performance section with demo data."""
-    if "performance" in enhanced and "summary" in enhanced["performance"]:
+    if (
+        "performance" in enhanced
+        and "summary" in enhanced["performance"]
+    ):
         summary = enhanced["performance"]["summary"]
-        summary["taskCount"] = summary.get("taskCount", 0) + (100 * DEMO_MULTIPLIER)
+        summary["taskCount"] = summary.get("taskCount", 0) + (
+            100 * DEMO_MULTIPLIER
+        )
 
 
 def _enhance_feedback_section(enhanced: dict) -> None:
     """Enhance feedback section with demo data."""
-    if "feedback" in enhanced and "timeseries" in enhanced["feedback"]:
-        enhanced["feedback"]["timeseries"] = apply_demo_multiplier_to_timeseries(
-            enhanced["feedback"]["timeseries"],
-            {
-                "totalTasks": 100,
-                "tasksWithFeedback": 25,
-                "positiveCount": 20,
-                "negativeCount": 5,
-                "feedbackCount": 25,
-            },
+    if (
+        "feedback" in enhanced
+        and "timeseries" in enhanced["feedback"]
+    ):
+        enhanced["feedback"]["timeseries"] = (
+            apply_demo_multiplier_to_timeseries(
+                enhanced["feedback"]["timeseries"],
+                {
+                    "totalTasks": 100,
+                    "tasksWithFeedback": 25,
+                    "positiveCount": 20,
+                    "negativeCount": 5,
+                    "feedbackCount": 25,
+                },
+            )
         )
 
 
 def _enhance_quality_section(enhanced: dict) -> None:
     """Enhance quality section with demo data."""
-    if "quality" not in enhanced or "summary" not in enhanced["quality"]:
+    if (
+        "quality" not in enhanced
+        or "summary" not in enhanced["quality"]
+    ):
         return
 
     enhanced_summary = []
     for metric in enhanced["quality"]["summary"]:
         enhanced_metric = dict(metric)
 
-        if "evaluationCount" in enhanced_metric and enhanced_metric["evaluationCount"] > 0:
-            enhanced_metric["evaluationCount"] = (
-                enhanced_metric["evaluationCount"]
-                + (DEMO_BASE_ANALYTICS["quality_evaluations"] * DEMO_MULTIPLIER)
+        if (
+            "evaluationCount" in enhanced_metric
+            and enhanced_metric["evaluationCount"] > 0
+        ):
+            enhanced_metric["evaluationCount"] = enhanced_metric[
+                "evaluationCount"
+            ] + (
+                DEMO_BASE_ANALYTICS["quality_evaluations"]
+                * DEMO_MULTIPLIER
             )
 
         enhanced_summary.append(enhanced_metric)

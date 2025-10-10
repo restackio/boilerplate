@@ -206,9 +206,7 @@ async def tasks_read(
                     temporal_parent_agent_id=task.temporal_parent_agent_id,
                     # Schedule-related fields
                     schedule_spec=task.schedule_spec,
-                    schedule_task_id=str(
-                        task.schedule_task_id
-                    )
+                    schedule_task_id=str(task.schedule_task_id)
                     if task.schedule_task_id
                     else None,
                     is_scheduled=task.is_scheduled,
@@ -675,9 +673,7 @@ async def tasks_get_by_status(
                     temporal_parent_agent_id=task.temporal_parent_agent_id,
                     # Schedule-related fields
                     schedule_spec=task.schedule_spec,
-                    schedule_task_id=str(
-                        task.schedule_task_id
-                    )
+                    schedule_task_id=str(task.schedule_task_id)
                     if task.schedule_task_id
                     else None,
                     is_scheduled=task.is_scheduled,

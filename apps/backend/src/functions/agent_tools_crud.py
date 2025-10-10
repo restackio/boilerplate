@@ -250,7 +250,9 @@ class AgentMcpToolAvailableListOutput(BaseModel):
     error: str | None = None
 
 
-async def _load_mcp_servers(db: Any, mcp_ids: list) -> dict[str, McpServer]:
+async def _load_mcp_servers(
+    db: Any, mcp_ids: list
+) -> dict[str, McpServer]:
     """Load MCP servers by IDs and return as a map."""
     if not mcp_ids:
         return {}
@@ -281,14 +283,20 @@ def _init_mcp_server_config(mcp_server: McpServer) -> dict:
     }
 
 
-def _add_tool_to_server_config(server_config: dict, tool_name: str, *, require_approval: bool) -> None:
+def _add_tool_to_server_config(
+    server_config: dict, tool_name: str, *, require_approval: bool
+) -> None:
     """Add a tool to server configuration with approval settings."""
     if tool_name not in server_config["allowed_tools"]:
         server_config["allowed_tools"].append(tool_name)
-    server_config["tools_approval"][tool_name] = require_approval or False
+    server_config["tools_approval"][tool_name] = (
+        require_approval or False
+    )
 
 
-def _group_mcp_tools_by_server(rows: list, mcp_map: dict[str, McpServer]) -> dict[str, dict]:
+def _group_mcp_tools_by_server(
+    rows: list, mcp_map: dict[str, McpServer]
+) -> dict[str, dict]:
     """Group MCP tools by their server."""
     mcp_servers_config: dict[str, dict] = {}
 
@@ -303,7 +311,9 @@ def _group_mcp_tools_by_server(rows: list, mcp_map: dict[str, McpServer]) -> dic
         server_key = str(r.mcp_server_id)
 
         if server_key not in mcp_servers_config:
-            mcp_servers_config[server_key] = _init_mcp_server_config(ms)
+            mcp_servers_config[server_key] = (
+                _init_mcp_server_config(ms)
+            )
 
         # Add tool(s) to this server's configuration
         if r.tool_name:
@@ -345,7 +355,9 @@ async def _create_mcp_tool_configs(
             "type": server_config["type"],
             "server_label": server_config["server_label"],
             "server_url": server_config["server_url"],
-            "server_description": server_config["server_description"],
+            "server_description": server_config[
+                "server_description"
+            ],
             "headers": server_config["headers"],
             "allowed_tools": server_config["allowed_tools"],
             "require_approval": _create_granular_require_approval(
@@ -355,7 +367,11 @@ async def _create_mcp_tool_configs(
 
         if oauth_token:
             tool_obj["authorization"] = oauth_token
-            user_context = f"user {user_id}" if user_id else "most recent token"
+            user_context = (
+                f"user {user_id}"
+                if user_id
+                else "most recent token"
+            )
             log.info(
                 f"Added OAuth authorization for MCP server {ms.server_label} using {user_context}"
             )
@@ -391,7 +407,9 @@ async def agent_tools_read_by_agent(
         try:
             # Fetch agent tools from database
             agent_uuid = uuid.UUID(function_input.agent_id)
-            q = select(AgentTool).where(AgentTool.agent_id == agent_uuid)
+            q = select(AgentTool).where(
+                AgentTool.agent_id == agent_uuid
+            )
             res = await db.execute(q)
             rows = res.scalars().all()
 
@@ -404,7 +422,9 @@ async def agent_tools_read_by_agent(
             mcp_map = await _load_mcp_servers(db, mcp_ids)
 
             # Group MCP tools by server with approval settings
-            mcp_servers_config = _group_mcp_tools_by_server(rows, mcp_map)
+            mcp_servers_config = _group_mcp_tools_by_server(
+                rows, mcp_map
+            )
 
             # Create MCP tool configurations with OAuth
             tools = await _create_mcp_tool_configs(

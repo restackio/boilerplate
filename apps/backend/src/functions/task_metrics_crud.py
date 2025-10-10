@@ -104,7 +104,14 @@ async def get_task_metrics_clickhouse(
             f"Found {len(performance_metrics)} performance + {len(quality_metrics)} quality metrics for task {task_id}"
         )
 
-    except (ValueError, TypeError, RuntimeError, AttributeError, ConnectionError, OSError) as e:
+    except (
+        ValueError,
+        TypeError,
+        RuntimeError,
+        AttributeError,
+        ConnectionError,
+        OSError,
+    ) as e:
         log.error(
             f"Failed to query ClickHouse for task metrics: {e}"
         )

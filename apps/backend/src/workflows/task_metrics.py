@@ -18,6 +18,9 @@ with import_functions():
         build_performance_data_dict,
         create_metric_evaluation_task,
     )
+    from src.functions.traces_query import (
+        query_traces_for_response,
+    )
 
 
 @dataclass
@@ -99,10 +102,6 @@ class TaskMetricsWorkflow:
     ) -> dict | None:
         """Query traces for this response. Returns trace_result or None if not found."""
         try:
-            from src.functions.traces_query import (
-                query_traces_for_response,
-            )
-
             trace_result = await workflow.step(
                 function=query_traces_for_response,
                 function_input={
@@ -117,16 +116,25 @@ class TaskMetricsWorkflow:
                 )
                 return None
 
-            log.info(f"Found trace {trace_result['trace_id']} for performance metrics")
+            log.info(
+                f"Found trace {trace_result['trace_id']} for performance metrics"
+            )
 
-        except (ValueError, TypeError, RuntimeError, AttributeError) as e:
+        except (
+            ValueError,
+            TypeError,
+            RuntimeError,
+            AttributeError,
+        ) as e:
             log.error(f"Error querying traces: {e}")
             return None
         else:
             return trace_result
 
     async def _save_performance_metrics(
-        self, workflow_input: TaskMetricsInput, trace_result: dict | None
+        self,
+        workflow_input: TaskMetricsInput,
+        trace_result: dict | None,
     ) -> tuple[bool, list[str]]:
         """Save performance metrics. Returns (success, errors)."""
         errors = []
@@ -160,7 +168,9 @@ class TaskMetricsWorkflow:
                 log.info("Performance metrics saved from traces")
             else:
                 # Fallback to workflow input data
-                log.warning("No traces found, using workflow input for performance metrics (legacy path)")
+                log.warning(
+                    "No traces found, using workflow input for performance metrics (legacy path)"
+                )
                 await workflow.step(
                     function=ingest_performance_metrics,
                     function_input={
@@ -181,8 +191,15 @@ class TaskMetricsWorkflow:
                         "task_output": workflow_input.task_output,
                     },
                 )
-                log.info("Performance metrics saved from workflow input (legacy)")
-        except (ValueError, TypeError, RuntimeError, AttributeError) as e:
+                log.info(
+                    "Performance metrics saved from workflow input (legacy)"
+                )
+        except (
+            ValueError,
+            TypeError,
+            RuntimeError,
+            AttributeError,
+        ) as e:
             log.error(f"Failed to save performance metrics: {e}")
             errors.append(f"Performance save error: {e!s}")
             return (False, errors)
@@ -190,7 +207,9 @@ class TaskMetricsWorkflow:
             return (True, errors)
 
     def _prepare_evaluation_data(
-        self, workflow_input: TaskMetricsInput, trace_result: dict | None
+        self,
+        workflow_input: TaskMetricsInput,
+        trace_result: dict | None,
     ) -> tuple[dict, str, str]:
         """Prepare data for quality evaluation. Returns (performance_data, task_input, task_output)."""
         if trace_result and trace_result["found"]:
@@ -201,7 +220,11 @@ class TaskMetricsWorkflow:
                 output_tokens=perf["output_tokens"],
                 status=workflow_input.status,
             )
-            return (performance_data, perf["input"], perf["output"])
+            return (
+                performance_data,
+                perf["input"],
+                perf["output"],
+            )
         # Fallback to workflow input
         performance_data = build_performance_data_dict(
             duration_ms=workflow_input.duration_ms,
@@ -209,15 +232,24 @@ class TaskMetricsWorkflow:
             output_tokens=workflow_input.output_tokens,
             status=workflow_input.status,
         )
-        return (performance_data, workflow_input.task_input, workflow_input.task_output)
+        return (
+            performance_data,
+            workflow_input.task_input,
+            workflow_input.task_output,
+        )
 
     async def _run_metric_evaluations(
-        self, metrics: list, workflow_input: TaskMetricsInput, trace_result: dict | None
+        self,
+        metrics: list,
+        workflow_input: TaskMetricsInput,
+        trace_result: dict | None,
     ) -> list:
         """Run metric evaluations in parallel and return results."""
         # Prepare evaluation data
-        performance_data, task_input, task_output = self._prepare_evaluation_data(
-            workflow_input, trace_result
+        performance_data, task_input, task_output = (
+            self._prepare_evaluation_data(
+                workflow_input, trace_result
+            )
         )
 
         # Create evaluation tasks
@@ -233,8 +265,12 @@ class TaskMetricsWorkflow:
             eval_tasks.append(task)
 
         # Run all evaluations in parallel
-        log.info(f"Running {len(eval_tasks)} metric evaluations in parallel")
-        eval_results = await asyncio.gather(*eval_tasks, return_exceptions=True)
+        log.info(
+            f"Running {len(eval_tasks)} metric evaluations in parallel"
+        )
+        eval_results = await asyncio.gather(
+            *eval_tasks, return_exceptions=True
+        )
 
         # Filter out exceptions
         quality_results = []
@@ -250,7 +286,9 @@ class TaskMetricsWorkflow:
         return quality_results
 
     async def _evaluate_and_save_quality_metrics(
-        self, workflow_input: TaskMetricsInput, trace_result: dict | None
+        self,
+        workflow_input: TaskMetricsInput,
+        trace_result: dict | None,
     ) -> tuple[list, list[str]]:
         """Evaluate and save quality metrics. Returns (quality_results, errors)."""
         errors = []
@@ -276,7 +314,9 @@ class TaskMetricsWorkflow:
                 log.info("No active metrics found for workspace")
                 return (quality_results, errors)
 
-            log.info(f"Found {len(metrics)} active metrics to evaluate")
+            log.info(
+                f"Found {len(metrics)} active metrics to evaluate"
+            )
 
             # Run evaluations
             quality_results = await self._run_metric_evaluations(
@@ -303,9 +343,16 @@ class TaskMetricsWorkflow:
                         "message_count": workflow_input.message_count,
                     },
                 )
-                log.info(f"Quality metrics saved: {len(quality_results)} results")
+                log.info(
+                    f"Quality metrics saved: {len(quality_results)} results"
+                )
 
-        except (ValueError, TypeError, RuntimeError, AttributeError) as e:
+        except (
+            ValueError,
+            TypeError,
+            RuntimeError,
+            AttributeError,
+        ) as e:
             log.error(f"Quality metrics evaluation failed: {e}")
             errors.append(f"Quality metrics error: {e!s}")
 
@@ -315,18 +362,26 @@ class TaskMetricsWorkflow:
     async def run(
         self, workflow_input: TaskMetricsInput
     ) -> TaskMetricsOutput:
-        log.info(f"Starting metrics evaluation for task {workflow_input.task_id}")
+        log.info(
+            f"Starting metrics evaluation for task {workflow_input.task_id}"
+        )
 
         # Step 1: Query traces (source of truth for performance data)
         trace_result = await self._query_traces(workflow_input)
 
         # Step 2: Save performance metrics
-        performance_saved, perf_errors = await self._save_performance_metrics(
+        (
+            performance_saved,
+            perf_errors,
+        ) = await self._save_performance_metrics(
             workflow_input, trace_result
         )
 
         # Step 3: Evaluate and save quality metrics
-        quality_results, qual_errors = await self._evaluate_and_save_quality_metrics(
+        (
+            quality_results,
+            qual_errors,
+        ) = await self._evaluate_and_save_quality_metrics(
             workflow_input, trace_result
         )
 
@@ -344,7 +399,8 @@ class TaskMetricsWorkflow:
             performance_saved=performance_saved,
             quality_metrics_count=len(quality_results),
             quality_metrics_results=[
-                MetricEvaluationResult(**r) for r in quality_results
+                MetricEvaluationResult(**r)
+                for r in quality_results
             ],
             total_duration_ms=0,
             errors=errors,

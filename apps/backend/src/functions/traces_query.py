@@ -38,7 +38,10 @@ async def query_traces_for_response(
         # If response_id provided, filter by it in metadata
         where_clause = "WHERE task_id = {task_id:UUID} AND span_type = 'response'"
         if response_id:
-            where_clause += " AND JSONExtractString(metadata, 'response_id') = {response_id:String}"
+            # For native JSON type in ClickHouse, use dot notation
+            where_clause += (
+                " AND metadata.response_id = {response_id:String}"
+            )
 
         query = f"""
         SELECT

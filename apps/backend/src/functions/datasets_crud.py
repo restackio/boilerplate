@@ -477,30 +477,40 @@ async def query_dataset_events(
         )
 
 
-def _build_dataset_filters(storage_config: dict, workspace_id: str) -> list[str]:
+def _build_dataset_filters(
+    storage_config: dict, workspace_id: str
+) -> list[str]:
     """Build WHERE conditions from dataset storage config."""
     conditions = [f"workspace_id = '{workspace_id}'"]
 
     if "dataset_id" in storage_config:
-        conditions.append(f"dataset_id = '{storage_config['dataset_id']}'")
+        conditions.append(
+            f"dataset_id = '{storage_config['dataset_id']}'"
+        )
 
     return conditions
 
 
 def _build_tag_filters(storage_config: dict) -> list[str]:
     """Build tag-based WHERE conditions from storage config."""
-    if "filter" not in storage_config or "tags" not in storage_config["filter"]:
+    if (
+        "filter" not in storage_config
+        or "tags" not in storage_config["filter"]
+    ):
         return []
 
     tag_conditions = [
-        f"has(tags, '{tag}')" for tag in storage_config["filter"]["tags"]
+        f"has(tags, '{tag}')"
+        for tag in storage_config["filter"]["tags"]
     ]
     if tag_conditions:
         return [f"({' OR '.join(tag_conditions)})"]
     return []
 
 
-def _build_other_storage_filters(storage_config: dict) -> list[str]:
+def _build_other_storage_filters(
+    storage_config: dict,
+) -> list[str]:
     """Build non-tag WHERE conditions from storage config."""
     if "filter" not in storage_config:
         return []
@@ -516,7 +526,9 @@ def _build_other_storage_filters(storage_config: dict) -> list[str]:
     return conditions
 
 
-def _build_user_filters(function_input: QueryDatasetEventsInput) -> list[str]:
+def _build_user_filters(
+    function_input: QueryDatasetEventsInput,
+) -> list[str]:
     """Build WHERE conditions from user-provided filters."""
     conditions = []
 
@@ -553,13 +565,25 @@ async def _query_clickhouse_events(
 
         # Build WHERE conditions from various sources
         where_conditions = []
-        where_conditions.extend(_build_dataset_filters(storage_config, function_input.workspace_id))
-        where_conditions.extend(_build_tag_filters(storage_config))
-        where_conditions.extend(_build_other_storage_filters(storage_config))
-        where_conditions.extend(_build_user_filters(function_input))
+        where_conditions.extend(
+            _build_dataset_filters(
+                storage_config, function_input.workspace_id
+            )
+        )
+        where_conditions.extend(
+            _build_tag_filters(storage_config)
+        )
+        where_conditions.extend(
+            _build_other_storage_filters(storage_config)
+        )
+        where_conditions.extend(
+            _build_user_filters(function_input)
+        )
 
         where_clause = " AND ".join(where_conditions)
-        table_name = storage_config.get("table", "pipeline_events")
+        table_name = storage_config.get(
+            "table", "pipeline_events"
+        )
 
         # Validate table name to prevent SQL injection
         _validate_table_name(table_name)

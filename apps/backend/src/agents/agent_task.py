@@ -257,6 +257,16 @@ class AgentTask:
                                 minutes=10
                             ),
                         )
+
+                        # Update last_response_id from completion for next continuity
+                        if completion and completion.response_id:
+                            self.last_response_id = (
+                                completion.response_id
+                            )
+                            self.response_index += 1
+                            log.info(
+                                f"Updated last_response_id: {self.last_response_id} (response #{self.response_index})"
+                            )
                     except Exception as e:
                         error_message = f"Error during llm_response_stream: {e}"
 
@@ -323,11 +333,19 @@ class AgentTask:
             function_input=approval_input,
         )
 
-        await agent.step(
+        completion = await agent.step(
             function=llm_response_stream,
             function_input=prepared,
             start_to_close_timeout=timedelta(seconds=120),
         )
+
+        # Update last_response_id from completion for next continuity
+        if completion and completion.response_id:
+            self.last_response_id = completion.response_id
+            self.response_index += 1
+            log.info(
+                f"Updated last_response_id after MCP approval: {self.last_response_id} (response #{self.response_index})"
+            )
 
         return {
             "approval_id": approval_event.approval_id,
@@ -392,7 +410,12 @@ class AgentTask:
                 f"Todos updated: {completed}/{total} completed, {in_progress} in progress"
             )
 
-        except (ValueError, TypeError, RuntimeError, AttributeError) as e:
+        except (
+            ValueError,
+            TypeError,
+            RuntimeError,
+            AttributeError,
+        ) as e:
             log.error(f"Error updating todos: {e}")
             error_event = create_agent_error_event(
                 message=f"Error updating todos: {e}",
@@ -476,7 +499,12 @@ class AgentTask:
                 f"Subtask created and registered: {child_task_id} for parent: {self.task_id}"
             )
 
-        except (ValueError, TypeError, RuntimeError, AttributeError) as e:
+        except (
+            ValueError,
+            TypeError,
+            RuntimeError,
+            AttributeError,
+        ) as e:
             log.error(f"Error creating subtask: {e}")
             return {"success": False, "error": str(e)}
         else:
@@ -524,7 +552,12 @@ class AgentTask:
                     f"Subtask {task_id} not found in state"
                 )
 
-        except (ValueError, TypeError, RuntimeError, AttributeError) as e:
+        except (
+            ValueError,
+            TypeError,
+            RuntimeError,
+            AttributeError,
+        ) as e:
             log.error(f"Error handling subtask notification: {e}")
             return {"success": False, "error": str(e)}
         else:
@@ -536,10 +569,15 @@ class AgentTask:
         event_type = event_data.get("type", "")
 
         error_event = create_agent_error_event(
-            message=error_info.get("message", "Unknown OpenAI error"),
+            message=error_info.get(
+                "message", "Unknown OpenAI error"
+            ),
             error_type=error_info.get("type", "unknown_error"),
-            code=error_info.get("code") or (
-                "openai_error" if "mcp" not in event_type else "mcp_error"
+            code=error_info.get("code")
+            or (
+                "openai_error"
+                if "mcp" not in event_type
+                else "mcp_error"
             ),
             param=error_info.get("param"),
         )
@@ -555,18 +593,12 @@ class AgentTask:
                     task_id=self.task_id,
                     title=self.title,
                     status="failed",
-                    message=error_info.get("message", "Unknown error"),
+                    message=error_info.get(
+                        "message", "Unknown error"
+                    ),
                 ),
                 start_to_close_timeout=timedelta(seconds=10),
             )
-
-    def _handle_response_created(self, event_data: dict) -> None:
-        """Extract and store response_id from response.created event."""
-        if event_data.get("type") == "response.created" and "response" in event_data:
-            response = event_data["response"]
-            if "id" in response:
-                self.last_response_id = response["id"]
-                self.response_index += 1
 
     def _extract_assistant_content(self, response: dict) -> str:
         """Extract assistant content from response output."""
@@ -579,15 +611,24 @@ class AgentTask:
                 ):
                     for content in output_item.get("content", []):
                         if content.get("type") == "output_text":
-                            assistant_content += content.get("text", "")
+                            assistant_content += content.get(
+                                "text", ""
+                            )
         return assistant_content
 
     async def _trigger_metrics_evaluation(
-        self, response: dict, response_id: str, assistant_content: str
+        self,
+        response: dict,
+        response_id: str,
+        assistant_content: str,
     ) -> None:
         """Trigger continuous metrics evaluation workflow."""
         user_message = next(
-            (msg for msg in reversed(self.messages) if msg.role == "user"),
+            (
+                msg
+                for msg in reversed(self.messages)
+                if msg.role == "user"
+            ),
             None,
         )
 
@@ -607,14 +648,20 @@ class AgentTask:
                 workflow_input={
                     "task_id": self.task_id,
                     "agent_id": self.agent_id,
-                    "agent_name": getattr(self, "agent_name", "Unknown"),
+                    "agent_name": getattr(
+                        self, "agent_name", "Unknown"
+                    ),
                     "parent_agent_id": None,
                     "workspace_id": self.workspace_id,
-                    "agent_version": "draft" if self.parent_task_id is None else "v1",
+                    "agent_version": "draft"
+                    if self.parent_task_id is None
+                    else "v1",
                     "response_id": response_id,
                     "response_index": self.response_index,
                     "message_count": len(self.messages),
-                    "task_input": user_message.content if user_message else "",
+                    "task_input": user_message.content
+                    if user_message
+                    else "",
                     "task_output": assistant_content,
                     "duration_ms": 0,
                     "input_tokens": input_tokens,
@@ -627,8 +674,15 @@ class AgentTask:
             log.info(
                 f"✓ Continuous metrics workflow started (parallel) for response {self.response_index}"
             )
-        except (ValueError, TypeError, RuntimeError, AttributeError) as e:
-            log.warning(f"Failed to start continuous metrics workflow: {e}")
+        except (
+            ValueError,
+            TypeError,
+            RuntimeError,
+            AttributeError,
+        ) as e:
+            log.warning(
+                f"Failed to start continuous metrics workflow: {e}"
+            )
 
     async def _handle_pipeline_completion(self) -> None:
         """Handle pipeline MCP call completion."""
@@ -659,7 +713,9 @@ class AgentTask:
             )
 
         self.end = True
-        log.info(f"Pipeline agent {self.agent_id} workflow marked for completion")
+        log.info(
+            f"Pipeline agent {self.agent_id} workflow marked for completion"
+        )
 
     @agent.event
     async def response_item(self, event_data: dict) -> dict:
@@ -674,9 +730,6 @@ class AgentTask:
                 # Store normal events
                 self.events.append(event_data)
 
-            # Handle response.created events
-            self._handle_response_created(event_data)
-
             # Handle response.completed events with metrics
             if (
                 event_data.get("type") == "response.completed"
@@ -686,7 +739,9 @@ class AgentTask:
             ):
                 response = event_data["response"]
                 response_id = response.get("id")
-                assistant_content = self._extract_assistant_content(response)
+                assistant_content = (
+                    self._extract_assistant_content(response)
+                )
                 await self._trigger_metrics_evaluation(
                     response, response_id, assistant_content
                 )
@@ -694,10 +749,14 @@ class AgentTask:
             # Handle pipeline MCP call completion
             if (
                 self.agent_type == "pipeline"
-                and event_data.get("type") == "response.output_item.done"
-                and event_data.get("item", {}).get("type") == "mcp_call"
-                and event_data.get("item", {}).get("name") == "loadintodataset"
-                and event_data.get("item", {}).get("status") == "completed"
+                and event_data.get("type")
+                == "response.output_item.done"
+                and event_data.get("item", {}).get("type")
+                == "mcp_call"
+                and event_data.get("item", {}).get("name")
+                == "loadintodataset"
+                and event_data.get("item", {}).get("status")
+                == "completed"
             ):
                 await self._handle_pipeline_completion()
 
@@ -882,7 +941,12 @@ class AgentTask:
                         agent_id=self.agent_id,
                     )
 
-            except (ValueError, TypeError, RuntimeError, AttributeError) as e:
+            except (
+                ValueError,
+                TypeError,
+                RuntimeError,
+                AttributeError,
+            ) as e:
                 log.error(
                     "AgentTask: Failed to load subagents",
                     error=str(e),

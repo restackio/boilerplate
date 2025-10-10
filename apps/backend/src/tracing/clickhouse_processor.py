@@ -120,7 +120,13 @@ class ClickHouseTracingProcessor:
                     ],
                 )
                 log.info(f"Flushed {len(rows)} spans")
-        except (ValueError, TypeError, ConnectionError, OSError, AttributeError) as e:
+        except (
+            ValueError,
+            TypeError,
+            ConnectionError,
+            OSError,
+            AttributeError,
+        ) as e:
             log.error(f"Flush error: {e}")
 
     def _calculate_duration_ms(self, span: Any) -> int:
@@ -134,7 +140,12 @@ class ClickHouseTracingProcessor:
                     span.ended_at.replace("Z", "+00:00")
                 )
                 return int((e - s).total_seconds() * 1000)
-        except (ValueError, TypeError, AttributeError, KeyError) as e:
+        except (
+            ValueError,
+            TypeError,
+            AttributeError,
+            KeyError,
+        ) as e:
             log.debug("Failed to parse span duration: %s", e)
         return 0
 
@@ -145,14 +156,24 @@ class ClickHouseTracingProcessor:
             return result if result is not None else {}
         return {}
 
-    def _extract_response_data(self, span: Any, exported: dict) -> tuple[str, str, str | None]:
+    def _extract_response_data(
+        self, span: Any, exported: dict
+    ) -> tuple[str, str, str | None]:
         """Extract input, output, and model from response span.
 
         Returns:
             Tuple of (input, output, model)
         """
-        inp = json.dumps(exported.get("input", "")) if exported.get("input") else ""
-        out = json.dumps(exported.get("output", "")) if exported.get("output") else ""
+        inp = (
+            json.dumps(exported.get("input", ""))
+            if exported.get("input")
+            else ""
+        )
+        out = (
+            json.dumps(exported.get("output", ""))
+            if exported.get("output")
+            else ""
+        )
         model = exported.get("model")
 
         if not hasattr(span.span_data, "response"):
@@ -164,8 +185,15 @@ class ClickHouseTracingProcessor:
         )
 
         # Extract input from span_data.input
-        if hasattr(span.span_data, "input") and span.span_data.input:
-            inp = json.dumps(span.span_data.input) if span.span_data.input else ""
+        if (
+            hasattr(span.span_data, "input")
+            and span.span_data.input
+        ):
+            inp = (
+                json.dumps(span.span_data.input)
+                if span.span_data.input
+                else ""
+            )
             log.info(f"Extracted input: {len(inp)} chars")
 
         # Extract output and model from Response object
@@ -187,7 +215,9 @@ class ClickHouseTracingProcessor:
 
         return inp, out, model
 
-    def _extract_usage(self, span: Any, span_type: str, exported: dict) -> dict:
+    def _extract_usage(
+        self, span: Any, span_type: str, exported: dict
+    ) -> dict:
         """Extract token usage from span."""
         usage = exported.get("usage") or {}
 
@@ -208,8 +238,12 @@ class ClickHouseTracingProcessor:
 
     def _calculate_cost(self, usage: dict) -> float | None:
         """Calculate cost from usage data."""
-        tokens_in = usage.get("prompt_tokens", 0) or usage.get("input_tokens", 0)
-        tokens_out = usage.get("completion_tokens", 0) or usage.get("output_tokens", 0)
+        tokens_in = usage.get("prompt_tokens", 0) or usage.get(
+            "input_tokens", 0
+        )
+        tokens_out = usage.get(
+            "completion_tokens", 0
+        ) or usage.get("output_tokens", 0)
         cost = usage.get("cost_usd")
 
         if not cost and tokens_in and tokens_out:
@@ -217,7 +251,11 @@ class ClickHouseTracingProcessor:
 
         return cost
 
-    def _extract_trace_metadata(self) -> tuple[str | None, str | None, str | None, str | None, str | None]:
+    def _extract_trace_metadata(
+        self,
+    ) -> tuple[
+        str | None, str | None, str | None, str | None, str | None
+    ]:
         """Extract business IDs from trace.
 
         Returns:
@@ -235,7 +273,12 @@ class ClickHouseTracingProcessor:
                     t.metadata.get("temporal_agent_id"),
                     t.metadata.get("temporal_run_id"),
                 )
-        except (ValueError, TypeError, AttributeError, KeyError) as e:
+        except (
+            ValueError,
+            TypeError,
+            AttributeError,
+            KeyError,
+        ) as e:
             log.debug("Failed to extract trace metadata: %s", e)
 
         return None, None, None, None, None
@@ -255,20 +298,41 @@ class ClickHouseTracingProcessor:
 
         # Extract input, output, and model (with special handling for response spans)
         if span_type == "response":
-            inp, out, model = self._extract_response_data(span, exported)
+            inp, out, model = self._extract_response_data(
+                span, exported
+            )
         else:
-            inp = json.dumps(exported.get("input", "")) if exported.get("input") else ""
-            out = json.dumps(exported.get("output", "")) if exported.get("output") else ""
+            inp = (
+                json.dumps(exported.get("input", ""))
+                if exported.get("input")
+                else ""
+            )
+            out = (
+                json.dumps(exported.get("output", ""))
+                if exported.get("output")
+                else ""
+            )
             model = exported.get("model")
 
         # Extract usage and calculate cost
         usage = self._extract_usage(span, span_type, exported)
-        tokens_in = usage.get("prompt_tokens", 0) or usage.get("input_tokens", 0)
-        tokens_out = usage.get("completion_tokens", 0) or usage.get("output_tokens", 0)
+        tokens_in = usage.get("prompt_tokens", 0) or usage.get(
+            "input_tokens", 0
+        )
+        tokens_out = usage.get(
+            "completion_tokens", 0
+        ) or usage.get("output_tokens", 0)
         cost = self._calculate_cost(usage)
 
         # Metadata - collect ALL span-specific data (excluding already-extracted fields)
-        excluded_keys = {"type", "name", "input", "output", "model", "usage"}
+        excluded_keys = {
+            "type",
+            "name",
+            "input",
+            "output",
+            "model",
+            "usage",
+        }
         meta = {
             k: v
             for k, v in exported.items()
@@ -276,14 +340,24 @@ class ClickHouseTracingProcessor:
         }
 
         # Business IDs from trace
-        task_id, agent_id, workspace_id, temporal_agent_id, temporal_run_id = (
-            self._extract_trace_metadata()
-        )
+        (
+            task_id,
+            agent_id,
+            workspace_id,
+            temporal_agent_id,
+            temporal_run_id,
+        ) = self._extract_trace_metadata()
 
         # Error status
         status = "ok" if not span.error else "error"
-        err_msg = span.error.get("message") if span.error else None
-        err_type = span.error.get("data", {}).get("type") if span.error else None
+        err_msg = (
+            span.error.get("message") if span.error else None
+        )
+        err_type = (
+            span.error.get("data", {}).get("type")
+            if span.error
+            else None
+        )
 
         return [
             str(span.trace_id),

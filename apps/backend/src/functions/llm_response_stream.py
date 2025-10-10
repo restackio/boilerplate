@@ -190,12 +190,24 @@ def _serialize_event(event: ResponseStreamEvent) -> dict | str:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", UserWarning)
                 return event.model_dump()
-        except (APIResponseValidationError, ValueError, TypeError) as e:
+        except (
+            APIResponseValidationError,
+            ValueError,
+            TypeError,
+        ) as e:
             log.warning(
                 f"OpenAI model_dump failed for event {getattr(event, 'type', 'unknown')}: {e}"
             )
-            return event.__dict__ if hasattr(event, "__dict__") else {"error": str(e)}
-    return event.__dict__ if hasattr(event, "__dict__") else str(event)
+            return (
+                event.__dict__
+                if hasattr(event, "__dict__")
+                else {"error": str(e)}
+            )
+    return (
+        event.__dict__
+        if hasattr(event, "__dict__")
+        else str(event)
+    )
 
 
 async def _send_event_to_agent(
@@ -229,7 +241,9 @@ async def _send_event_to_agent(
                 )
             )
         except (OSError, ValueError, RuntimeError):
-            log.error(f"Critical: Failed to send error event to agent: {error_event}")
+            log.error(
+                f"Critical: Failed to send error event to agent: {error_event}"
+            )
 
 
 async def _send_critical_error_to_agent(
@@ -253,34 +267,54 @@ async def _send_critical_error_to_agent(
             )
         )
     except (OSError, ValueError, RuntimeError):
-        log.error(f"Critical: Failed to send critical error event: {critical_error_event}")
+        log.error(
+            f"Critical: Failed to send critical error event: {critical_error_event}"
+        )
 
 
-def _finalize_response_span(span: Any, final_response: Any) -> None:
+def _finalize_response_span(
+    span: Any, final_response: Any
+) -> None:
     """Set final response on span for tracing."""
     if span and final_response:
         try:
             if hasattr(span, "span_data"):
                 span.span_data.response = final_response
                 log.info("Set final Response object on span")
-        except (ValueError, TypeError, AttributeError, RuntimeError) as e:
+        except (
+            ValueError,
+            TypeError,
+            AttributeError,
+            RuntimeError,
+        ) as e:
             log.warning(f"Failed to set response on span: {e}")
 
 
 async def send_non_delta_events_to_agent(
     stream: AsyncIterator[ResponseStreamEvent],
     span: Any = None,
-) -> None:
+) -> dict[str, Any]:
     """Send only non-delta events to agent and capture final response for tracing.
 
     Following the SDK pattern from openai_responses.py for proper response tracing.
+
+    Returns:
+        Dict containing response_id, usage, and parsed_response from final response.
     """
     temporal_agent_id = function_info().workflow_id
     final_response = None
+    response_data = {
+        "response_id": None,
+        "usage": None,
+        "parsed_response": None,
+    }
 
     try:
         async for event in stream:
-            if not (hasattr(event, "type") and ".delta" not in event.type):
+            if not (
+                hasattr(event, "type")
+                and ".delta" not in event.type
+            ):
                 continue
 
             # Serialize event using SDK patterns
@@ -293,13 +327,32 @@ async def send_non_delta_events_to_agent(
                 and hasattr(event, "response")
             ):
                 final_response = event.response
+                # Extract response data for return value
+                if hasattr(final_response, "id"):
+                    response_data["response_id"] = (
+                        final_response.id
+                    )
+                if hasattr(final_response, "usage"):
+                    response_data["usage"] = (
+                        _convert_response_usage(
+                            final_response.usage
+                        )
+                    )
+                if hasattr(final_response, "parsed_response"):
+                    response_data["parsed_response"] = (
+                        final_response.parsed_response
+                    )
 
             # Log error events
-            if hasattr(event, "type") and ("error" in event.type or "failed" in event.type):
+            if hasattr(event, "type") and (
+                "error" in event.type or "failed" in event.type
+            ):
                 log.error(f"OpenAI error event: {event_data}")
 
             # Send event to agent with error handling
-            await _send_event_to_agent(temporal_agent_id, event_data)
+            await _send_event_to_agent(
+                temporal_agent_id, event_data
+            )
     except (
         OSError,
         ValueError,
@@ -312,8 +365,12 @@ async def send_non_delta_events_to_agent(
     finally:
         _finalize_response_span(span, final_response)
 
+    return response_data
 
-def _initialize_tracing(function_input: Any) -> tuple[Any, Any, Any]:
+
+def _initialize_tracing(
+    function_input: Any,
+) -> tuple[Any, Any, Any]:
     """Initialize tracing contexts and return (trace_ctx, span_ctx, span)."""
     try:
         from agents.tracing import response_span, trace
@@ -335,7 +392,9 @@ def _initialize_tracing(function_input: Any) -> tuple[Any, Any, Any]:
 
         span_context = response_span()
         current_span = span_context.__enter__()
-        current_span.span_data.input = function_input.create_params.get("input", [])
+        current_span.span_data.input = (
+            function_input.create_params.get("input", [])
+        )
 
     except ImportError:
         return None, None, None
@@ -355,26 +414,47 @@ async def _make_openai_request_with_tracing(
     current_span = None
 
     if has_tracing:
-        trace_context, span_context, current_span = _initialize_tracing(function_input)
+        trace_context, span_context, current_span = (
+            _initialize_tracing(function_input)
+        )
 
-    response_stream = await client.responses.create(**function_input.create_params)
-    return response_stream, current_span, span_context, trace_context
+    response_stream = await client.responses.create(
+        **function_input.create_params
+    )
+    return (
+        response_stream,
+        current_span,
+        span_context,
+        trace_context,
+    )
 
 
-def _cleanup_tracing_contexts(span_context: Any, trace_context: Any) -> None:
+def _cleanup_tracing_contexts(
+    span_context: Any, trace_context: Any
+) -> None:
     """Clean up tracing span and trace contexts."""
     if span_context is not None:
         try:
             span_context.__exit__(None, None, None)
             log.info("Closed generation span")
-        except (ValueError, TypeError, AttributeError, RuntimeError) as e:
+        except (
+            ValueError,
+            TypeError,
+            AttributeError,
+            RuntimeError,
+        ) as e:
             log.warning(f"Error closing span: {e}")
 
     if trace_context is not None:
         try:
             trace_context.__exit__(None, None, None)
             log.info("Closed trace context")
-        except (ValueError, TypeError, AttributeError, RuntimeError) as e:
+        except (
+            ValueError,
+            TypeError,
+            AttributeError,
+            RuntimeError,
+        ) as e:
             log.warning(f"Error closing trace: {e}")
 
 
@@ -396,21 +476,27 @@ async def llm_response_stream(
             error_msg = "OPENAI_API_KEY is not set"
             raise NonRetryableError(error_msg)
 
-        client = AsyncOpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+        client = AsyncOpenAI(
+            api_key=os.environ.get("OPENAI_API_KEY")
+        )
 
         # Check if tracing SDK is available
         try:
             import agents.tracing  # noqa: F401
+
             has_tracing = True
         except ImportError:
             has_tracing = False
 
         # Make API call with optional tracing
         try:
-            response_stream, current_span, span_context, trace_context = (
-                await _make_openai_request_with_tracing(
-                    client, function_input, has_tracing=has_tracing
-                )
+            (
+                response_stream,
+                current_span,
+                span_context,
+                trace_context,
+            ) = await _make_openai_request_with_tracing(
+                client, function_input, has_tracing=has_tracing
             )
         except Exception as e:
             error_msg = f"OpenAI API error: {e!s}"
@@ -464,11 +550,24 @@ async def llm_response_stream(
             )
         )
 
-        # Wait for both to complete, but don't let websocket failures fail the function
+        # Wait for both to complete and capture response data from agent task
         try:
-            await asyncio.gather(
+            results = await asyncio.gather(
                 websocket_task, agent_task, return_exceptions=True
             )
+            # Agent task result contains response_data (second result)
+            agent_result = results[1]
+            if isinstance(agent_result, dict):
+                response_data = agent_result
+            else:
+                log.warning(
+                    f"Agent task returned unexpected result: {agent_result}"
+                )
+                response_data = {
+                    "response_id": None,
+                    "usage": None,
+                    "parsed_response": None,
+                }
         except (
             OSError,
             ValueError,
@@ -476,25 +575,20 @@ async def llm_response_stream(
             asyncio.CancelledError,
         ) as e:
             log.warning(f"Stream processing had issues: {e}")
-
-        # Return minimal response - agent handles all metadata extraction
-        response_data = {
-            "response_id": None,
-            "usage": None,
-            "parsed_response": None,
-        }
+            response_data = {
+                "response_id": None,
+                "usage": None,
+                "parsed_response": None,
+            }
 
         log.info(
             "llm_response completed",
             response_id=response_data.get("response_id"),
         )
 
-        # Convert usage if present
-        usage = _convert_response_usage(response_data.get("usage"))
-
         return LlmResponseOutput(
             response_id=response_data.get("response_id"),
-            usage=usage,
+            usage=response_data.get("usage"),
             parsed_response=response_data.get("parsed_response"),
         )
 

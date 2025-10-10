@@ -96,9 +96,7 @@ async def user_workspaces_get_by_user(
                     created_at=uw.created_at.isoformat()
                     if uw.created_at
                     else None,
-                    user_name=uw.user.name
-                    if uw.user
-                    else "N/A",
+                    user_name=uw.user.name if uw.user else "N/A",
                     user_email=uw.user.email
                     if uw.user
                     else "N/A",
@@ -149,9 +147,7 @@ async def user_workspaces_get_by_workspace(
                     created_at=uw.created_at.isoformat()
                     if uw.created_at
                     else None,
-                    user_name=uw.user.name
-                    if uw.user
-                    else "N/A",
+                    user_name=uw.user.name if uw.user else "N/A",
                     user_email=uw.user.email
                     if uw.user
                     else "N/A",

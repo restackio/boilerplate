@@ -561,8 +561,13 @@ async def _prepare_token_data_with_existing_credentials(
     code_verifier = None
 
     # Unpack client_secret and code_verifier (format: "secret|verifier")
-    if function_input.client_secret and "|" in function_input.client_secret:
-        client_secret, code_verifier = function_input.client_secret.split("|", 1)
+    if (
+        function_input.client_secret
+        and "|" in function_input.client_secret
+    ):
+        client_secret, code_verifier = (
+            function_input.client_secret.split("|", 1)
+        )
     else:
         client_secret = function_input.client_secret
 
@@ -572,14 +577,18 @@ async def _prepare_token_data_with_existing_credentials(
         "redirect_uri": function_input.redirect_uri,
         "client_id": function_input.client_id,
         "client_secret": client_secret,
-        "resource": resource_url_from_server_url(function_input.server_url),
+        "resource": resource_url_from_server_url(
+            function_input.server_url
+        ),
     }
 
     if code_verifier:
         token_data["code_verifier"] = code_verifier
         log.info("Using PKCE code_verifier for token exchange")
 
-    log.info(f"Using client credentials from authorization phase: {function_input.client_id}")
+    log.info(
+        f"Using client credentials from authorization phase: {function_input.client_id}"
+    )
     return (token_data, client_secret, None)
 
 
@@ -597,25 +606,37 @@ async def _register_new_client_and_prepare_token_data(
         exclude_none=True,
     )
 
-    reg_response = await client.post(registration_url, json=registration_data)
+    reg_response = await client.post(
+        registration_url, json=registration_data
+    )
     if reg_response.status_code not in (200, 201):
         await reg_response.aread()
-        _raise_client_registration_failed_error(reg_response.status_code)
+        _raise_client_registration_failed_error(
+            reg_response.status_code
+        )
 
-    client_info = OAuthClientInformationFull.model_validate_json(reg_response.content)
+    client_info = OAuthClientInformationFull.model_validate_json(
+        reg_response.content
+    )
 
     token_data = {
         "grant_type": "authorization_code",
         "code": function_input.code,
         "redirect_uri": function_input.redirect_uri,
         "client_id": client_info.client_id,
-        "resource": resource_url_from_server_url(function_input.server_url),
+        "resource": resource_url_from_server_url(
+            function_input.server_url
+        ),
     }
 
     if client_info.client_secret:
         token_data["client_secret"] = client_info.client_secret
 
-    return (token_data, client_info.client_secret, client_info.client_id)
+    return (
+        token_data,
+        client_info.client_secret,
+        client_info.client_id,
+    )
 
 
 @function.defn()
@@ -662,13 +683,27 @@ async def oauth_exchange_code_for_token(
 
             async with httpx.AsyncClient() as client:
                 # Step 2: Prepare token exchange data (use existing credentials or register new client)
-                if function_input.client_id and function_input.client_secret:
-                    token_data, client_secret, _ = await _prepare_token_data_with_existing_credentials(
+                if (
+                    function_input.client_id
+                    and function_input.client_secret
+                ):
+                    (
+                        token_data,
+                        client_secret,
+                        _,
+                    ) = await _prepare_token_data_with_existing_credentials(
                         function_input
                     )
                 else:
-                    token_data, fallback_client_secret, fallback_client_id = await _register_new_client_and_prepare_token_data(
-                        function_input, client, base_url, client_metadata
+                    (
+                        token_data,
+                        fallback_client_secret,
+                        fallback_client_id,
+                    ) = await _register_new_client_and_prepare_token_data(
+                        function_input,
+                        client,
+                        base_url,
+                        client_metadata,
                     )
 
                 token_response = await client.post(

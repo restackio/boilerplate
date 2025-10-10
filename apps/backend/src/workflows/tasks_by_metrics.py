@@ -64,7 +64,14 @@ class GetTasksByMetricWorkflow:
                 start_to_close_timeout=timedelta(seconds=10),
             )
 
-        except (ValueError, TypeError, RuntimeError, AttributeError, ConnectionError, OSError) as e:
+        except (
+            ValueError,
+            TypeError,
+            RuntimeError,
+            AttributeError,
+            ConnectionError,
+            OSError,
+        ) as e:
             error_message = f"Error getting tasks by metric: {e}"
             log.error(error_message)
             return {
@@ -107,7 +114,14 @@ class GetTasksByFeedbackWorkflow:
                 start_to_close_timeout=timedelta(seconds=10),
             )
 
-        except (ValueError, TypeError, RuntimeError, AttributeError, ConnectionError, OSError) as e:
+        except (
+            ValueError,
+            TypeError,
+            RuntimeError,
+            AttributeError,
+            ConnectionError,
+            OSError,
+        ) as e:
             error_message = (
                 f"Error getting tasks by feedback: {e}"
             )
