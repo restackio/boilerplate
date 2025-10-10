@@ -82,7 +82,7 @@ services:
     volumes:
       - clickhouse_data:/var/lib/clickhouse/
       - clickhouse_logs:/var/log/clickhouse-server/
-      - ./packages/database/clickhouse-init.sql:/docker-entrypoint-initdb.d/01-init.sql
+      - ./packages/database/clickhouse-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
       - ./packages/database/clickhouse-seed.sql:/docker-entrypoint-initdb.d/02-seed.sql
     ulimits:
       nofile:

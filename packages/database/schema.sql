@@ -201,6 +201,32 @@ CREATE TABLE IF NOT EXISTS tasks (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Create metric_definitions table for custom metrics
+CREATE TABLE IF NOT EXISTS metric_definitions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    
+    -- Metric details
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    category VARCHAR(50) NOT NULL, -- 'quality', 'cost', 'performance', 'custom'
+    metric_type VARCHAR(50) NOT NULL, -- 'llm_judge', 'python_code', 'formula'
+    
+    -- Type-specific configuration (JSONB for flexibility)
+    config JSONB NOT NULL,
+    
+    -- Metadata
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    is_default BOOLEAN NOT NULL DEFAULT false,
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    CONSTRAINT unique_metric_per_workspace UNIQUE(workspace_id, name),
+    CONSTRAINT valid_metric_type CHECK (metric_type IN ('llm_judge', 'python_code', 'formula'))
+);
+
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_user_workspaces_user_id ON user_workspaces(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_workspaces_workspace_id ON user_workspaces(workspace_id);
@@ -241,6 +267,11 @@ CREATE INDEX IF NOT EXISTS idx_tasks_temporal_schedule_id ON tasks(temporal_sche
 -- Dataset-related indexes
 CREATE INDEX IF NOT EXISTS idx_datasets_workspace_id ON datasets(workspace_id);
 CREATE INDEX IF NOT EXISTS idx_datasets_created_at ON datasets(created_at);
+
+-- Metrics-related indexes
+CREATE INDEX IF NOT EXISTS idx_metric_definitions_workspace ON metric_definitions(workspace_id);
+CREATE INDEX IF NOT EXISTS idx_metric_definitions_category ON metric_definitions(category);
+CREATE INDEX IF NOT EXISTS idx_metric_definitions_active ON metric_definitions(is_active) WHERE is_active = true;
 
 -- OAuth-related indexes
 CREATE INDEX IF NOT EXISTS idx_user_oauth_connections_user_id ON user_oauth_connections(user_id);
@@ -302,3 +333,4 @@ CREATE TRIGGER update_teams_updated_at BEFORE UPDATE ON teams FOR EACH ROW EXECU
 CREATE TRIGGER update_mcp_servers_updated_at BEFORE UPDATE ON mcp_servers FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_user_oauth_connections_updated_at BEFORE UPDATE ON user_oauth_connections FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_datasets_updated_at BEFORE UPDATE ON datasets FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_metric_definitions_updated_at BEFORE UPDATE ON metric_definitions FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

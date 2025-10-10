@@ -188,23 +188,6 @@ export async function getMcpServerById(mcpServerId: string) {
   });
 }
 
-
-// Task Management
-export async function getSubtasks(parentTaskId: string) {
-  try {
-    const result = await client.executeFunction({
-      functionName: "tasks_get_by_parent_id",
-      input: { task_id: parentTaskId },
-      taskQueue: "local-restack",
-    });
-    
-    return result;
-  } catch (error) {
-    console.error("Error fetching subtasks:", error);
-    return { tasks: [] };
-  }
-}
-
 export async function listMcpServerTools(
   serverUrl: string, 
   headers?: Record<string, string>, 

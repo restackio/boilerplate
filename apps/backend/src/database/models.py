@@ -640,3 +640,65 @@ class Dataset(Base):
 
     # Relationships
     workspace = relationship("Workspace")
+
+
+class MetricDefinition(Base):
+    __tablename__ = "metric_definitions"
+
+    id = Column(UUID(as_uuid=True), primary_key=True)
+    workspace_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    # Metric details
+    name = Column(String(255), nullable=False)
+    description = Column(Text)
+    category = Column(
+        String(50), nullable=False
+    )  # quality, cost, performance, custom
+    metric_type = Column(
+        String(50), nullable=False
+    )  # llm_judge, python_code, formula
+
+    # Type-specific configuration (judge_prompt for llm_judge, code for python_code, formula for formula)
+    config = Column(JSONB, nullable=False)
+
+    # Metadata
+    is_active = Column(Boolean, nullable=False, default=True)
+    is_default = Column(Boolean, nullable=False, default=False)
+    created_by = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+    )
+
+    created_at = Column(
+        DateTime,
+        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+    )
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+        onupdate=lambda: datetime.now(tz=UTC).replace(
+            tzinfo=None
+        ),
+    )
+
+    # Constraints
+    __table_args__ = (
+        CheckConstraint(
+            metric_type.in_(
+                ["llm_judge", "python_code", "formula"]
+            ),
+            name="valid_metric_type",
+        ),
+        UniqueConstraint(
+            "workspace_id",
+            "name",
+            name="unique_metric_per_workspace",
+        ),
+    )
+
+    # Relationships
+    workspace = relationship("Workspace")

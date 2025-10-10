@@ -29,7 +29,7 @@
     "db:clean": "docker-compose -f docker-compose.dev.yml exec postgres psql -U postgres -d boilerplate_db -c 'TRUNCATE TABLE agent_runs, tasks, agents, users, workspaces RESTART IDENTITY CASCADE;'",
     "clickhouse:connect": "docker-compose -f docker-compose.dev.yml exec clickhouse clickhouse-client",
     "clickhouse:seed": "docker-compose -f docker-compose.dev.yml exec -T clickhouse clickhouse-client --multiquery < packages/database/clickhouse-seed.sql",
-    "clickhouse:reset": "docker-compose -f docker-compose.dev.yml exec clickhouse clickhouse-client --query \"DROP DATABASE IF EXISTS boilerplate_analytics; DROP DATABASE IF EXISTS boilerplate_clickhouse; CREATE DATABASE boilerplate_clickhouse;\" && docker-compose -f docker-compose.dev.yml exec -T clickhouse clickhouse-client --multiquery < packages/database/clickhouse-init.sql && pnpm clickhouse:seed",
+    "clickhouse:reset": "docker-compose -f docker-compose.dev.yml exec clickhouse clickhouse-client --query \"DROP DATABASE IF EXISTS boilerplate_analytics; DROP DATABASE IF EXISTS boilerplate_clickhouse; CREATE DATABASE boilerplate_clickhouse;\" && docker-compose -f docker-compose.dev.yml exec -T clickhouse clickhouse-client --multiquery < packages/database/clickhouse-schema.sql && pnpm clickhouse:seed",
     "docker:build": "docker-compose build",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",

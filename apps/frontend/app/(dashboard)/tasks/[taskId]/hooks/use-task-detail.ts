@@ -162,6 +162,12 @@ export function useTaskDetail() {
     setSelectedCard(null);
   };
 
+  const handleOpenAnalytics = () => {
+    setShowSplitView(true);
+    setActiveTab("analytics");
+    setSelectedCard(null); // Clear selected card when opening analytics directly
+  };
+
   return {
     task,
     isLoading,
@@ -185,6 +191,7 @@ export function useTaskDetail() {
     handleSendMessage,
     handleCardClick,
     handleCloseSplitView,
+    handleOpenAnalytics,
     updateConversationItemStatus,
   };
 } 

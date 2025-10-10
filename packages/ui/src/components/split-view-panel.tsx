@@ -53,8 +53,6 @@ interface SplitViewPanelProps {
 export function SplitViewPanel({
   isOpen,
   onClose,
-  title,
-  subtitle,
   tabs,
   activeTab,
   onTabChange,
@@ -77,21 +75,9 @@ export function SplitViewPanel({
     )}>
       <div className="p-4 space-y-4">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex-1 min-w-0">
-            {title && (
-              <h3 className="text-lg font-semibold truncate">
-                {title}
-              </h3>
-            )}
-            {subtitle && (
-              <p className="text-sm text-muted-foreground truncate">
-                {subtitle}
-              </p>
-            )}
-          </div>
+        <div className="flex items-center justify-start">
           
-          <div className="flex items-center gap-2 ml-4">
+          <div className="flex items-end gap-2">
             {headerActions}
             <Button
               variant="ghost"
@@ -100,6 +86,7 @@ export function SplitViewPanel({
               className="flex-shrink-0"
             >
               <X className="h-4 w-4" />
+              Close panel
             </Button>
           </div>
         </div>
@@ -111,7 +98,7 @@ export function SplitViewPanel({
             onValueChange={onTabChange}
             className="w-full"
           >
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList>
               {tabs.map((tab) => (
                 <TabsTrigger
                   key={tab.id}
@@ -176,7 +163,7 @@ export function DetailPanel({
         <DetailCard item={item} />
       )
     ) : (
-      <EmptyDetailState />
+      <div />
     )
   };
 
@@ -195,7 +182,7 @@ export function DetailPanel({
 
 // Helper components for common detail patterns
 function DetailCard({ item }: { item: any }) {
-  if (!item) return <EmptyDetailState />;
+  if (!item) return <div />;
 
   return (
     <Card>
@@ -248,19 +235,6 @@ function DetailField({
         {typeof value === 'object' ? JSON.stringify(value) : String(value)}
       </p>
     </div>
-  );
-}
-
-function EmptyDetailState() {
-  return (
-    <Card className="border-dashed">
-      <CardContent className="p-8 text-center">
-        <div className="text-muted-foreground">
-          <p className="text-lg font-medium mb-2">No item selected</p>
-          <p className="text-sm">Click on any item to view its details</p>
-        </div>
-      </CardContent>
-    </Card>
   );
 }
 

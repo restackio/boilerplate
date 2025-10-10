@@ -9,6 +9,7 @@ import {
   Building,
   Plug,
   Database,
+  BarChart3,
   type LucideIcon,
 } from "lucide-react";
 import { getLucideIcon } from "@workspace/ui/lib/get-lucide-icon";
@@ -151,6 +152,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         title: "Agents",
         url: "/agents",
         icon: Bot,
+      },
+      {
+        title: "Analytics",
+        url: "/analytics",
+        icon: BarChart3,
       },
       {
         title: "Context",

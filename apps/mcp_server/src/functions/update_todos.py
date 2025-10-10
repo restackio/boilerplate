@@ -83,17 +83,17 @@ async def update_todos(
     Returns:
         UpdateTodosFunctionOutput with success status, current todos, and progress message
     """
+    # Validate required context from LLM
+    if not function_input.temporal_agent_id:
+        raise NonRetryableError(
+            message="temporal_agent_id is required"
+        )
+
     try:
         log.info(
             "update_todos function called",
             extra={"input": function_input.model_dump()},
         )
-
-        # Validate required context from LLM
-        if not function_input.temporal_agent_id:
-            raise NonRetryableError(
-                message="temporal_agent_id is required"
-            )  # noqa: TRY301
 
         log.info(
             f"Sending todo_update event to agent workflow {function_input.temporal_agent_id}"

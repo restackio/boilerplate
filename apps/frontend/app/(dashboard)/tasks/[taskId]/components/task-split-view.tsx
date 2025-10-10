@@ -2,6 +2,7 @@ import { SplitViewPanel } from "@workspace/ui/components/split-view-panel";
 import { StatusIcon } from "@workspace/ui/components/status-indicators";
 import { ConversationItem } from "../types";
 import { TaskDetailsTab } from "./task-details-tab";
+import { TaskAnalyticsTab } from "./task-analytics-tab";
 import { Task } from "@/hooks/use-workspace-scoped-actions";
 
 interface TaskSplitViewProps {
@@ -25,21 +26,6 @@ export function TaskSplitView({
   onUpdateTask,
   isUpdating,
 }: TaskSplitViewProps) {
-  // Helper function to get title based on selected item
-  const getItemTitle = (item: ConversationItem | null) => {
-    if (!item) return "No item selected";
-    
-    switch (item.type) {
-      case "mcp_call": return "Tool";
-      case "mcp_list_tools": return "List tools";
-      case "mcp_approval_request": return "Approval";
-      case "web_search_call": return "Web Search";
-      case "reasoning": return "Reasoning";
-      case "error": return "Error Details";
-      default: return "Message";
-    }
-  };
-
   // Custom detail renderer for conversation items
   const renderItemDetails = (item: ConversationItem) => (
     <div className="bg-background rounded-lg border p-4 space-y-4">
@@ -199,14 +185,19 @@ export function TaskSplitView({
 
   // Define tabs for the split view
   const tabs = [
-    {
+    ...(selectedCard ? [{
       id: "details",
       label: "Details",
       content: selectedCard ? renderItemDetails(selectedCard) : null,
+    }] : []),
+    {
+      id: "analytics",
+      label: "Analytics",
+      content: <TaskAnalyticsTab taskId={task.id} />,
     },
     {
-      id: "task",
-      label: "Task",
+      id: "info",
+      label: "Info",
       content: (
         <TaskDetailsTab
           task={task}
@@ -221,7 +212,6 @@ export function TaskSplitView({
     <SplitViewPanel
       isOpen={showSplitView}
       onClose={onCloseSplitView}
-      title={getItemTitle(selectedCard)}
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={onActiveTabChange}

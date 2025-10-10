@@ -64,25 +64,6 @@ const statusConfig = {
   }
 };
 
-// Demo multiplier from environment variable (defaults to 0 for real numbers only)
-const DEMO_MULTIPLIER = parseInt(process.env.NEXT_PUBLIC_DEMO_MULTIPLIER || '0', 10);
-
-// Base demo numbers to multiply
-const DEMO_BASE_NUMBERS = {
-  in_progress: 216, // Combined open + active from before (127 + 89)
-  in_review: 45,
-  closed: 234,
-  completed: 567
-};
-
-// Calculate actual demo multipliers
-const DEMO_MULTIPLIERS = {
-  in_progress: DEMO_BASE_NUMBERS.in_progress * DEMO_MULTIPLIER,
-  in_review: DEMO_BASE_NUMBERS.in_review * DEMO_MULTIPLIER,
-  closed: DEMO_BASE_NUMBERS.closed * DEMO_MULTIPLIER,
-  completed: DEMO_BASE_NUMBERS.completed * DEMO_MULTIPLIER
-};
-
 function formatNumber(num: number): string {
   if (num >= 1000000) {
     return (num / 1000000).toFixed(1) + 'M';
@@ -116,16 +97,8 @@ export function TaskStatsCard() {
       });
 
       if (result.success && result.data) {
-        // Add demo multipliers to real numbers for showcase
-        const realStats = result.data as TaskStats;
-        const demoStats: TaskStats = {
-          in_progress: realStats.in_progress + DEMO_MULTIPLIERS.in_progress,
-          in_review: realStats.in_review + DEMO_MULTIPLIERS.in_review,
-          closed: realStats.closed + DEMO_MULTIPLIERS.closed,
-          completed: realStats.completed + DEMO_MULTIPLIERS.completed,
-          total: realStats.total + Object.values(DEMO_MULTIPLIERS).reduce((a, b) => a + b, 0)
-        };
-        setStats(demoStats);
+        // Backend applies demo multipliers if enabled via DEMO_MULTIPLIER env var
+        setStats(result.data as TaskStats);
       } else {
         setError(result.error || "Failed to fetch task statistics");
       }

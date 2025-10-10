@@ -175,55 +175,52 @@ async def tasks_read(
             result = await db.execute(tasks_query)
             tasks = result.scalars().all()
 
-            output_result = []
-            for task in tasks:
-                output_result.append(  # noqa: PERF401
-                    TaskOutput(
-                        id=str(task.id),
-                        workspace_id=str(task.workspace_id),
-                        team_id=str(task.team_id)
-                        if task.team_id
-                        else None,
-                        team_name=task.team.name
-                        if task.team
-                        else None,
-                        title=task.title,
-                        description=task.description,
-                        status=task.status,
-                        agent_id=str(task.agent_id),
-                        agent_name=task.agent.name
-                        if task.agent
-                        else "N/A",
-                        assigned_to_id=str(task.assigned_to_id)
-                        if task.assigned_to_id
-                        else None,
-                        assigned_to_name=task.assigned_to_user.name
-                        if task.assigned_to_user
-                        else "N/A",
-                        temporal_agent_id=task.temporal_agent_id,
-                        # Subtask-related fields
-                        parent_task_id=str(task.parent_task_id)
-                        if task.parent_task_id
-                        else None,
-                        temporal_parent_agent_id=task.temporal_parent_agent_id,
-                        # Schedule-related fields
-                        schedule_spec=task.schedule_spec,
-                        schedule_task_id=str(
-                            task.schedule_task_id
-                        )
-                        if task.schedule_task_id
-                        else None,
-                        is_scheduled=task.is_scheduled,
-                        schedule_status=task.schedule_status,
-                        temporal_schedule_id=task.temporal_schedule_id,
-                        created_at=task.created_at.isoformat()
-                        if task.created_at
-                        else None,
-                        updated_at=task.updated_at.isoformat()
-                        if task.updated_at
-                        else None,
-                    )
+            output_result = [
+                TaskOutput(
+                    id=str(task.id),
+                    workspace_id=str(task.workspace_id),
+                    team_id=str(task.team_id)
+                    if task.team_id
+                    else None,
+                    team_name=task.team.name
+                    if task.team
+                    else None,
+                    title=task.title,
+                    description=task.description,
+                    status=task.status,
+                    agent_id=str(task.agent_id),
+                    agent_name=task.agent.name
+                    if task.agent
+                    else "N/A",
+                    assigned_to_id=str(task.assigned_to_id)
+                    if task.assigned_to_id
+                    else None,
+                    assigned_to_name=task.assigned_to_user.name
+                    if task.assigned_to_user
+                    else "N/A",
+                    temporal_agent_id=task.temporal_agent_id,
+                    # Subtask-related fields
+                    parent_task_id=str(task.parent_task_id)
+                    if task.parent_task_id
+                    else None,
+                    temporal_parent_agent_id=task.temporal_parent_agent_id,
+                    # Schedule-related fields
+                    schedule_spec=task.schedule_spec,
+                    schedule_task_id=str(task.schedule_task_id)
+                    if task.schedule_task_id
+                    else None,
+                    is_scheduled=task.is_scheduled,
+                    schedule_status=task.schedule_status,
+                    temporal_schedule_id=task.temporal_schedule_id,
+                    created_at=task.created_at.isoformat()
+                    if task.created_at
+                    else None,
+                    updated_at=task.updated_at.isoformat()
+                    if task.updated_at
+                    else None,
                 )
+                for task in tasks
+            ]
 
             return TaskListOutput(tasks=output_result)
         except Exception as e:
@@ -645,55 +642,52 @@ async def tasks_get_by_status(
             result = await db.execute(tasks_query)
             tasks = result.scalars().all()
 
-            output_result = []
-            for task in tasks:
-                output_result.append(  # noqa: PERF401
-                    TaskOutput(
-                        id=str(task.id),
-                        workspace_id=str(task.workspace_id),
-                        team_id=str(task.team_id)
-                        if task.team_id
-                        else None,
-                        team_name=task.team.name
-                        if task.team
-                        else None,
-                        title=task.title,
-                        description=task.description,
-                        status=task.status,
-                        agent_id=str(task.agent_id),
-                        agent_name=task.agent.name
-                        if task.agent
-                        else "N/A",
-                        assigned_to_id=str(task.assigned_to_id)
-                        if task.assigned_to_id
-                        else None,
-                        assigned_to_name=task.assigned_to_user.name
-                        if task.assigned_to_user
-                        else "N/A",
-                        temporal_agent_id=task.temporal_agent_id,
-                        # Subtask-related fields
-                        parent_task_id=str(task.parent_task_id)
-                        if task.parent_task_id
-                        else None,
-                        temporal_parent_agent_id=task.temporal_parent_agent_id,
-                        # Schedule-related fields
-                        schedule_spec=task.schedule_spec,
-                        schedule_task_id=str(
-                            task.schedule_task_id
-                        )
-                        if task.schedule_task_id
-                        else None,
-                        is_scheduled=task.is_scheduled,
-                        schedule_status=task.schedule_status,
-                        temporal_schedule_id=task.temporal_schedule_id,
-                        created_at=task.created_at.isoformat()
-                        if task.created_at
-                        else None,
-                        updated_at=task.updated_at.isoformat()
-                        if task.updated_at
-                        else None,
-                    )
+            output_result = [
+                TaskOutput(
+                    id=str(task.id),
+                    workspace_id=str(task.workspace_id),
+                    team_id=str(task.team_id)
+                    if task.team_id
+                    else None,
+                    team_name=task.team.name
+                    if task.team
+                    else None,
+                    title=task.title,
+                    description=task.description,
+                    status=task.status,
+                    agent_id=str(task.agent_id),
+                    agent_name=task.agent.name
+                    if task.agent
+                    else "N/A",
+                    assigned_to_id=str(task.assigned_to_id)
+                    if task.assigned_to_id
+                    else None,
+                    assigned_to_name=task.assigned_to_user.name
+                    if task.assigned_to_user
+                    else "N/A",
+                    temporal_agent_id=task.temporal_agent_id,
+                    # Subtask-related fields
+                    parent_task_id=str(task.parent_task_id)
+                    if task.parent_task_id
+                    else None,
+                    temporal_parent_agent_id=task.temporal_parent_agent_id,
+                    # Schedule-related fields
+                    schedule_spec=task.schedule_spec,
+                    schedule_task_id=str(task.schedule_task_id)
+                    if task.schedule_task_id
+                    else None,
+                    is_scheduled=task.is_scheduled,
+                    schedule_status=task.schedule_status,
+                    temporal_schedule_id=task.temporal_schedule_id,
+                    created_at=task.created_at.isoformat()
+                    if task.created_at
+                    else None,
+                    updated_at=task.updated_at.isoformat()
+                    if task.updated_at
+                    else None,
                 )
+                for task in tasks
+            ]
 
             return TaskListOutput(tasks=output_result)
         except Exception as e:
@@ -793,6 +787,8 @@ async def tasks_get_stats(
     function_input: TaskGetByWorkspaceInput,
 ) -> TaskStatsOutput:
     """Get task statistics by status for a specific workspace."""
+    from src.utils.demo import apply_demo_multiplier_to_stats
+
     async for db in get_async_db():
         try:
             # Query to count tasks by status
@@ -825,12 +821,25 @@ async def tasks_get_stats(
                     stats[status] = count
                     total += count
 
+            # Add demo multipliers if enabled
+            real_stats = {
+                "in_progress": stats["in_progress"],
+                "in_review": stats["in_review"],
+                "closed": stats["closed"],
+                "completed": stats["completed"],
+                "total": total,
+            }
+
+            enhanced_stats = apply_demo_multiplier_to_stats(
+                real_stats
+            )
+
             return TaskStatsOutput(
-                in_progress=stats["in_progress"],
-                in_review=stats["in_review"],
-                closed=stats["closed"],
-                completed=stats["completed"],
-                total=total,
+                in_progress=enhanced_stats["in_progress"],
+                in_review=enhanced_stats["in_review"],
+                closed=enhanced_stats["closed"],
+                completed=enhanced_stats["completed"],
+                total=enhanced_stats["total"],
             )
         except Exception as e:
             raise NonRetryableError(

@@ -3,6 +3,7 @@
 import { useParams } from "next/navigation";
 import { useTaskDetail } from "./hooks/use-task-detail";
 import { sendMcpApproval } from "@/app/actions/agent";
+import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 import {
   TaskHeader,
   TaskChatInterface,
@@ -15,9 +16,9 @@ import {
   ConfirmationDialog,
   createConfirmationConfig,
 } from "@workspace/ui/components";
-// Back to original interface
 
 export default function TaskDetailPage() {
+  const { currentWorkspaceId } = useDatabaseWorkspace();
   const {
     task,
     isLoading,
@@ -41,6 +42,7 @@ export default function TaskDetailPage() {
     handleSendMessage,
     handleCardClick,
     handleCloseSplitView,
+    handleOpenAnalytics,
     updateConversationItemStatus,
   } = useTaskDetail();
 
@@ -115,7 +117,8 @@ export default function TaskDetailPage() {
       <TaskHeader 
         task={task} 
         onDelete={() => setShowDeleteDialog(true)} 
-        onUpdateTask={handleUpdateTask} 
+        onUpdateTask={handleUpdateTask}
+        onOpenAnalytics={handleOpenAnalytics}
       />
       
       <div className={`flex ${showSplitView ? 'h-[calc(100vh-80px)]' : ''}`}>
@@ -130,6 +133,9 @@ export default function TaskDetailPage() {
           agentLoading={agentLoading}
           showSplitView={showSplitView}
           responseState={responseState}
+          taskId={task.id}
+          agentId={task.agent_id}
+          workspaceId={currentWorkspaceId || undefined}
         />
 
         <TaskSplitView

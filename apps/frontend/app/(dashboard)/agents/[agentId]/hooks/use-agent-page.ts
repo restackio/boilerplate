@@ -91,6 +91,7 @@ export function useAgentPage(agentId: string) {
           instructions: latest.instructions,
           model: latest.model,
           reasoning_effort: latest.reasoning_effort,
+          type: agent.type, 
           status: "draft" as const,
         };
 
