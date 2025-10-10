@@ -75,7 +75,7 @@ async def get_tasks_by_metric_failure(
 
         # Build WHERE clause
         where_conditions = [
-            "workspace_id = {workspace_id:String}",
+            "workspace_id = {workspace_id:UUID}",
             "metric_category = 'quality'",
             "metric_name = {metric_name:String}",
         ]
@@ -89,7 +89,7 @@ async def get_tasks_by_metric_failure(
         # Optional filters
         if function_input.agent_id:
             where_conditions.append(
-                "agent_id = {agent_id:String}"
+                "agent_id = {agent_id:UUID}"
             )
 
         if function_input.version:
@@ -130,7 +130,7 @@ async def get_tasks_by_metric_failure(
 
         result = client.query(query, parameters=params)
         task_ids = [
-            row["task_id"] for row in result.named_results()
+            str(row["task_id"]) for row in result.named_results()
         ]
 
         log.info(
@@ -161,7 +161,7 @@ async def get_tasks_by_feedback(
 
         # Build WHERE clause
         where_conditions = [
-            "workspace_id = {workspace_id:String}",
+            "workspace_id = {workspace_id:UUID}",
             "metric_category = 'feedback'",
         ]
 
@@ -174,7 +174,7 @@ async def get_tasks_by_feedback(
         # Optional filters
         if function_input.agent_id:
             where_conditions.append(
-                "agent_id = {agent_id:String}"
+                "agent_id = {agent_id:UUID}"
             )
 
         if function_input.version:
@@ -214,7 +214,7 @@ async def get_tasks_by_feedback(
 
         result = client.query(query, parameters=params)
         task_ids = [
-            row["task_id"] for row in result.named_results()
+            str(row["task_id"]) for row in result.named_results()
         ]
 
         log.info(

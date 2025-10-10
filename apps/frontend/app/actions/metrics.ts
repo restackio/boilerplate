@@ -232,7 +232,7 @@ export async function runRetroactiveEvaluation(
       filters.agent_version = input.retroactive_agent_version;
     }
 
-    const { workflowId, runId } = await runWorkflow({
+    const { workflowId } = await runWorkflow({
       workflowName: "RetroactiveMetrics",
       input: {
         workspace_id: input.workspace_id,

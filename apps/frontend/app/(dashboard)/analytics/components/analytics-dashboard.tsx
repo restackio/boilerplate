@@ -211,7 +211,7 @@ export default function AnalyticsDashboard() {
                           className="h-8 px-2"
                           asChild
                         >
-                          <Link href={`/tasks?metric=${encodeURIComponent(metric.metricName)}&status=failed&dateRange=${filters.dateRange}${filters.agentId ? `&agentId=${filters.agentId}` : ''}${filters.version ? `&version=${encodeURIComponent(filters.version)}` : ''}`}>
+                          <Link href={`/tasks?metric=${encodeURIComponent(metric.metricName)}&metricStatus=failed&dateRange=${filters.dateRange}${filters.agentId ? `&agentId=${filters.agentId}` : ''}${filters.version ? `&version=${encodeURIComponent(filters.version)}` : ''}`}>
                             <AlertCircle className="h-4 w-4 mr-1" />
                             See fails
                           </Link>

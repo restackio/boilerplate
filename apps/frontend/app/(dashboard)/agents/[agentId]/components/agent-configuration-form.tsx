@@ -34,6 +34,8 @@ interface AgentConfigurationFormProps {
   // UI Configuration
   showNameField?: boolean;
   showDescriptionField?: boolean;
+  showModelSection?: boolean; // Control model configuration section
+  showInstructionsSection?: boolean; // Control instructions section
   showInstructionsPreview?: boolean;
   isReadOnly?: boolean;
   
@@ -94,6 +96,8 @@ export const AgentConfigurationForm = forwardRef<AgentConfigurationFormRef, Agen
   initialData,
   showNameField = true,
   showDescriptionField = true,
+  showModelSection = true,
+  showInstructionsSection = true,
   isReadOnly = false,
   variant = "full",
   instructionsMinHeight = "200px",
@@ -206,101 +210,105 @@ export const AgentConfigurationForm = forwardRef<AgentConfigurationFormRef, Agen
       )}
 
       {/* Model Configuration */}
-      <FieldWrapper title="Model Configuration" variant={variant}>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="agent-model" className="text-xs">Model</Label>
-            <Select
-              value={model}
-              onValueChange={(v) => {
-                setModel(v);
-              }}
-              disabled={isReadOnly}
-            >
-              <SelectTrigger className={variant === "compact" ? "mt-1" : ""}>
-                <SelectValue placeholder="Select model" />
-              </SelectTrigger>
-              <SelectContent>
-                {MODEL_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="agent-reasoning-effort" className="text-xs">Reasoning Effort</Label>
-            <Select
-              value={reasoningEffort}
-              onValueChange={(v) => {
-                setReasoningEffort(v);
-              }}
-              disabled={isReadOnly}
-            >
-              <SelectTrigger className={variant === "compact" ? "mt-1" : ""}>
-                <SelectValue placeholder="Select reasoning effort" />
-              </SelectTrigger>
-              <SelectContent>
-                {REASONING_EFFORT_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </FieldWrapper>
-
-      {/* Instructions */}
-      <FieldWrapper title="Instructions" variant={variant}>
-        <div className="space-y-3">
-          {/* Template Insertion - Only show in edit mode */}
-          {!isReadOnly && (
-            <div className="flex items-center gap-2">
-              <Label className="text-xs text-muted-foreground whitespace-nowrap">Insert from template:</Label>
-              <Select onValueChange={(id) => {
-                const template = PROMPT_TEMPLATES.find(x => x.id === id);
-                if (template) {
-                  const newInstructions = instructions 
-                    ? instructions + "\n\n" + template.content 
-                    : template.content;
-                  setInstructions(newInstructions);
-                }
-              }}>
-                <SelectTrigger className="h-8 w-full">
-                  <SelectValue placeholder="GPT-5 best-practice templates" />
+      {showModelSection && (
+        <FieldWrapper title="Model Configuration" variant={variant}>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="agent-model" className="text-xs">Model</Label>
+              <Select
+                value={model}
+                onValueChange={(v) => {
+                  setModel(v);
+                }}
+                disabled={isReadOnly}
+              >
+                <SelectTrigger className={variant === "compact" ? "mt-1" : ""}>
+                  <SelectValue placeholder="Select model" />
                 </SelectTrigger>
                 <SelectContent>
-                  {PROMPT_TEMPLATES.map(template => (
-                    <SelectItem key={template.id} value={template.id}>
-                      {template.title}
+                  {MODEL_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-          )}
-          
-          <Textarea
-            id="agent-instructions"
-            value={instructions}
-            onChange={(e) => {
-              const v = e.target.value;
-              setInstructions(v);
-            }}
-            placeholder="Enter detailed instructions for how this agent should behave..."
-            className={`font-mono text-sm resize-none`}
-            style={{ minHeight: instructionsMinHeight }}
-            disabled={isReadOnly}
-          />
-          <p className="text-xs text-muted-foreground">
-            Define how the agent should respond. Markdown is supported.
-          </p>
-        </div>
-      </FieldWrapper>
+            
+            <div className="space-y-2">
+              <Label htmlFor="agent-reasoning-effort" className="text-xs">Reasoning Effort</Label>
+              <Select
+                value={reasoningEffort}
+                onValueChange={(v) => {
+                  setReasoningEffort(v);
+                }}
+                disabled={isReadOnly}
+              >
+                <SelectTrigger className={variant === "compact" ? "mt-1" : ""}>
+                  <SelectValue placeholder="Select reasoning effort" />
+                </SelectTrigger>
+                <SelectContent>
+                  {REASONING_EFFORT_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </FieldWrapper>
+      )}
+
+      {/* Instructions */}
+      {showInstructionsSection && (
+        <FieldWrapper title="Instructions" variant={variant}>
+          <div className="space-y-3">
+            {/* Template Insertion - Only show in edit mode */}
+            {!isReadOnly && (
+              <div className="flex items-center gap-2">
+                <Label className="text-xs text-muted-foreground whitespace-nowrap">Insert from template:</Label>
+                <Select onValueChange={(id) => {
+                  const template = PROMPT_TEMPLATES.find(x => x.id === id);
+                  if (template) {
+                    const newInstructions = instructions 
+                      ? instructions + "\n\n" + template.content 
+                      : template.content;
+                    setInstructions(newInstructions);
+                  }
+                }}>
+                  <SelectTrigger className="h-8 w-full">
+                    <SelectValue placeholder="GPT-5 best-practice templates" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PROMPT_TEMPLATES.map(template => (
+                      <SelectItem key={template.id} value={template.id}>
+                        {template.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            
+            <Textarea
+              id="agent-instructions"
+              value={instructions}
+              onChange={(e) => {
+                const v = e.target.value;
+                setInstructions(v);
+              }}
+              placeholder="Enter detailed instructions for how this agent should behave..."
+              className={`font-mono text-sm resize-none`}
+              style={{ minHeight: instructionsMinHeight }}
+              disabled={isReadOnly}
+            />
+            <p className="text-xs text-muted-foreground">
+              Define how the agent should respond. Markdown is supported.
+            </p>
+          </div>
+        </FieldWrapper>
+      )}
     </div>
   );
 });

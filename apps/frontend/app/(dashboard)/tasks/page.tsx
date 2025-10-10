@@ -38,7 +38,7 @@ export default function TasksPage() {
       if (!isReady || !currentWorkspaceId) return;
 
       const metricParam = searchParams.get('metric');
-      const statusParam = searchParams.get('status');
+      const metricStatusParam = searchParams.get('metricStatus');
       const feedbackParam = searchParams.get('feedback');
       const dateRangeParam = searchParams.get('dateRange') as "1d" | "7d" | "30d" | "90d" | "all" | null;
       const agentIdParam = searchParams.get('agentId');
@@ -59,7 +59,7 @@ export default function TasksPage() {
           const result = await getTasksByMetric({
             workspaceId: currentWorkspaceId,
             metricName: metricParam,
-            status: (statusParam as "failed" | "passed") || "failed",
+            status: (metricStatusParam as "failed" | "passed") || "failed",
             dateRange: dateRangeParam || "7d",
             agentId: agentIdParam,
             version: versionParam,
@@ -138,13 +138,12 @@ export default function TasksPage() {
 
   // Transform and filter tasks data
   const tasksData = useMemo(() => {
-    const transformedTasks = tasks
-      .filter(task => !task.schedule_spec) // Exclude tasks with schedule_spec - those belong in /schedules
-      .map((task) => ({
-        ...task,
-        created: task.created_at || new Date().toISOString(),
-        updated: task.updated_at || new Date().toISOString(),
-      }));
+    // Transform all tasks first
+    const transformedTasks = tasks.map((task) => ({
+      ...task,
+      created: task.created_at || new Date().toISOString(),
+      updated: task.updated_at || new Date().toISOString(),
+    }));
 
     // Filter by metric/feedback if filteredTaskIds is set
     if (filteredTaskIds !== null) {
@@ -158,7 +157,8 @@ export default function TasksPage() {
       return transformedTasks.filter(task => taskIds.includes(task.id));
     }
 
-    return transformedTasks;
+    // Only exclude scheduled tasks when no filters are active
+    return transformedTasks.filter(task => !task.schedule_spec);
   }, [tasks, searchParams, filteredTaskIds]);
 
   // Create team options for filtering
@@ -323,7 +323,7 @@ export default function TasksPage() {
                 <div>
                   <p className="text-blue-800 text-sm font-medium">
                     {metricParam 
-                      ? `Showing tasks that ${searchParams.get('status') || 'failed'} "${metricParam}"`
+                      ? `Showing tasks that ${searchParams.get('metricStatus') || 'failed'} "${metricParam}"`
                       : `Showing tasks with ${feedbackParam} feedback`}
                   </p>
                   <p className="text-blue-700 text-xs mt-1">
