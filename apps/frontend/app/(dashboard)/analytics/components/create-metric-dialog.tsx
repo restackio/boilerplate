@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@workspace/ui/components/ui/button";
 import {
   Dialog,
@@ -30,12 +30,19 @@ interface CreateMetricDialogProps {
   workspaceId: string;
   userId?: string;
   onMetricCreated?: () => void;
+  feedbackContext?: {
+    isPositive: boolean;
+    feedbackText: string | null | undefined;
+  };
+  trigger?: React.ReactNode;
 }
 
 export function CreateMetricDialog({
   workspaceId,
   userId,
   onMetricCreated,
+  feedbackContext,
+  trigger,
 }: CreateMetricDialogProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -56,6 +63,22 @@ export function CreateMetricDialog({
   const [runRetroactive, setRunRetroactive] = useState(false);
   const [retroactiveWeeks, setRetroactiveWeeks] = useState(2);
   const [samplePercentage, setSamplePercentage] = useState(10);
+
+  // Pre-fill form based on feedback context when dialog opens
+  useEffect(() => {
+    if (open && feedbackContext) {
+      const feedbackType = feedbackContext.isPositive ? "positive" : "negative";
+      const feedbackText = feedbackContext.feedbackText;
+      
+      const suggestedPrompt = feedbackText
+        ? `Evaluate if the response addresses the following concern from user feedback: "${feedbackText}"\n\nThis feedback was marked as ${feedbackType}.\n\nReturn JSON: {"passed": true/false, "score": 0-100, "reasoning": "..."}`
+        : `Evaluate if the response would receive ${feedbackType} feedback from users.\n\nReturn JSON: {"passed": true/false, "score": 0-100, "reasoning": "..."}`;
+      
+      setJudgePrompt(suggestedPrompt);
+      setName(`feedback_${feedbackType}_check`);
+      setDescription(`Metric based on ${feedbackType} user feedback`);
+    }
+  }, [open, feedbackContext]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -142,10 +165,12 @@ export function CreateMetricDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>
-          <Plus className="h-4 w-4 mr-2" />
-          Create metric
-        </Button>
+        {trigger || (
+          <Button>
+            <Plus className="h-4 w-4 mr-2" />
+            Create metric
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <form onSubmit={handleSubmit}>
@@ -157,6 +182,17 @@ export function CreateMetricDialog({
           </DialogHeader>
 
           <div className="space-y-4 py-4">
+            {/* Feedback Context Banner */}
+            {feedbackContext && (
+              <div className="bg-muted/50 rounded-lg p-3 text-sm border">
+                <p className="font-semibold mb-1">Based on feedback:</p>
+                <p className="text-muted-foreground">
+                  {feedbackContext.isPositive ? "👍 Positive" : "👎 Negative"} feedback
+                  {feedbackContext.feedbackText && `: "${feedbackContext.feedbackText}"`}
+                </p>
+              </div>
+            )}
+
             {/* Metric Name */}
             <div className="space-y-2">
               <Label htmlFor="name">Name</Label>

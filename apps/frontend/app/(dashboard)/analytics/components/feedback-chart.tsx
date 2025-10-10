@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { ThumbsUp, ThumbsDown, TrendingUp, TrendingDown, Plus, X } from "lucide-react";
+import { ThumbsUp, ThumbsDown, TrendingUp, TrendingDown } from "lucide-react";
 import type { FeedbackTimeSeries, FeedbackSummary } from "@/app/actions/analytics";
 import Link from "next/link";
 import { Button } from "@workspace/ui/components/ui/button";
 import { DetailedFeedback } from "@/app/actions/feedback";
-import { CreateMetricPanel } from "./create-metric-panel";
+import { CreateMetricDialog } from "./create-metric-dialog";
+import { ClipboardCheck } from "lucide-react";
 
 interface FeedbackChartProps {
   data: FeedbackTimeSeries[];
@@ -19,8 +20,6 @@ interface FeedbackChartProps {
 
 export default function FeedbackChart({ data, summary, detailedFeedbacks = [], workspaceId, userId, onMetricCreated }: FeedbackChartProps) {
   const [showDetails, setShowDetails] = useState(false);
-  const [showCreateMetric, setShowCreateMetric] = useState(false);
-  const [selectedFeedback, setSelectedFeedback] = useState<DetailedFeedback | null>(null);
 
   // Handle no data case
   if (!data || data.length === 0) {
@@ -139,137 +138,92 @@ export default function FeedbackChart({ data, summary, detailedFeedbacks = [], w
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <h4 className="text-sm font-semibold">Recent Feedback</h4>
-            <div className="flex items-center gap-2">
-              {workspaceId && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    setShowCreateMetric(true);
-                    setSelectedFeedback(null);
-                    setShowDetails(true);
-                  }}
-                  disabled={showCreateMetric}
-                >
-                  <Plus className="h-3.5 w-3.5 mr-1" />
-                  Create Metric
-                </Button>
-              )}
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => setShowDetails(!showDetails)}
-              >
-                {showDetails ? "Hide" : "Show"} Details
-              </Button>
-            </div>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setShowDetails(!showDetails)}
+            >
+              {showDetails ? "Hide" : "Show"} Details
+            </Button>
           </div>
 
           {showDetails && (
-            <div className={`flex gap-4 ${showCreateMetric ? "h-[600px]" : ""}`}>
-              {/* Feedback Table */}
-              <div className={`border rounded-lg overflow-hidden ${showCreateMetric ? "w-1/2" : "w-full"}`}>
-                <div className="max-h-[400px] overflow-y-auto">
-                  <table className="w-full text-sm">
-                    <thead className="bg-muted sticky top-0">
-                      <tr className="border-b">
-                        <th className="text-left p-2 font-medium">Type</th>
-                        <th className="text-left p-2 font-medium">Response</th>
-                        <th className="text-left p-2 font-medium">Feedback</th>
-                        <th className="text-left p-2 font-medium">Date</th>
-                        {showCreateMetric && workspaceId && (
-                          <th className="text-left p-2 font-medium w-[100px]">Action</th>
+            <div className="border rounded-lg overflow-hidden">
+              <div className="max-h-[400px] overflow-y-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted sticky top-0">
+                    <tr className="border-b">
+                      <th className="text-left p-2 font-medium">Type</th>
+                      <th className="text-left p-2 font-medium">Response</th>
+                      <th className="text-left p-2 font-medium">Feedback</th>
+                      <th className="text-left p-2 font-medium">Date</th>
+                      {workspaceId && (
+                        <th className="text-left p-2 font-medium w-[120px]">Action</th>
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {detailedFeedbacks.map((feedback, index) => (
+                      <tr key={index} className="border-b hover:bg-muted/50">
+                        <td className="p-2">
+                          {feedback.isPositive ? (
+                            <div className="flex items-center gap-1 text-green-600">
+                              <ThumbsUp className="h-3 w-3" />
+                              <span className="text-xs">Positive</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1 text-red-600">
+                              <ThumbsDown className="h-3 w-3" />
+                              <span className="text-xs">Negative</span>
+                            </div>
+                          )}
+                        </td>
+                        <td className="p-2">
+                          <Link
+                            href={`/tasks/${feedback.taskId}`}
+                            className="text-blue-600 hover:underline text-xs"
+                          >
+                            #{feedback.responseIndex + 1}
+                          </Link>
+                        </td>
+                        <td className="p-2 max-w-md truncate">
+                          {feedback.feedbackText || (
+                            <span className="text-muted-foreground italic text-xs">
+                              No details
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-2 text-xs text-muted-foreground">
+                          {formatDate(feedback.createdAt)}
+                        </td>
+                        {workspaceId && (
+                          <td className="p-2">
+                            <CreateMetricDialog
+                              workspaceId={workspaceId}
+                              userId={userId}
+                              onMetricCreated={onMetricCreated}
+                              feedbackContext={{
+                                isPositive: feedback.isPositive,
+                                feedbackText: feedback.feedbackText,
+                              }}
+                              trigger={
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 px-2 text-xs"
+                                >
+                                  <ClipboardCheck className="h-3.5 w-3.5 mr-1" />
+                                  Create metric
+                                </Button>
+                              }
+                            />
+                          </td>
                         )}
                       </tr>
-                    </thead>
-                    <tbody>
-                      {detailedFeedbacks.map((feedback, index) => (
-                        <tr key={index} className="border-b hover:bg-muted/50">
-                          <td className="p-2">
-                            {feedback.isPositive ? (
-                              <div className="flex items-center gap-1 text-green-600">
-                                <ThumbsUp className="h-3 w-3" />
-                                <span className="text-xs">Positive</span>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-1 text-red-600">
-                                <ThumbsDown className="h-3 w-3" />
-                                <span className="text-xs">Negative</span>
-                              </div>
-                            )}
-                          </td>
-                          <td className="p-2">
-                            <Link
-                              href={`/tasks/${feedback.taskId}`}
-                              className="text-blue-600 hover:underline text-xs"
-                            >
-                              #{feedback.responseIndex + 1}
-                            </Link>
-                          </td>
-                          <td className="p-2 max-w-md truncate">
-                            {feedback.feedbackText || (
-                              <span className="text-muted-foreground italic text-xs">
-                                No details
-                              </span>
-                            )}
-                          </td>
-                          <td className="p-2 text-xs text-muted-foreground">
-                            {formatDate(feedback.createdAt)}
-                          </td>
-                          {showCreateMetric && workspaceId && (
-                            <td className="p-2">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-7 px-2 text-xs"
-                                onClick={() => setSelectedFeedback(feedback)}
-                              >
-                                Use
-                              </Button>
-                            </td>
-                          )}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-
-              {/* Create Metric Panel */}
-              {showCreateMetric && workspaceId && (
-                <div className="w-1/2 border rounded-lg overflow-hidden bg-background">
-                  <div className="flex items-center justify-between p-3 border-b bg-muted/50">
-                    <h4 className="font-semibold text-sm">Create Metric from Feedback</h4>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-7 w-7 p-0"
-                      onClick={() => {
-                        setShowCreateMetric(false);
-                        setSelectedFeedback(null);
-                      }}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <div className="overflow-y-auto max-h-[550px]">
-                    <CreateMetricPanel
-                      workspaceId={workspaceId}
-                      userId={userId}
-                      selectedFeedback={selectedFeedback}
-                      onMetricCreated={() => {
-                        setShowCreateMetric(false);
-                        setSelectedFeedback(null);
-                        onMetricCreated?.();
-                      }}
-                      onCancel={() => {
-                        setShowCreateMetric(false);
-                        setSelectedFeedback(null);
-                      }}
-                    />
-                  </div>
-                </div>
-              )}
             </div>
           )}
         </div>

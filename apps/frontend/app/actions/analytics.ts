@@ -60,6 +60,14 @@ export interface FeedbackTimeSeries {
   negativeCount: number;
   feedbackCount: number;
   feedbackCoverage: number;
+  totalCount: number;
+  negativePercentage: number;
+}
+
+export interface FeedbackSummary {
+  totalFeedback: number;
+  positivePercentage: number;
+  negativePercentage: number;
 }
 
 export interface DetailedFeedback {
