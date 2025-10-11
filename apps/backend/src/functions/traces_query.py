@@ -256,8 +256,8 @@ async def query_traces_batch(
             + where_clause
             + """
         ORDER BY started_at DESC
-        LIMIT {{limit:UInt32}}
-        OFFSET {{offset:UInt32}}
+        LIMIT {limit:UInt32}
+        OFFSET {offset:UInt32}
         """
         )
 
