@@ -773,7 +773,7 @@ class AgentTask:
             return {"processed": True}
 
     @agent.event
-    async def end(self) -> EndEvent:
+    async def end(self, _end_event: EndEvent) -> EndEvent:
         log.info("Received end")
         self.end = True
         return {"end": True}

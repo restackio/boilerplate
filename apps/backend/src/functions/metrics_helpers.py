@@ -40,7 +40,7 @@ async def create_metric_evaluation_task(
 
     if metric_type == "llm_judge":
         return workflow.step(
-            evaluate_llm_judge_metric,
+            function=evaluate_llm_judge_metric,
             function_input={
                 "task_id": task_id,
                 "task_input": task_input,
@@ -50,7 +50,7 @@ async def create_metric_evaluation_task(
         )
     if metric_type == "python_code":
         return workflow.step(
-            evaluate_python_code_metric,
+            function=evaluate_python_code_metric,
             function_input={
                 "task_id": task_id,
                 "task_input": task_input,
@@ -61,7 +61,7 @@ async def create_metric_evaluation_task(
         )
     if metric_type == "formula":
         return workflow.step(
-            evaluate_formula_metric,
+            function=evaluate_formula_metric,
             function_input={
                 "task_id": task_id,
                 "performance_data": performance_data,
