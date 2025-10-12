@@ -28,6 +28,7 @@ export function FeedbackButtons({
 }: FeedbackButtonsProps) {
   const [feedback, setFeedback] = useState<"positive" | "negative" | null>(null);
   const [showDialog, setShowDialog] = useState(false);
+  const [dialogFeedbackType, setDialogFeedbackType] = useState<"positive" | "negative">("negative");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
@@ -69,7 +70,7 @@ export function FeedbackButtons({
   };
 
   const handleDetailedFeedback = (type: "positive" | "negative") => {
-    setFeedback(type);
+    setDialogFeedbackType(type);
     setShowDialog(true);
   };
 
@@ -136,14 +137,12 @@ export function FeedbackButtons({
         >
           <ThumbsDown className="h-3.5 w-3.5" />
         </Button>
-
-        <div className="h-4 w-px bg-border mx-1" />
       </div>
 
       <FeedbackDialog
         open={showDialog}
         onOpenChange={setShowDialog}
-        feedbackType={feedback || "negative"}
+        feedbackType={dialogFeedbackType}
         onSubmit={handleSubmitDetailedFeedback}
         isSubmitting={isSubmitting}
       />
