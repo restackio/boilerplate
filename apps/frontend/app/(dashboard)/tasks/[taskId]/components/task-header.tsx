@@ -1,6 +1,6 @@
 import { Button } from "@workspace/ui/components/ui/button";
 import { PageHeader } from "@workspace/ui/components/page-header";
-import { Trash2, Archive, BarChart3 } from "lucide-react";
+import { Trash2, Archive, BarChart3, AlertCircle } from "lucide-react";
 import { Task } from "@/hooks/use-workspace-scoped-actions";
 
 interface TaskHeaderProps {
@@ -34,12 +34,22 @@ export function TaskHeader({ task, onDelete, onUpdateTask, onOpenAnalytics }: Ta
       >
         <Trash2 className="h-4 w-4" />
       </Button>
-      {task.status !== "completed" && task.status !== "closed" && (
+      {task.status !== "completed" && task.status !== "closed" && task.status !== "failed" && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => onUpdateTask({ status: "failed" })}
+          title="Mark as failed"
+        >
+          <AlertCircle className="h-4 w-4" />
+        </Button>
+      )}
+      {task.status !== "completed" && task.status !== "closed" && task.status !== "failed" && (
         <Button variant="ghost" size="sm" onClick={() => onUpdateTask({ status: "closed" })} title="Archive Task">
           <Archive className="h-4 w-4" />
         </Button>
       )}
-      {task.status !== "completed" && task.status !== "closed" && (
+      {task.status !== "completed" && task.status !== "closed" && task.status !== "failed" && (
         <Button
           variant="default"
           size="sm"

@@ -146,7 +146,7 @@ def _merge_quality_metrics(
                     ),
                     "isActive": definition.get("is_active", True),
                     "config": definition.get("config", {}),
-                    "passRate": 0,
+                    "failRate": 0,
                     "avgScore": None,
                     "evaluationCount": 0,
                 }

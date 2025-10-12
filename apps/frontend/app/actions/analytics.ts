@@ -34,7 +34,7 @@ export interface QualitySummary {
   isDefault: boolean;
   isActive: boolean;
   config: Record<string, unknown>;
-  passRate: number;
+  failRate: number;
   avgScore?: number;
   evaluationCount: number;
 }
@@ -42,14 +42,14 @@ export interface QualitySummary {
 export interface QualityTimeSeries {
   date: string;
   metricName: string;
-  passRate: number;
+  failRate: number;
   avgScore?: number;
 }
 
 export interface OverviewTimeSeries {
   date: string;
   taskCount: number;
-  successRate: number;
+  failRate: number;
 }
 
 export interface FeedbackTimeSeries {

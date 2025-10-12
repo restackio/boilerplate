@@ -36,6 +36,7 @@ with import_functions():
         agents_get_by_status,
         agents_get_versions,
         agents_read,
+        agents_read_all,
         agents_read_table,
         agents_update,
         agents_update_status,
@@ -265,6 +266,29 @@ class AgentsGetVersionsWorkflow:
             error_message = (
                 f"Error during agents_get_versions: {e}"
             )
+            log.error(error_message)
+            raise NonRetryableError(message=error_message) from e
+
+
+@workflow.defn()
+class AgentsReadAllWorkflow:
+    """Workflow to read ALL agents without grouping."""
+
+    @workflow.run
+    async def run(
+        self, workflow_input: AgentGetByWorkspaceInput
+    ) -> AgentListOutput:
+        """Read all agents without grouping."""
+        log.info("AgentsReadAllWorkflow started")
+        try:
+            return await workflow.step(
+                function=agents_read_all,
+                function_input=workflow_input,
+                start_to_close_timeout=timedelta(seconds=30),
+            )
+
+        except Exception as e:
+            error_message = f"Error during agents_read_all: {e}"
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e
 

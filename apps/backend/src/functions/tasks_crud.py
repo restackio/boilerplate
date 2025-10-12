@@ -16,7 +16,7 @@ class TaskCreateInput(BaseModel):
     description: str = Field(..., min_length=1)
     status: str = Field(
         default="in_progress",
-        pattern="^(in_progress|in_review|closed|completed)$",
+        pattern="^(in_progress|in_review|closed|completed|failed)$",
     )
     agent_id: str | None = None
     agent_name: str | None = None
@@ -40,7 +40,7 @@ class TaskUpdateInput(BaseModel):
     title: str | None = Field(None, min_length=1, max_length=255)
     description: str | None = None
     status: str | None = Field(
-        None, pattern="^(in_progress|in_review|closed|completed)$"
+        None, pattern="^(in_progress|in_review|closed|completed|failed)$"
     )
     agent_id: str | None = None
     assigned_to_id: str | None = None
@@ -82,7 +82,7 @@ class TaskGetByIdInput(BaseModel):
 
 class TaskGetByStatusInput(BaseModel):
     status: str = Field(
-        ..., pattern="^(in_progress|in_review|closed|completed)$"
+        ..., pattern="^(in_progress|in_review|closed|completed|failed)$"
     )
 
 

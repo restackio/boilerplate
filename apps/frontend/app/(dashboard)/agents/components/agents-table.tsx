@@ -194,6 +194,7 @@ export function AgentsTable({
                   <TableHead className="w-1/3">Agent</TableHead>
                   <TableHead className="hidden md:table-cell">Draft</TableHead>
                   <TableHead className="hidden md:table-cell">Published</TableHead>
+                  <TableHead className="hidden lg:table-cell text-center">Versions</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="hidden md:table-cell">Type</TableHead>
                   <TableHead className="hidden sm:table-cell">Team</TableHead>
@@ -319,6 +320,29 @@ export function AgentsTable({
                       </Tooltip>
                     ) : (
                       <span className="text-xs text-muted-foreground">-</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="hidden lg:table-cell text-center">
+                    {agent.version_count && agent.version_count > 0 ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              router.push(`/agents/${agent.id}?tab=versions`);
+                            }}
+                            className="inline-flex items-center gap-1 px-2 py-1 text-sm font-medium rounded-md hover:bg-muted transition-colors bg-transparent border-none cursor-pointer"
+                          >
+                            <GitBranch className="h-3.5 w-3.5 text-muted-foreground" />
+                            <span>{agent.version_count}</span>
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>View all {agent.version_count} version{agent.version_count > 1 ? 's' : ''}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">1</span>
                     )}
                   </TableCell>
                   <TableCell>

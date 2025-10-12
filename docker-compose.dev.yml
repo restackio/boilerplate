@@ -15,6 +15,7 @@ services:
       - ./packages/database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
       - ./packages/database/workspace-seed.sql:/docker-entrypoint-initdb.d/02-workspace-seed.sql
       - ./packages/database/agents-seed.sql:/docker-entrypoint-initdb.d/03-agents-seed.sql
+      - ./packages/database/demo-seed.sql:/docker-entrypoint-initdb.d/04-demo-seed.sql
     command: >
       postgres
       -c shared_buffers=512MB

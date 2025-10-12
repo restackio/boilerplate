@@ -82,15 +82,33 @@ export default function PerformanceMetricChart({ data, metric, color }: Performa
       />
 
       {/* X-axis labels */}
-      {data.length > 1 && (
-        <div className="flex justify-between text-xs text-muted-foreground px-2">
-          <span>{new Date(data[0].date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-          {data.length > 2 && (
-            <span>{new Date(data[Math.floor(data.length / 2)].date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-          )}
-          <span>{new Date(data[data.length - 1].date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-        </div>
-      )}
+      <div className="flex justify-between text-[10px] text-muted-foreground px-2">
+        {data.map((item, idx) => {
+          // Show labels based on data length:
+          // - 1-8 days: show all
+          // - 9-15 days: show every 2nd
+          // - 16-45 days: show every 5th
+          // - 46+ days: show every 10th
+          let showLabel = false;
+          if (data.length <= 8) {
+            showLabel = true;
+          } else if (data.length <= 15) {
+            showLabel = idx % 2 === 0 || idx === data.length - 1;
+          } else if (data.length <= 45) {
+            showLabel = idx % 5 === 0 || idx === data.length - 1;
+          } else {
+            showLabel = idx % 10 === 0 || idx === data.length - 1;
+          }
+
+          if (!showLabel) return null;
+
+          return (
+            <span key={idx} className="flex-shrink-0">
+              {new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+            </span>
+          );
+        })}
+      </div>
     </div>
   );
 }

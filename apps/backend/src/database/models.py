@@ -489,6 +489,7 @@ class Task(Base):
                     "in_review",
                     "closed",
                     "completed",
+                    "failed",
                 ]
             ),
             name="valid_task_status",

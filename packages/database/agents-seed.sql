@@ -713,7 +713,7 @@ Use the **updatetodos** tool to track your progress visually for the user.$$,
 ON CONFLICT (id) DO NOTHING;
 
 -- Healthcare Insurance Support Agent - Kaiser Permanente policy assistance
-INSERT INTO agents (id, workspace_id, team_id, name, description, instructions, type, status, model, reasoning_effort)
+INSERT INTO agents (id, workspace_id, team_id, name, description, instructions, type, status, model, reasoning_effort, created_at)
 VALUES (
     'cccccccc-dddd-eeee-ffff-333333333333',
     'c926e979-1f16-46bf-a7cc-8aab70162d65',
@@ -805,7 +805,8 @@ Your goal is to make healthcare coverage easy to understand and help members con
     'interactive',
     'published',
     'gpt-5',
-    'medium'
+    'medium',
+    NOW() - INTERVAL '7 days'
 )
 ON CONFLICT (id) DO NOTHING;
 

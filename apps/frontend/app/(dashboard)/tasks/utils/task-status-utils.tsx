@@ -15,6 +15,7 @@ export const taskStatusOptions = [
   { label: "In Review", value: "in_review", icon: CirclePause },
   { label: "Closed", value: "closed", icon: CircleX },
   { label: "Completed", value: "completed", icon: CheckCircle },
+  { label: "Failed", value: "failed", icon: XCircle },
 ];
 
 // Get status color classes
@@ -28,6 +29,8 @@ export const getStatusColor = (status: string): string => {
       return "bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-200";
     case "closed":
       return "bg-gray-100 text-gray-800 dark:bg-gray-900/50 dark:text-gray-200";
+    case "failed":
+      return "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200";
     default:
       return "bg-gray-100 text-gray-800 dark:bg-gray-900/50 dark:text-gray-200";
   }

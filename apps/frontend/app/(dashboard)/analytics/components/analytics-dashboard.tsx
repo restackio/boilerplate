@@ -6,7 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/componen
 import { Button } from "@workspace/ui/components/ui/button";
 import { AlertCircle, Ellipsis } from "lucide-react";
 import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
+import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
 import { getAnalytics, type AnalyticsData, type AnalyticsFilters } from "@/app/actions/analytics";
+import { getAgentPublishHistory, type AgentPublishEvent } from "@/app/actions/agents";
 import MetricsFilters from "./metrics-filters";
 import TasksOverviewChart from "./tasks-overview-chart";
 import PerformanceMetricChart from "./performance-metric-chart";
@@ -15,6 +17,7 @@ import { EditMetricDialog } from "./edit-metric-dialog";
 
 export default function AnalyticsDashboard() {
   const { currentWorkspaceId, isReady, loading } = useDatabaseWorkspace();
+  const { agents, fetchAgents } = useWorkspaceScopedActions();
   const [filters, setFilters] = useState<AnalyticsFilters>({
     agentId: null,
     dateRange: "7d",
@@ -23,6 +26,7 @@ export default function AnalyticsDashboard() {
   });
   
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
+  const [agentPublishEvents, setAgentPublishEvents] = useState<AgentPublishEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedMetric, setSelectedMetric] = useState<{
@@ -42,6 +46,13 @@ export default function AnalyticsDashboard() {
     setEditDialogOpen(true);
   };
 
+  // Fetch agents for filter dropdown
+  useEffect(() => {
+    if (isReady && currentWorkspaceId) {
+      fetchAgents({ publishedOnly: true });
+    }
+  }, [isReady, currentWorkspaceId, fetchAgents]);
+
   // Update filters when workspace ID becomes available
   useEffect(() => {
     if (currentWorkspaceId) {
@@ -56,14 +67,22 @@ export default function AnalyticsDashboard() {
     setIsLoading(true);
     
     try {
-      const data = await getAnalytics({
-        workspaceId: filters.workspaceId,
-        agentId: filters.agentId,
-        version: filters.version,
-        dateRange: filters.dateRange,
-      });
+      const [data, publishEvents] = await Promise.all([
+        getAnalytics({
+          workspaceId: filters.workspaceId,
+          agentId: filters.agentId,
+          version: filters.version,
+          dateRange: filters.dateRange,
+        }),
+        getAgentPublishHistory({
+          workspaceId: filters.workspaceId,
+          agentId: filters.agentId,
+          dateRange: filters.dateRange,
+        }),
+      ]);
       
       setAnalyticsData(data);
+      setAgentPublishEvents(publishEvents);
     } catch (error) {
       console.error("Error fetching analytics:", error);
     } finally {
@@ -88,7 +107,7 @@ export default function AnalyticsDashboard() {
   return (
     <div className="space-y-6">
       {/* Filters */}
-      <MetricsFilters filters={filters} onFiltersChange={setFilters} />
+      <MetricsFilters filters={filters} onFiltersChange={setFilters} agents={agents} />
 
       {isLoading ? (
         <div className="flex items-center justify-center h-[400px]">
@@ -98,10 +117,13 @@ export default function AnalyticsDashboard() {
         <>
 
           <div className="space-y-4">
-            <h2 className="text-lg font-semibold">Tasks volume and success rate</h2>
+            <h2 className="text-lg font-semibold">Tasks volume and fail rate</h2>
             <Card>
               <CardContent>
-                <TasksOverviewChart data={analyticsData?.overview?.timeseries || []} />
+                <TasksOverviewChart 
+                  data={analyticsData?.overview?.timeseries || []} 
+                  publishEvents={agentPublishEvents}
+                />
               </CardContent>
             </Card>
           </div>
@@ -179,17 +201,14 @@ export default function AnalyticsDashboard() {
                   <CardContent>
                     <QualityMetricChart 
                       data={analyticsData.feedback.timeseries.map(item => {
-                        // Pass = tasks with positive feedback OR no feedback at all
                         // Fail = tasks with negative feedback
-                        const tasksWithNoFeedback = item.totalTasks - item.tasksWithFeedback;
-                        const passedTasks = item.positiveCount + tasksWithNoFeedback;
-                        const passRate = item.totalTasks > 0 ? passedTasks / item.totalTasks : 1;
+                        const failRate = item.totalTasks > 0 ? item.negativeCount / item.totalTasks : 0;
                         
                         return {
                           date: item.date,
                           metricName: "Feedback",
-                          passRate: passRate,
-                          avgScore: passRate * 100,
+                          failRate: failRate,
+                          avgScore: (1 - failRate) * 100,
                         };
                       })}
                       metricName="Feedback"

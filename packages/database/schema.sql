@@ -183,7 +183,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     team_id UUID REFERENCES teams(id) ON DELETE SET NULL,
     title VARCHAR(255) NOT NULL,
     description TEXT,
-    status VARCHAR(50) NOT NULL DEFAULT 'in_progress' CHECK (status IN ('in_progress', 'in_review', 'closed', 'completed')),
+    status VARCHAR(50) NOT NULL DEFAULT 'in_progress' CHECK (status IN ('in_progress', 'in_review', 'closed', 'completed', 'failed')),
     agent_id UUID NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
     assigned_to_id UUID REFERENCES users(id) ON DELETE CASCADE,
     temporal_agent_id VARCHAR(255), -- Temporal/Restack workflow ID

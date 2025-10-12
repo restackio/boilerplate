@@ -43,7 +43,7 @@ export interface Task {
   id: string;
   title: string;
   description?: string;
-  status: "in_progress" | "in_review" | "closed" | "completed";
+  status: "in_progress" | "in_review" | "closed" | "completed" | "failed";
   agent_id: string;
   agent_name: string;
   type?: "interactive" | "pipeline";

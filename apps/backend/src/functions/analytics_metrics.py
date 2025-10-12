@@ -2,14 +2,19 @@
 
 Consolidated, efficient analytics queries with parallel execution.
 """
+# ruff: noqa: S608
 
+import uuid
 from typing import Any, Literal
 
 from restack_ai.function import function, log
+from sqlalchemy import and_, select
 
+from src.database.connection import get_async_db
 from src.functions.analytics_helpers import (
     AnalyticsFilters,
     build_filter_clause,
+    parse_date_range,
 )
 from src.functions.data_ingestion import get_clickhouse_client
 
@@ -125,24 +130,38 @@ async def _get_performance_metrics(
         additional_filters=["status = 'completed'"],
     )
 
-    # Combined query for both summary and timeseries
-    query = (
-        """
-        SELECT
-            -- Summary metrics
-            avg(duration_ms) as avg_duration,
-            avg(input_tokens + output_tokens) as avg_tokens,
-            sum(cost_usd) as total_cost,
-            count(*) as task_count,
+    days = parse_date_range(filters.date_range)
 
-            -- Timeseries grouping
-            toDate(created_at) as date
-        FROM task_metrics
-        WHERE metric_category = 'performance' AND """
+    # Combined query for both summary and timeseries with full date range
+    query = (
+        f"""
+        WITH date_range AS (
+            SELECT
+                toDate(now() - INTERVAL number DAY) as date
+            FROM numbers({days})
+        ),
+        metrics AS (
+            SELECT
+                toDate(created_at) as date,
+                avg(duration_ms) as avg_duration,
+                avg(input_tokens + output_tokens) as avg_tokens,
+                sum(cost_usd) as total_cost,
+                count(*) as task_count
+            FROM task_metrics
+            WHERE metric_category = 'performance' AND """
         + where_clause
         + """
-        GROUP BY date
-        ORDER BY date ASC
+            GROUP BY date
+        )
+        SELECT
+            dr.date as date,
+            coalesce(m.avg_duration, 0) as avg_duration,
+            coalesce(m.avg_tokens, 0) as avg_tokens,
+            coalesce(m.total_cost, 0) as total_cost,
+            coalesce(m.task_count, 0) as task_count
+        FROM date_range dr
+        LEFT JOIN metrics m ON dr.date = m.date
+        ORDER BY dr.date ASC
     """
     )
 
@@ -213,20 +232,49 @@ async def _get_quality_metrics(
     """Fetch quality metrics (summary + timeseries) in one query."""
     where_clause, params = build_filter_clause(filters)
 
+    days = parse_date_range(filters.date_range)
+
     query = (
-        """
-        SELECT
-            metric_name,
-            toDate(created_at) as date,
-            countIf(passed = true) / count(*) as pass_rate,
-            avg(score) as avg_score,
-            count(*) as eval_count
-        FROM task_metrics
-        WHERE metric_category = 'quality' AND """
+        f"""
+        WITH date_range AS (
+            SELECT
+                toDate(now() - INTERVAL number DAY) as date
+            FROM numbers({days})
+        ),
+        metric_names AS (
+            SELECT DISTINCT metric_name
+            FROM task_metrics
+            WHERE metric_category = 'quality' AND """
         + where_clause
         + """
-        GROUP BY metric_name, date
-        ORDER BY metric_name, date ASC
+        ),
+        date_metric_cross AS (
+            SELECT dr.date, mn.metric_name
+            FROM date_range dr
+            CROSS JOIN metric_names mn
+        ),
+        metrics AS (
+            SELECT
+                metric_name,
+                toDate(created_at) as date,
+                countIf(passed = true) as passed_count,
+                count(*) as eval_count,
+                avg(score) as avg_score
+            FROM task_metrics
+            WHERE metric_category = 'quality' AND """
+        + where_clause
+        + """
+                GROUP BY metric_name, date
+        )
+        SELECT
+            dmc.metric_name,
+            dmc.date,
+            if(m.eval_count > 0, (m.eval_count - m.passed_count) / m.eval_count, 0) as fail_rate,
+            coalesce(m.avg_score, 0) as avg_score,
+            coalesce(m.eval_count, 0) as eval_count
+        FROM date_metric_cross dmc
+        LEFT JOIN metrics m ON dmc.date = m.date AND dmc.metric_name = m.metric_name
+        ORDER BY dmc.metric_name, dmc.date ASC
     """
     )
 
@@ -243,12 +291,12 @@ async def _get_quality_metrics(
         if metric_name not in summary_dict:
             summary_dict[metric_name] = {
                 "metricName": metric_name,
-                "passRate": 0,
+                "failRate": 0,
                 "avgScore": 0,
                 "evaluationCount": 0,
             }
-        summary_dict[metric_name]["passRate"] += (
-            row["pass_rate"] * row["eval_count"]
+        summary_dict[metric_name]["failRate"] += (
+            row["fail_rate"] * row["eval_count"]
         )
         if row["avg_score"] is not None:
             summary_dict[metric_name]["avgScore"] += (
@@ -258,14 +306,53 @@ async def _get_quality_metrics(
             "eval_count"
         ]
 
-    # Normalize averages
+    # Fetch metric definitions from PostgreSQL for additional metadata
+    from src.database.models import MetricDefinition
+    async for db in get_async_db():
+        try:
+            metric_defs_query = select(MetricDefinition).where(
+                and_(
+                    MetricDefinition.workspace_id == uuid.UUID(filters.workspace_id),
+                    MetricDefinition.metric_name.in_(list(summary_dict.keys()))
+                )
+            )
+            metric_defs_result = await db.execute(metric_defs_query)
+            metric_defs = metric_defs_result.scalars().all()
+
+            # Create lookup dict
+            metric_defs_lookup = {
+                metric_def.metric_name: {
+                    "metricId": str(metric_def.id),
+                    "isDefault": False,  # Custom metrics from DB are not default
+                    "isActive": metric_def.is_active,
+                    "config": metric_def.config or {},
+                }
+                for metric_def in metric_defs
+            }
+        except (ValueError, TypeError, RuntimeError, AttributeError, ConnectionError, OSError) as e:
+            log.error(f"Failed to fetch metric definitions: {e}")
+            metric_defs_lookup = {}
+        break
+
+    # Normalize averages and add metadata
     summary = []
     for metric_name, data in summary_dict.items():
         count = data["evaluationCount"]
+        metric_metadata = metric_defs_lookup.get(metric_name, {
+            "metricId": "",
+            "isDefault": True,  # If not in DB, assume it's a default metric
+            "isActive": True,
+            "config": {},
+        })
+
         summary.append(
             {
                 "metricName": metric_name,
-                "passRate": round(data["passRate"] / count, 3)
+                "metricId": metric_metadata["metricId"],
+                "isDefault": metric_metadata["isDefault"],
+                "isActive": metric_metadata["isActive"],
+                "config": metric_metadata["config"],
+                "failRate": round(data["failRate"] / count, 3)
                 if count > 0
                 else 0,
                 "avgScore": round(data["avgScore"] / count, 2)
@@ -281,8 +368,8 @@ async def _get_quality_metrics(
         metric = {
             "date": str(row["date"]),
             "metricName": row["metric_name"],
-            "passRate": round(row["pass_rate"], 3)
-            if row["pass_rate"]
+            "failRate": round(row["fail_rate"], 3)
+            if row["fail_rate"]
             else 0,
         }
         if row["avg_score"] is not None:
@@ -295,23 +382,38 @@ async def _get_quality_metrics(
 async def _get_overview_metrics(
     client: Any, filters: AnalyticsFilters
 ) -> dict[str, Any]:
-    """Fetch overview metrics (task counts & success rates)."""
+    """Fetch overview metrics (task counts & fail rates)."""
     where_clause, params = build_filter_clause(
         filters, include_version=True
     )
 
+    days = parse_date_range(filters.date_range)
+
     query = (
-        """
-        SELECT
-            toDate(created_at) as date,
-            count(*) as task_count,
-            countIf(status = 'completed') / count(*) as success_rate
-        FROM task_metrics
-        WHERE metric_category = 'performance' AND """
+        f"""
+        WITH date_range AS (
+            SELECT
+                toDate(now() - INTERVAL number DAY) as date
+            FROM numbers({days})
+        ),
+        metrics AS (
+            SELECT
+                toDate(created_at) as date,
+                count(*) as task_count,
+                countIf(status = 'completed') as completed_count
+            FROM task_metrics
+            WHERE metric_category = 'performance' AND """
         + where_clause
         + """
-        GROUP BY date
-        ORDER BY date ASC
+            GROUP BY date
+        )
+        SELECT
+            dr.date as date,
+            coalesce(m.task_count, 0) as task_count,
+            if(m.task_count > 0, (m.task_count - m.completed_count) / m.task_count, 0) as fail_rate
+        FROM date_range dr
+        LEFT JOIN metrics m ON dr.date = m.date
+        ORDER BY dr.date ASC
     """
     )
 
@@ -321,8 +423,8 @@ async def _get_overview_metrics(
         {
             "date": str(row["date"]),
             "taskCount": int(row["task_count"]),
-            "successRate": round(row["success_rate"], 3)
-            if row["success_rate"]
+            "failRate": round(row["fail_rate"], 3)
+            if row["fail_rate"]
             else 0,
         }
         for row in result.named_results()
@@ -349,10 +451,17 @@ async def _get_feedback_metrics(
     )
     feedback_where_filter += " AND metric_category = 'feedback'"
 
-    # Combined timeseries query with task counts and feedback
+    days = parse_date_range(filters.date_range)
+
+    # Combined timeseries query with task counts and feedback including full date range
     timeseries_query = (
-        """
-        WITH task_counts AS (
+        f"""
+        WITH date_range AS (
+            SELECT
+                toDate(now() - INTERVAL number DAY) as date
+            FROM numbers({days})
+        ),
+        task_counts AS (
             SELECT
                 toDate(created_at) as date,
                 count(DISTINCT task_id) as total_tasks
@@ -376,14 +485,15 @@ async def _get_feedback_metrics(
             GROUP BY date
         )
         SELECT
-            COALESCE(t.date, f.date) as date,
+            dr.date as date,
             COALESCE(t.total_tasks, 0) as total_tasks,
             COALESCE(f.positive_count, 0) as positive_count,
             COALESCE(f.negative_count, 0) as negative_count,
             COALESCE(f.feedback_count, 0) as feedback_count,
             COALESCE(f.tasks_with_feedback, 0) as tasks_with_feedback
-        FROM task_counts t
-        FULL OUTER JOIN feedback_counts f ON t.date = f.date
+        FROM date_range dr
+        LEFT JOIN task_counts t ON dr.date = t.date
+        LEFT JOIN feedback_counts f ON dr.date = f.date
         ORDER BY date ASC
     """
     )

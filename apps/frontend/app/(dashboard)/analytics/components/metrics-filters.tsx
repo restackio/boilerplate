@@ -9,15 +9,15 @@ import {
   SelectValue,
 } from "@workspace/ui/components/ui/select";
 import { type AnalyticsFilters } from "@/app/actions/analytics";
-import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
+import type { Agent } from "@/hooks/use-workspace-scoped-actions";
 
 interface MetricsFiltersProps {
   filters: AnalyticsFilters;
   onFiltersChange: (filters: AnalyticsFilters) => void;
+  agents: Agent[];
 }
 
-export default function MetricsFilters({ filters, onFiltersChange }: MetricsFiltersProps) {
-  const { agents } = useWorkspaceScopedActions();
+export default function MetricsFilters({ filters, onFiltersChange, agents }: MetricsFiltersProps) {
 
   const handleReset = () => {
     onFiltersChange({
@@ -68,14 +68,6 @@ export default function MetricsFilters({ filters, onFiltersChange }: MetricsFilt
                   </SelectItem>
                 ))}
               </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <Select disabled>
-              <SelectTrigger>
-                <SelectValue placeholder="All versions" />
-              </SelectTrigger>
             </Select>
           </div>
 

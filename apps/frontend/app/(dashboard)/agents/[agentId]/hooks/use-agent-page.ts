@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 import { useWorkspaceScopedActions, Agent } from "@/hooks/use-workspace-scoped-actions";
 import { AgentConfigData } from "../components/agent-configuration-form";
 
 export function useAgentPage(agentId: string) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { isReady, workspaceId } = useDatabaseWorkspace();
   const { 
     updateAgent, 
@@ -32,8 +33,16 @@ export function useAgentPage(agentId: string) {
   // Track draft edits from AgentSetupTab
   const [draft, setDraft] = useState<AgentConfigData | null>(null);
 
-  // Tab navigation state
-  const [activeTab, setActiveTab] = useState("setup");
+  // Tab navigation state - read from URL parameter
+  const tabParam = searchParams.get("tab");
+  const [activeTab, setActiveTab] = useState(tabParam || "setup");
+
+  // Update activeTab when URL parameter changes
+  useEffect(() => {
+    if (tabParam) {
+      setActiveTab(tabParam);
+    }
+  }, [tabParam]);
 
   // Fetch the agent by ID
   const fetchAgent = useCallback(async () => {

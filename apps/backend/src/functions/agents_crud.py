@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 
 from pydantic import BaseModel, Field
 from restack_ai.function import NonRetryableError, function
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import selectinload
 
 from src.database.connection import get_async_db
@@ -467,13 +467,60 @@ def _process_agent_group(
 
 
 @function.defn()
+async def agents_read_all(
+    function_input: AgentGetByWorkspaceInput,
+) -> AgentListOutput:
+    """Read ALL agents from database without grouping (for publish history)."""
+    async for db in get_async_db():
+        try:
+            # Build query to get all agents
+            query = (
+                select(Agent)
+                .where(
+                    Agent.workspace_id == uuid.UUID(function_input.workspace_id)
+                )
+            )
+
+            # Apply published_only filter if requested
+            if function_input.published_only:
+                query = query.where(Agent.status == "published")
+
+            query = query.order_by(Agent.created_at.asc())
+
+            result = await db.execute(query)
+            agents = result.scalars().all()
+
+            output_result = [
+                AgentOutput(
+                    id=str(agent.id),
+                    workspace_id=str(agent.workspace_id),
+                    name=agent.name,
+                    description=agent.description,
+                    instructions=agent.instructions,
+                    status=agent.status,
+                    parent_agent_id=str(agent.parent_agent_id) if agent.parent_agent_id else None,
+                    model=agent.model or "gpt-5",
+                    reasoning_effort=agent.reasoning_effort or "medium",
+                    created_at=agent.created_at.isoformat() if agent.created_at else None,
+                    updated_at=agent.updated_at.isoformat() if agent.updated_at else None,
+                )
+                for agent in agents
+            ]
+
+            return AgentListOutput(agents=output_result)
+        except Exception as e:
+            raise NonRetryableError(message=f"Database error: {e!s}") from e
+    return None
+
+
+@function.defn()
 async def agents_read_table(
     function_input: AgentGetByWorkspaceInput,
 ) -> AgentTableListOutput:
     """Read all agents from database for table display with enhanced versioning info."""
     async for db in get_async_db():
         try:
-            # Get all agents for the workspace
+            # Build base query
             all_agents_query = (
                 select(Agent)
                 .options(selectinload(Agent.team))
@@ -481,9 +528,16 @@ async def agents_read_table(
                     Agent.workspace_id
                     == uuid.UUID(function_input.workspace_id)
                 )
-                .order_by(
-                    Agent.name.asc(), Agent.created_at.desc()
+            )
+
+            # Apply published_only filter if requested
+            if function_input.published_only:
+                all_agents_query = all_agents_query.where(
+                    Agent.status == "published"
                 )
+
+            all_agents_query = all_agents_query.order_by(
+                Agent.name.asc(), Agent.created_at.desc()
             )
 
             result = await db.execute(all_agents_query)
@@ -891,21 +945,38 @@ async def agents_get_by_status(
 async def agents_get_versions(
     function_input: AgentGetVersionsInput,
 ) -> AgentListOutput:
-    """Get all versions of an agent by parent_agent_id."""
+    """Get all versions of an agent by parent_agent_id or agent_id."""
     async for db in get_async_db():
         try:
             # Convert parent_agent_id string to UUID
             try:
-                parent_agent_id = uuid.UUID(
+                agent_id = uuid.UUID(
                     function_input.parent_agent_id
                 )
             except ValueError as e:
                 raise NonRetryableError(
-                    message="Invalid parent_agent_id format"
+                    message="Invalid agent_id format"
                 ) from e
+
+            # First, check if this agent is a child (has a parent_agent_id)
+            check_query = select(Agent).where(Agent.id == agent_id)
+            check_result = await db.execute(check_query)
+            current_agent = check_result.scalar_one_or_none()
+
+            if not current_agent:
+                return AgentListOutput(agents=[])
+
+            # Determine the root parent ID
+            root_parent_id = current_agent.parent_agent_id or agent_id
+
+            # Get all versions: the parent + all children with that parent_agent_id
             agents_query = select(Agent).where(
-                Agent.parent_agent_id == parent_agent_id
-            )
+                or_(
+                    Agent.id == root_parent_id,
+                    Agent.parent_agent_id == root_parent_id
+                )
+            ).order_by(Agent.created_at.desc())
+
             result = await db.execute(agents_query)
             agents = result.scalars().all()
 

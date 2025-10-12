@@ -75,6 +75,8 @@ export function TaskDetailsTab({ task, onUpdateTask, isLoading = false }: TaskDe
         return "bg-blue-100 text-blue-800";
       case "in_review":
         return "bg-orange-100 text-orange-800";
+      case "failed":
+        return "bg-red-100 text-red-800";
       default:
         return "bg-neutral-100 text-neutral-800";
     }
@@ -166,7 +168,7 @@ export function TaskDetailsTab({ task, onUpdateTask, isLoading = false }: TaskDe
           {isEditing ? (
             <Select
               value={editedTask.status}
-              onValueChange={(value) => setEditedTask({ ...editedTask, status: value as "in_progress" | "in_review" | "closed" | "completed" })}
+              onValueChange={(value) => setEditedTask({ ...editedTask, status: value as "in_progress" | "in_review" | "closed" | "completed" | "failed" })}
             >
               <SelectTrigger className="mt-1">
                 <SelectValue />
@@ -176,6 +178,7 @@ export function TaskDetailsTab({ task, onUpdateTask, isLoading = false }: TaskDe
                 <SelectItem value="in_review">In Review</SelectItem>
                 <SelectItem value="closed">Closed</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="failed">Failed</SelectItem>
               </SelectContent>
             </Select>
           ) : (

@@ -68,7 +68,7 @@ def apply_demo_multiplier_to_timeseries(
         field_multipliers: Dict mapping field names to their base multipliers
 
     Returns:
-        List with demo numbers added to each data point
+        List with demo numbers multiplied (preserving relative variations)
     """
     if DEMO_MULTIPLIER == 0:
         return timeseries
@@ -78,9 +78,14 @@ def apply_demo_multiplier_to_timeseries(
         enhanced_item = dict(item)
         for field, base_value in field_multipliers.items():
             if field in enhanced_item:
-                enhanced_item[field] = enhanced_item[field] + (
-                    base_value * DEMO_MULTIPLIER
-                )
+                # Multiply the actual value to preserve relative variations
+                # Use base_value as minimum to avoid zeros becoming zeros
+                original = enhanced_item[field]
+                if original > 0:
+                    enhanced_item[field] = original * DEMO_MULTIPLIER
+                else:
+                    # For zero values, use a small fraction of base value
+                    enhanced_item[field] = base_value * DEMO_MULTIPLIER // 10
         result.append(enhanced_item)
 
     return result
