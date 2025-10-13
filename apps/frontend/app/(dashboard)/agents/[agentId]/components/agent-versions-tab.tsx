@@ -80,7 +80,11 @@ export function AgentVersionsTab({ agentId, getAgentVersions }: AgentVersionsTab
       const avgDuration = analytics.performance?.summary?.avgDuration || 0;
       const avgCost = analytics.performance?.summary?.totalCost || 0;
       
-      const feedbackPassRate = analytics.feedback?.summary?.positivePercentage || 0;
+      // Calculate feedback pass rate from timeseries data
+      const feedbackData = analytics.feedback?.timeseries || [];
+      const totalPositive = feedbackData.reduce((sum, d) => sum + (d.positiveCount || 0), 0);
+      const totalFeedback = feedbackData.reduce((sum, d) => sum + (d.feedbackCount || 0), 0);
+      const feedbackPassRate = totalFeedback > 0 ? (totalPositive / totalFeedback) * 100 : 0;
 
       return {
         totalTasks,

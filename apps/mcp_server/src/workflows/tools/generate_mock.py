@@ -5,6 +5,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 from restack_ai.workflow import (
     NonRetryableError,
+    RetryPolicy,
     import_functions,
     log,
     workflow,
@@ -60,7 +61,11 @@ class GenerateMock:
     async def run(
         self, workflow_input: GenerateMockInput
     ) -> GenerateMockOutput:
-        log.info("GenerateMock started", input=workflow_input)
+        log.info(
+            "GenerateMock started",
+            integration_template=workflow_input.integration_template,
+            parameters=workflow_input.parameters,
+        )
 
         try:
             # Step 1: Load the integration template
@@ -70,16 +75,22 @@ class GenerateMock:
                 function_input=LoadTemplateInput(
                     integration_template=workflow_input.integration_template
                 ),
-                start_to_close_timeout=timedelta(seconds=20),
+                start_to_close_timeout=timedelta(seconds=5),
             )
 
             # Extract template configuration
             model = template.model
             system_prompt = template.system_prompt
             user_prompt_template = template.user_prompt_template
+            json_schema = template.json_schema
+
+            log.info(
+                "Template loaded",
+                model=model,
+                schema_size=len(str(json_schema)),
+            )
 
             # Format the user prompt with the provided parameters
-            # Convert parameters dict to a formatted string for the template
             parameters_str = (
                 json.dumps(workflow_input.parameters, indent=2)
                 if workflow_input.parameters
@@ -89,45 +100,30 @@ class GenerateMock:
                 parameters=parameters_str
             )
 
-            # Prepare LLM input based on model type
-            if model == "gpt-4o-mini":
-                # Use legacy format for gpt-4o-mini
-                llm_input = LlmResponseInput(
-                    create_params={
-                        "model": model,
-                        "messages": [
-                            {
-                                "role": "system",
-                                "content": system_prompt,
-                            },
-                            {
-                                "role": "user",
-                                "content": user_prompt,
-                            },
-                        ],
-                        "temperature": 0.1,
-                        "max_tokens": 2000,
-                    }
-                )
-            else:
-                # Use new format for gpt-5-nano and other models
-                llm_input = LlmResponseInput(
-                    create_params={
-                        "model": model,
-                        "reasoning": {"effort": "minimal"},
-                        "input": [
-                            {
-                                "role": "developer",
-                                "content": system_prompt,
-                            },
-                            {
-                                "role": "user",
-                                "content": user_prompt,
-                            },
-                        ],
+            # Prepare LLM input with structured outputs for fast, reliable JSON
+            llm_input = LlmResponseInput(
+                create_params={
+                    "model": model,
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": system_prompt,
+                        },
+                        {
+                            "role": "user",
+                            "content": user_prompt,
+                        },
+                    ],
+                    "response_format": {
+                        "type": "json_schema",
+                        "json_schema": {
+                            "name": "mock_data",
+                            "strict": True,
+                            "schema": json_schema,
+                        },
                     },
-                    stream=False,
-                )
+                }
+            )
 
             # Step 2: Call LLM to generate mock data
             response_text = await workflow.step(
@@ -135,6 +131,9 @@ class GenerateMock:
                 function=llm_response,
                 function_input=llm_input,
                 start_to_close_timeout=timedelta(seconds=120),
+                retry_policy=RetryPolicy(
+                    maximum_attempts=1,
+                ),
             )
 
             if not response_text:
@@ -146,7 +145,10 @@ class GenerateMock:
             log.info(
                 "GenerateMock completed",
                 integration_template=workflow_input.integration_template,
-                response=mock_data,
+                response_size=len(str(mock_data)),
+                response_keys=list(mock_data.keys())
+                if isinstance(mock_data, dict)
+                else "array",
             )
 
             return GenerateMockOutput(
@@ -156,5 +158,10 @@ class GenerateMock:
 
         except Exception as e:
             error_message = f"Error during GenerateMock: {e}"
-            log.error(error_message)
+            log.error(
+                "GenerateMock failed",
+                error_message=error_message,
+                error_type=type(e).__name__,
+                integration_template=workflow_input.integration_template,
+            )
             raise NonRetryableError(message=error_message) from e

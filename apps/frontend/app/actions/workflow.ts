@@ -31,8 +31,8 @@ export async function runWorkflow({
     };
   } catch (error) {
     const endTime = Date.now();
-    console.error(`❌ [runWorkflow] Error after ${endTime - startTime}ms:`, error);
-    console.error(`❌ [runWorkflow] Error details:`, {
+    console.error(`[runWorkflow] Error after ${endTime - startTime}ms:`, error);
+    console.error(`[runWorkflow] Error details:`, {
       name: error.name,
       message: error.message,
       stack: error.stack,
@@ -100,7 +100,7 @@ export async function getWorkflowResult({
     return result;
   } catch (error) {
     const endTime = Date.now();
-    console.error(`❌ [getWorkflowResult] Error after ${endTime - startTime}ms:`, error);
+    console.error(`[getWorkflowResult] Error after ${endTime - startTime}ms:`, error);
     throw error;
   }
 }

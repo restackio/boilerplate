@@ -189,13 +189,13 @@ export const Button = ({ className, variant, ...props }) => (
 
 ## What goes where
 
-**✅ Include in `@workspace/ui`:**
+**Include in `@workspace/ui`:**
 - Pure UI primitives and patterns
 - Framework-agnostic components
 - Reusable AI interface elements
 - Generic data display components
 
-**❌ Keep in `apps/frontend`:**
+**Keep in `apps/frontend`:**
 - Next.js-specific components
 - Business logic and domain forms
 - App-specific navigation

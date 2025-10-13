@@ -3,19 +3,17 @@ services:
   # PostgreSQL Database
   postgres:
     image: postgres:17-alpine
-    container_name: boilerplate_db
+    container_name: boilerplate_postgres
     environment:
-      POSTGRES_DB: boilerplate_db
+      POSTGRES_DB: boilerplate_postgres
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
       - "5432:5432"
     volumes:
       - postgres_dev_data:/var/lib/postgresql/data
-      - ./packages/database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
-      - ./packages/database/workspace-seed.sql:/docker-entrypoint-initdb.d/02-workspace-seed.sql
-      - ./packages/database/agents-seed.sql:/docker-entrypoint-initdb.d/03-agents-seed.sql
-      - ./packages/database/demo-seed.sql:/docker-entrypoint-initdb.d/04-demo-seed.sql
+      - ./packages/database/postgres-schema.sql:/docker-entrypoint-initdb.d/01-postgres-schema.sql
+      - ./packages/database/postgres-seed.sql:/docker-entrypoint-initdb.d/02-postgres-seed.sql
     command: >
       postgres
       -c shared_buffers=512MB
@@ -27,7 +25,7 @@ services:
       -c max_parallel_workers_per_gather=2
       -c jit=off
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d boilerplate_db"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d boilerplate_postgres"]
       interval: 10s
       timeout: 5s
       retries: 5

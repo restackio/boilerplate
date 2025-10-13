@@ -92,7 +92,7 @@ async function executeWorkflow<T>(
       data: result as T,
     };
   } catch (error) {
-    console.error(`❌ Workflow execution failed for ${workflowName}:`, error);
+    console.error(`Workflow execution failed for ${workflowName}:`, error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error occurred",

@@ -347,16 +347,36 @@ export function CreateTaskForm({
                       />
                       <label 
                         htmlFor={`dropdown-${version.id}`} 
-                        className="text-sm flex-1 cursor-pointer flex items-center justify-between"
+                        className="text-sm flex-1 cursor-pointer"
                       >
-                        <span>{version.name}</span>
-                        <span className={`text-xs px-2 py-1 rounded ${
-                          version.status === 'published'
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-neutral-100 text-neutral-600'
-                        }`}>
-                          {version.status}
-                        </span>
+                        <div className="flex items-center justify-between">
+                          <div className="flex flex-col">
+                            <span className="font-medium">{version.name}</span>
+                            <div className="flex items-center space-x-2 text-xs text-neutral-500 mt-0.5">
+                              <span title={version.id}>ID: {version.id.slice(0, 8)}</span>
+                              <span>•</span>
+                              <span>
+                                {version.created_at 
+                                  ? new Date(version.created_at).toLocaleString('en-US', { 
+                                      month: 'short', 
+                                      day: 'numeric', 
+                                      year: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    })
+                                  : 'Unknown date'
+                                }
+                              </span>
+                            </div>
+                          </div>
+                          <span className={`text-xs px-2 py-1 rounded ${
+                            version.status === 'published'
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-neutral-100 text-neutral-600'
+                          }`}>
+                            {version.status}
+                          </span>
+                        </div>
                       </label>
                     </div>
                   ))}

@@ -45,6 +45,21 @@ const getToolIcon = (type: ToolType) => {
   }
 };
 
+const getToolDisplayName = (tool: AgentToolRecord): string => {
+  // For MCP tools, use the tool_name
+  if (tool.tool_type === 'mcp') {
+    return tool.tool_name || 'MCP Tool';
+  }
+  
+  // For other tool types, return a human-readable name
+  switch (tool.tool_type) {
+    case 'web_search': return 'Web search';
+    case 'code_interpreter': return 'Code interpreter';
+    case 'image_generation': return 'Image generation';
+    default: return tool.tool_type;
+  }
+};
+
 
 export function ToolsList({ tools, onToolsChange, isReadOnly = false, agentType, agentId, workspaceId }: ToolsListProps) {
   // Description editing state
@@ -125,11 +140,9 @@ export function ToolsList({ tools, onToolsChange, isReadOnly = false, agentType,
                   >
                     {getToolIcon(tool.tool_type)}
                   </Badge>
-                  {tool.tool_type === 'mcp' && tool.tool_name && (
-                    <span className="text-sm font-medium">
-                      {tool.tool_name}
-                    </span>
-                  )}
+                  <span className="text-sm font-medium">
+                    {getToolDisplayName(tool)}
+                  </span>
                   {tool.tool_type === 'mcp' && tool.mcp_server_label && (
                     <span className="text-sm text-muted-foreground truncate">
                       ({tool.mcp_server_label})

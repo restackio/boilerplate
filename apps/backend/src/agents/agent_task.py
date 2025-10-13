@@ -56,13 +56,19 @@ with import_functions():
         Message,
         llm_response_stream,
     )
+    from src.functions.send_agent_event import (
+        SendAgentEventInput,
+        send_agent_event,
+    )
     from src.functions.subtask_notify import (
         SubtaskNotifyInput,
         subtask_notify,
     )
     from src.functions.tasks_crud import (
         TaskCreateInput,
+        TaskSaveAgentStateInput,
         TaskUpdateInput,
+        tasks_save_agent_state,
         tasks_update,
     )
 
@@ -148,17 +154,21 @@ class AgentTask:
         Based on: https://docs.claude.com/en/api/agent-sdk/todo-tracking
         """
         # Progress summary
-        context = f"📋 Progress: {completed}/{total} completed"
+        context = f"Progress: {completed}/{total} completed"
         if in_progress > 0:
             context += f", {in_progress} in progress"
         context += "\n\n"
 
-        # List all todos with visual indicators (natural order)
+        # List all todos with status indicators (natural order)
         for todo in todos:
-            icon = "✅" if todo["status"] == "completed" else "🔧"
-            context += f"{icon} {todo['content']}\n"
+            status_text = (
+                "[COMPLETED]"
+                if todo["status"] == "completed"
+                else "[IN PROGRESS]"
+            )
+            context += f"{status_text} {todo['content']}\n"
 
-        context += "\n💡 Update status as you complete steps using updatetodos."
+        context += "\nUpdate status as you complete steps using updatetodos."
 
         return context
 
@@ -224,68 +234,87 @@ class AgentTask:
                     }
                     self.events.append(user_event)
 
-                    try:
-                        # Step 1: prepare request for OpenAI (using current last_response_id for continuity)
-                        prepared: LlmResponseInput = await agent.step(
-                            function=llm_prepare_response,
-                            function_input=LlmPrepareResponseInput(
-                                messages=self.messages,
-                                tools=self.tools,
-                                model=self.agent_model,
-                                reasoning_effort=self.agent_reasoning_effort,
-                                previous_response_id=self.last_response_id,
-                                task_id=str(self.task_id)
-                                if self.task_id
-                                else None,
-                                agent_id=self.agent_id,
-                                workspace_id=str(
-                                    self.workspace_id
-                                )
-                                if self.workspace_id
-                                else None,
-                            ),
-                            start_to_close_timeout=timedelta(
-                                seconds=60
-                            ),
-                        )
+                if message.role == "developer":
 
-                        # Step 2: execute with streaming (function self-traces via decorator)
-                        completion = await agent.step(
-                            function=llm_response_stream,
-                            function_input=prepared,
-                            start_to_close_timeout=timedelta(
-                                minutes=10
-                            ),
-                        )
+                    developer_event = {
+                        "type": "response.output_item.done",
+                        "item": {
+                            "id": f"msg_developer_{uuid()}",
+                            "type": "message",
+                            "role": "developer",
+                            "status": "completed",
+                            "content": [
+                                {
+                                    "type": "input_text",
+                                    "text": message.content,
+                                }
+                            ],
+                        },
+                    }
+                    self.events.append(developer_event)
 
-                        # Update last_response_id from completion for next continuity
-                        if completion and completion.response_id:
-                            self.last_response_id = (
-                                completion.response_id
+                try:
+                    # Step 1: prepare request for OpenAI (using current last_response_id for continuity)
+                    prepared: LlmResponseInput = await agent.step(
+                        function=llm_prepare_response,
+                        function_input=LlmPrepareResponseInput(
+                            messages=self.messages,
+                            tools=self.tools,
+                            model=self.agent_model,
+                            reasoning_effort=self.agent_reasoning_effort,
+                            previous_response_id=self.last_response_id,
+                            task_id=str(self.task_id)
+                            if self.task_id
+                            else None,
+                            agent_id=self.agent_id,
+                            workspace_id=str(
+                                self.workspace_id
                             )
-                            self.response_index += 1
-                            log.info(
-                                f"Updated last_response_id: {self.last_response_id} (response #{self.response_index})"
-                            )
-                    except Exception as e:
-                        error_message = f"Error during llm_response_stream: {e}"
+                            if self.workspace_id
+                            else None,
+                        ),
+                        start_to_close_timeout=timedelta(
+                            seconds=60
+                        ),
+                    )
 
-                        # Create error event for frontend display
-                        error_event = create_agent_error_event(
-                            message=error_message,
-                            error_type="llm_response_failed",
-                            code="agent_error",
-                        )
-                        self.events.append(
-                            error_event.model_dump()
-                        )
+                    # Step 2: execute with streaming (function self-traces via decorator)
+                    completion = await agent.step(
+                        function=llm_response_stream,
+                        function_input=prepared,
+                        start_to_close_timeout=timedelta(
+                            minutes=10
+                        ),
+                    )
 
-                        raise NonRetryableError(
-                            error_message
-                        ) from e
-                    else:
-                        if completion.parsed_response:
-                            log.info("TODO: save in db")
+                    # Update last_response_id from completion for next continuity
+                    if completion and completion.response_id:
+                        self.last_response_id = (
+                            completion.response_id
+                        )
+                        self.response_index += 1
+                        log.info(
+                            f"Updated last_response_id: {self.last_response_id} (response #{self.response_index})"
+                        )
+                except Exception as e:
+                    error_message = f"Error during llm_response_stream: {e}"
+
+                    # Create error event for frontend display
+                    error_event = create_agent_error_event(
+                        message=error_message,
+                        error_type="llm_response_failed",
+                        code="agent_error",
+                    )
+                    self.events.append(
+                        error_event.model_dump()
+                    )
+
+                    raise NonRetryableError(
+                        error_message
+                    ) from e
+                else:
+                    if completion.parsed_response:
+                        log.info("TODO: save in db")
 
         except Exception as e:
             log.error(f"Error during message event: {e}")
@@ -432,7 +461,7 @@ class AgentTask:
             return {
                 "success": True,
                 "todos": todos_values,
-                "message": f"✓ Todos updated: {completed}/{total} completed, {in_progress} in progress",
+                "message": f"Todos updated: {completed}/{total} completed, {in_progress} in progress",
             }
 
     @agent.event
@@ -511,7 +540,7 @@ class AgentTask:
             return {
                 "success": True,
                 "task_id": child_task_id,
-                "message": f"✓ Subtask '{task_title}' created",
+                "message": f"Subtask '{task_title}' created",
             }
 
     @agent.event
@@ -541,15 +570,73 @@ class AgentTask:
             if task_id in self.subtasks:
                 self.subtasks[task_id]["status"] = status
                 if status == "completed":
-                    log.info(f"✓ Subtask completed: {title}")
+                    log.info(f"Subtask completed: {title}")
                 elif status == "failed":
                     self.subtasks[task_id]["error"] = message
                     log.warning(
-                        f"✗ Subtask failed: {title} - {message}"
+                        f"Subtask failed: {title} - {message}"
                     )
             else:
                 log.warning(
                     f"Subtask {task_id} not found in state"
+                )
+
+            # Check if all subtasks have reached terminal state
+            all_terminal = all(
+                subtask["status"] in ["completed", "failed"]
+                for subtask in self.subtasks.values()
+            )
+
+            # Send developer message to LLM only when ALL subtasks are done
+            if all_terminal and self.subtasks:
+                # Build summary of all subtasks
+                completed_count = sum(
+                    1
+                    for s in self.subtasks.values()
+                    if s["status"] == "completed"
+                )
+                failed_count = sum(
+                    1
+                    for s in self.subtasks.values()
+                    if s["status"] == "failed"
+                )
+
+                subtask_summary = f"All subtasks completed: {completed_count} successful, {failed_count} failed\n\n"
+                subtask_summary += "Details:\n"
+                for subtask in self.subtasks.values():
+                    subtask_status = subtask["status"]
+                    subtask_title = subtask["title"]
+                    subtask_summary += (
+                        f"- {subtask_title}: {subtask_status}"
+                    )
+                    if (
+                        subtask_status == "failed"
+                        and "error" in subtask
+                    ):
+                        subtask_summary += (
+                            f" - {subtask['error']}"
+                        )
+                    subtask_summary += "\n"
+
+                # Send event to trigger LLM processing using agent.step
+                developer_message = Message(
+                    role="developer", content=subtask_summary
+                )
+                await agent.step(
+                    function=send_agent_event,
+                    function_input=SendAgentEventInput(
+                        event_name="messages",
+                        temporal_agent_id=agent_info().workflow_id,
+                        event_input={
+                            "messages": [
+                                developer_message.model_dump()
+                            ]
+                        },
+                    ),
+                    start_to_close_timeout=timedelta(seconds=10),
+                )
+                log.info(
+                    f"All subtasks completed - status update sent to LLM ({completed_count} successful, {failed_count} failed)"
                 )
 
         except (
@@ -672,7 +759,7 @@ class AgentTask:
                 parent_close_policy=ParentClosePolicy.ABANDON,
             )
             log.info(
-                f"✓ Continuous metrics workflow started (parallel) for response {self.response_index}"
+                f"Continuous metrics workflow started (parallel) for response {self.response_index}"
             )
         except (
             ValueError,
@@ -684,11 +771,59 @@ class AgentTask:
                 f"Failed to start continuous metrics workflow: {e}"
             )
 
+    async def _save_final_state(self) -> None:
+        """Save complete agent state to database when task completes.
+
+        This creates a durable snapshot that survives after Temporal workflow expires.
+        Only called once when task finishes (completed/failed/closed).
+        While task is in_progress, frontend uses real-time Temporal state.
+        """
+        if not self.task_id:
+            log.warning("No task_id - cannot save final state")
+            return
+
+        try:
+            # Get complete final state from state_response()
+            final_state = self.state_response()
+
+            # Add completion metadata
+            final_state["metadata"] = {
+                **final_state.get("metadata", {}),
+                "temporal_agent_id": agent_info().workflow_id,
+                "temporal_run_id": agent_info().run_id,
+                "response_count": self.response_index,
+                "message_count": len(self.messages),
+            }
+
+            # Save state to database
+            await agent.step(
+                function=tasks_save_agent_state,
+                function_input=TaskSaveAgentStateInput(
+                    task_id=str(self.task_id),
+                    agent_state=final_state,
+                ),
+                start_to_close_timeout=timedelta(seconds=15),
+            )
+
+            log.info(
+                f"Final state saved to database for task {self.task_id} "
+                f"({len(final_state.get('events', []))} events, "
+                f"{len(final_state.get('todos', []))} todos, "
+                f"{len(final_state.get('subtasks', []))} subtasks)"
+            )
+
+        except Exception as e:  # noqa: BLE001
+            log.error(f"Failed to save final state: {e}")
+            # Don't re-raise - state save failure shouldn't block workflow completion
+
     async def _handle_pipeline_completion(self) -> None:
         """Handle pipeline MCP call completion."""
         log.info(
             f"Pipeline agent {self.agent_id} completed data loading for task {self.task_id}"
         )
+
+        # Save final state before marking complete
+        await self._save_final_state()
 
         await agent.step(
             function=tasks_update,
@@ -726,6 +861,8 @@ class AgentTask:
             # Handle error events
             if "error" in event_type or event_data.get("error"):
                 await self._handle_error_event(event_data)
+                # Also store the original event so frontend can display it
+                self.events.append(event_data)
             else:
                 # Store normal events
                 self.events.append(event_data)
@@ -963,3 +1100,9 @@ class AgentTask:
         await agent.condition(
             lambda: self.end and all_events_finished()
         )
+
+        # Save final state to database when workflow completes
+        log.info(
+            "Workflow completing - saving final state snapshot"
+        )
+        await self._save_final_state()

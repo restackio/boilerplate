@@ -71,6 +71,12 @@ class MetricEvaluationResult:
     reasoning: str | None
     eval_duration_ms: int
     eval_cost_usd: float
+    trace_id: str | None = (
+        None  # Optional trace ID for linking to observability
+    )
+    span_id: str | None = (
+        None  # Optional span ID for linking to observability
+    )
 
 
 @dataclass

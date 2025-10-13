@@ -23,7 +23,7 @@ if os.getenv("NODE_ENV") != "production":
 # Database URL from environment - convert to async format
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://postgres:postgres@localhost:5432/boilerplate_db",
+    "postgresql://postgres:postgres@localhost:5432/boilerplate_postgres",
 )
 # Convert to async URL if it's not already
 if DATABASE_URL.startswith("postgresql://"):

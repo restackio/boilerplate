@@ -120,4 +120,181 @@ INSERT INTO task_quality_metrics (task_id, agent_id, workspace_id, metric_defini
 ('66666666-6666-6666-6666-666666666666', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'a3a3a3a3-a3a3-a3a3-a3a3-a3a3a3a3a3a3', 'Factual Accuracy', 'llm_judge', 93.0, true, 'All facts check out', 1450, 0.0002, now() - INTERVAL 1 DAY),
 ('77777777-7777-7777-7777-777777777777', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'a3a3a3a3-a3a3-a3a3-a3a3-a3a3a3a3a3a3', 'Factual Accuracy', 'llm_judge', 95.0, true, 'Accurate and up-to-date information', 1500, 0.0002, now() - INTERVAL 2 DAY),
 ('88888888-8888-8888-8888-888888888888', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'a3a3a3a3-a3a3-a3a3-a3a3-a3a3a3a3a3a3', 'Factual Accuracy', 'llm_judge', 89.0, true, 'Accurate with good context', 1400, 0.0002, now() - INTERVAL 3 DAY);
-*/
+*/-- Sample Task Metrics Data for Development/Demo
+-- This gives the analytics page data to display
+USE boilerplate_clickhouse;
+
+-- Sample task IDs and agent ID (using the Research & Writing Assistant from agents-seed.sql)
+-- Agent ID: 4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d
+-- Workspace ID: c926e979-1f16-46bf-a7cc-8aab70162d65
+
+-- ========================================
+-- Performance Metrics (from traces)
+-- ========================================
+
+INSERT INTO task_metrics (
+    task_id, agent_id, workspace_id, agent_name, agent_version,
+    metric_category, duration_ms, input_tokens, output_tokens, cost_usd, status,
+    response_id, response_index, message_count,
+    task_input, task_output,
+    created_at
+) VALUES 
+-- Last 7 days of tasks
+('11111111-1111-1111-1111-111111111111', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'Research & Writing Assistant', 'v1', 'performance', 2500, 1200, 800, 0.011, 'completed', 'resp_001', 1, 2, 'Write a blog post about AI trends', 'Here is a comprehensive blog post about AI trends in 2024...', now() - INTERVAL 1 DAY),
+('22222222-2222-2222-2222-222222222222', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'Research & Writing Assistant', 'v1', 'performance', 3200, 1500, 1200, 0.016, 'completed', 'resp_002', 1, 2, 'Research quantum computing applications', 'Quantum computing is revolutionizing multiple industries...', now() - INTERVAL 2 DAY),
+('33333333-3333-3333-3333-333333333333', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'Research & Writing Assistant', 'v1', 'performance', 1800, 900, 600, 0.008, 'completed', 'resp_003', 1, 2, 'Summarize recent tech news', 'Key tech news: Major AI advancements...', now() - INTERVAL 3 DAY),
+('44444444-4444-4444-4444-444444444444', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'Research & Writing Assistant', 'v1', 'performance', 4500, 2000, 1500, 0.020, 'completed', 'resp_004', 1, 2, 'Write technical documentation for API', 'API Documentation: Authentication, Endpoints...', now() - INTERVAL 4 DAY),
+('55555555-5555-5555-5555-555555555555', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'Research & Writing Assistant', 'v1', 'performance', 2100, 1100, 700, 0.010, 'completed', 'resp_005', 1, 2, 'Create social media content', 'Social media post: Engaging content...', now() - INTERVAL 5 DAY),
+('66666666-6666-6666-6666-666666666666', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'Research & Writing Assistant', 'v1', 'performance', 2700, 1300, 900, 0.012, 'completed', 'resp_006', 1, 2, 'Analyze market trends', 'Market analysis reveals...', now() - INTERVAL 6 DAY);
+
+-- ========================================
+-- Quality Metrics (from LLM judges)
+-- ========================================
+
+-- Commented out: Response Helpfulness and Safety & Compliance metrics
+-- These are now handled separately in the demo seed
+-- Uncomment if you want to seed example quality metrics for testing
+
+-- Response Helpfulness (metric_definition_id: a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1)
+-- INSERT INTO task_metrics (
+--     task_id, agent_id, workspace_id, metric_category, metric_definition_id, metric_name, metric_type,
+--     passed, score, reasoning, eval_duration_ms, eval_cost_usd,
+--     response_id, response_index, message_count,
+--     created_at
+-- ) VALUES 
+-- ('11111111-1111-1111-1111-111111111111', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'quality', 'a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1', 'Response Helpfulness', 'llm_judge', true, 85.0, 'The response is comprehensive and addresses the query well', 1200, 0.0001, 'resp_001', 1, 2, now() - INTERVAL 1 DAY);
+
+-- Safety & Compliance (metric_definition_id: a2a2a2a2-a2a2-a2a2-a2a2-a2a2a2a2a2a2)
+-- INSERT INTO task_metrics (
+--     task_id, agent_id, workspace_id, metric_category, metric_definition_id, metric_name, metric_type,
+--     passed, score, reasoning, eval_duration_ms, eval_cost_usd,
+--     response_id, response_index, message_count,
+--     created_at
+-- ) VALUES 
+-- ('11111111-1111-1111-1111-111111111111', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'quality', 'a2a2a2a2-a2a2-a2a2-a2a2-a2a2a2a2a2a2', 'Safety & Compliance', 'llm_judge', true, 98.0, 'Content is safe and compliant', 900, 0.0001, 'resp_001', 1, 2, now() - INTERVAL 1 DAY);
+
+-- ClickHouse seed data for Demo
+-- Metrics and feedback for healthcare insurance and newsletter agent tasks
+
+USE boilerplate_clickhouse;
+
+-- ==========================
+-- SCENARIO 1: Healthcare Insurance Support - Performance Metrics
+-- ==========================
+
+-- Performance metrics for the healthcare insurance tasks
+-- Version 1 (original) - Failed to validate policy status
+-- Version 2 (improved) - Successfully validated policy status and caught expired policy
+INSERT INTO task_metrics (
+    task_id, agent_id, workspace_id, agent_name, agent_version,
+    metric_category, duration_ms, input_tokens, output_tokens, cost_usd, status,
+    response_id, response_index, message_count,
+    task_input, task_output,
+    created_at
+) VALUES 
+('10000003-0003-0003-0003-000000000003', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'support-healthinsurance', 'v1', 'performance', 2150, 520, 310, 0.004, 'completed', 'resp_health_003', 1, 4, 'My policy number is 0345678. Am I covered for physical therapy?', 'Yes! Based on your policy 0345678, physical therapy is covered. Your copay is $25 per session...', now() - INTERVAL 3 DAY),
+('10000010-0010-0010-0010-000000000010', 'cccccccc-dddd-eeee-ffff-444444444444', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'support-healthinsurance', 'v2', 'performance', 2450, 580, 380, 0.005, 'completed', 'resp_health_010', 1, 3, 'Hi, my policy number is 0456789. I need to get an MRI - is that covered?', 'I need to inform you that your policy 0456789 is currently showing as expired...', now() - INTERVAL 1 DAY),
+('10000006-0006-0006-0006-000000000006', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'support-healthinsurance', 'v1', 'performance', 1650, 420, 250, 0.003, 'completed', 'resp_health_006', 1, 2, 'Policy 0678901 - What is my ER copay?', 'Emergency room visits have a copay of $150 per visit...', now() - INTERVAL 6 DAY),
+('10000007-0007-0007-0007-000000000007', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'support-healthinsurance', 'v1', 'performance', 1900, 470, 290, 0.004, 'completed', 'resp_health_007', 1, 2, 'Vision coverage inquiry', 'Vision coverage includes annual eye exams...', now() - INTERVAL 7 DAY),
+('10000009-0009-0009-0009-000000000009', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'support-healthinsurance', 'v1', 'performance', 1850, 460, 280, 0.004, 'failed', 'resp_health_009', 1, 2, 'Lab work coverage', 'Lab work is typically covered...', now() - INTERVAL 6 DAY);
+
+
+-- ==========================
+-- SCENARIO 1: Healthcare Insurance - Feedback/Quality Metrics
+-- ==========================
+
+-- User feedback as quality metrics - stored in feedback category
+-- V1 (original): Negative feedback - gave coverage info for expired policy
+-- V2 (improved): Positive feedback - caught expired policy proactively
+-- V1 failure: Customer discovered policy was expired AFTER being told they were covered
+-- V2 success: Customer grateful that agent caught expired policy before they went to appointment
+INSERT INTO task_metrics (
+    task_id, agent_id, workspace_id, metric_category, metric_name, metric_type,
+    passed, reasoning,
+    response_id, response_index, message_count,
+    created_at
+) VALUES 
+('10000003-0003-0003-0003-000000000003', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'feedback', 'user_feedback', 'negative', false, 'Bad - I went to my physical therapy appointment and they told me I am not covered anymore. My policy expired last month! The agent should have checked this.', 'resp_health_003', 1, 4, now() - INTERVAL 3 DAY),
+('10000010-0010-0010-0010-000000000010', 'cccccccc-dddd-eeee-ffff-444444444444', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'feedback', 'user_feedback', 'positive', true, 'Excellent - Thank you for catching that my policy expired! I had no idea and would have been surprised at my appointment. This saved me a lot of trouble.', 'resp_health_010', 1, 3, now() - INTERVAL 1 DAY),
+('10000006-0006-0006-0006-000000000006', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'feedback', 'user_feedback', 'negative', false, 'Not helpful - My actual copay is $250. The agent should have looked up my specific policy details!', 'resp_health_006', 1, 2, now() - INTERVAL 6 DAY);
+
+
+-- ==========================
+-- SCENARIO 2: Newsletter Agent - Performance Metrics
+-- ==========================
+
+-- Performance metrics for newsletter tasks (with outdated content issue)
+INSERT INTO task_metrics (
+    task_id, agent_id, workspace_id, agent_name, agent_version,
+    metric_category, duration_ms, input_tokens, output_tokens, cost_usd, status,
+    response_id, response_index, message_count,
+    task_input, task_output,
+    created_at
+) VALUES 
+('20000010-0000-0000-0000-000000000010', '20000001-0000-0000-0000-000000000001', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'leader-newsletter-creator', 'v1', 'performance', 8500, 2800, 1500, 0.025, 'completed', 'resp_news_001', 1, 6, 'Create todays daily newsletter from recent tech leader posts', 'Tech Leader Newsletter - October 9, 2024 [Contains 3-month-old posts from July-September]', now() - INTERVAL 2 DAY);
+
+
+-- ==========================
+-- SCENARIO 1: Custom Quality Metric - Policy Status Validation
+-- ==========================
+
+-- Quality metric evaluations for healthcare agent tasks
+-- This LLM-as-judge metric checks if agent validated policy status (active vs expired) before providing coverage info
+-- V1 (original): Failed evaluation - provided coverage info for expired policy
+-- V2 (improved): Passed evaluation - validated policy status first and caught expired policy
+-- V1 failure: Gave coverage details without validating policy was expired
+-- V2 success: Validated policy status and caught expiration before providing coverage
+INSERT INTO task_metrics (
+    task_id, agent_id, workspace_id, metric_category, metric_definition_id, metric_name, metric_type,
+    passed, score, reasoning,
+    eval_duration_ms, eval_cost_usd,
+    response_id, response_index, message_count,
+    created_at
+) VALUES 
+('10000003-0003-0003-0003-000000000003', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'quality', 'bbbbbbbb-1111-2222-3333-444444444444', 'Policy Status Validation', 'llm_judge', false, 0, 'Agent provided coverage details for policy 0345678 without validating policy status. Customer later discovered policy was expired, leading to complaint.', 1250, 0.0001, 'resp_health_003', 1, 4, now() - INTERVAL 3 DAY),
+('10000010-0010-0010-0010-000000000010', 'cccccccc-dddd-eeee-ffff-444444444444', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'quality', 'bbbbbbbb-1111-2222-3333-444444444444', 'Policy Status Validation', 'llm_judge', true, 100, 'Agent validated policy status for 0456789, detected policy was expired (ended August 15, 2024), and proactively informed customer before providing coverage details. Excellent validation.', 1320, 0.0001, 'resp_health_010', 1, 3, now() - INTERVAL 1 DAY),
+('10000006-0006-0006-0006-000000000006', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'quality', 'bbbbbbbb-1111-2222-3333-444444444444', 'Policy Status Validation', 'llm_judge', false, 0, 'Agent gave generic copay info without querying actual policy 0678901 details or validating status', 1180, 0.0001, 'resp_health_006', 1, 2, now() - INTERVAL 6 DAY),
+('10000009-0009-0009-0009-000000000009', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'quality', 'bbbbbbbb-1111-2222-3333-444444444444', 'Policy Status Validation', 'llm_judge', false, 0, 'Generic response without policy validation', 1150, 0.0001, 'resp_health_009', 1, 2, now() - INTERVAL 6 DAY);
+
+
+-- ==========================
+-- SCENARIO 2: Newsletter Agent - Feedback
+-- ==========================
+
+-- Negative feedback for newsletter tasks (outdated content) - stored in feedback category
+INSERT INTO task_metrics (
+    task_id, agent_id, workspace_id, metric_category, metric_name, metric_type,
+    passed, reasoning,
+    response_id, response_index, message_count,
+    created_at
+) VALUES 
+('20000010-0000-0000-0000-000000000010', '20000001-0000-0000-0000-000000000001', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'feedback', 'user_feedback', 'negative', false, 'Bad - All of these posts are MONTHS old! This newsletter is supposed to have content from the last 24 hours, not 3-month-old posts. Completely useless!', 'resp_news_001', 1, 6, now() - INTERVAL 2 DAY);
+
+
+-- ==========================
+-- Summary
+-- ==========================
+
+-- This creates metrics showing:
+-- 1. Healthcare Support Agent - Policy Validation Improvement:
+--    Version 1 (original):
+--      - Task 10000003: Gave coverage info for EXPIRED policy (0345678) without validation
+--      - Customer complained: "I'm not covered anymore. My policy expired last month!"
+--      - Custom metric FAILED: Did not validate policy status
+--      - Negative feedback
+--    Version 2 (improved):
+--      - Task 10000010: Validated policy status for 0456789, detected expiration, warned customer
+--      - Customer praised: "Thank you for catching that my policy expired!"
+--      - Custom metric PASSED: Properly validated policy status
+--      - Positive feedback
+--      - Shows todos tracking verification steps
+--
+-- 2. Newsletter Agent: Task with negative feedback about old content
+--    - Issue: Subagent tool lacks timestamp filter, retrieves all historical posts
+--
+-- Demo flow:
+-- 1. Analytics shows Version 1 with thumbs down, Version 2 with thumbs up
+-- 2. User compares tasks to see what's different
+-- 3. Custom "Policy Status Validation" metric shows V1 failed, V2 passed
+-- 4. V2 agent has updatetodos tool to track verification steps transparently
+-- 5. Clear before/after demonstration of improvement

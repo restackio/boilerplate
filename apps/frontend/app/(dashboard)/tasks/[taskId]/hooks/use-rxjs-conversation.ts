@@ -7,7 +7,19 @@ interface UseRxjsConversationProps {
   responseState?: { events: OpenAIEvent[]; [key: string]: unknown } | false;
   agentResponses?: { events?: OpenAIEvent[]; [key: string]: unknown }[];
   taskAgentTaskId?: string | null;
-  persistedMessages?: unknown[];
+  persistedState?: {
+    events?: OpenAIEvent[];
+    todos?: unknown[];
+    subtasks?: unknown[];
+    messages?: unknown[];
+    metadata?: {
+      temporal_agent_id?: string;
+      temporal_run_id?: string;
+      response_count?: number;
+      message_count?: number;
+      [key: string]: unknown;
+    };
+  };
   storeKey?: string; // Unique key to create separate store instances
 }
 
@@ -18,7 +30,7 @@ export function useRxjsConversation({
   responseState,
   agentResponses = [],
   taskAgentTaskId,
-  persistedMessages,
+  persistedState,
   storeKey = 'default' // Note: currently unused but kept for future store differentiation
 }: UseRxjsConversationProps) {
   void storeKey; // Suppress unused parameter warning
@@ -41,31 +53,26 @@ export function useRxjsConversation({
   // Update state items from responseState
   useEffect(() => {
     
-    if (persistedMessages?.length && !responseState) {
-      // Use persisted messages when no active responseState
-      const items: ConversationItem[] = persistedMessages
-        // @ts-expect-error - persistedMessages has unknown type but we're filtering for required properties
-        .filter(msg => msg.id && msg.type)
-        .map(msg => ({
-          // @ts-expect-error - msg properties are unknown but filtered above
-          id: msg.id,
-          // @ts-expect-error - msg type property is unknown
-          type: msg.type,
-          // @ts-expect-error - msg timestamp property is unknown
-          timestamp: msg.timestamp || new Date().toISOString(),
-          // @ts-expect-error - msg output property is unknown
-          openai_output: msg.openai_output || msg,
-          // @ts-expect-error - msg event property is unknown
-          openai_event: msg.openai_event || { sequence_number: 0 },
-          // @ts-expect-error - Preserve error property for error items
-          error: msg.error,
-          isStreaming: false,
+    // Case 1: Task completed - use database snapshot (agent_state.events)
+    // Load from persisted state when there's no active real-time state
+    if (persistedState?.events?.length && !responseState) {
+      const items: ConversationItem[] = persistedState.events
+        .filter(event => event.id && event.type)
+        .map(event => ({
+          id: event.id as string,
+          type: event.type,
+          timestamp: event.timestamp || new Date().toISOString(),
+          openai_output: event.item || null,
+          openai_event: event,
+          isStreaming: false, // Historical data never streams
         }));
       
       conversationStore.updateStateItems(items);
+      console.log(`💾 Loaded ${items.length} events from database (task completed)`);
       return;
     }
 
+    // Case 2: No active agent or state available
     if (!responseState || !responseState?.events || !taskAgentTaskId) {
       conversationStore.updateStateItems([]);
       return;
@@ -247,7 +254,7 @@ export function useRxjsConversation({
     }
     
     conversationStore.updateStateItems(items);
-  }, [responseState, taskAgentTaskId, persistedMessages, conversationStore]);
+  }, [responseState, taskAgentTaskId, persistedState, conversationStore]);
 
   // Update stream events from agentResponses
   useEffect(() => {

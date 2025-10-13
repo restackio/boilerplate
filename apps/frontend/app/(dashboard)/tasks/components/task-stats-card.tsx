@@ -27,7 +27,7 @@ interface TaskStats {
 // Status configuration with specific icons and colors
 const statusConfig = {
   in_progress: {
-    label: "In Progress",
+    label: "In progress",
     icon: CircleDashed,
     color: "bg-blue-500",
     textColor: "text-blue-600 dark:text-blue-400",
@@ -36,7 +36,7 @@ const statusConfig = {
     badgeColor: "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200"
   },
   in_review: {
-    label: "In Review",
+    label: "In review",
     icon: CirclePause,
     color: "bg-orange-500",
     textColor: "text-orange-600 dark:text-orange-400",

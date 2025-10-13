@@ -21,7 +21,15 @@ interface TaskChatInterfaceProps {
   onDenyRequest?: (itemId: string) => void;
   agentLoading: boolean;
   showSplitView: boolean;
-  responseState?: unknown; // Agent state for real-time updates
+  responseState?: unknown; // Agent state for real-time updates (while task running)
+  task?: { 
+    status?: string;
+    agent_state?: {
+      todos?: unknown[];
+      subtasks?: unknown[];
+      [key: string]: unknown;
+    };
+  }; // Task from database (for completed tasks)
   taskId?: string;
   agentId?: string;
   workspaceId?: string;
@@ -38,28 +46,45 @@ export function TaskChatInterface({
   agentLoading,
   showSplitView,
   responseState,
+  task,
   taskId,
   agentId,
   workspaceId,
 }: TaskChatInterfaceProps) {
   const conversationEndRef = useRef<HTMLDivElement>(null);
 
-  // Extract todos and subtasks from agent state (real-time for all clients)
+  const isTaskActive = task?.status === 'in_progress';
+
+  // Transparently use real-time state OR database state
   const todos = useMemo(() => {
-    if (!responseState || typeof responseState !== 'object') {
-      return null;
+    // Try real-time first (while task is running)
+    if (isTaskActive && responseState && typeof responseState === 'object') {
+      const state = responseState as { todos?: unknown[] };
+      if (state.todos?.length) return state.todos;
     }
-    const state = responseState as { todos?: unknown[] };
-    return state.todos && state.todos.length > 0 ? state.todos : null;
-  }, [responseState]);
+    
+    // Fallback to database (when task is completed/failed/closed)
+    if (task?.agent_state?.todos?.length) {
+      return task.agent_state.todos;
+    }
+    
+    return null;
+  }, [isTaskActive, responseState, task?.agent_state?.todos]);
 
   const subtasks = useMemo(() => {
-    if (!responseState || typeof responseState !== 'object') {
-      return null;
+    // Try real-time first (while task is running)
+    if (isTaskActive && responseState && typeof responseState === 'object') {
+      const state = responseState as { subtasks?: unknown[] };
+      if (state.subtasks?.length) return state.subtasks;
     }
-    const state = responseState as { subtasks?: unknown[] };
-    return state.subtasks && state.subtasks.length > 0 ? state.subtasks : null;
-  }, [responseState]);
+    
+    // Fallback to database (when task is completed/failed/closed)
+    if (task?.agent_state?.subtasks?.length) {
+      return task.agent_state.subtasks;
+    }
+    
+    return null;
+  }, [isTaskActive, responseState, task?.agent_state?.subtasks]);
 
   console.log("conversation", conversation);
 

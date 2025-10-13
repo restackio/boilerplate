@@ -127,6 +127,7 @@ from src.functions.tasks_crud import (
     tasks_get_by_parent_id,
     tasks_get_stats,
     tasks_read,
+    tasks_save_agent_state,
     tasks_update,
     tasks_update_agent_task_id,
 )
@@ -431,6 +432,7 @@ async def run_restack_service() -> None:
             tasks_get_by_id,
             tasks_get_by_parent_id,
             tasks_get_stats,
+            tasks_save_agent_state,
             tasks_update_agent_task_id,
             get_tasks_by_metric_failure,
             get_tasks_by_feedback,

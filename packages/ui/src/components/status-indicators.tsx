@@ -99,7 +99,7 @@ const statusConfigs: Record<StatusVariant, StatusConfig> = {
   },
   "in-progress": {
     icon: Loader2,
-    label: "In Progress",
+    label: "In progress",
     variant: "outline",
     className: "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300",
   },

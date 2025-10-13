@@ -76,31 +76,51 @@ class TransformData:
         self, workflow_input: TransformDataInput
     ) -> TransformDataOutput:
         """Transform data using AI."""
-        log.info("TransformData started", input=workflow_input)
+        log.info(
+            "TransformData started",
+            model=workflow_input.model,
+            input_data_count=len(workflow_input.input_data),
+            transformation_task=workflow_input.transformation_task[
+                :100
+            ],  # First 100 chars
+        )
 
         try:
-            # Prepare the system prompt for transformation
-            system_prompt = f"""You are a data transformation assistant. Transform the provided data according to the user's instructions.
+            # Prepare concise prompts - structured outputs enforce schema
+            system_prompt = f"""Transform the provided data according to these instructions:
 
-Instructions: {workflow_input.transformation_task}
+{workflow_input.transformation_task}"""
 
-You must return the transformed data as a JSON array where each item follows this schema:
-{json.dumps(workflow_input.output_schema, indent=2)}
+            user_message = f"Data to transform:\n{json.dumps(workflow_input.input_data, indent=2)}"
 
-Return ONLY the JSON array, no additional text or formatting."""
+            # Create structured output schema (array of items matching output_schema)
+            array_schema = {
+                "type": "object",
+                "properties": {
+                    "results": {
+                        "type": "array",
+                        "items": workflow_input.output_schema,
+                    }
+                },
+                "required": ["results"],
+                "additionalProperties": False,
+            }
 
-            # Prepare the user message with the input data
-            user_message = f"Transform this data:\n{json.dumps(workflow_input.input_data, indent=2)}"
-
-            # Prepare the LLM request parameters
+            # Prepare the LLM request parameters with structured outputs
             create_params = {
                 "model": workflow_input.model,
                 "messages": [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_message},
                 ],
-                "temperature": 0.1,  # Low temperature for consistent transformations
-                "max_tokens": 4000,
+                "response_format": {
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "transform_result",
+                        "strict": True,
+                        "schema": array_schema,
+                    },
+                },
             }
 
             # Call the LLM function using workflow.step
@@ -112,16 +132,15 @@ Return ONLY the JSON array, no additional text or formatting."""
                 task_queue="mcp_server",
                 function=llm_response,
                 function_input=llm_input,
-                start_to_close_timeout=timedelta(seconds=120),
+                start_to_close_timeout=timedelta(seconds=30),
             )
 
             # Parse the response as JSON
             try:
-                transformed_data = json.loads(response.strip())
-
-                # Ensure it's a list
-                if not isinstance(transformed_data, list):
-                    transformed_data = [transformed_data]
+                response_data = json.loads(response.strip())
+                transformed_data = response_data.get(
+                    "results", []
+                )
 
                 result = TransformDataOutput(
                     success=True,
@@ -144,5 +163,10 @@ Return ONLY the JSON array, no additional text or formatting."""
 
         except Exception as e:
             error_message = f"TransformData failed: {e}"
-            log.error(error_message)
+            log.error(
+                "TransformData failed",
+                error_message=error_message,
+                error_type=type(e).__name__,
+                model=workflow_input.model,
+            )
             raise NonRetryableError(error_message) from e

@@ -111,7 +111,7 @@ cp env.development.example .env
 pnpm infra:start
 
 # Initialize databases
-pnpm db:setup
+pnpm postgres:setup
 ```
 
 ### Development with hot reloading
@@ -167,7 +167,7 @@ RESTACK_ENGINE_MCP_ADDRESS=https://your-ngrok-url.ngrok-free.app
 # Start development environment
 pnpm dev            # Start all applications with hot reloading
 pnpm infra:start    # Start PostgreSQL, ClickHouse, and Restack Engine
-pnpm db:setup       # Initialize databases with schema and seed data
+pnpm postgres:setup       # Initialize databases with schema and seed data
 
 # Code quality
 pnpm lint           # Lint all applications
@@ -364,16 +364,16 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
 **PostgreSQL**:
 1. **Update Models** (`apps/backend/src/database/models.py`)
 2. **Create Migration** (`packages/database/migrations/`)
-3. **Update Example Seed Data** (`packages/database/*-seed.sql`) - for development/testing only
+3. **Update Example Seed Data** (`packages/database/postgres-seed.sql`) - for development/testing only
 
 **ClickHouse**:
 1. **Update Schema** (`packages/database/clickhouse-schema.sql`)
-2. **Update Example Seed Data** (`packages/database/clickhouse-*-seed.sql`) - for development/testing only
+2. **Update Example Seed Data** (`packages/database/clickhouse-seed.sql`) - for development/testing only
 
 **Test Changes**:
 ```bash
-pnpm db:reset  # Apply new schemas
-pnpm db:seed   # Test with example seed data
+pnpm postgres:reset  # Apply new schemas
+pnpm postgres:seed   # Test with example seed data
 ```
 
 > **Note**: Seed data serves development and testing purposes only. Do not add production-specific data to the boilerplate.
@@ -441,14 +441,14 @@ List any breaking changes
 
 **TypeScript/React**:
 ```typescript
-// ✅ Good: Explicit types, descriptive names
+// Good: Explicit types, descriptive names
 interface AgentProps {
   agentId: string
   name: string
   onUpdate: (data: AgentData) => void
 }
 
-// ✅ Good: Server Component pattern
+// Good: Server Component pattern
 async function AgentList({ workspaceId }: { workspaceId: string }) {
   const agents = await getAgents(workspaceId)
   return <AgentSelector agents={agents} />
@@ -457,7 +457,7 @@ async function AgentList({ workspaceId }: { workspaceId: string }) {
 
 **Python/Backend**:
 ```python
-# ✅ Good: Type hints, async/await, descriptive names
+# Good: Type hints, async/await, descriptive names
 @function.defn(name="agent_create")
 async def agent_create(
     workspace_id: str, 
@@ -494,7 +494,7 @@ pnpm infra:logs | grep postgres
 pnpm infra:logs | grep clickhouse
 
 # Reset databases
-pnpm db:reset
+pnpm postgres:reset
 ```
 
 **3. MCP Server Not Responding**

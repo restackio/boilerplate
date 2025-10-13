@@ -11,8 +11,8 @@ import { Badge } from "@workspace/ui/components/ui/badge";
 
 // Status options for tasks
 export const taskStatusOptions = [
-  { label: "In Progress", value: "in_progress", icon: CircleDashed },
-  { label: "In Review", value: "in_review", icon: CirclePause },
+  { label: "In progress", value: "in_progress", icon: CircleDashed },
+  { label: "In review", value: "in_review", icon: CirclePause },
   { label: "Closed", value: "closed", icon: CircleX },
   { label: "Completed", value: "completed", icon: CheckCircle },
   { label: "Failed", value: "failed", icon: XCircle },
@@ -113,7 +113,7 @@ export const getStatusBadge = (
           variant={variant} 
           className={`${sizeClass} bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/50 dark:text-blue-200 dark:border-blue-800`}
         >
-          In Progress
+          In progress
         </Badge>
       );
     case "in_review":
@@ -121,8 +121,7 @@ export const getStatusBadge = (
         <Badge 
           variant={variant} 
           className={`${sizeClass} bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/50 dark:text-orange-200 dark:border-orange-800`}
-        >
-          In Review
+        >rReview
         </Badge>
       );
     case "open":

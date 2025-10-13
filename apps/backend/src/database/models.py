@@ -440,9 +440,9 @@ class Task(Base):
         nullable=False,
     )
     temporal_agent_id = Column(String(255), nullable=True)
-    messages = Column(
+    agent_state = Column(
         JSONB, nullable=True
-    )  # Store conversation history for completed tasks
+    )  # Complete agent state (events, todos, subtasks) - populated when task completes
     # Subtask-related columns
     parent_task_id = Column(
         UUID(as_uuid=True),

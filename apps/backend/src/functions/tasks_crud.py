@@ -40,12 +40,13 @@ class TaskUpdateInput(BaseModel):
     title: str | None = Field(None, min_length=1, max_length=255)
     description: str | None = None
     status: str | None = Field(
-        None, pattern="^(in_progress|in_review|closed|completed|failed)$"
+        None,
+        pattern="^(in_progress|in_review|closed|completed|failed)$",
     )
     agent_id: str | None = None
     assigned_to_id: str | None = None
     temporal_agent_id: str | None = None
-    messages: list | None = None
+    agent_state: dict | None = None
     # Subtask-related fields
     parent_task_id: str | None = None
     temporal_parent_agent_id: str | None = None
@@ -82,7 +83,8 @@ class TaskGetByIdInput(BaseModel):
 
 class TaskGetByStatusInput(BaseModel):
     status: str = Field(
-        ..., pattern="^(in_progress|in_review|closed|completed|failed)$"
+        ...,
+        pattern="^(in_progress|in_review|closed|completed|failed)$",
     )
 
 
@@ -93,6 +95,11 @@ class TaskDeleteInput(BaseModel):
 class TaskUpdateAgentTaskIdInput(BaseModel):
     task_id: str = Field(..., min_length=1)
     temporal_agent_id: str = Field(..., min_length=1)
+
+
+class TaskSaveAgentStateInput(BaseModel):
+    task_id: str = Field(..., min_length=1)
+    agent_state: dict  # Full state from agent.state_response()
 
 
 class TaskGetByWorkspaceInput(BaseModel):
@@ -113,7 +120,7 @@ class TaskOutput(BaseModel):
     assigned_to_id: str | None
     assigned_to_name: str | None
     temporal_agent_id: str | None
-    messages: list | None = None
+    agent_state: dict | None = None
     # Subtask-related fields
     parent_task_id: str | None = None
     temporal_parent_agent_id: str | None
@@ -298,7 +305,7 @@ async def tasks_create(
                 if task.assigned_to_user
                 else None,
                 temporal_agent_id=task.temporal_agent_id,
-                messages=task.messages,
+                agent_state=task.agent_state,
                 # Subtask-related fields
                 parent_task_id=str(task.parent_task_id)
                 if task.parent_task_id
@@ -365,7 +372,10 @@ async def tasks_update(
                         "temporal_parent_agent_id",
                         "temporal_schedule_id",
                     ] or (
-                        (key == "messages" and value is not None)
+                        (
+                            key == "agent_state"
+                            and value is not None
+                        )
                         or (
                             key == "schedule_spec"
                             and value is not None
@@ -412,7 +422,7 @@ async def tasks_update(
                 if task.assigned_to_user
                 else None,
                 temporal_agent_id=task.temporal_agent_id,
-                messages=task.messages,
+                agent_state=task.agent_state,
                 # Subtask-related fields
                 parent_task_id=str(task.parent_task_id)
                 if task.parent_task_id
@@ -439,6 +449,91 @@ async def tasks_update(
             await db.rollback()
             raise NonRetryableError(
                 message=f"Failed to update task: {e!s}"
+            ) from e
+    return None
+
+
+@function.defn()
+async def tasks_save_agent_state(
+    function_input: TaskSaveAgentStateInput,
+) -> TaskSingleOutput:
+    """Save complete agent state (events, todos, subtasks) to task.
+
+    Called by agent when task completes to persist final state for historical viewing.
+    While task is in_progress, frontend uses real-time Temporal state.
+    """
+    async for db in get_async_db():
+        try:
+            task_query = (
+                select(Task)
+                .options(
+                    selectinload(Task.agent),
+                    selectinload(Task.assigned_to_user),
+                    selectinload(Task.team),
+                )
+                .where(
+                    Task.id == uuid.UUID(function_input.task_id)
+                )
+            )
+            result = await db.execute(task_query)
+            task = result.scalar_one_or_none()
+
+            if not task:
+                raise NonRetryableError(  # noqa: TRY301
+                    message=f"Task with id {function_input.task_id} not found"
+                )
+
+            # Save complete agent state
+            task.agent_state = function_input.agent_state
+            task.updated_at = func.now()
+
+            await db.commit()
+            await db.refresh(task)
+
+            output_result = TaskOutput(
+                id=str(task.id),
+                workspace_id=str(task.workspace_id),
+                team_id=str(task.team_id)
+                if task.team_id
+                else None,
+                team_name=task.team.name if task.team else None,
+                title=task.title,
+                description=task.description,
+                status=task.status,
+                agent_id=str(task.agent_id),
+                agent_name=task.agent.name
+                if task.agent
+                else "N/A",
+                assigned_to_id=str(task.assigned_to_id)
+                if task.assigned_to_id
+                else None,
+                assigned_to_name=task.assigned_to_user.name
+                if task.assigned_to_user
+                else None,
+                temporal_agent_id=task.temporal_agent_id,
+                agent_state=task.agent_state,
+                # Subtask-related fields
+                parent_task_id=str(task.parent_task_id)
+                if task.parent_task_id
+                else None,
+                temporal_parent_agent_id=task.temporal_parent_agent_id,
+                # Schedule-related fields
+                schedule_spec=task.schedule_spec,
+                schedule_task_id=str(task.schedule_task_id)
+                if task.schedule_task_id
+                else None,
+                is_scheduled=task.is_scheduled,
+                schedule_status=task.schedule_status,
+                temporal_schedule_id=task.temporal_schedule_id,
+                created_at=task.created_at.isoformat(),
+                updated_at=task.updated_at.isoformat(),
+            )
+
+            return TaskSingleOutput(task=output_result)
+        except Exception as e:
+            await db.rollback()
+            raise NonRetryableError(
+                message=f"Failed to save agent state: {e!s}"
             ) from e
     return None
 
@@ -518,7 +613,7 @@ async def tasks_get_by_id(
                 if task.assigned_to_user
                 else None,
                 temporal_agent_id=task.temporal_agent_id,
-                messages=task.messages,
+                agent_state=task.agent_state,
                 # Subtask-related fields
                 parent_task_id=str(task.parent_task_id)
                 if task.parent_task_id
@@ -751,7 +846,7 @@ async def tasks_update_agent_task_id(
                 if task.assigned_to_user
                 else None,
                 temporal_agent_id=task.temporal_agent_id,
-                messages=task.messages,
+                agent_state=task.agent_state,
                 # Subtask-related fields
                 parent_task_id=str(task.parent_task_id)
                 if task.parent_task_id

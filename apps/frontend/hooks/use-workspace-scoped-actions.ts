@@ -52,7 +52,18 @@ export interface Task {
   team_id?: string;
   team_name?: string;
   temporal_agent_id?: string; 
-  messages?: any[];
+  agent_state?: {
+    events?: any[];
+    todos?: any[];
+    subtasks?: any[];
+    messages?: any[];
+    metadata?: {
+      temporal_agent_id?: string;
+      temporal_run_id?: string;
+      response_count?: number;
+      message_count?: number;
+    };
+  };
   // Schedule-related fields
   schedule_spec?: any;
   schedule_task_id?: string;

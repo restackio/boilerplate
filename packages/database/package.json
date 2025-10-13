@@ -5,15 +5,14 @@
   "description": "Database schema and seed data for the boilerplate",
   "main": "index.js",
   "scripts": {
-    "db:reset": "psql $DATABASE_URL -f schema.sql",
-    "db:seed:workspace": "psql $DATABASE_URL -f workspace-seed.sql",
-    "db:seed:agents": "psql $DATABASE_URL -f agents-seed.sql",
-    "db:seed": "pnpm db:seed:workspace && pnpm db:seed:agents",
-    "db:setup": "pnpm db:reset && pnpm db:seed"
+    "postgres:reset": "psql $DATABASE_URL -f postgres-schema.sql",
+    "postgres:seed": "psql $DATABASE_URL -f postgres-seed.sql",
+    "postgres:setup": "pnpm postgres:reset && pnpm postgres:seed"
   },
   "files": [
-    "schema.sql",
-    "workspace-seed.sql",
-    "agents-seed.sql"
+    "postgres-schema.sql",
+    "postgres-seed.sql",
+    "clickhouse-schema.sql",
+    "clickhouse-seed.sql"
   ]
 } 

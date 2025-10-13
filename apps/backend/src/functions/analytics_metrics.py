@@ -308,15 +308,21 @@ async def _get_quality_metrics(
 
     # Fetch metric definitions from PostgreSQL for additional metadata
     from src.database.models import MetricDefinition
+
     async for db in get_async_db():
         try:
             metric_defs_query = select(MetricDefinition).where(
                 and_(
-                    MetricDefinition.workspace_id == uuid.UUID(filters.workspace_id),
-                    MetricDefinition.metric_name.in_(list(summary_dict.keys()))
+                    MetricDefinition.workspace_id
+                    == uuid.UUID(filters.workspace_id),
+                    MetricDefinition.metric_name.in_(
+                        list(summary_dict.keys())
+                    ),
                 )
             )
-            metric_defs_result = await db.execute(metric_defs_query)
+            metric_defs_result = await db.execute(
+                metric_defs_query
+            )
             metric_defs = metric_defs_result.scalars().all()
 
             # Create lookup dict
@@ -329,7 +335,14 @@ async def _get_quality_metrics(
                 }
                 for metric_def in metric_defs
             }
-        except (ValueError, TypeError, RuntimeError, AttributeError, ConnectionError, OSError) as e:
+        except (
+            ValueError,
+            TypeError,
+            RuntimeError,
+            AttributeError,
+            ConnectionError,
+            OSError,
+        ) as e:
             log.error(f"Failed to fetch metric definitions: {e}")
             metric_defs_lookup = {}
         break
@@ -338,12 +351,15 @@ async def _get_quality_metrics(
     summary = []
     for metric_name, data in summary_dict.items():
         count = data["evaluationCount"]
-        metric_metadata = metric_defs_lookup.get(metric_name, {
-            "metricId": "",
-            "isDefault": True,  # If not in DB, assume it's a default metric
-            "isActive": True,
-            "config": {},
-        })
+        metric_metadata = metric_defs_lookup.get(
+            metric_name,
+            {
+                "metricId": "",
+                "isDefault": True,  # If not in DB, assume it's a default metric
+                "isActive": True,
+                "config": {},
+            },
+        )
 
         summary.append(
             {

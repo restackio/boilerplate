@@ -471,6 +471,10 @@ def _convert_response_usage(usage: Any) -> dict | None:
 async def llm_response_stream(
     function_input: LlmResponseInput,
 ) -> LlmResponseOutput:
+    # Initialize tracing variables to ensure they're always defined for finally block
+    span_context = None
+    trace_context = None
+
     try:
         if not os.environ.get("OPENAI_API_KEY"):
             error_msg = "OPENAI_API_KEY is not set"

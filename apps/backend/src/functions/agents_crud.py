@@ -474,11 +474,9 @@ async def agents_read_all(
     async for db in get_async_db():
         try:
             # Build query to get all agents
-            query = (
-                select(Agent)
-                .where(
-                    Agent.workspace_id == uuid.UUID(function_input.workspace_id)
-                )
+            query = select(Agent).where(
+                Agent.workspace_id
+                == uuid.UUID(function_input.workspace_id)
             )
 
             # Apply published_only filter if requested
@@ -498,18 +496,27 @@ async def agents_read_all(
                     description=agent.description,
                     instructions=agent.instructions,
                     status=agent.status,
-                    parent_agent_id=str(agent.parent_agent_id) if agent.parent_agent_id else None,
+                    parent_agent_id=str(agent.parent_agent_id)
+                    if agent.parent_agent_id
+                    else None,
                     model=agent.model or "gpt-5",
-                    reasoning_effort=agent.reasoning_effort or "medium",
-                    created_at=agent.created_at.isoformat() if agent.created_at else None,
-                    updated_at=agent.updated_at.isoformat() if agent.updated_at else None,
+                    reasoning_effort=agent.reasoning_effort
+                    or "medium",
+                    created_at=agent.created_at.isoformat()
+                    if agent.created_at
+                    else None,
+                    updated_at=agent.updated_at.isoformat()
+                    if agent.updated_at
+                    else None,
                 )
                 for agent in agents
             ]
 
             return AgentListOutput(agents=output_result)
         except Exception as e:
-            raise NonRetryableError(message=f"Database error: {e!s}") from e
+            raise NonRetryableError(
+                message=f"Database error: {e!s}"
+            ) from e
     return None
 
 
@@ -959,7 +966,9 @@ async def agents_get_versions(
                 ) from e
 
             # First, check if this agent is a child (has a parent_agent_id)
-            check_query = select(Agent).where(Agent.id == agent_id)
+            check_query = select(Agent).where(
+                Agent.id == agent_id
+            )
             check_result = await db.execute(check_query)
             current_agent = check_result.scalar_one_or_none()
 
@@ -967,15 +976,21 @@ async def agents_get_versions(
                 return AgentListOutput(agents=[])
 
             # Determine the root parent ID
-            root_parent_id = current_agent.parent_agent_id or agent_id
+            root_parent_id = (
+                current_agent.parent_agent_id or agent_id
+            )
 
             # Get all versions: the parent + all children with that parent_agent_id
-            agents_query = select(Agent).where(
-                or_(
-                    Agent.id == root_parent_id,
-                    Agent.parent_agent_id == root_parent_id
+            agents_query = (
+                select(Agent)
+                .where(
+                    or_(
+                        Agent.id == root_parent_id,
+                        Agent.parent_agent_id == root_parent_id,
+                    )
                 )
-            ).order_by(Agent.created_at.desc())
+                .order_by(Agent.created_at.desc())
+            )
 
             result = await db.execute(agents_query)
             agents = result.scalars().all()

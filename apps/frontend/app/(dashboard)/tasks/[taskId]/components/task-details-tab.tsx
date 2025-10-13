@@ -174,8 +174,8 @@ export function TaskDetailsTab({ task, onUpdateTask, isLoading = false }: TaskDe
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="in_progress">In Progress</SelectItem>
-                <SelectItem value="in_review">In Review</SelectItem>
+                <SelectItem value="in_progress">In progress</SelectItem>
+                <SelectItem value="in_review">In review</SelectItem>
                 <SelectItem value="closed">Closed</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>
                 <SelectItem value="failed">Failed</SelectItem>

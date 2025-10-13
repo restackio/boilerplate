@@ -36,7 +36,7 @@ export function useTaskDetail() {
     responseState: responseState as { events: OpenAIEvent[]; [key: string]: unknown } | false,
     agentResponses: agentResponses as { events?: OpenAIEvent[]; [key: string]: unknown }[],
     taskAgentTaskId: task?.temporal_agent_id,
-    persistedMessages: task?.messages,
+    persistedState: task?.agent_state,
     storeKey: taskId, // Use taskId as unique store key
   });
 
@@ -81,10 +81,6 @@ export function useTaskDetail() {
         assigned_to_id: task.assigned_to_id || "",
         ...updates,
       };
-      
-      if (updates.status === "completed" && conversation && conversation.length > 0) {
-        updateData.messages = conversation;
-      }
       
       const result = await updateTask(task.id, updateData);
       

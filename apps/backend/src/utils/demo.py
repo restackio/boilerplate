@@ -82,10 +82,14 @@ def apply_demo_multiplier_to_timeseries(
                 # Use base_value as minimum to avoid zeros becoming zeros
                 original = enhanced_item[field]
                 if original > 0:
-                    enhanced_item[field] = original * DEMO_MULTIPLIER
+                    enhanced_item[field] = (
+                        original * DEMO_MULTIPLIER
+                    )
                 else:
                     # For zero values, use a small fraction of base value
-                    enhanced_item[field] = base_value * DEMO_MULTIPLIER // 10
+                    enhanced_item[field] = (
+                        base_value * DEMO_MULTIPLIER // 10
+                    )
         result.append(enhanced_item)
 
     return result

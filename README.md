@@ -21,9 +21,18 @@ cp .env.example .env
 - Set `OPENAI_API_KEY` with a valid OpenAI API key
 - Set `RESTACK_ENGINE_MCP_ADDRESS` for ngrok tunnel with `ngrok http 112233`
 
+### First time setup
 ```bash
-pnpm quickstart
+pnpm localsetup
 ```
+Reset the database, seed demo data, and start development servers.
+
+### Start application 
+```bash
+pnpm localdev
+```
+
+This starts infrastructure and dev servers **without resetting your database**.
 
 ### Access your platform
 - **Agent Orchestration**: http://localhost:3000  
@@ -31,7 +40,7 @@ pnpm quickstart
 - **API**: http://localhost:8000
 - **ClickHouse**: http://localhost:8123 (metrics and analytics)
 
-**Performance tip:** quickstart runs nextjs with hot reloading, changing pages takes a second. For instant loading, use `pnpm build && pnpm start` instead of dev mode.
+**Performance tip:** development mode uses hot reloading. For faster page loads, use `pnpm build && pnpm start` instead of `pnpm localdev`.
 
 ## What can you build?
 
@@ -203,25 +212,39 @@ Fully managed infrastructure:
 
 ### Option 4: Self-hosted Docker (Hobbyist)
 ```bash
-# Production build
+# Production with Docker Compose
+pnpm prod:up
+
+# Or build and run locally
 pnpm build
 pnpm start
-
-# Or with Docker Compose
-docker-compose up -d
 ```
 
 ## Platform management
 
 ```bash
-# Start platform
-pnpm docker:reset
+# Daily workflow
+pnpm quickstart          # Start with preserved data
+pnpm infra:stop          # Stop infrastructure
+pnpm setup               # Complete reset (first time or when stuck)
 
-# View logs
-pnpm docker:logs
+# Development infrastructure
+pnpm infra:logs          # View container logs
+pnpm infra:restart       # Restart services
+pnpm infra:ps            # Check service status
 
-# Stop platform
-pnpm docker:down
+# Database operations
+pnpm postgres:setup      # Reset and seed PostgreSQL (⚠️ destroys data)
+pnpm postgres:seed       # Re-seed PostgreSQL without reset
+pnpm postgres:connect    # Connect to PostgreSQL
+pnpm clickhouse:connect  # Connect to ClickHouse
+
+# Production (self-hosted Docker)
+pnpm build               # Build for production
+pnpm prod:up             # Start production services
+pnpm prod:down           # Stop production services
+pnpm prod:logs           # View production logs
+pnpm prod:reset          # Full production reset
 ```
 
 ## For developers

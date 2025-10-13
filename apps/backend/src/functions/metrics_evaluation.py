@@ -157,7 +157,7 @@ Please evaluate and respond in JSON format:
 
         log.info(
             f"LLM judge completed: {input_data.metric_definition['name']} - "
-            f"Passed: {result['passed']}, "
+            f"Passed: {result.get('passed', False)}, "
             f"Duration: {duration_ms}ms, Cost: ${cost_usd:.6f}"
         )
 

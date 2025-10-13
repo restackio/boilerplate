@@ -23,7 +23,28 @@ with import_functions():
     )
 
 
-@workflow.defn()
+@workflow.defn(
+    description="""Run a SELECT query in ClickHouse.
+
+The pipeline_events table has a `raw_data` JSON column. To extract fields from JSON:
+- Use JSONExtractString(raw_data, 'field_name') for text fields
+- Use JSONExtractUInt(raw_data, 'field_name') for unsigned integers (NOT JSONExtractUInt64)
+- Use JSONExtractInt(raw_data, 'field_name') for signed integers
+- Use JSONExtract(raw_data, 'field_name', 'Array(String)') for arrays
+
+Example query:
+SELECT
+    event_name,
+    JSONExtractString(raw_data, 'author') AS author,
+    JSONExtractUInt(raw_data, 'likes') AS likes,
+    event_timestamp,
+    tags
+FROM pipeline_events
+WHERE has(tags, 'YOUR_TAG')
+ORDER BY event_timestamp DESC
+LIMIT 50;
+"""
+)
 class ClickHouseRunSelectQuery:
     """Workflow to run a SELECT query in ClickHouse."""
 

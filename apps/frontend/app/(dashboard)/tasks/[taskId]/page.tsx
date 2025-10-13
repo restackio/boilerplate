@@ -133,6 +133,7 @@ export default function TaskDetailPage() {
           agentLoading={agentLoading}
           showSplitView={showSplitView}
           responseState={responseState}
+          task={task}
           taskId={task.id}
           agentId={task.agent_id}
           workspaceId={currentWorkspaceId || undefined}

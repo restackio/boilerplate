@@ -187,7 +187,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     agent_id UUID NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
     assigned_to_id UUID REFERENCES users(id) ON DELETE CASCADE,
     temporal_agent_id VARCHAR(255), -- Temporal/Restack workflow ID
-    messages JSONB,
+    agent_state JSONB, -- Complete agent state (events, todos, subtasks) - populated when task completes
     -- Subtask-related columns
     parent_task_id UUID REFERENCES tasks(id) ON DELETE CASCADE, -- Reference to parent task if this is a subtask
     temporal_parent_agent_id VARCHAR(255), -- Parent's Temporal workflow ID for event routing (cached for performance)
@@ -308,7 +308,7 @@ CREATE INDEX IF NOT EXISTS idx_users_email_lower ON users(lower(email));
 
 -- PostgreSQL 17 JSONB Performance Optimizations
 -- GIN indexes for JSONB fields to improve JSON queries
-CREATE INDEX IF NOT EXISTS idx_tasks_messages_gin ON tasks USING GIN (messages) WHERE messages IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_tasks_agent_state_gin ON tasks USING GIN (agent_state) WHERE agent_state IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_tasks_schedule_gin ON tasks USING GIN (schedule_spec) WHERE schedule_spec IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_mcp_headers_gin ON mcp_servers USING GIN (headers) WHERE headers IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_agent_tools_config_gin ON agent_tools USING GIN (config) WHERE config IS NOT NULL;
