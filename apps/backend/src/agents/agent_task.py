@@ -234,25 +234,6 @@ class AgentTask:
                     }
                     self.events.append(user_event)
 
-                if message.role == "developer":
-
-                    developer_event = {
-                        "type": "response.output_item.done",
-                        "item": {
-                            "id": f"msg_developer_{uuid()}",
-                            "type": "message",
-                            "role": "developer",
-                            "status": "completed",
-                            "content": [
-                                {
-                                    "type": "input_text",
-                                    "text": message.content,
-                                }
-                            ],
-                        },
-                    }
-                    self.events.append(developer_event)
-
                 try:
                     # Step 1: prepare request for OpenAI (using current last_response_id for continuity)
                     prepared: LlmResponseInput = await agent.step(
