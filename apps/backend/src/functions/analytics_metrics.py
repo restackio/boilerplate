@@ -315,7 +315,7 @@ async def _get_quality_metrics(
                 and_(
                     MetricDefinition.workspace_id
                     == uuid.UUID(filters.workspace_id),
-                    MetricDefinition.metric_name.in_(
+                    MetricDefinition.name.in_(
                         list(summary_dict.keys())
                     ),
                 )
@@ -327,7 +327,7 @@ async def _get_quality_metrics(
 
             # Create lookup dict
             metric_defs_lookup = {
-                metric_def.metric_name: {
+                metric_def.name: {
                     "metricId": str(metric_def.id),
                     "isDefault": False,  # Custom metrics from DB are not default
                     "isActive": metric_def.is_active,

@@ -13,6 +13,8 @@ import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 import { Agent } from "@/hooks/use-workspace-scoped-actions";
 import { ScheduleSetupDialog, ScheduleSpec } from "./schedule-setup-dialog";
 import { executeWorkflow } from "@/app/actions/workflow";
+import Link from "next/link";
+import { AgentStatusBadge } from "@workspace/ui/components/agent-status-badge";
 
 interface CreateTaskFormProps {
   onSubmit: (taskData: {
@@ -351,13 +353,13 @@ export function CreateTaskForm({
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex flex-col">
-                            <span className="font-medium">{version.name}</span>
+                            <span className="font-medium">
+                              ID: {version.id.slice(version.id.length - 5, version.id.length)}
+                            </span>
                             <div className="flex items-center space-x-2 text-xs text-neutral-500 mt-0.5">
-                              <span title={version.id}>ID: {version.id.slice(0, 8)}</span>
-                              <span>•</span>
                               <span>
-                                {version.created_at 
-                                  ? new Date(version.created_at).toLocaleString('en-US', { 
+                                {version.updated_at 
+                                  ? new Date(version.updated_at).toLocaleString('en-US', { 
                                       month: 'short', 
                                       day: 'numeric', 
                                       year: 'numeric',
@@ -369,13 +371,12 @@ export function CreateTaskForm({
                               </span>
                             </div>
                           </div>
-                          <span className={`text-xs px-2 py-1 rounded ${
-                            version.status === 'published'
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-neutral-100 text-neutral-600'
-                          }`}>
-                            {version.status}
-                          </span>
+                          <div className="flex flex-col space-y-1">
+                           <AgentStatusBadge status={version.status} size="sm" />
+                            <Link className="text-xs text-neutral-600 hover:text-neutral-800" href={`/agents/${version.id}`} target="_blank">
+                              Open in new tab
+                            </Link>
+                          </div>
                         </div>
                       </label>
                     </div>

@@ -187,7 +187,7 @@ export function CreateMetricDialog({
               <div className="bg-muted/50 rounded-lg p-3 text-sm border">
                 <p className="font-semibold mb-1">Based on feedback:</p>
                 <p className="text-muted-foreground">
-                  {feedbackContext.isPositive ? "👍 Positive" : "👎 Negative"} feedback
+                  {feedbackContext.isPositive ? "Positive" : "Negative"} feedback
                   {feedbackContext.feedbackText && `: "${feedbackContext.feedbackText}"`}
                 </p>
               </div>
