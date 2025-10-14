@@ -53,6 +53,8 @@ class IngestPerformanceMetricsInput(BaseModel):
     status: str
     task_input: str
     task_output: str
+    # Model name for accurate cost calculation
+    model: str | None = None
     # Response tracking (for continuous metrics)
     response_id: str | None = None
     response_index: int | None = None
@@ -144,13 +146,15 @@ Please evaluate and respond in JSON format:
         result_text = response.choices[0].message.content
         result = json.loads(result_text)
 
-        # Calculate cost (approximate)
+        # Calculate cost using actual judge model pricing
         input_tokens = response.usage.prompt_tokens
         output_tokens = response.usage.completion_tokens
 
-        # GPT-4o-mini pricing
-        cost_usd = (input_tokens * 0.00015 / 1000) + (
-            output_tokens * 0.0006 / 1000
+        # Import here to avoid circular dependencies
+        from src.utils.pricing import calculate_cost
+
+        cost_usd = calculate_cost(
+            input_tokens, output_tokens, judge_model
         )
 
         duration_ms = int((time.time() - start_time) * 1000)
@@ -398,9 +402,16 @@ async def ingest_performance_metrics(
     )
 
     try:
-        # Calculate cost (OpenAI GPT-4o pricing as default)
-        cost_usd = (input_data.input_tokens * 0.0025 / 1000) + (
-            input_data.output_tokens * 0.01 / 1000
+        # Calculate cost using actual model pricing
+        # Import here to avoid circular dependencies
+        from src.utils.pricing import calculate_cost
+
+        # Use the model from input_data if available, otherwise default to GPT-5
+        model_name = getattr(input_data, "model", None) or "gpt-5"
+        cost_usd = calculate_cost(
+            input_data.input_tokens,
+            input_data.output_tokens,
+            model_name,
         )
 
         client = get_clickhouse_client()

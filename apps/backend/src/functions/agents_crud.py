@@ -72,7 +72,7 @@ class AgentCloneInput(BaseModel):
     # New GPT-5 model configuration fields
     model: str = Field(
         default="gpt-5",
-        pattern=r"^(gpt-5|gpt-5-mini|gpt-5-nano|gpt-5-2025-08-07|gpt-5-mini-2025-08-07|gpt-5-nano-2025-08-07|gpt-4\.1|gpt-4\.1-mini|gpt-4\.1-nano|gpt-4o|gpt-4o-mini)$",
+        pattern=r"^(gpt-5|gpt-5-mini|gpt-5-nano|gpt-5-2025-08-07|gpt-5-mini-2025-08-07|gpt-5-nano-2025-08-07|gpt-4\.1|gpt-4\.1-mini|gpt-4\.1-nano|gpt-4o|gpt-4o-mini|o3-deep-research|o4-mini-deep-research)$",
     )
     reasoning_effort: str = Field(
         default="medium", pattern="^(minimal|low|medium|high)$"
@@ -100,7 +100,7 @@ class AgentUpdateInput(BaseModel):
     # New GPT-5 model configuration fields
     model: str | None = Field(
         None,
-        pattern=r"^(gpt-5|gpt-5-mini|gpt-5-nano|gpt-5-2025-08-07|gpt-5-mini-2025-08-07|gpt-5-nano-2025-08-07|gpt-4\.1|gpt-4\.1-mini|gpt-4\.1-nano|gpt-4o|gpt-4o-mini)$",
+        pattern=r"^(gpt-5|gpt-5-mini|gpt-5-nano|gpt-5-2025-08-07|gpt-5-mini-2025-08-07|gpt-5-nano-2025-08-07|gpt-4\.1|gpt-4\.1-mini|gpt-4\.1-nano|gpt-4o|gpt-4o-mini|o3-deep-research|o4-mini-deep-research)$",
     )
     reasoning_effort: str | None = Field(
         None, pattern="^(minimal|low|medium|high)$"

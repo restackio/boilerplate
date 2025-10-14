@@ -148,6 +148,8 @@ class TaskMetricsWorkflow:
             if trace_result and trace_result["found"]:
                 # Use trace data as source of truth
                 perf = trace_result["performance"]
+                span = trace_result.get("span", {})
+                model_name = span.get("model_name")
                 await workflow.step(
                     function=ingest_performance_metrics,
                     function_input={
@@ -169,6 +171,7 @@ class TaskMetricsWorkflow:
                         "task_output": perf["output"],
                         "trace_id": trace_result["trace_id"],
                         "span_id": trace_result["span_id"],
+                        "model": model_name,
                     },
                 )
                 log.info("Performance metrics saved from traces")
@@ -177,6 +180,8 @@ class TaskMetricsWorkflow:
                 log.warning(
                     "No traces found, using workflow input for performance metrics (legacy path)"
                 )
+                # Try to get model from workflow input if available
+                model_name = getattr(workflow_input, "model", None)
                 await workflow.step(
                     function=ingest_performance_metrics,
                     function_input={
@@ -187,6 +192,7 @@ class TaskMetricsWorkflow:
                         "workspace_id": workflow_input.workspace_id,
                         "agent_version": workflow_input.agent_version,
                         "response_id": workflow_input.response_id,
+                        "model": model_name,
                         "response_index": workflow_input.response_index,
                         "message_count": workflow_input.message_count,
                         "duration_ms": workflow_input.duration_ms,

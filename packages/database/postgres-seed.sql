@@ -525,7 +525,7 @@ ON CONFLICT (parent_agent_id, subagent_id) DO NOTHING;
 -- Demo Tasks for New Agents
 -- ==========================================
 
-INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_id, assigned_to_id, temporal_agent_id, agent_state) VALUES
+INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_id, assigned_to_id, temporal_agent_id, agent_state, parent_task_id) VALUES
 -- Task 1: Social Listening - Surface tech leader signals
 (
     '30000001-0000-0000-0000-000000000001',
@@ -598,29 +598,208 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
       ],
       "subtasks": [
         {
-          "id": "subtask-001",
+          "id": "30000101-0001-0000-0000-000000000001",
           "agent_name": "social-scraper",
           "status": "completed"
         },
         {
-          "id": "subtask-002",
+          "id": "30000102-0001-0000-0000-000000000001",
           "agent_name": "social-scraper",
           "status": "completed"
         },
         {
-          "id": "subtask-003",
+          "id": "30000103-0001-0000-0000-000000000001",
           "agent_name": "social-scraper",
           "status": "completed"
         },
         {
-          "id": "subtask-004",
+          "id": "30000104-0001-0000-0000-000000000001",
           "agent_name": "social-post-ideation",
           "status": "completed"
         }
       ],
       "messages": [],
       "metadata": {}
-    }'
+    }',
+    NULL
+),
+
+-- Subtasks for Task 1: Social Listening - Tech leader profile scraping
+-- Subtask 1: Scrape Kelsey Hightower profile
+(
+    '30000101-0001-0000-0000-000000000001',
+    'c926e979-1f16-46bf-a7cc-8aab70162d65',
+    '33333333-3333-3333-3333-333333333333',
+    'Scrape tech leader profile: Kelsey Hightower',
+    'Collect and store signals from linkedin.com/in/kelseyhightower',
+    'completed',
+    '20000000-0000-0000-0000-000000000002',
+    '29fcdd0a-708e-478a-8030-34b02ad9ef84',
+    '40000101-0001-0000-0000-000000000001',
+    '{
+      "events": [
+        {
+          "id": "msg-scrape-001",
+          "type": "response.output_item.done",
+          "timestamp": "2024-10-12T10:01:00Z",
+          "item": {
+            "id": "msg-scrape-001",
+            "type": "message",
+            "role": "assistant",
+            "status": "completed",
+            "content": [
+              {
+                "type": "text",
+                "text": "Profile data collected and stored with tag ''tech_leader_signals''"
+              }
+            ]
+          }
+        }
+      ],
+      "todos": [],
+      "subtasks": [],
+      "messages": [],
+      "metadata": {}
+    }',
+    '30000001-0000-0000-0000-000000000001'
+),
+
+-- Subtask 2: Scrape Gergely Orosz profile
+(
+    '30000102-0001-0000-0000-000000000001',
+    'c926e979-1f16-46bf-a7cc-8aab70162d65',
+    '33333333-3333-3333-3333-333333333333',
+    'Scrape tech leader profile: Gergely Orosz',
+    'Collect and store signals from linkedin.com/in/gergely-orosz',
+    'completed',
+    '20000000-0000-0000-0000-000000000002',
+    '29fcdd0a-708e-478a-8030-34b02ad9ef84',
+    '40000102-0001-0000-0000-000000000001',
+    '{
+      "events": [
+        {
+          "id": "msg-scrape-002",
+          "type": "response.output_item.done",
+          "timestamp": "2024-10-12T10:02:00Z",
+          "item": {
+            "id": "msg-scrape-002",
+            "type": "message",
+            "role": "assistant",
+            "status": "completed",
+            "content": [
+              {
+                "type": "text",
+                "text": "Profile data collected and stored with tag ''tech_leader_signals''"
+              }
+            ]
+          }
+        }
+      ],
+      "todos": [],
+      "subtasks": [],
+      "messages": [],
+      "metadata": {}
+    }',
+    '30000001-0000-0000-0000-000000000001'
+),
+
+-- Subtask 3: Scrape Simon Last profile
+(
+    '30000103-0001-0000-0000-000000000001',
+    'c926e979-1f16-46bf-a7cc-8aab70162d65',
+    '33333333-3333-3333-3333-333333333333',
+    'Scrape tech leader profile: Simon Last',
+    'Collect and store signals from linkedin.com/in/simonlast',
+    'completed',
+    '20000000-0000-0000-0000-000000000002',
+    '29fcdd0a-708e-478a-8030-34b02ad9ef84',
+    '40000103-0001-0000-0000-000000000001',
+    '{
+      "events": [
+        {
+          "id": "msg-scrape-003",
+          "type": "response.output_item.done",
+          "timestamp": "2024-10-12T10:03:00Z",
+          "item": {
+            "id": "msg-scrape-003",
+            "type": "message",
+            "role": "assistant",
+            "status": "completed",
+            "content": [
+              {
+                "type": "text",
+                "text": "Profile data collected and stored with tag ''tech_leader_signals''"
+              }
+            ]
+          }
+        }
+      ],
+      "todos": [],
+      "subtasks": [],
+      "messages": [],
+      "metadata": {}
+    }',
+    '30000001-0000-0000-0000-000000000001'
+),
+
+-- Subtask 4: Social Post Ideation - Analyze tech leader signals
+(
+    '30000104-0001-0000-0000-000000000001',
+    'c926e979-1f16-46bf-a7cc-8aab70162d65',
+    '33333333-3333-3333-3333-333333333333',
+    'Identify product features from tech leader signals',
+    'Analyze collected signals and identify 10 product features worth exploring',
+    'completed',
+    '40000000-0000-0000-0000-000000000004',
+    '29fcdd0a-708e-478a-8030-34b02ad9ef84',
+    '40000104-0001-0000-0000-000000000001',
+    '{
+      "events": [
+        {
+          "id": "msg-ideation-001",
+          "type": "response.output_item.done",
+          "timestamp": "2024-10-12T10:10:00Z",
+          "item": {
+            "id": "msg-ideation-001",
+            "type": "message",
+            "role": "assistant",
+            "status": "completed",
+            "content": [
+              {
+                "type": "text",
+                "text": "Analyzed tech leader signals and identified 10 product features:\\n\\n1. **AI-powered code review automation**\\n2. **Developer productivity dashboards**\\n3. **Infrastructure cost optimization tools**\\n4. **Real-time collaboration features**\\n5. **Advanced monitoring and observability**\\n6. **Security scanning integration**\\n7. **API versioning best practices**\\n8. **Multi-cloud deployment strategies**\\n9. **Performance profiling tools**\\n10. **Developer experience improvements**\\n\\nRecommend creating social posts on top 3 topics."
+              }
+            ]
+          }
+        }
+      ],
+      "todos": [
+        {
+          "id": "todo-1",
+          "content": "Query context store for tech leader signals",
+          "status": "completed"
+        },
+        {
+          "id": "todo-2",
+          "content": "Analyze themes and trends",
+          "status": "completed"
+        },
+        {
+          "id": "todo-3",
+          "content": "Identify 10 product features",
+          "status": "completed"
+        },
+        {
+          "id": "todo-4",
+          "content": "Present topics to user",
+          "status": "completed"
+        }
+      ],
+      "subtasks": [],
+      "messages": [],
+      "metadata": {}
+    }',
+    '30000001-0000-0000-0000-000000000001'
 ),
 
 -- Task 2: Social Post Creator - Craft opinionated product post
@@ -707,7 +886,8 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
       ],
       "messages": [],
       "metadata": {}
-    }'
+    }',
+    NULL
 )
 ON CONFLICT (id) DO NOTHING;
 
@@ -730,7 +910,7 @@ ON CONFLICT (id) DO NOTHING;
 -- Key difference: Version 1 gave coverage info for an EXPIRED policy, leading to customer complaint
 --                 Version 2 proactively catches expired policies and warns customer
 
-INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_id, assigned_to_id, temporal_agent_id, agent_state, created_at) VALUES
+INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_id, assigned_to_id, temporal_agent_id, agent_state, parent_task_id, created_at) VALUES
 -- Task 1: THE KEY FAILED TASK - Agent didn't validate policy status, gave coverage info for expired policy
 (
     '10000003-0003-0003-0003-000000000003',
@@ -818,6 +998,7 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
       "messages": [],
       "metadata": {}
     }',
+    NULL,
     NOW() - INTERVAL '3 days'
 ),
 
@@ -832,6 +1013,48 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
     'cccccccc-dddd-eeee-ffff-333333333333',
     '29fcdd0a-708e-478a-8030-34b02ad9ef84',
     '40000006-0006-0006-0006-000000000006',
+    '{
+      "events": [
+        {
+          "id": "msg-031",
+          "type": "response.output_item.done",
+          "timestamp": "2024-10-05T08:00:00Z",
+          "item": {
+            "id": "msg-031",
+            "type": "message",
+            "role": "user",
+            "status": "completed",
+            "content": [
+              {
+                "type": "input_text",
+                "text": "What is my copay for an emergency room visit? My policy is 0987654."
+              }
+            ]
+          }
+        },
+        {
+          "id": "msg-032",
+          "type": "response.output_item.done",
+          "timestamp": "2024-10-05T08:00:20Z",
+          "item": {
+            "id": "msg-032",
+            "type": "message",
+            "role": "assistant",
+            "status": "completed",
+            "content": [
+              {
+                "type": "text",
+                "text": "Based on your policy 0987654, your emergency room copay is $250 per visit. This copay is waived if you are admitted to the hospital."
+              }
+            ]
+          }
+        }
+      ],
+      "todos": [],
+      "subtasks": [],
+      "messages": [],
+      "metadata": {}
+    }',
     NULL,
     NOW() - INTERVAL '6 days'
 ),
@@ -847,6 +1070,82 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
     'cccccccc-dddd-eeee-ffff-333333333333',
     '29fcdd0a-708e-478a-8030-34b02ad9ef84',
     '40000007-0007-0007-0007-000000000007',
+    '{
+      "events": [
+        {
+          "id": "msg-041",
+          "type": "response.output_item.done",
+          "timestamp": "2024-10-04T11:00:00Z",
+          "item": {
+            "id": "msg-041",
+            "type": "message",
+            "role": "user",
+            "status": "completed",
+            "content": [
+              {
+                "type": "input_text",
+                "text": "Does my plan cover eye exams? Policy number 1234567."
+              }
+            ]
+          }
+        },
+        {
+          "id": "msg-042",
+          "type": "response.output_item.done",
+          "timestamp": "2024-10-04T11:00:25Z",
+          "item": {
+            "id": "msg-042",
+            "type": "message",
+            "role": "assistant",
+            "status": "completed",
+            "content": [
+              {
+                "type": "text",
+                "text": "Yes! Your policy 1234567 covers routine eye exams. You have one covered exam per year with a $15 copay. The exam must be performed by a Kaiser Permanente optometrist or at a contracted vision center."
+              }
+            ]
+          }
+        },
+        {
+          "id": "msg-043",
+          "type": "response.output_item.done",
+          "timestamp": "2024-10-04T11:01:00Z",
+          "item": {
+            "id": "msg-043",
+            "type": "message",
+            "role": "user",
+            "status": "completed",
+            "content": [
+              {
+                "type": "input_text",
+                "text": "Perfect, thank you! Do I need to schedule this through the app?"
+              }
+            ]
+          }
+        },
+        {
+          "id": "msg-044",
+          "type": "response.output_item.done",
+          "timestamp": "2024-10-04T11:01:20Z",
+          "item": {
+            "id": "msg-044",
+            "type": "message",
+            "role": "assistant",
+            "status": "completed",
+            "content": [
+              {
+                "type": "text",
+                "text": "Yes, you can schedule your eye exam through the Kaiser Permanente app or by calling the Vision Services department. The app is usually the fastest way to find available appointments."
+              }
+            ]
+          }
+        }
+      ],
+      "todos": [],
+      "subtasks": [],
+      "messages": [],
+      "metadata": {}
+    }',
     NULL,
     NOW() - INTERVAL '7 days'
 ),
@@ -862,8 +1161,120 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
     'cccccccc-dddd-eeee-ffff-333333333333',
     '29fcdd0a-708e-478a-8030-34b02ad9ef84',
     '40000009-0009-0009-0009-000000000009',
+    '{
+      "events": [
+        {
+          "id": "msg-051",
+          "type": "response.output_item.done",
+          "timestamp": "2024-10-05T14:00:00Z",
+          "item": {
+            "id": "msg-051",
+            "type": "message",
+            "role": "user",
+            "status": "completed",
+            "content": [
+              {
+                "type": "input_text",
+                "text": "I need to get blood work done. Is this covered under my policy 5678901?"
+              }
+            ]
+          }
+        },
+        {
+          "id": "msg-052",
+          "type": "response.output_item.done",
+          "timestamp": "2024-10-05T14:00:05Z",
+          "item": {
+            "id": "msg-052",
+            "type": "message",
+            "role": "assistant",
+            "status": "failed",
+            "content": [
+              {
+                "type": "text",
+                "text": "Error: Request timeout while retrieving policy data. Please try again or contact Member Services at 1-800-XXX-XXXX for assistance."
+              }
+            ]
+          }
+        }
+      ],
+      "todos": [],
+      "subtasks": [],
+      "messages": [],
+      "metadata": {}
+    }',
     NULL,
     NOW() - INTERVAL '6 days'
+),
+
+-- Task 5: Successful task - Physical therapy coverage inquiry (good example)
+(
+    'a4cc0ca4-0827-43cd-85e9-eb125c7359f7',
+    'c926e979-1f16-46bf-a7cc-8aab70162d65',
+    '55555555-5555-5555-5555-555555555555', -- Support team
+    'Physical therapy coverage - policy 0123456',
+    'Customer asking about PT coverage - agent provides comprehensive policy details',
+    'completed',
+    'cccccccc-dddd-eeee-ffff-333333333333',
+    '29fcdd0a-708e-478a-8030-34b02ad9ef84',
+    'local-task_agent_a4cc0ca4-0827-43cd-85e9-eb125c7359f7',
+    '{
+      "events": [
+        {
+          "type": "response.output_item.done",
+          "item": {
+            "id": "msg_user_1d668b16-1a40-4aa3-916b-47dd1eb3c278",
+            "type": "message",
+            "role": "user",
+            "status": "completed",
+            "content": [
+              {
+                "type": "input_text",
+                "text": "My policy number is 0123456, am I covered for physical therapy?"
+              }
+            ]
+          }
+        },
+        {
+          "item": {
+            "id": "mcp_0577462a113957750068edbd4afd0c8190845b6d15cf72a22a",
+            "arguments": "{\"integration_template\":\"kaiser_policy\",\"parameters\":{\"policy_number\":\"0123456\",\"request\":\"benefit_details\",\"benefit\":\"physical_therapy\"}}",
+            "name": "generatemock",
+            "server_label": "restack-core",
+            "type": "mcp_call",
+            "status": "completed",
+            "output": "Policy data retrieved successfully for policy 0123456. Physical therapy coverage details available."
+          },
+          "type": "response.output_item.done"
+        },
+        {
+          "item": {
+            "id": "msg_0577462a113957750068edbd907fe0819097b476614892332e",
+            "content": [
+              {
+                "type": "output_text",
+                "text": "Here is what your policy shows for physical therapy (policy 0123456):\\n\\nCoverage summary\\n- Covered: Yes, in-network\\n- Copay: $15 per visit\\n- Annual visit limit: 20 visits per calendar year\\n- Visits used so far: 5 (about 15 remaining)\\n- Prior authorization: Not required for typical PT sessions\\n\\nNetwork and referrals\\n- Plan type: HMO (Kaiser Permanente network only, except emergencies or approved referrals)\\n- Referrals: Specialist visits generally require a PCP referral in HMO plans. To avoid delays, please get a referral/order from your Kaiser clinician before scheduling PT.\\n\\nCosts and accumulators\\n- Deductible (individual): $500; met to date: $250\\n- Out-of-pocket maximum (individual): $3,000; met to date: $1,200\\n- The policy lists a flat $15 copay for PT; no additional PT-specific deductible is noted. Your copays will count toward your out-of-pocket maximum.\\n\\nHelpful notes\\n- If you approach the 20-visit limit, additional visits may require review/authorization based on medical necessity.\\n- Out-of-network PT is not covered without prior authorization.\\n\\nNext steps\\n- If you do not already have one, request a PT referral from your Kaiser PCP.\\n- Schedule PT at a Kaiser facility or an in-network provider.\\n- Want me to check appointment options or confirm your remaining visits in real time? I can help with that."
+              }
+            ],
+            "role": "assistant",
+            "status": "completed",
+            "type": "message"
+          },
+          "type": "response.output_item.done"
+        }
+      ],
+      "todos": [],
+      "subtasks": [],
+      "messages": [],
+      "metadata": {
+        "temporal_agent_id": "local-task_agent_a4cc0ca4-0827-43cd-85e9-eb125c7359f7",
+        "temporal_run_id": "0199e0ab-50dc-7c72-be00-efcc09d458f6",
+        "response_count": 1,
+        "message_count": 2
+      }
+    }',
+    NULL,
+    NOW() - INTERVAL '2 days'
 )
 ON CONFLICT (id) DO NOTHING;
 
@@ -953,27 +1364,52 @@ INSERT INTO agent_tools (id, agent_id, tool_type, mcp_server_id, tool_name, cust
 ON CONFLICT (id) DO NOTHING;
 
 -- Task demonstrating improved version successfully validating policy status
-INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_id, assigned_to_id, temporal_agent_id, agent_state, created_at) VALUES
+INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_id, assigned_to_id, temporal_agent_id, agent_state, parent_task_id, created_at) VALUES
 (
     '10000010-0010-0010-0010-000000000010',
     'c926e979-1f16-46bf-a7cc-8aab70162d65',
     '55555555-5555-5555-5555-555555555555', -- Support team
-    'MRI coverage inquiry - policy 0456789',
+    'MRI coverage inquiry - policy 0456789 (support-healthinsurance)',
     'Customer asking about MRI coverage - improved agent validates policy status first',
     'completed',
     'cccccccc-dddd-eeee-ffff-444444444444',
     '29fcdd0a-708e-478a-8030-34b02ad9ef84',
-    '40000010-0010-0010-0010-000000000010',
+    'local-task_agent_10000010-0010-0010-0010-000000000010',
     '{
+      "task_id": "10000010-0010-0010-0010-000000000010",
+      "workspace_id": "c926e979-1f16-46bf-a7cc-8aab70162d65",
+      "temporal_agent_id": "local-task_agent_10000010-0010-0010-0010-000000000010",
+      "temporal_run_id": "0199e0ab-55e0-738d-ba15-e14c9450beef",
+      "initialized": true,
+      "todos": [
+        {
+          "id": "todo1",
+          "content": "Retrieve policy data",
+          "status": "completed"
+        },
+        {
+          "id": "todo2",
+          "content": "Verify policy status",
+          "status": "completed"
+        },
+        {
+          "id": "todo3",
+          "content": "Check coverage details",
+          "status": "completed"
+        },
+        {
+          "id": "todo4",
+          "content": "Provide answer",
+          "status": "completed"
+        }
+      ],
       "events": [
         {
-          "id": "msg-101",
           "type": "response.output_item.done",
-          "timestamp": "2024-10-10T10:00:00Z",
           "item": {
-            "id": "msg-101",
-            "type": "message",
+            "id": "msg_user_001",
             "role": "user",
+            "type": "message",
             "status": "completed",
             "content": [
               {
@@ -984,66 +1420,303 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
           }
         },
         {
-          "id": "msg-102",
-          "type": "response.output_item.done",
-          "timestamp": "2024-10-10T10:00:25Z",
+          "type": "response.created",
+          "response": {
+            "id": "resp_001",
+            "status": "in_progress",
+            "model": "gpt-5",
+            "tools": [
+              {
+                "type": "mcp",
+                "server_label": "restack-core",
+                "allowed_tools": ["generatemock", "updatetodos"]
+              }
+            ]
+          }
+        },
+        {
+          "type": "response.output_item.added",
           "item": {
-            "id": "msg-102",
-            "type": "message",
+            "id": "mcp_list_001",
+            "type": "mcp_list_tools",
+            "server_label": "restack-core"
+          },
+          "output_index": 0
+        },
+        {
+          "type": "response.output_item.done",
+          "item": {
+            "id": "mcp_list_001",
+            "type": "mcp_list_tools",
+            "tools": [
+              {
+                "name": "generatemock",
+                "description": "Generate mock data for any integration"
+              },
+              {
+                "name": "updatetodos",
+                "description": "Track multi-step task progress"
+              }
+            ],
+            "server_label": "restack-core"
+          },
+          "output_index": 0
+        },
+        {
+          "type": "response.output_item.added",
+          "item": {
+            "id": "mcp_updatetodos_001",
+            "name": "updatetodos",
+            "type": "mcp_call",
+            "status": "in_progress",
+            "server_label": "restack-core"
+          },
+          "output_index": 1
+        },
+        {
+          "type": "response.mcp_call_arguments.done",
+          "item_id": "mcp_updatetodos_001",
+          "arguments": "{\"temporal_agent_id\":\"local-task_agent_10000010-0010-0010-0010-000000000010\",\"temporal_run_id\":\"0199e0ab-55e0-738d-ba15-e14c9450beef\",\"todos\":[{\"id\":\"todo1\",\"content\":\"Retrieve policy data\",\"status\":\"pending\"},{\"id\":\"todo2\",\"content\":\"Verify policy status\",\"status\":\"pending\"},{\"id\":\"todo3\",\"content\":\"Check coverage details\",\"status\":\"pending\"},{\"id\":\"todo4\",\"content\":\"Provide answer\",\"status\":\"pending\"}]}",
+          "output_index": 1
+        },
+        {
+          "type": "response.mcp_call.completed",
+          "item_id": "mcp_updatetodos_001",
+          "output_index": 1
+        },
+        {
+          "type": "response.output_item.done",
+          "item": {
+            "id": "mcp_updatetodos_001",
+            "name": "updatetodos",
+            "type": "mcp_call",
+            "status": "completed",
+            "output": "Workflow UpdateTodos completed successfully. Result: {\"message\":\"Todos updated: 0/4 completed, 0 in progress\",\"success\":true}",
+            "arguments": "{\"temporal_agent_id\":\"local-task_agent_10000010-0010-0010-0010-000000000010\",\"temporal_run_id\":\"0199e0ab-55e0-738d-ba15-e14c9450beef\",\"todos\":[{\"id\":\"todo1\",\"content\":\"Retrieve policy data\",\"status\":\"pending\"},{\"id\":\"todo2\",\"content\":\"Verify policy status\",\"status\":\"pending\"},{\"id\":\"todo3\",\"content\":\"Check coverage details\",\"status\":\"pending\"},{\"id\":\"todo4\",\"content\":\"Provide answer\",\"status\":\"pending\"}]}",
+            "server_label": "restack-core"
+          },
+          "output_index": 1
+        },
+        {
+          "type": "response.output_item.added",
+          "item": {
+            "id": "mcp_generatemock_001",
+            "name": "generatemock",
+            "type": "mcp_call",
+            "status": "in_progress",
+            "server_label": "restack-core"
+          },
+          "output_index": 2
+        },
+        {
+          "type": "response.mcp_call_arguments.done",
+          "item_id": "mcp_generatemock_001",
+          "arguments": "{\"integration_template\":\"kaiser_policy\",\"parameters\":{\"policy_number\":\"0456789\"}}",
+          "output_index": 2
+        },
+        {
+          "type": "response.mcp_call.completed",
+          "item_id": "mcp_generatemock_001",
+          "output_index": 2
+        },
+        {
+          "type": "response.output_item.done",
+          "item": {
+            "id": "mcp_generatemock_001",
+            "name": "generatemock",
+            "type": "mcp_call",
+            "status": "completed",
+            "output": "Workflow GenerateMock completed successfully. Result: {\"integration_type\":\"kaiser_policy\",\"response\":{\"policy\":{\"policy_number\":\"0456789\",\"status\":\"Expired\",\"effective_date\":\"2023-08-15\",\"renewal_date\":\"2024-08-15\",\"member\":{\"first_name\":\"Sarah\",\"last_name\":\"Johnson\"},\"coverage\":{\"benefits\":{\"imaging\":{\"mri\":{\"copay\":350,\"covered\":true,\"prior_authorization_required\":true}}}}}}}",
+            "arguments": "{\"integration_template\":\"kaiser_policy\",\"parameters\":{\"policy_number\":\"0456789\"}}",
+            "server_label": "restack-core"
+          },
+          "output_index": 2
+        },
+        {
+          "type": "response.output_item.added",
+          "item": {
+            "id": "mcp_updatetodos_002",
+            "name": "updatetodos",
+            "type": "mcp_call",
+            "status": "in_progress",
+            "server_label": "restack-core"
+          },
+          "output_index": 3
+        },
+        {
+          "type": "response.mcp_call_arguments.done",
+          "item_id": "mcp_updatetodos_002",
+          "arguments": "{\"temporal_agent_id\":\"local-task_agent_10000010-0010-0010-0010-000000000010\",\"temporal_run_id\":\"0199e0ab-55e0-738d-ba15-e14c9450beef\",\"todos\":[{\"id\":\"todo1\",\"content\":\"Retrieve policy data\",\"status\":\"completed\"},{\"id\":\"todo2\",\"content\":\"Verify policy status\",\"status\":\"in_progress\"},{\"id\":\"todo3\",\"content\":\"Check coverage details\",\"status\":\"pending\"},{\"id\":\"todo4\",\"content\":\"Provide answer\",\"status\":\"pending\"}]}",
+          "output_index": 3
+        },
+        {
+          "type": "response.mcp_call.completed",
+          "item_id": "mcp_updatetodos_002",
+          "output_index": 3
+        },
+        {
+          "type": "response.output_item.done",
+          "item": {
+            "id": "mcp_updatetodos_002",
+            "name": "updatetodos",
+            "type": "mcp_call",
+            "status": "completed",
+            "output": "Workflow UpdateTodos completed successfully. Result: {\"message\":\"Todos updated: 1/4 completed, 1 in progress\",\"success\":true}",
+            "arguments": "{\"temporal_agent_id\":\"local-task_agent_10000010-0010-0010-0010-000000000010\",\"temporal_run_id\":\"0199e0ab-55e0-738d-ba15-e14c9450beef\",\"todos\":[{\"id\":\"todo1\",\"content\":\"Retrieve policy data\",\"status\":\"completed\"},{\"id\":\"todo2\",\"content\":\"Verify policy status\",\"status\":\"in_progress\"},{\"id\":\"todo3\",\"content\":\"Check coverage details\",\"status\":\"pending\"},{\"id\":\"todo4\",\"content\":\"Provide answer\",\"status\":\"pending\"}]}",
+            "server_label": "restack-core"
+          },
+          "output_index": 3
+        },
+        {
+          "type": "response.output_item.added",
+          "item": {
+            "id": "mcp_updatetodos_003",
+            "name": "updatetodos",
+            "type": "mcp_call",
+            "status": "in_progress",
+            "server_label": "restack-core"
+          },
+          "output_index": 4
+        },
+        {
+          "type": "response.mcp_call_arguments.done",
+          "item_id": "mcp_updatetodos_003",
+          "arguments": "{\"temporal_agent_id\":\"local-task_agent_10000010-0010-0010-0010-000000000010\",\"temporal_run_id\":\"0199e0ab-55e0-738d-ba15-e14c9450beef\",\"todos\":[{\"id\":\"todo1\",\"content\":\"Retrieve policy data\",\"status\":\"completed\"},{\"id\":\"todo2\",\"content\":\"Verify policy status\",\"status\":\"completed\"},{\"id\":\"todo3\",\"content\":\"Check coverage details\",\"status\":\"completed\"},{\"id\":\"todo4\",\"content\":\"Provide answer\",\"status\":\"in_progress\"}]}",
+          "output_index": 4
+        },
+        {
+          "type": "response.mcp_call.completed",
+          "item_id": "mcp_updatetodos_003",
+          "output_index": 4
+        },
+        {
+          "type": "response.output_item.done",
+          "item": {
+            "id": "mcp_updatetodos_003",
+            "name": "updatetodos",
+            "type": "mcp_call",
+            "status": "completed",
+            "output": "Workflow UpdateTodos completed successfully. Result: {\"message\":\"Todos updated: 2/4 completed, 1 in progress\",\"success\":true}",
+            "arguments": "{\"temporal_agent_id\":\"local-task_agent_10000010-0010-0010-0010-000000000010\",\"temporal_run_id\":\"0199e0ab-55e0-738d-ba15-e14c9450beef\",\"todos\":[{\"id\":\"todo1\",\"content\":\"Retrieve policy data\",\"status\":\"completed\"},{\"id\":\"todo2\",\"content\":\"Verify policy status\",\"status\":\"completed\"},{\"id\":\"todo3\",\"content\":\"Check coverage details\",\"status\":\"completed\"},{\"id\":\"todo4\",\"content\":\"Provide answer\",\"status\":\"in_progress\"}]}",
+            "server_label": "restack-core"
+          },
+          "output_index": 4
+        },
+        {
+          "type": "response.output_item.added",
+          "item": {
+            "id": "mcp_updatetodos_004",
+            "name": "updatetodos",
+            "type": "mcp_call",
+            "status": "in_progress",
+            "server_label": "restack-core"
+          },
+          "output_index": 5
+        },
+        {
+          "type": "response.mcp_call_arguments.done",
+          "item_id": "mcp_updatetodos_004",
+          "arguments": "{\"temporal_agent_id\":\"local-task_agent_10000010-0010-0010-0010-000000000010\",\"temporal_run_id\":\"0199e0ab-55e0-738d-ba15-e14c9450beef\",\"todos\":[{\"id\":\"todo1\",\"content\":\"Retrieve policy data\",\"status\":\"completed\"},{\"id\":\"todo2\",\"content\":\"Verify policy status\",\"status\":\"completed\"},{\"id\":\"todo3\",\"content\":\"Check coverage details\",\"status\":\"completed\"},{\"id\":\"todo4\",\"content\":\"Provide answer\",\"status\":\"completed\"}]}",
+          "output_index": 5
+        },
+        {
+          "type": "response.mcp_call.completed",
+          "item_id": "mcp_updatetodos_004",
+          "output_index": 5
+        },
+        {
+          "type": "response.output_item.done",
+          "item": {
+            "id": "mcp_updatetodos_004",
+            "name": "updatetodos",
+            "type": "mcp_call",
+            "status": "completed",
+            "output": "Workflow UpdateTodos completed successfully. Result: {\"message\":\"Todos updated: 4/4 completed, 0 in progress\",\"success\":true}",
+            "arguments": "{\"temporal_agent_id\":\"local-task_agent_10000010-0010-0010-0010-000000000010\",\"temporal_run_id\":\"0199e0ab-55e0-738d-ba15-e14c9450beef\",\"todos\":[{\"id\":\"todo1\",\"content\":\"Retrieve policy data\",\"status\":\"completed\"},{\"id\":\"todo2\",\"content\":\"Verify policy status\",\"status\":\"completed\"},{\"id\":\"todo3\",\"content\":\"Check coverage details\",\"status\":\"completed\"},{\"id\":\"todo4\",\"content\":\"Provide answer\",\"status\":\"completed\"}]}",
+            "server_label": "restack-core"
+          },
+          "output_index": 5
+        },
+        {
+          "type": "response.output_item.added",
+          "item": {
+            "id": "msg_assistant_001",
             "role": "assistant",
-            "status": "completed",
-            "content": [
-              {
-                "type": "text",
-                "text": "I need to inform you that your policy 0456789 is currently showing as expired (ended on August 15, 2024). This means you would not have coverage for the MRI at this time.\\n\\nI recommend contacting Member Services at 1-800-XXX-XXXX to:\\n- Verify your current coverage status\\n- Renew your policy if needed\\n- Discuss your options for getting coverage reinstated\\n\\nOnce your policy is active, MRI scans typically require prior authorization and have specific copay amounts depending on your plan tier."
-              }
-            ]
-          }
-        },
-        {
-          "id": "msg-103",
-          "type": "response.output_item.done",
-          "timestamp": "2024-10-10T10:01:00Z",
-          "item": {
-            "id": "msg-103",
             "type": "message",
-            "role": "user",
+            "status": "in_progress",
+            "content": []
+          },
+          "output_index": 6
+        },
+        {
+          "type": "response.content_part.added",
+          "item": {
+            "id": "msg_assistant_001",
+            "type": "message",
+            "content": [
+              {
+                "type": "output_text",
+                "text": ""
+              }
+            ]
+          },
+          "output_index": 6
+        },
+        {
+          "type": "response.output_text.done",
+          "item_id": "msg_assistant_001",
+          "text": "I need to inform you that your policy 0456789 is currently showing as **Expired** (ended on August 15, 2024). This means you would not have coverage for the MRI at this time.\n\n## Next Steps\nI recommend contacting Member Services at 1-800-XXX-XXXX to:\n- Verify your current coverage status\n- Renew your policy if needed\n- Discuss your options for getting coverage reinstated\n\n## About MRI Coverage\nOnce your policy is active, MRI scans:\n- **Copay**: $350\n- **Prior Authorization**: Required\n- **Coverage**: Yes, when policy is active and authorization obtained\n\nPlease get your policy renewed first before scheduling the MRI.",
+          "output_index": 6
+        },
+        {
+          "type": "response.output_item.done",
+          "item": {
+            "id": "msg_assistant_001",
+            "role": "assistant",
+            "type": "message",
             "status": "completed",
             "content": [
               {
-                "type": "input_text",
-                "text": "Oh wow, thank you for catching that! I had no idea it expired. I will call them right away."
+                "type": "output_text",
+                "text": "I need to inform you that your policy 0456789 is currently showing as **Expired** (ended on August 15, 2024). This means you would not have coverage for the MRI at this time.\n\n## Next Steps\nI recommend contacting Member Services at 1-800-XXX-XXXX to:\n- Verify your current coverage status\n- Renew your policy if needed\n- Discuss your options for getting coverage reinstated\n\n## About MRI Coverage\nOnce your policy is active, MRI scans:\n- **Copay**: $350\n- **Prior Authorization**: Required\n- **Coverage**: Yes, when policy is active and authorization obtained\n\nPlease get your policy renewed first before scheduling the MRI."
               }
             ]
+          },
+          "output_index": 6
+        },
+        {
+          "type": "response.completed",
+          "response": {
+            "id": "resp_001",
+            "status": "completed",
+            "usage": {
+              "input_tokens": 3856,
+              "output_tokens": 1842,
+              "total_tokens": 5698
+            }
           }
-        }
-      ],
-      "todos": [
-        {
-          "id": "todo-1",
-          "content": "Retrieve policy data for 0456789",
-          "status": "completed"
-        },
-        {
-          "id": "todo-2",
-          "content": "Verify policy status and dates",
-          "status": "completed"
-        },
-        {
-          "id": "todo-3",
-          "content": "Check coverage details",
-          "status": "completed"
-        },
-        {
-          "id": "todo-4",
-          "content": "Provide answer with status warning",
-          "status": "completed"
         }
       ],
       "subtasks": [],
-      "messages": [],
-      "metadata": {}
+      "messages": [
+        {
+          "role": "developer",
+          "content": "You are a healthcare insurance support specialist for Kaiser Permanente.\n\n## Objective\nHelp members understand their coverage by retrieving and validating their policy data before providing coverage information.\n\n## Available Tools\n- **generatemock**: Query Kaiser Permanente policy data using the `kaiser_policy` template\n- **updatetodos**: Track your verification steps for transparency\n\n## Critical Improvements\n1. **Always query policy numbers** when provided\n2. **Verify policy status** - check if policy is active, expired, or terminated\n3. **Track your work** - use updatetodos to show verification steps\n\n## Instructions\nWhen a member asks about coverage:\n\n1. **Create Todo Checklist** using updatetodos:\n   - Retrieve policy data\n   - Verify policy status\n   - Check coverage details\n   - Provide answer\n\n2. **Get Policy Data**: Use generatemock with kaiser_policy template and policy number\n\n3. **Validate Policy Status**: Check the policy data for:\n   - Status field (active, expired, terminated)\n   - Effective dates\n   - Coverage end date\n   \n4. **Handle Invalid Policies**:\n   - If expired/terminated: Inform member their policy is not active and suggest contacting Member Services to renew or update\n   - Never provide coverage details for inactive policies\n\n5. **Provide Coverage Details**: Only if policy is active, explain copays, limits, and requirements from their specific policy\n\n## Communication Guidelines\n- Use friendly, empathetic language\n- Always validate policy status before answering coverage questions\n- If policy is inactive, clearly explain the situation and next steps\n- Update todos as you complete each verification step\n\nYour goal is to provide accurate, validated coverage information."
+        },
+        {
+          "role": "user",
+          "content": "Hi, my policy number is 0456789. I need to get an MRI - is that covered?"
+        }
+      ],
+      "metadata": {
+        "message_count": 2,
+        "response_count": 1,
+        "temporal_run_id": "0199e0ab-55e0-738d-ba15-e14c9450beef",
+        "temporal_agent_id": "local-task_agent_10000010-0010-0010-0010-000000000010"
+      },
+      "last_response_id": "resp_001"
     }',
+    NULL,
     NOW() - INTERVAL '1 day'
 )
 ON CONFLICT (id) DO NOTHING;

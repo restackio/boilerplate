@@ -131,6 +131,7 @@ USE boilerplate_clickhouse;
 -- ========================================
 -- Performance Metrics (from traces)
 -- ========================================
+-- NOTE: Costs calculated using GPT-5 pricing: $1.25/1M input, $10.00/1M output
 
 INSERT INTO task_metrics (
     task_id, agent_id, workspace_id, agent_name, agent_version,
@@ -139,13 +140,13 @@ INSERT INTO task_metrics (
     task_input, task_output,
     created_at
 ) VALUES 
--- Last 7 days of tasks
-('11111111-1111-1111-1111-111111111111', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'Research & Writing Assistant', 'v1', 'performance', 2500, 1200, 800, 0.011, 'completed', 'resp_001', 1, 2, 'Write a blog post about AI trends', 'Here is a comprehensive blog post about AI trends in 2024...', now() - INTERVAL 1 DAY),
-('22222222-2222-2222-2222-222222222222', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'Research & Writing Assistant', 'v1', 'performance', 3200, 1500, 1200, 0.016, 'completed', 'resp_002', 1, 2, 'Research quantum computing applications', 'Quantum computing is revolutionizing multiple industries...', now() - INTERVAL 2 DAY),
-('33333333-3333-3333-3333-333333333333', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'Research & Writing Assistant', 'v1', 'performance', 1800, 900, 600, 0.008, 'completed', 'resp_003', 1, 2, 'Summarize recent tech news', 'Key tech news: Major AI advancements...', now() - INTERVAL 3 DAY),
-('44444444-4444-4444-4444-444444444444', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'Research & Writing Assistant', 'v1', 'performance', 4500, 2000, 1500, 0.020, 'completed', 'resp_004', 1, 2, 'Write technical documentation for API', 'API Documentation: Authentication, Endpoints...', now() - INTERVAL 4 DAY),
-('55555555-5555-5555-5555-555555555555', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'Research & Writing Assistant', 'v1', 'performance', 2100, 1100, 700, 0.010, 'completed', 'resp_005', 1, 2, 'Create social media content', 'Social media post: Engaging content...', now() - INTERVAL 5 DAY),
-('66666666-6666-6666-6666-666666666666', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'Research & Writing Assistant', 'v1', 'performance', 2700, 1300, 900, 0.012, 'completed', 'resp_006', 1, 2, 'Analyze market trends', 'Market analysis reveals...', now() - INTERVAL 6 DAY);
+-- Last 7 days of tasks (using GPT-5 model)
+('11111111-1111-1111-1111-111111111111', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'Research & Writing Assistant', 'v1', 'performance', 2500, 1200, 800, 0.009500, 'completed', 'resp_001', 1, 2, 'Write a blog post about AI trends', 'Here is a comprehensive blog post about AI trends in 2024...', now() - INTERVAL 1 DAY),
+('22222222-2222-2222-2222-222222222222', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'Research & Writing Assistant', 'v1', 'performance', 3200, 1500, 1200, 0.013875, 'completed', 'resp_002', 1, 2, 'Research quantum computing applications', 'Quantum computing is revolutionizing multiple industries...', now() - INTERVAL 2 DAY),
+('33333333-3333-3333-3333-333333333333', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'Research & Writing Assistant', 'v1', 'performance', 1800, 900, 600, 0.007125, 'completed', 'resp_003', 1, 2, 'Summarize recent tech news', 'Key tech news: Major AI advancements...', now() - INTERVAL 3 DAY),
+('44444444-4444-4444-4444-444444444444', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'Research & Writing Assistant', 'v1', 'performance', 4500, 2000, 1500, 0.017500, 'completed', 'resp_004', 1, 2, 'Write technical documentation for API', 'API Documentation: Authentication, Endpoints...', now() - INTERVAL 4 DAY),
+('55555555-5555-5555-5555-555555555555', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'Research & Writing Assistant', 'v1', 'performance', 2100, 1100, 700, 0.008375, 'completed', 'resp_005', 1, 2, 'Create social media content', 'Social media post: Engaging content...', now() - INTERVAL 5 DAY),
+('66666666-6666-6666-6666-666666666666', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'Research & Writing Assistant', 'v1', 'performance', 2700, 1300, 900, 0.010625, 'completed', 'resp_006', 1, 2, 'Analyze market trends', 'Market analysis reveals...', now() - INTERVAL 6 DAY);
 
 -- ========================================
 -- Quality Metrics (from LLM judges)
@@ -181,6 +182,7 @@ USE boilerplate_clickhouse;
 -- ==========================
 -- SCENARIO 1: Healthcare Insurance Support - Performance Metrics
 -- ==========================
+-- NOTE: Costs calculated using GPT-5 pricing: $1.25/1M input, $10.00/1M output
 
 -- Performance metrics for the healthcare insurance tasks
 -- Version 1 (original) - Failed to validate policy status
@@ -192,11 +194,12 @@ INSERT INTO task_metrics (
     task_input, task_output,
     created_at
 ) VALUES 
-('10000003-0003-0003-0003-000000000003', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'support-healthinsurance', 'v1', 'performance', 2150, 520, 310, 0.004, 'completed', 'resp_health_003', 1, 4, 'My policy number is 0345678. Am I covered for physical therapy?', 'Yes! Based on your policy 0345678, physical therapy is covered. Your copay is $25 per session...', now() - INTERVAL 3 DAY),
-('10000010-0010-0010-0010-000000000010', 'cccccccc-dddd-eeee-ffff-444444444444', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'support-healthinsurance', 'v2', 'performance', 2450, 580, 380, 0.005, 'completed', 'resp_health_010', 1, 3, 'Hi, my policy number is 0456789. I need to get an MRI - is that covered?', 'I need to inform you that your policy 0456789 is currently showing as expired...', now() - INTERVAL 1 DAY),
-('10000006-0006-0006-0006-000000000006', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'support-healthinsurance', 'v1', 'performance', 1650, 420, 250, 0.003, 'completed', 'resp_health_006', 1, 2, 'Policy 0678901 - What is my ER copay?', 'Emergency room visits have a copay of $150 per visit...', now() - INTERVAL 6 DAY),
-('10000007-0007-0007-0007-000000000007', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'support-healthinsurance', 'v1', 'performance', 1900, 470, 290, 0.004, 'completed', 'resp_health_007', 1, 2, 'Vision coverage inquiry', 'Vision coverage includes annual eye exams...', now() - INTERVAL 7 DAY),
-('10000009-0009-0009-0009-000000000009', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'support-healthinsurance', 'v1', 'performance', 1850, 460, 280, 0.004, 'failed', 'resp_health_009', 1, 2, 'Lab work coverage', 'Lab work is typically covered...', now() - INTERVAL 6 DAY);
+('10000003-0003-0003-0003-000000000003', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'support-healthinsurance', 'v1', 'performance', 2150, 520, 310, 0.003750, 'completed', 'resp_health_003', 1, 4, 'My policy number is 0345678. Am I covered for physical therapy?', 'Yes! Based on your policy 0345678, physical therapy is covered. Your copay is $25 per session...', now() - INTERVAL 3 DAY),
+('a4cc0ca4-0827-43cd-85e9-eb125c7359f7', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'support-healthinsurance', 'v1', 'performance', 2800, 1885, 1507, 0.017427, 'completed', 'resp_0577462a113957750068edbd4523d08190b3c6105421771bf5', 1, 2, 'My policy number is 0123456, am I covered for physical therapy?', 'Here is what your policy shows for physical therapy (policy 0123456): Coverage summary - Covered: Yes, in-network - Copay: $15 per visit...', now() - INTERVAL 2 DAY),
+('10000010-0010-0010-0010-000000000010', 'cccccccc-dddd-eeee-ffff-444444444444', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'support-healthinsurance', 'v2', 'performance', 2450, 580, 380, 0.004525, 'completed', 'resp_health_010', 1, 3, 'Hi, my policy number is 0456789. I need to get an MRI - is that covered?', 'I need to inform you that your policy 0456789 is currently showing as expired...', now() - INTERVAL 1 DAY),
+('10000006-0006-0006-0006-000000000006', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'support-healthinsurance', 'v1', 'performance', 1650, 420, 250, 0.003025, 'completed', 'resp_health_006', 1, 2, 'Policy 0678901 - What is my ER copay?', 'Emergency room visits have a copay of $150 per visit...', now() - INTERVAL 6 DAY),
+('10000007-0007-0007-0007-000000000007', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'support-healthinsurance', 'v1', 'performance', 1900, 470, 290, 0.003488, 'completed', 'resp_health_007', 1, 2, 'Vision coverage inquiry', 'Vision coverage includes annual eye exams...', now() - INTERVAL 7 DAY),
+('10000009-0009-0009-0009-000000000009', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'support-healthinsurance', 'v1', 'performance', 1850, 460, 280, 0.003375, 'failed', 'resp_health_009', 1, 2, 'Lab work coverage', 'Lab work is typically covered...', now() - INTERVAL 6 DAY);
 
 
 -- ==========================
@@ -205,6 +208,7 @@ INSERT INTO task_metrics (
 
 -- User feedback as quality metrics - stored in feedback category
 -- V1 (original): Negative feedback - gave coverage info for expired policy
+-- V1 (successful): Positive feedback - comprehensive and helpful policy information
 -- V2 (improved): Positive feedback - caught expired policy proactively
 -- V1 failure: Customer discovered policy was expired AFTER being told they were covered
 -- V2 success: Customer grateful that agent caught expired policy before they went to appointment
@@ -215,6 +219,7 @@ INSERT INTO task_metrics (
     created_at
 ) VALUES 
 ('10000003-0003-0003-0003-000000000003', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'feedback', 'user_feedback', 'negative', false, 'Bad - I went to my physical therapy appointment and they told me I am not covered anymore. My policy expired last month! The agent should have checked this.', 'resp_health_003', 1, 4, now() - INTERVAL 3 DAY),
+('a4cc0ca4-0827-43cd-85e9-eb125c7359f7', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'feedback', 'user_feedback', 'positive', true, 'Great - Very thorough explanation of my PT coverage! I now understand my copay, visit limits, referral requirements, and deductible details. Exactly what I needed to know.', 'resp_0577462a113957750068edbd4523d08190b3c6105421771bf5', 1, 2, now() - INTERVAL 2 DAY),
 ('10000010-0010-0010-0010-000000000010', 'cccccccc-dddd-eeee-ffff-444444444444', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'feedback', 'user_feedback', 'positive', true, 'Excellent - Thank you for catching that my policy expired! I had no idea and would have been surprised at my appointment. This saved me a lot of trouble.', 'resp_health_010', 1, 3, now() - INTERVAL 1 DAY),
 ('10000006-0006-0006-0006-000000000006', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'feedback', 'user_feedback', 'negative', false, 'Not helpful - My actual copay is $250. The agent should have looked up my specific policy details!', 'resp_health_006', 1, 2, now() - INTERVAL 6 DAY);
 
@@ -222,6 +227,7 @@ INSERT INTO task_metrics (
 -- ==========================
 -- SCENARIO 2: Newsletter Agent - Performance Metrics
 -- ==========================
+-- NOTE: Costs calculated using GPT-5 pricing: $1.25/1M input, $10.00/1M output
 
 -- Performance metrics for newsletter tasks (with outdated content issue)
 INSERT INTO task_metrics (
@@ -231,16 +237,19 @@ INSERT INTO task_metrics (
     task_input, task_output,
     created_at
 ) VALUES 
-('20000010-0000-0000-0000-000000000010', '20000001-0000-0000-0000-000000000001', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'leader-newsletter-creator', 'v1', 'performance', 8500, 2800, 1500, 0.025, 'completed', 'resp_news_001', 1, 6, 'Create todays daily newsletter from recent tech leader posts', 'Tech Leader Newsletter - October 9, 2024 [Contains 3-month-old posts from July-September]', now() - INTERVAL 2 DAY);
+('20000010-0000-0000-0000-000000000010', '20000001-0000-0000-0000-000000000001', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'leader-newsletter-creator', 'v1', 'performance', 8500, 2800, 1500, 0.018500, 'completed', 'resp_news_001', 1, 6, 'Create todays daily newsletter from recent tech leader posts', 'Tech Leader Newsletter - October 9, 2024 [Contains 3-month-old posts from July-September]', now() - INTERVAL 2 DAY);
 
 
 -- ==========================
 -- SCENARIO 1: Custom Quality Metric - Policy Status Validation
 -- ==========================
+-- NOTE: Eval costs calculated using GPT-5 nano pricing: $0.05/1M input, $0.40/1M output
+-- Assuming ~800 input tokens (prompt + task data) and ~300 output tokens (reasoning)
 
 -- Quality metric evaluations for healthcare agent tasks
 -- This LLM-as-judge metric checks if agent validated policy status (active vs expired) before providing coverage info
 -- V1 (original): Failed evaluation - provided coverage info for expired policy
+-- V1 (successful): Passed evaluation - retrieved specific policy data and provided comprehensive info
 -- V2 (improved): Passed evaluation - validated policy status first and caught expired policy
 -- V1 failure: Gave coverage details without validating policy was expired
 -- V2 success: Validated policy status and caught expiration before providing coverage
@@ -251,10 +260,11 @@ INSERT INTO task_metrics (
     response_id, response_index, message_count,
     created_at
 ) VALUES 
-('10000003-0003-0003-0003-000000000003', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'quality', 'bbbbbbbb-1111-2222-3333-444444444444', 'Policy Status Validation', 'llm_judge', false, 0, 'Agent provided coverage details for policy 0345678 without validating policy status. Customer later discovered policy was expired, leading to complaint.', 1250, 0.0001, 'resp_health_003', 1, 4, now() - INTERVAL 3 DAY),
-('10000010-0010-0010-0010-000000000010', 'cccccccc-dddd-eeee-ffff-444444444444', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'quality', 'bbbbbbbb-1111-2222-3333-444444444444', 'Policy Status Validation', 'llm_judge', true, 100, 'Agent validated policy status for 0456789, detected policy was expired (ended August 15, 2024), and proactively informed customer before providing coverage details. Excellent validation.', 1320, 0.0001, 'resp_health_010', 1, 3, now() - INTERVAL 1 DAY),
-('10000006-0006-0006-0006-000000000006', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'quality', 'bbbbbbbb-1111-2222-3333-444444444444', 'Policy Status Validation', 'llm_judge', false, 0, 'Agent gave generic copay info without querying actual policy 0678901 details or validating status', 1180, 0.0001, 'resp_health_006', 1, 2, now() - INTERVAL 6 DAY),
-('10000009-0009-0009-0009-000000000009', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'quality', 'bbbbbbbb-1111-2222-3333-444444444444', 'Policy Status Validation', 'llm_judge', false, 0, 'Generic response without policy validation', 1150, 0.0001, 'resp_health_009', 1, 2, now() - INTERVAL 6 DAY);
+('10000003-0003-0003-0003-000000000003', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'quality', 'bbbbbbbb-1111-2222-3333-444444444444', 'Policy Status Validation', 'llm_judge', false, 0, 'Agent provided coverage details for policy 0345678 without validating policy status. Customer later discovered policy was expired, leading to complaint.', 1250, 0.00016, 'resp_health_003', 1, 4, now() - INTERVAL 3 DAY),
+('a4cc0ca4-0827-43cd-85e9-eb125c7359f7', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'quality', 'a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1', 'Response Helpfulness', 'llm_judge', true, 95, 'Comprehensive and well-structured response providing all relevant coverage details: copay, visit limits, network requirements, referral needs, deductible info, and helpful next steps. Excellent organization with clear sections.', 1400, 0.00016, 'resp_0577462a113957750068edbd4523d08190b3c6105421771bf5', 1, 2, now() - INTERVAL 2 DAY),
+('10000010-0010-0010-0010-000000000010', 'cccccccc-dddd-eeee-ffff-444444444444', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'quality', 'bbbbbbbb-1111-2222-3333-444444444444', 'Policy Status Validation', 'llm_judge', true, 100, 'Agent validated policy status for 0456789, detected policy was expired (ended August 15, 2024), and proactively informed customer before providing coverage details. Excellent validation.', 1320, 0.00016, 'resp_health_010', 1, 3, now() - INTERVAL 1 DAY),
+('10000006-0006-0006-0006-000000000006', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'quality', 'bbbbbbbb-1111-2222-3333-444444444444', 'Policy Status Validation', 'llm_judge', false, 0, 'Agent gave generic copay info without querying actual policy 0678901 details or validating status', 1180, 0.00016, 'resp_health_006', 1, 2, now() - INTERVAL 6 DAY),
+('10000009-0009-0009-0009-000000000009', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'quality', 'bbbbbbbb-1111-2222-3333-444444444444', 'Policy Status Validation', 'llm_judge', false, 0, 'Generic response without policy validation', 1150, 0.00016, 'resp_health_009', 1, 2, now() - INTERVAL 6 DAY);
 
 
 -- ==========================

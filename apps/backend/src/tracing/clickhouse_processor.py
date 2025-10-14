@@ -11,6 +11,8 @@ from typing import Any
 
 from restack_ai.function import log
 
+from src.utils.pricing import calculate_cost
+
 
 class ClickHouseTracingProcessor:
     """High-scale processor using SDK's native export()."""
@@ -243,8 +245,18 @@ class ClickHouseTracingProcessor:
 
         return usage
 
-    def _calculate_cost(self, usage: dict) -> float | None:
-        """Calculate cost from usage data."""
+    def _calculate_cost(
+        self, usage: dict, model_name: str | None = None
+    ) -> float | None:
+        """Calculate cost from usage data using model-specific pricing.
+
+        Args:
+            usage: Token usage dictionary
+            model_name: Model name for pricing lookup (defaults to GPT-5)
+
+        Returns:
+            Cost in USD or None if no tokens
+        """
         tokens_in = usage.get("prompt_tokens", 0) or usage.get(
             "input_tokens", 0
         )
@@ -254,7 +266,8 @@ class ClickHouseTracingProcessor:
         cost = usage.get("cost_usd")
 
         if not cost and tokens_in and tokens_out:
-            cost = (tokens_in * 0.0025 + tokens_out * 0.01) / 1000
+            # Use centralized pricing based on actual model
+            cost = calculate_cost(tokens_in, tokens_out, model_name)
 
         return cost
 
@@ -329,7 +342,7 @@ class ClickHouseTracingProcessor:
         tokens_out = usage.get(
             "completion_tokens", 0
         ) or usage.get("output_tokens", 0)
-        cost = self._calculate_cost(usage)
+        cost = self._calculate_cost(usage, model)
 
         # Metadata - collect ALL span-specific data (excluding already-extracted fields)
         excluded_keys = {

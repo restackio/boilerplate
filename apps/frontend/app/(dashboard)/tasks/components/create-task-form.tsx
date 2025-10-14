@@ -325,14 +325,14 @@ export function CreateTaskForm({
                     <button
                       type="button"
                       onClick={handleSelectAllVersions}
-                      className="text-xs text-blue-600 hover:text-blue-800"
+                      className="text-xs text-foreground hover:underline"
                     >
                       All
                     </button>
                     <button
                       type="button"
                       onClick={handleClearAllVersions}
-                      className="text-xs text-neutral-600 hover:text-neutral-800"
+                      className="text-xs text-neutral-500 hover:underline"
                     >
                       Clear
                     </button>
@@ -341,7 +341,7 @@ export function CreateTaskForm({
                 <DropdownMenuSeparator />
                 <div className="p-2 space-y-2 max-h-64 overflow-y-auto">
                   {allAgentVersions.map((version) => (
-                    <div key={version.id} className="flex items-center space-x-2 px-2 py-1 hover:bg-neutral-50 rounded">
+                    <div key={version.id} className="flex items-center space-x-2 px-2 py-1 hover:bg-muted rounded">
                       <Checkbox
                         id={`dropdown-${version.id}`}
                         checked={selectedVersionIds.includes(version.id)}
