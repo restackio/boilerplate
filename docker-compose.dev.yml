@@ -12,8 +12,6 @@ services:
       - "5432:5432"
     volumes:
       - postgres_dev_data:/var/lib/postgresql/data
-      - ./packages/database/postgres-schema.sql:/docker-entrypoint-initdb.d/01-postgres-schema.sql
-      - ./packages/database/postgres-seed.sql:/docker-entrypoint-initdb.d/02-postgres-seed.sql
     command: >
       postgres
       -c shared_buffers=512MB
@@ -81,8 +79,6 @@ services:
     volumes:
       - clickhouse_data:/var/lib/clickhouse/
       - clickhouse_logs:/var/log/clickhouse-server/
-      - ./packages/database/clickhouse-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
-      - ./packages/database/clickhouse-seed.sql:/docker-entrypoint-initdb.d/02-seed.sql
     ulimits:
       nofile:
         soft: 262144

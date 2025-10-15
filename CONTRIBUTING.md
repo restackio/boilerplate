@@ -96,34 +96,48 @@ boilerplate/
 git clone <repository-url>
 cd boilerplate
 
-# Install dependencies
-pnpm install
-
 # Setup environment
 cp env.development.example .env
 # Edit .env with your API keys
+
+# First time setup (installs deps, starts infra, runs migrations, inserts demo)
+pnpm localsetup
 ```
 
-### Start infrastructure (background services)
-
+**Or do it step-by-step:**
 ```bash
+# Install dependencies
+pnpm install
+
 # Start PostgreSQL, ClickHouse, and Restack Engine in Docker
 pnpm infra:start
 
-# Initialize databases
-pnpm postgres:setup
+# Run database migrations
+pnpm db:migrate
+
+# Insert demo data (optional)
+pnpm db:demo:insert
 ```
 
 ### Development with hot reloading
 
-**Option A: start all services (recommended)**
+**Option A: quick start (recommended for daily use)**
+```bash
+# Starts infrastructure + all apps with hot reloading
+pnpm localdev
+```
+
+**Option B: manual start (if infra already running)**
 ```bash
 # Starts all apps with hot reloading
 pnpm dev
 ```
 
-**Option B: start individual services**
+**Option C: start individual services (for debugging)**
 ```bash
+# Make sure infrastructure is running first
+pnpm infra:start
+
 # Terminal 1: Frontend (Next.js with hot reload)
 cd apps/frontend
 pnpm dev
@@ -144,8 +158,10 @@ pnpm dev
 ### Development URLs
 
 - **Frontend**: http://localhost:3000 (Next.js with HMR)
-- **Restack Engine**: http://localhost:5233 (Restack Developer Tracing)
+- **Backend**: Runs locally (Restack AI workflows with auto-reload)
+- **MCP Server**: Runs locally (Python with auto-reload)
 - **Webhook Server**: http://localhost:8000 (FastAPI with auto-reload)
+- **Restack Engine**: http://localhost:5233 (Restack Developer Tracing)
 - **PostgreSQL**: localhost:5432
 - **ClickHouse**: http://localhost:8123 (metrics and analytics)
 
@@ -164,14 +180,30 @@ RESTACK_ENGINE_MCP_ADDRESS=https://your-ngrok-url.ngrok-free.app
 ## Key development commands
 
 ```bash
-# Start development environment
-pnpm dev            # Start all applications with hot reloading
-pnpm infra:start    # Start PostgreSQL, ClickHouse, and Restack Engine
-pnpm postgres:setup       # Initialize databases with schema and seed data
+# Quick commands
+pnpm localsetup         # First time setup (install, infra, migrations, demo data)
+pnpm localdev           # Start infrastructure + all dev servers
+
+# Development environment
+pnpm dev                # Start all applications with hot reloading (infra must be running)
+pnpm infra:start        # Start infrastructure (PostgreSQL, ClickHouse, Restack)
+pnpm infra:stop         # Stop infrastructure
+pnpm infra:restart      # Restart infrastructure
+pnpm infra:reset        # Reset infrastructure (⚠️ destroys data)
+
+# Database operations
+pnpm db:migrate         # Run database migrations
+pnpm db:demo:insert     # Insert demo data (if not exists)
+pnpm db:demo:reset      # Reset demo data
+pnpm postgres:connect   # Connect to PostgreSQL
+pnpm clickhouse:connect # Connect to ClickHouse
+
+# Note: Database scripts use localhost defaults for local development.
+# Set DATABASE_URL and CLICKHOUSE_URL env vars to override.
 
 # Code quality
-pnpm lint           # Lint all applications
-pnpm type-check     # Run TypeScript type checking
+pnpm lint               # Lint all applications
+pnpm type-check         # Run TypeScript type checking
 ```
 
 For the complete list of available commands, check the `package.json` files in the root and individual app directories.
@@ -362,21 +394,33 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
 ### Database schema changes
 
 **PostgreSQL**:
-1. **Update Models** (`apps/backend/src/database/models.py`)
-2. **Create Migration** (`packages/database/migrations/`)
-3. **Update Example Seed Data** (`packages/database/postgres-seed.sql`) - for development/testing only
+1. **Create Migration** (`packages/database/migrations/postgres/00X_description.sql`)
+2. **Update Models** (if needed, `apps/backend/src/database/models.py`)
+3. **Update Demo Data** (optional, `packages/database/demo/postgres-demo.sql`) - for development/testing only
 
 **ClickHouse**:
-1. **Update Schema** (`packages/database/clickhouse-schema.sql`)
-2. **Update Example Seed Data** (`packages/database/clickhouse-seed.sql`) - for development/testing only
+1. **Create Migration** (`packages/database/migrations/clickhouse/00X_description.sql`)
+2. **Update Demo Data** (optional, `packages/database/demo/clickhouse-demo.sql`) - for development/testing only
 
 **Test Changes**:
 ```bash
-pnpm postgres:reset  # Apply new schemas
-pnpm postgres:seed   # Test with example seed data
+# Test migrations locally
+pnpm infra:reset      # Reset infrastructure
+pnpm db:migrate       # Run migrations
+pnpm db:demo:insert   # Insert demo data
+
+# Or connect directly to databases
+pnpm postgres:connect
+pnpm clickhouse:connect
 ```
 
-> **Note**: Seed data serves development and testing purposes only. Do not add production-specific data to the boilerplate.
+**Migration Guidelines**:
+- Name migrations with sequential numbers: `002_add_user_roles.sql`
+- Never change existing migrations - create new ones
+- Migrations run automatically on backend startup in production
+- For local development, run manually with `pnpm db:migrate`
+
+> **Note**: Demo data serves development and testing purposes only. Do not add production-specific data to the boilerplate.
 
 ## Git workflow and contribution
 
@@ -493,8 +537,10 @@ pnpm infra:logs | grep postgres
 # Check ClickHouse status
 pnpm infra:logs | grep clickhouse
 
-# Reset databases
-pnpm postgres:reset
+# Reset infrastructure and rerun migrations
+pnpm infra:reset
+pnpm db:migrate
+pnpm db:demo:insert
 ```
 
 **3. MCP Server Not Responding**

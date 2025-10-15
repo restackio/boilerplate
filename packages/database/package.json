@@ -2,17 +2,18 @@
   "name": "@boilerplate/database",
   "version": "0.0.1",
   "private": true,
-  "description": "Database schema and seed data for the boilerplate",
-  "main": "index.js",
+  "description": "Database migrations and demo data for the boilerplate",
   "scripts": {
-    "postgres:reset": "psql $DATABASE_URL -f postgres-schema.sql",
-    "postgres:seed": "psql $DATABASE_URL -f postgres-seed.sql",
-    "postgres:setup": "pnpm postgres:reset && pnpm postgres:seed"
+    "migrate": "bash scripts/migrate.sh",
+    "demo:insert": "bash scripts/insert-demo.sh",
+    "demo:reset": "bash scripts/reset-demo.sh",
+    "postgres:connect": "psql $DATABASE_URL",
+    "clickhouse:connect": "clickhouse-client --host ${CLICKHOUSE_HOST:-localhost} --port ${CLICKHOUSE_PORT:-8123} --user ${CLICKHOUSE_USER:-clickhouse} --password ${CLICKHOUSE_PASSWORD:-clickhouse}",
+    "postinstall": "mkdir -p node_modules"
   },
   "files": [
-    "postgres-schema.sql",
-    "postgres-seed.sql",
-    "clickhouse-schema.sql",
-    "clickhouse-seed.sql"
+    "migrations/",
+    "demo/",
+    "scripts/"
   ]
 } 

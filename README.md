@@ -25,14 +25,36 @@ cp .env.example .env
 ```bash
 pnpm localsetup
 ```
-Reset the database, seed demo data, and start development servers.
 
-### Start application 
+This installs dependencies, starts infrastructure (PostgreSQL, ClickHouse, Restack), runs migrations, and inserts demo data.
+
+### Start development
 ```bash
 pnpm localdev
 ```
 
-This starts infrastructure and dev servers **without resetting your database**.
+This starts infrastructure and all dev servers with hot reloading **without resetting your database**.
+
+<details>
+<summary>Manual setup (if you prefer step-by-step)</summary>
+
+```bash
+# Install dependencies
+pnpm install
+
+# Start infrastructure (PostgreSQL, ClickHouse, Restack)
+pnpm infra:start
+
+# Wait for services to be ready, then run migrations
+pnpm db:migrate
+
+# Insert demo data
+pnpm db:demo:insert
+
+# Start all dev servers
+pnpm dev
+```
+</details>
 
 ### Access your platform
 - **Agent Orchestration**: http://localhost:3000  
@@ -223,19 +245,22 @@ pnpm start
 ## Platform management
 
 ```bash
-# Daily workflow
-pnpm quickstart          # Start with preserved data
-pnpm infra:stop          # Stop infrastructure
-pnpm setup               # Complete reset (first time or when stuck)
+# Quick commands
+pnpm localsetup          # First time setup (install, infra, migrations, demo data)
+pnpm localdev            # Start infrastructure + dev servers
+pnpm dev                 # Start all dev servers with hot reloading (infra must be running)
 
-# Development infrastructure
+# Infrastructure management
+pnpm infra:start         # Start infrastructure (PostgreSQL, ClickHouse, Restack)
+pnpm infra:stop          # Stop infrastructure
+pnpm infra:restart       # Restart infrastructure services
 pnpm infra:logs          # View container logs
-pnpm infra:restart       # Restart services
 pnpm infra:ps            # Check service status
+pnpm infra:reset         # Complete infrastructure reset (⚠️ destroys data)
 
 # Database operations
-pnpm postgres:setup      # Reset and seed PostgreSQL (⚠️ destroys data)
-pnpm postgres:seed       # Re-seed PostgreSQL without reset
+pnpm db:migrate          # Run database migrations (uses localhost by default)
+pnpm db:demo:insert      # Insert demo data (uses localhost by default)
 pnpm postgres:connect    # Connect to PostgreSQL
 pnpm clickhouse:connect  # Connect to ClickHouse
 
@@ -244,7 +269,8 @@ pnpm build               # Build for production
 pnpm prod:up             # Start production services
 pnpm prod:down           # Stop production services
 pnpm prod:logs           # View production logs
-pnpm prod:reset          # Full production reset
+pnpm prod:restart        # Restart production services (backend, mcp, webhook)
+pnpm prod:reset          # Full production reset (⚠️ destroys data)
 ```
 
 ## For developers

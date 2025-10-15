@@ -1,6 +1,6 @@
--- ClickHouse Universal Event Storage
--- Single table for ANY type of event data from pipeline agents
--- Fully dynamic schema with vector embeddings for semantic search
+-- ClickHouse Initial Schema Migration
+-- Created from clickhouse-schema.sql
+-- This migration creates all the core tables and indexes for ClickHouse analytics
 
 -- Create database
 CREATE DATABASE IF NOT EXISTS boilerplate_clickhouse;
@@ -173,3 +173,4 @@ CREATE INDEX IF NOT EXISTS idx_traces_trace_id ON task_traces (trace_id) TYPE bl
 CREATE INDEX IF NOT EXISTS idx_traces_span_type ON task_traces (span_type) TYPE bloom_filter GRANULARITY 1;
 CREATE INDEX IF NOT EXISTS idx_traces_task_id ON task_traces (task_id) TYPE bloom_filter GRANULARITY 1;
 CREATE INDEX IF NOT EXISTS idx_traces_agent_id ON task_traces (agent_id) TYPE bloom_filter GRANULARITY 1;
+

@@ -1,4 +1,6 @@
--- Initialize the database schema for agent orchestration platform
+-- PostgreSQL Initial Schema Migration
+-- Created from postgres-schema.sql
+-- This migration creates all the core tables, indexes, and triggers
 
 -- Enable UUID extension for PostgreSQL
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -296,7 +298,6 @@ CREATE INDEX IF NOT EXISTS idx_agents_pipeline_workspace ON agents(workspace_id,
 CREATE INDEX IF NOT EXISTS idx_tasks_open_workspace ON tasks(workspace_id, created_at DESC) WHERE status IN ('open', 'active');
 CREATE INDEX IF NOT EXISTS idx_tasks_scheduled_workspace ON tasks(workspace_id, is_scheduled, schedule_status, created_at DESC) WHERE is_scheduled = true;
 CREATE INDEX IF NOT EXISTS idx_agent_tools_enabled ON agent_tools(agent_id, tool_type) WHERE enabled = true;
--- No partial index needed since we removed status column
 
 -- Covering indexes for read-heavy operations
 CREATE INDEX IF NOT EXISTS idx_agents_list_covering ON agents(workspace_id, status) INCLUDE (id, name, description, type, created_at, updated_at);
@@ -334,3 +335,4 @@ CREATE TRIGGER update_mcp_servers_updated_at BEFORE UPDATE ON mcp_servers FOR EA
 CREATE TRIGGER update_user_oauth_connections_updated_at BEFORE UPDATE ON user_oauth_connections FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_datasets_updated_at BEFORE UPDATE ON datasets FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_metric_definitions_updated_at BEFORE UPDATE ON metric_definitions FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
