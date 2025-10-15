@@ -1,7 +1,6 @@
 """Universal data ingestion functions for ClickHouse pipeline events."""
 
 import logging
-import os
 import uuid
 from datetime import UTC, datetime
 from typing import Any
@@ -9,6 +8,8 @@ from typing import Any
 import clickhouse_connect
 from pydantic import BaseModel, Field
 from restack_ai.function import function
+
+from src.database.connection import get_clickhouse_async_client
 
 logger = logging.getLogger(__name__)
 
@@ -55,19 +56,6 @@ class DataIngestionOutput(BaseModel):
     table_name: str = "pipeline_events"
     execution_time_ms: int = 0
     error: str | None = None
-
-
-def get_clickhouse_client() -> clickhouse_connect.driver.Client:
-    """Get ClickHouse client connection."""
-    return clickhouse_connect.get_client(
-        host=os.getenv("CLICKHOUSE_HOST", "localhost"),
-        port=int(os.getenv("CLICKHOUSE_PORT", "8123")),
-        username=os.getenv("CLICKHOUSE_USER", "clickhouse"),
-        password=os.getenv("CLICKHOUSE_PASSWORD", "clickhouse"),
-        database=os.getenv(
-            "CLICKHOUSE_DATABASE", "boilerplate_clickhouse"
-        ),
-    )
 
 
 def _process_event_uuids(
@@ -151,8 +139,8 @@ def _create_event_row(
     }
 
 
-def _insert_data_to_clickhouse(
-    client: clickhouse_connect.driver.Client,
+async def _insert_data_to_clickhouse(
+    client: clickhouse_connect.driver.AsyncClient,
     data_rows: list[dict],
 ) -> None:
     """Insert data rows to ClickHouse with proper error handling."""
@@ -178,7 +166,7 @@ def _insert_data_to_clickhouse(
             formatted_row = [row[col] for col in column_names]
             formatted_rows.append(formatted_row)
 
-        client.insert(
+        await client.insert(
             "pipeline_events",
             formatted_rows,
             column_names=column_names,
@@ -210,7 +198,7 @@ async def ingest_pipeline_events(
             type(events[0]) if events else "No events",
         )
 
-        client = get_clickhouse_client()
+        client = await get_clickhouse_async_client()
         start_time = datetime.now(tz=UTC)
 
         data_rows = []
@@ -253,7 +241,7 @@ async def ingest_pipeline_events(
             data_rows[0] if data_rows else "No rows",
         )
 
-        _insert_data_to_clickhouse(client, data_rows)
+        await _insert_data_to_clickhouse(client, data_rows)
 
         execution_time = int(
             (datetime.now(tz=UTC) - start_time).total_seconds()
@@ -293,11 +281,11 @@ async def ingest_pipeline_events(
 async def query_clickhouse_data(query: str) -> dict[str, Any]:
     """Execute a query against ClickHouse and return results."""
     try:
-        client = get_clickhouse_client()
+        client = await get_clickhouse_async_client()
         start_time = datetime.now(tz=UTC)
 
         # Execute query
-        result = client.query(query)
+        result = await client.query(query)
 
         execution_time = int(
             (datetime.now(tz=UTC) - start_time).total_seconds()

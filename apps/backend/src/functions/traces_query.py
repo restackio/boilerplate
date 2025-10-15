@@ -7,7 +7,7 @@ from typing import Any
 
 from restack_ai.function import function, log
 
-from src.database.connection import get_clickhouse_client
+from src.database.connection import get_clickhouse_async_client
 
 
 @function.defn()
@@ -32,7 +32,7 @@ async def query_traces_for_response(
     )
 
     try:
-        client = get_clickhouse_client()
+        client = await get_clickhouse_async_client()
 
         # Query for response span (the LLM call)
         # If response_id provided, filter by it in metadata
@@ -80,7 +80,7 @@ async def query_traces_for_response(
         if response_id:
             params["response_id"] = response_id
 
-        result = client.query(query, parameters=params)
+        result = await client.query(query, parameters=params)
 
         if not result.result_rows:
             log.warning(
@@ -183,7 +183,7 @@ async def query_traces_batch(
     )
 
     try:
-        client = get_clickhouse_client()
+        client = await get_clickhouse_async_client()
 
         # Build WHERE clause from filters
         where_conditions = ["workspace_id = {workspace_id:UUID}"]
@@ -264,7 +264,7 @@ async def query_traces_batch(
         params["limit"] = limit
         params["offset"] = offset
 
-        result = client.query(query, parameters=params)
+        result = await client.query(query, parameters=params)
 
         spans = []
         for row in result.result_rows:
@@ -348,7 +348,7 @@ async def aggregate_traces_for_task(
     log.info(f"Aggregating traces for task {task_id}")
 
     try:
-        client = get_clickhouse_client()
+        client = await get_clickhouse_async_client()
 
         query = """
         SELECT
@@ -366,7 +366,7 @@ async def aggregate_traces_for_task(
         WHERE task_id = {task_id:UUID}
         """
 
-        result = client.query(
+        result = await client.query(
             query, parameters={"task_id": task_id}
         )
 
@@ -425,7 +425,7 @@ async def count_traces_for_retroactive(
     )
 
     try:
-        client = get_clickhouse_client()
+        client = await get_clickhouse_async_client()
 
         # Build WHERE clause (same logic as query_traces_batch)
         where_conditions = ["workspace_id = {workspace_id:UUID}"]
@@ -474,7 +474,7 @@ async def count_traces_for_retroactive(
             "WHERE " + where_clause
         )
 
-        result = client.query(query, parameters=params)
+        result = await client.query(query, parameters=params)
 
         if not result.result_rows:
             return {"total_count": 0}

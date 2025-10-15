@@ -435,7 +435,7 @@ class McpToolsListWorkflow:
                     session_init_result, server_url, headers
                 )
             return await self._list_tools_direct(
-                server_url, headers, is_local
+                server_url, headers, is_local=is_local
             )
 
         except (

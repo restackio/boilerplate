@@ -10,7 +10,7 @@ from sqlalchemy import text
 # Import the centralized database connections
 from src.database.connection import (
     get_async_db,
-    get_clickhouse_client,
+    get_clickhouse_async_client,
 )
 
 
@@ -121,7 +121,7 @@ async def _get_clickhouse_stats(
 ) -> dict:
     """Get real-time statistics from ClickHouse for a dataset."""
     try:
-        client = get_clickhouse_client()
+        client = await get_clickhouse_async_client()
 
         where_conditions = _build_where_conditions(
             storage_config, workspace_id
@@ -159,7 +159,7 @@ async def _get_clickhouse_stats(
         """
         )
 
-        query_result = client.query(stats_query)
+        query_result = await client.query(stats_query)
         if query_result.result_rows:
             last_updated_at, event_names, agents = (
                 query_result.result_rows[0]
@@ -566,7 +566,7 @@ async def _query_clickhouse_events(
 ) -> QueryDatasetEventsOutput:
     """Query events from ClickHouse based on dataset configuration."""
     try:
-        client = get_clickhouse_client()
+        client = await get_clickhouse_async_client()
         storage_config = dataset.storage_config
 
         # Build WHERE conditions from various sources
@@ -625,8 +625,8 @@ async def _query_clickhouse_events(
         # Count total - table name already validated above
         count_query = f"SELECT count() FROM {table_name} WHERE {where_clause}"  # noqa: S608
 
-        events_result = client.query(events_query)
-        count_result = client.query(count_query)
+        events_result = await client.query(events_query)
+        count_result = await client.query(count_query)
 
         total_count = (
             count_result.result_rows[0][0]

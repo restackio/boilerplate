@@ -174,14 +174,11 @@ class AgentTask:
 
     @agent.state
     def state_response(self) -> dict[str, Any]:
-        """Ultra-minimal state: just raw data, properly sorted."""
-        # Just sort events by sequence number - no transformation
-        sorted_events = sorted(
-            self.events, key=lambda e: e.get("sequence_number", 0)
-        )
-
+        """Ultra-minimal state: just raw data in insertion order."""
+        # Events are already in chronological order as they arrive
+        # No sorting needed - trust insertion order
         return {
-            "events": sorted_events,
+            "events": self.events,
             "messages": [
                 msg.model_dump()
                 if hasattr(msg, "model_dump")
@@ -217,6 +214,7 @@ class AgentTask:
             for _i, message in enumerate(messages_event.messages):
                 if message.role == "user":
                     # Add user message to events for frontend
+                    # Events are stored in insertion order (chronologically correct)
                     user_event = {
                         "type": "response.output_item.done",
                         "item": {
@@ -248,9 +246,7 @@ class AgentTask:
                             if self.task_id
                             else None,
                             agent_id=self.agent_id,
-                            workspace_id=str(
-                                self.workspace_id
-                            )
+                            workspace_id=str(self.workspace_id)
                             if self.workspace_id
                             else None,
                         ),
@@ -260,6 +256,7 @@ class AgentTask:
                     )
 
                     # Step 2: execute with streaming (function self-traces via decorator)
+                    # Note: last_response_id is updated in real-time via response_item handler
                     completion = await agent.step(
                         function=llm_response_stream,
                         function_input=prepared,
@@ -267,18 +264,10 @@ class AgentTask:
                             minutes=10
                         ),
                     )
-
-                    # Update last_response_id from completion for next continuity
-                    if completion and completion.response_id:
-                        self.last_response_id = (
-                            completion.response_id
-                        )
-                        self.response_index += 1
-                        log.info(
-                            f"Updated last_response_id: {self.last_response_id} (response #{self.response_index})"
-                        )
                 except Exception as e:
-                    error_message = f"Error during llm_response_stream: {e}"
+                    error_message = (
+                        f"Error during llm_response_stream: {e}"
+                    )
 
                     # Create error event for frontend display
                     error_event = create_agent_error_event(
@@ -286,13 +275,9 @@ class AgentTask:
                         error_type="llm_response_failed",
                         code="agent_error",
                     )
-                    self.events.append(
-                        error_event.model_dump()
-                    )
+                    self.events.append(error_event.model_dump())
 
-                    raise NonRetryableError(
-                        error_message
-                    ) from e
+                    raise NonRetryableError(error_message) from e
                 else:
                     if completion.parsed_response:
                         log.info("TODO: save in db")
@@ -343,19 +328,12 @@ class AgentTask:
             function_input=approval_input,
         )
 
-        completion = await agent.step(
+        # Note: last_response_id is updated in real-time via response_item handler
+        _ = await agent.step(
             function=llm_response_stream,
             function_input=prepared,
             start_to_close_timeout=timedelta(seconds=120),
         )
-
-        # Update last_response_id from completion for next continuity
-        if completion and completion.response_id:
-            self.last_response_id = completion.response_id
-            self.response_index += 1
-            log.info(
-                f"Updated last_response_id after MCP approval: {self.last_response_id} (response #{self.response_index})"
-            )
 
         return {
             "approval_id": approval_event.approval_id,
@@ -835,10 +813,24 @@ class AgentTask:
 
     @agent.event
     async def response_item(self, event_data: dict) -> dict:
-        """Store OpenAI ResponseStreamEvent in simple format."""
+        """Store OpenAI ResponseStreamEvent in insertion order."""
         try:
             event_type = event_data.get("type", "")
 
+            # Update last_response_id immediately on response.created
+            # This ensures continuity even if user sends another message while streaming
+            if (
+                event_type == "response.created"
+                and event_data.get("response", {}).get("id")
+            ):
+                response_id = event_data["response"]["id"]
+                log.info(
+                    f"Response created: {response_id} (previous: {self.last_response_id})"
+                )
+                self.last_response_id = response_id
+                self.response_index += 1
+
+            # Store events in chronological insertion order
             # Handle error events
             if "error" in event_type or event_data.get("error"):
                 await self._handle_error_event(event_data)

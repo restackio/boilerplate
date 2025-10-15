@@ -4,8 +4,8 @@ import os
 from typing import Any
 
 import clickhouse_connect
+from clickhouse_connect.driver.asyncclient import AsyncClient
 from clickhouse_connect.driver.binding import format_query_value
-from clickhouse_connect.driver.client import Client
 from pydantic import BaseModel, Field
 from restack_ai.function import NonRetryableError, function
 
@@ -66,10 +66,10 @@ class ClickHouseListTablesOutput(BaseModel):
     )
 
 
-def _create_clickhouse_client() -> Client:
-    """Create a ClickHouse client connection."""
+async def _create_clickhouse_client() -> AsyncClient:
+    """Create an async ClickHouse client connection."""
     try:
-        return clickhouse_connect.get_client(
+        return await clickhouse_connect.get_async_client(
             host=os.getenv("CLICKHOUSE_HOST", "localhost"),
             port=int(os.getenv("CLICKHOUSE_PORT", "8123")),
             username=os.getenv("CLICKHOUSE_USER", "clickhouse"),
@@ -91,10 +91,10 @@ async def clickhouse_run_select_query(
 ) -> ClickHouseRunSelectQueryOutput:
     """Run a SELECT query in a ClickHouse database."""
     try:
-        client = _create_clickhouse_client()
+        client = await _create_clickhouse_client()
 
         # Execute the query with read-only mode
-        result = client.query(
+        result = await client.query(
             function_input.query, settings={"readonly": "1"}
         )
 
@@ -114,8 +114,8 @@ async def clickhouse_list_databases(
 ) -> ClickHouseListDatabasesOutput:
     """List available ClickHouse databases."""
     try:
-        client = _create_clickhouse_client()
-        result = client.command("SHOW DATABASES")
+        client = await _create_clickhouse_client()
+        result = await client.command("SHOW DATABASES")
 
         # Convert newline-separated string to list
         if isinstance(result, str):

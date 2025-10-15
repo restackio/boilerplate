@@ -10,13 +10,15 @@ from typing import Any, Literal
 from restack_ai.function import function, log
 from sqlalchemy import and_, select
 
-from src.database.connection import get_async_db
+from src.database.connection import (
+    get_async_db,
+    get_clickhouse_async_client,
+)
 from src.functions.analytics_helpers import (
     AnalyticsFilters,
     build_filter_clause,
     parse_date_range,
 )
-from src.functions.data_ingestion import get_clickhouse_client
 
 MetricType = Literal["performance", "quality", "overview", "all"]
 
@@ -74,7 +76,7 @@ async def get_analytics_metrics(
     result = {}
 
     try:
-        client = get_clickhouse_client()
+        client = await get_clickhouse_async_client()
 
         # Performance metrics (parallel queries)
         if fetch_performance:
@@ -165,7 +167,7 @@ async def _get_performance_metrics(
     """
     )
 
-    result = client.query(query, parameters=params)
+    result = await client.query(query, parameters=params)
     rows = list(result.named_results())
 
     if not rows:
@@ -278,7 +280,7 @@ async def _get_quality_metrics(
     """
     )
 
-    result = client.query(query, parameters=params)
+    result = await client.query(query, parameters=params)
     rows = list(result.named_results())
 
     if not rows:
@@ -433,7 +435,7 @@ async def _get_overview_metrics(
     """
     )
 
-    result = client.query(query, parameters=params)
+    result = await client.query(query, parameters=params)
 
     timeseries = [
         {
@@ -516,7 +518,7 @@ async def _get_feedback_metrics(
 
     # Merge params from both filters
     merged_params = {**task_params, **feedback_params}
-    result = client.query(
+    result = await client.query(
         timeseries_query, parameters=merged_params
     )
 
@@ -559,7 +561,7 @@ async def _get_feedback_metrics(
     """
     )
 
-    detailed_result = client.query(
+    detailed_result = await client.query(
         detailed_query, parameters=feedback_params
     )
 

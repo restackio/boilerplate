@@ -87,8 +87,23 @@ async def close_async_db() -> None:
 
 
 def get_clickhouse_client() -> clickhouse_connect.driver.Client:
-    """Get ClickHouse client connection."""
+    """Get ClickHouse client connection (synchronous - use for compatibility only)."""
     return clickhouse_connect.get_client(
+        host=os.getenv("CLICKHOUSE_HOST", "localhost"),
+        port=int(os.getenv("CLICKHOUSE_PORT", "8123")),
+        username=os.getenv("CLICKHOUSE_USER", "clickhouse"),
+        password=os.getenv("CLICKHOUSE_PASSWORD", "clickhouse"),
+        database=os.getenv(
+            "CLICKHOUSE_DATABASE", "boilerplate_clickhouse"
+        ),
+    )
+
+
+async def get_clickhouse_async_client() -> (
+    clickhouse_connect.driver.AsyncClient
+):
+    """Get async ClickHouse client connection."""
+    return await clickhouse_connect.get_async_client(
         host=os.getenv("CLICKHOUSE_HOST", "localhost"),
         port=int(os.getenv("CLICKHOUSE_PORT", "8123")),
         username=os.getenv("CLICKHOUSE_USER", "clickhouse"),

@@ -4,6 +4,7 @@ Uses SDK's .export() method for standardized span data.
 Minimal transformation - let SDK do the work.
 """
 
+import asyncio
 import json
 import threading
 from datetime import datetime
@@ -30,6 +31,7 @@ class ClickHouseTracingProcessor:
         self._flush_ready = (
             threading.Event()
         )  # Signal when buffer full
+        self._loop: asyncio.AbstractEventLoop | None = None
         self._flush_thread = threading.Thread(
             target=self._flush_loop, daemon=True
         )
@@ -64,15 +66,47 @@ class ClickHouseTracingProcessor:
 
     def _flush_loop(self) -> None:
         """Background thread - wakes on buffer full OR timeout."""
+        # Create event loop for this thread
+        self._loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self._loop)
+
         while not self._shutdown_event.is_set():
             # Wait for signal or timeout
             self._flush_ready.wait(
                 timeout=self._flush_interval_sec
             )
             self._flush_ready.clear()
-            self._flush_buffer()
+            # Run async flush in this thread's event loop
+            try:
+                self._loop.run_until_complete(
+                    self._flush_buffer_async()
+                )
+            except Exception as e:  # noqa: BLE001
+                # Catch all exceptions to prevent background thread crash
+                log.error(f"Flush error in event loop: {e}")
+
+        # Cleanup loop on shutdown
+        self._loop.close()
 
     def _flush_buffer(self) -> None:
+        """Synchronous flush - schedules async work if loop is available."""
+        if self._loop and self._loop.is_running():
+            # If event loop is running in background thread, schedule async work
+            asyncio.run_coroutine_threadsafe(
+                self._flush_buffer_async(), self._loop
+            )
+        else:
+            # Fallback for synchronous calls (shutdown, force_flush)
+            try:
+                asyncio.run(self._flush_buffer_async())
+            except RuntimeError:
+                # If no event loop available, fall back to sync (should rarely happen)
+                log.warning(
+                    "No event loop available, skipping flush"
+                )
+
+    async def _flush_buffer_async(self) -> None:
+        """Async flush implementation."""
         with self._lock:
             if not self._span_buffer:
                 return
@@ -81,7 +115,7 @@ class ClickHouseTracingProcessor:
 
         try:
             from src.database.connection import (
-                get_clickhouse_client,
+                get_clickhouse_async_client,
             )
 
             rows = [
@@ -90,7 +124,8 @@ class ClickHouseTracingProcessor:
                 if self._span_to_row(s)
             ]
             if rows:
-                get_clickhouse_client().insert(
+                client = await get_clickhouse_async_client()
+                await client.insert(
                     "task_traces",
                     rows,
                     column_names=[
@@ -121,7 +156,7 @@ class ClickHouseTracingProcessor:
                         "ended_at",
                     ],
                 )
-                log.info(f"Flushed {len(rows)} spans")
+                log.info(f"Flushed {len(rows)} spans (async)")
         except (
             ValueError,
             TypeError,
@@ -129,7 +164,7 @@ class ClickHouseTracingProcessor:
             OSError,
             AttributeError,
         ) as e:
-            log.error(f"Flush error: {e}")
+            log.error(f"Async flush error: {e}")
 
     def _calculate_duration_ms(self, span: Any) -> int:
         """Calculate span duration in milliseconds."""
@@ -267,7 +302,9 @@ class ClickHouseTracingProcessor:
 
         if not cost and tokens_in and tokens_out:
             # Use centralized pricing based on actual model
-            cost = calculate_cost(tokens_in, tokens_out, model_name)
+            cost = calculate_cost(
+                tokens_in, tokens_out, model_name
+            )
 
         return cost
 

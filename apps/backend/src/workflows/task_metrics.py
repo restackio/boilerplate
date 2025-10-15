@@ -181,7 +181,9 @@ class TaskMetricsWorkflow:
                     "No traces found, using workflow input for performance metrics (legacy path)"
                 )
                 # Try to get model from workflow input if available
-                model_name = getattr(workflow_input, "model", None)
+                model_name = getattr(
+                    workflow_input, "model", None
+                )
                 await workflow.step(
                     function=ingest_performance_metrics,
                     function_input={

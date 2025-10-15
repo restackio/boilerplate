@@ -8,11 +8,11 @@ import os
 import time
 from typing import Any
 
-from openai import OpenAI
+from openai import AsyncOpenAI
 from pydantic import BaseModel
 from restack_ai.function import function, log
 
-from src.database.connection import get_clickhouse_client
+from src.database.connection import get_clickhouse_async_client
 
 # ===================================
 # Pydantic Models
@@ -110,8 +110,10 @@ async def evaluate_llm_judge_metric(
             log.error("No judge_prompt in config")
             return None
 
-        # Initialize OpenAI
-        client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+        # Initialize OpenAI (async)
+        client = AsyncOpenAI(
+            api_key=os.environ.get("OPENAI_API_KEY")
+        )
 
         # Construct evaluation prompt
         full_prompt = f"""{judge_prompt}
@@ -129,8 +131,8 @@ Please evaluate and respond in JSON format:
   "reasoning": "<brief explanation>"
 }}"""
 
-        # Call LLM
-        response = client.chat.completions.create(
+        # Call LLM (async)
+        response = await client.chat.completions.create(
             model=judge_model,
             messages=[
                 {
@@ -414,7 +416,7 @@ async def ingest_performance_metrics(
             model_name,
         )
 
-        client = get_clickhouse_client()
+        client = await get_clickhouse_async_client()
 
         # Define column names for unified table (with trace linkage)
         column_names = [
@@ -462,7 +464,7 @@ async def ingest_performance_metrics(
             input_data.span_id,  # NEW
         ]
 
-        client.insert(
+        await client.insert(
             "task_metrics",
             [row_data],
             column_names=column_names,
@@ -497,7 +499,7 @@ async def ingest_quality_metrics(
         if not input_data.quality_results:
             return True
 
-        client = get_clickhouse_client()
+        client = await get_clickhouse_async_client()
 
         # Define column names for unified table (with trace linkage)
         column_names = [
@@ -548,7 +550,7 @@ async def ingest_quality_metrics(
             for result in input_data.quality_results
         ]
 
-        client.insert(
+        await client.insert(
             "task_metrics",
             rows,
             column_names=column_names,

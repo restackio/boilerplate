@@ -6,7 +6,7 @@ Performant queries against ClickHouse to filter tasks by metric results.
 from pydantic import BaseModel, Field
 from restack_ai.function import function, log
 
-from src.functions.data_ingestion import get_clickhouse_client
+from src.database.connection import get_clickhouse_async_client
 
 
 class TasksByMetricInput(BaseModel):
@@ -71,7 +71,7 @@ async def get_tasks_by_metric_failure(
     performance by only returning task IDs.
     """
     try:
-        client = get_clickhouse_client()
+        client = await get_clickhouse_async_client()
 
         # Build WHERE clause
         where_conditions = [
@@ -126,7 +126,7 @@ async def get_tasks_by_metric_failure(
         if function_input.version:
             params["version"] = function_input.version
 
-        result = client.query(query, parameters=params)
+        result = await client.query(query, parameters=params)
         task_ids = [
             str(row["task_id"]) for row in result.named_results()
         ]
@@ -162,7 +162,7 @@ async def get_tasks_by_feedback(
     feedback during the given time period.
     """
     try:
-        client = get_clickhouse_client()
+        client = await get_clickhouse_async_client()
 
         # Build WHERE clause
         where_conditions = [
@@ -215,7 +215,7 @@ async def get_tasks_by_feedback(
         if function_input.version:
             params["version"] = function_input.version
 
-        result = client.query(query, parameters=params)
+        result = await client.query(query, parameters=params)
         task_ids = [
             str(row["task_id"]) for row in result.named_results()
         ]

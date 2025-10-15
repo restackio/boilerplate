@@ -16,7 +16,9 @@ async def get_task_metrics_clickhouse(
     - performance: list of performance metric records
     - quality: list of quality metric records
     """
-    from src.functions.data_ingestion import get_clickhouse_client
+    from src.database.connection import (
+        get_clickhouse_async_client,
+    )
 
     task_id = input_data.get("task_id")
     log.info(
@@ -24,7 +26,7 @@ async def get_task_metrics_clickhouse(
     )
 
     try:
-        client = get_clickhouse_client()
+        client = await get_clickhouse_async_client()
 
         # Single unified query - much simpler!
         # Note: task_input/task_output excluded - they're stored for retroactive evaluation but not returned
@@ -57,7 +59,7 @@ async def get_task_metrics_clickhouse(
             ORDER BY metric_category, response_index ASC NULLS FIRST, created_at ASC
         """
 
-        result = client.query(
+        result = await client.query(
             query, parameters={"task_id": task_id}
         )
 

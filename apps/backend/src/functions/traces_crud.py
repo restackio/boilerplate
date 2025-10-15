@@ -5,7 +5,7 @@ from typing import Any
 
 from restack_ai.function import function, log
 
-from src.database.connection import get_clickhouse_client
+from src.database.connection import get_clickhouse_async_client
 
 
 @function.defn()
@@ -23,7 +23,7 @@ async def get_task_traces_from_clickhouse(
     )
 
     try:
-        client = get_clickhouse_client()
+        client = await get_clickhouse_async_client()
 
         # Query all spans for this task
         query = """
@@ -58,7 +58,7 @@ async def get_task_traces_from_clickhouse(
         ORDER BY started_at ASC
         """
 
-        result = client.query(
+        result = await client.query(
             query, parameters={"task_id": task_id}
         )
 

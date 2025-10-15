@@ -8,7 +8,7 @@ from typing import Any
 from pydantic import BaseModel
 from restack_ai.function import function, log
 
-from src.database.connection import get_clickhouse_client
+from src.database.connection import get_clickhouse_async_client
 
 
 class IngestFeedbackMetricInput(BaseModel):
@@ -60,7 +60,7 @@ async def ingest_feedback_metric(
     )
 
     try:
-        client = get_clickhouse_client()
+        client = await get_clickhouse_async_client()
 
         # Define column names for unified table
         column_names = [
@@ -96,7 +96,7 @@ async def ingest_feedback_metric(
             input_data.span_id,
         ]
 
-        client.insert(
+        await client.insert(
             "task_metrics",
             [row_data],
             column_names=column_names,
@@ -131,7 +131,7 @@ async def get_task_feedback(
     log.info(f"Querying feedback for task {input_data.task_id}")
 
     try:
-        client = get_clickhouse_client()
+        client = await get_clickhouse_async_client()
 
         query = """
             SELECT
@@ -150,7 +150,7 @@ async def get_task_feedback(
             ORDER BY created_at DESC
         """
 
-        result = client.query(
+        result = await client.query(
             query, parameters={"task_id": input_data.task_id}
         )
 
@@ -203,7 +203,7 @@ async def get_feedback_analytics(
     )
 
     try:
-        client = get_clickhouse_client()
+        client = await get_clickhouse_async_client()
 
         # Calculate date range
         date_mapping = {
@@ -249,7 +249,7 @@ async def get_feedback_analytics(
         if input_data.agent_id:
             parameters["agent_id"] = input_data.agent_id
 
-        result = client.query(
+        result = await client.query(
             timeseries_query, parameters=parameters
         )
 
@@ -282,7 +282,7 @@ async def get_feedback_analytics(
         """
         )
 
-        summary_result = client.query(
+        summary_result = await client.query(
             summary_query, parameters=parameters
         )
         summary_row = next(iter(summary_result.named_results()))
@@ -343,7 +343,7 @@ async def get_detailed_feedbacks(
     )
 
     try:
-        client = get_clickhouse_client()
+        client = await get_clickhouse_async_client()
 
         # Calculate date range
         date_mapping = {
@@ -393,7 +393,7 @@ async def get_detailed_feedbacks(
         if input_data.agent_id:
             parameters["agent_id"] = input_data.agent_id
 
-        result = client.query(query, parameters=parameters)
+        result = await client.query(query, parameters=parameters)
 
         feedbacks = [
             {
