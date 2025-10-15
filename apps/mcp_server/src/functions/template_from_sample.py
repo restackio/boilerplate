@@ -3,7 +3,7 @@
 from typing import Any
 
 from pydantic import BaseModel, Field
-from restack_ai.function import function
+from restack_ai.function import function, log
 
 from src.functions.mock_samples.datadog_logs import (
     DATADOG_LOGS_SAMPLE,
@@ -144,8 +144,6 @@ async def template_from_sample(
     input_data: LoadTemplateInput,
 ) -> LoadTemplateOutput:
     """Load an integration template configuration from sample data."""
-    from restack_ai.function import log
-
     template = INTEGRATION_TEMPLATES.get(
         input_data.integration_template
     )
