@@ -11,6 +11,7 @@ export interface CreateMetricWithRetroactiveInput {
   config: Record<string, unknown>;
   is_active?: boolean;
   created_by?: string;
+  parent_agent_ids?: string[]; // Optional: Associate metric with specific parent agents
   run_retroactive?: boolean;
   retroactive_date_from?: string; // ISO format datetime string
   retroactive_date_to?: string; // ISO format datetime string
@@ -71,8 +72,8 @@ export async function getTaskQualityMetrics(taskId: string) {
     });
 
     // Return quality metrics only
-    const allMetrics = (result as { metrics?: Array<{ metric_category?: string }> })?.metrics || [];
-    return allMetrics.filter((m) => m.metric_category === "quality");
+    const data = (result as { success?: boolean; data?: { quality?: unknown[] } })?.data;
+    return data?.quality || [];
   } catch (error) {
     console.error("Error fetching task quality metrics:", error);
     return [];
@@ -106,10 +107,14 @@ export async function getTaskMetrics(taskId: string) {
       runId,
     });
 
-    return (result as { metrics?: unknown[] })?.metrics || [];
+    const data = (result as { success?: boolean; data?: { performance?: unknown[]; quality?: unknown[] } })?.data;
+    return {
+      performance: data?.performance || [],
+      quality: data?.quality || [],
+    };
   } catch (error) {
     console.error("Error fetching task metrics:", error);
-    return [];
+    return { performance: [], quality: [] };
   }
 }
 
@@ -124,6 +129,7 @@ export interface MetricDefinition {
   is_active: boolean;
   is_default: boolean;
   created_by: string | null;
+  parent_agent_ids?: string[]; // Associated parent agents
   created_at: string;
   updated_at: string;
 }

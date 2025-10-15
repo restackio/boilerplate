@@ -9,12 +9,14 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel
 from restack_ai.function import function, log
-from sqlalchemy import select
+from sqlalchemy import delete, select
+from sqlalchemy.orm import selectinload
 
 from src.database.connection import (
     get_async_db,
 )
 from src.database.models import (
+    MetricAgent,
     MetricDefinition,
 )
 
@@ -31,8 +33,8 @@ class CreateMetricDefinitionInput(BaseModel):
     config: dict[str, Any]
     description: str | None = None
     is_active: bool = True
-    is_default: bool = False
     created_by: str | None = None
+    parent_agent_ids: list[str] | None = None
 
 
 class ListMetricDefinitionsInput(BaseModel):
@@ -49,6 +51,7 @@ class UpdateMetricDefinitionInput(BaseModel):
     category: str | None = None
     config: dict[str, Any] | None = None
     is_active: bool | None = None
+    parent_agent_ids: list[str] | None = None
 
 
 class DeleteMetricDefinitionInput(BaseModel):
@@ -78,7 +81,9 @@ async def create_metric_definition(
 
     async for session in get_async_db():
         # Check if metric already exists (idempotency)
-        stmt = select(MetricDefinition).where(
+        stmt = select(MetricDefinition).options(
+            selectinload(MetricDefinition.metric_agents)
+        ).where(
             MetricDefinition.workspace_id
             == UUID(input_data.workspace_id),
             MetricDefinition.name == input_data.name,
@@ -102,15 +107,29 @@ async def create_metric_definition(
             metric_type=input_data.metric_type,
             config=input_data.config,
             is_active=input_data.is_active,
-            is_default=input_data.is_default,
             created_by=UUID(input_data.created_by)
             if input_data.created_by
             else None,
         )
 
         session.add(metric)
+        await session.flush()  # Flush to get metric ID
+        
+        # Create metric-agent associations if provided
+        if input_data.parent_agent_ids:
+            for agent_id in input_data.parent_agent_ids:
+                metric_agent = MetricAgent(
+                    id=uuid4(),
+                    metric_definition_id=metric.id,
+                    parent_agent_id=UUID(agent_id),
+                )
+                session.add(metric_agent)
+        
         await session.commit()
-        await session.refresh(metric)
+        await session.refresh(
+            metric, 
+            attribute_names=["metric_agents"]
+        )
 
         return _metric_to_dict(metric)
     return None
@@ -134,7 +153,9 @@ async def get_metric_definition_by_id(
     log.info(f"Fetching metric definition: {metric_id}")
 
     async for session in get_async_db():
-        stmt = select(MetricDefinition).where(
+        stmt = select(MetricDefinition).options(
+            selectinload(MetricDefinition.metric_agents)
+        ).where(
             MetricDefinition.id == UUID(metric_id),
             MetricDefinition.workspace_id == UUID(workspace_id),
         )
@@ -167,7 +188,9 @@ async def list_metric_definitions(
     )
 
     async for session in get_async_db():
-        stmt = select(MetricDefinition).where(
+        stmt = select(MetricDefinition).options(
+            selectinload(MetricDefinition.metric_agents)
+        ).where(
             MetricDefinition.workspace_id
             == UUID(input_data.workspace_id)
         )
@@ -204,7 +227,9 @@ async def update_metric_definition(
     )
 
     async for session in get_async_db():
-        stmt = select(MetricDefinition).where(
+        stmt = select(MetricDefinition).options(
+            selectinload(MetricDefinition.metric_agents)
+        ).where(
             MetricDefinition.id == UUID(input_data.metric_id)
         )
         result = await session.execute(stmt)
@@ -224,13 +249,33 @@ async def update_metric_definition(
             metric.config = input_data.config
         if input_data.is_active is not None:
             metric.is_active = input_data.is_active
+        
+        # Update metric-agent associations if provided
+        if input_data.parent_agent_ids is not None:
+            # Delete existing associations
+            await session.execute(
+                delete(MetricAgent).where(
+                    MetricAgent.metric_definition_id == UUID(input_data.metric_id)
+                )
+            )
+            # Create new associations
+            for agent_id in input_data.parent_agent_ids:
+                metric_agent = MetricAgent(
+                    id=uuid4(),
+                    metric_definition_id=UUID(input_data.metric_id),
+                    parent_agent_id=UUID(agent_id),
+                )
+                session.add(metric_agent)
 
         metric.updated_at = datetime.now(tz=UTC).replace(
             tzinfo=None
         )
 
         await session.commit()
-        await session.refresh(metric)
+        await session.refresh(
+            metric,
+            attribute_names=["metric_agents"]
+        )
 
         return _metric_to_dict(metric)
     return None
@@ -246,7 +291,9 @@ async def delete_metric_definition(
     )
 
     async for session in get_async_db():
-        stmt = select(MetricDefinition).where(
+        stmt = select(MetricDefinition).options(
+            selectinload(MetricDefinition.metric_agents)
+        ).where(
             MetricDefinition.id == UUID(input_data.metric_id)
         )
         result = await session.execute(stmt)
@@ -282,10 +329,12 @@ def _metric_to_dict(metric: MetricDefinition) -> dict[str, Any]:
         "metric_type": metric.metric_type,
         "config": metric.config,
         "is_active": metric.is_active,
-        "is_default": metric.is_default,
         "created_by": str(metric.created_by)
         if metric.created_by
         else None,
+        "parent_agent_ids": [
+            str(ma.parent_agent_id) for ma in metric.metric_agents
+        ] if hasattr(metric, 'metric_agents') else [],
         "created_at": metric.created_at.isoformat()
         if metric.created_at
         else None,

@@ -6,7 +6,7 @@ import BaseLineChart from "./base-line-chart";
 interface PerformanceMetricChartProps {
   data: PerformanceTimeSeries[];
   metric: "duration" | "tokens" | "cost";
-  color: "blue" | "green" | "purple";
+  color: "blue" | "green" | "orange";
 }
 
 export default function PerformanceMetricChart({ data, metric, color }: PerformanceMetricChartProps) {
@@ -32,9 +32,9 @@ export default function PerformanceMetricChart({ data, metric, color }: Performa
   const avgValue = values.reduce((sum, v) => sum + v, 0) / values.length;
   
   const colorConfig = {
-    blue: { stroke: "rgb(59, 130, 246)", fill: "rgba(59, 130, 246, 0.1)" },
-    green: { stroke: "rgb(34, 197, 94)", fill: "rgba(34, 197, 94, 0.1)" },
-    purple: { stroke: "rgb(168, 85, 247)", fill: "rgba(168, 85, 247, 0.1)" },
+    blue: { stroke: "rgb(0, 213, 244)", fill: "rgba(0, 213, 244, 0.1)" },
+    green: { stroke: "rgb(0, 244, 78)", fill: "rgba(0, 244, 78, 0.1)" },
+    orange: { stroke: "rgb(242, 98, 0)", fill: "rgba(242, 98, 0, 0.1)" },
   };
 
   const colors = colorConfig[color];

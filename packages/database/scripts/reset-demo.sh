@@ -46,20 +46,17 @@ else
   echo "⚠ Warning: $DEMO_DIR/postgres-demo.sql not found"
 fi
 
-# ClickHouse: Delete and re-insert
+# ClickHouse: Delete and re-insert using clickhouse-client via Docker
 echo "→ Deleting ClickHouse demo data..."
-CLICKHOUSE_CREDENTIALS=$(echo "$CLICKHOUSE_URL" | sed -E 's|^https?://([^@]+)@.*|\1|')
-CLICKHOUSE_ENDPOINT=$(echo "$CLICKHOUSE_URL" | sed -E 's|^https?://[^@]+@(.*)|\1|')
-
-curl -u "$CLICKHOUSE_CREDENTIALS" "http://$CLICKHOUSE_ENDPOINT" --data-binary \
-  "DELETE FROM boilerplate_clickhouse.pipeline_events WHERE workspace_id = '$DEMO_WORKSPACE_ID';
-   DELETE FROM boilerplate_clickhouse.task_metrics WHERE workspace_id = '$DEMO_WORKSPACE_ID';" > /dev/null 2>&1
+docker compose exec -T clickhouse clickhouse-client --database=boilerplate_clickhouse --multiquery <<-EOSQL
+  DELETE FROM pipeline_events WHERE workspace_id = '$DEMO_WORKSPACE_ID';
+  DELETE FROM task_metrics WHERE workspace_id = '$DEMO_WORKSPACE_ID';
+EOSQL
 echo "✓ ClickHouse demo data deleted"
 
 echo "→ Inserting ClickHouse demo data..."
 if [ -f "$DEMO_DIR/clickhouse-demo.sql" ]; then
-  curl -u "$CLICKHOUSE_CREDENTIALS" "http://$CLICKHOUSE_ENDPOINT" \
-    --data-binary @"$DEMO_DIR/clickhouse-demo.sql" > /dev/null 2>&1
+  docker compose exec -T clickhouse clickhouse-client --database=boilerplate_clickhouse --multiquery < "$DEMO_DIR/clickhouse-demo.sql"
   echo "✓ ClickHouse demo data inserted"
 else
   echo "⚠ Warning: $DEMO_DIR/clickhouse-demo.sql not found"

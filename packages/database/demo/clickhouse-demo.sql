@@ -1,5 +1,5 @@
 -- ClickHouse Seed Data for Development
-USE boilerplate_clickhouse;
+-- Database is specified in connection URL, no need for USE statement
 
 -- All events now use the single pipeline_events dataset ID (aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa)
 
@@ -68,61 +68,19 @@ INSERT INTO task_performance_metrics (task_id, agent_id, agent_name, parent_agen
 ('77777777-7777-7777-7777-777777777777', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'Research & Writing Assistant', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'v2', 2800, 1300, 1000, 0.013, 'completed', 'Research quantum computing applications', 'Quantum computing applications: Healthcare, finance, cryptography...', now() - INTERVAL 2 DAY),
 ('88888888-8888-8888-8888-888888888888', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'Research & Writing Assistant', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'v2', 1500, 800, 500, 0.007, 'completed', 'Summarize recent tech news', 'Tech news summary: AI, chips, cloud computing...', now() - INTERVAL 3 DAY);
 
--- Quality metrics for the tasks above
--- Response Helpfulness (metric_definition_id: a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1)
-INSERT INTO task_quality_metrics (task_id, agent_id, workspace_id, metric_definition_id, metric_name, metric_type, score, passed, reasoning, eval_duration_ms, eval_cost_usd, evaluated_at) VALUES 
-('11111111-1111-1111-1111-111111111111', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1', 'Response Helpfulness', 'llm_judge', 85.0, true, 'The response is comprehensive and addresses the query well', 1200, 0.0001, now() - INTERVAL 1 DAY),
-('22222222-2222-2222-2222-222222222222', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1', 'Response Helpfulness', 'llm_judge', 92.0, true, 'Excellent coverage of quantum computing applications with clear examples', 1400, 0.0001, now() - INTERVAL 2 DAY),
-('33333333-3333-3333-3333-333333333333', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1', 'Response Helpfulness', 'llm_judge', 78.0, true, 'Good summary but could include more detail', 1000, 0.0001, now() - INTERVAL 3 DAY),
-('66666666-6666-6666-6666-666666666666', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1', 'Response Helpfulness', 'llm_judge', 80.0, true, 'Concise and helpful, covers key points', 1100, 0.0001, now() - INTERVAL 1 DAY),
-('77777777-7777-7777-7777-777777777777', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1', 'Response Helpfulness', 'llm_judge', 88.0, true, 'Well-structured response with good application examples', 1300, 0.0001, now() - INTERVAL 2 DAY);
-
--- Safety & Compliance (metric_definition_id: a2a2a2a2-a2a2-a2a2-a2a2-a2a2a2a2a2a2)
-INSERT INTO task_quality_metrics (task_id, agent_id, workspace_id, metric_definition_id, metric_name, metric_type, score, passed, reasoning, eval_duration_ms, eval_cost_usd, evaluated_at) VALUES 
-('11111111-1111-1111-1111-111111111111', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'a2a2a2a2-a2a2-a2a2-a2a2-a2a2a2a2a2a2', 'Safety & Compliance', 'llm_judge', 98.0, true, 'Content is safe and compliant', 900, 0.0001, now() - INTERVAL 1 DAY),
-('22222222-2222-2222-2222-222222222222', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'a2a2a2a2-a2a2-a2a2-a2a2-a2a2a2a2a2a2', 'Safety & Compliance', 'llm_judge', 100.0, true, 'Perfectly safe and compliant content', 950, 0.0001, now() - INTERVAL 2 DAY),
-('33333333-3333-3333-3333-333333333333', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'a2a2a2a2-a2a2-a2a2-a2a2-a2a2a2a2a2a2', 'Safety & Compliance', 'llm_judge', 95.0, true, 'Safe content with no compliance issues', 850, 0.0001, now() - INTERVAL 3 DAY),
-('44444444-4444-4444-4444-444444444444', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'a2a2a2a2-a2a2-a2a2-a2a2-a2a2a2a2a2a2', 'Safety & Compliance', 'llm_judge', 97.0, true, 'Safe and policy-compliant', 920, 0.0001, now() - INTERVAL 4 DAY),
-('55555555-5555-5555-5555-555555555555', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'a2a2a2a2-a2a2-a2a2-a2a2-a2a2a2a2a2a2', 'Safety & Compliance', 'llm_judge', 99.0, true, 'Excellent safety and compliance', 880, 0.0001, now() - INTERVAL 5 DAY),
-('66666666-6666-6666-6666-666666666666', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'a2a2a2a2-a2a2-a2a2-a2a2-a2a2a2a2a2a2', 'Safety & Compliance', 'llm_judge', 100.0, true, 'Perfect compliance', 870, 0.0001, now() - INTERVAL 1 DAY),
-('77777777-7777-7777-7777-777777777777', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'a2a2a2a2-a2a2-a2a2-a2a2-a2a2a2a2a2a2', 'Safety & Compliance', 'llm_judge', 98.0, true, 'Safe and compliant', 910, 0.0001, now() - INTERVAL 2 DAY),
-('88888888-8888-8888-8888-888888888888', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'a2a2a2a2-a2a2-a2a2-a2a2-a2a2a2a2a2a2', 'Safety & Compliance', 'llm_judge', 96.0, true, 'Safe content', 890, 0.0001, now() - INTERVAL 3 DAY);
-
--- Speed Score (metric_definition_id: c2c2c2c2-c2c2-c2c2-c2c2-c2c2c2c2c2c2)
-INSERT INTO task_quality_metrics (task_id, agent_id, workspace_id, metric_definition_id, metric_name, metric_type, score, passed, reasoning, eval_duration_ms, eval_cost_usd, evaluated_at) VALUES 
-('11111111-1111-1111-1111-111111111111', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'c2c2c2c2-c2c2-c2c2-c2c2-c2c2c2c2c2c2', 'Speed Score', 'python_code', 80.0, true, 'Task completed in 2500ms', 5, 0.0, now() - INTERVAL 1 DAY),
-('22222222-2222-2222-2222-222222222222', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'c2c2c2c2-c2c2-c2c2-c2c2-c2c2c2c2c2c2', 'Speed Score', 'python_code', 60.0, true, 'Task completed in 3200ms', 5, 0.0, now() - INTERVAL 2 DAY),
-('33333333-3333-3333-3333-333333333333', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'c2c2c2c2-c2c2-c2c2-c2c2-c2c2c2c2c2c2', 'Speed Score', 'python_code', 80.0, true, 'Task completed in 1800ms', 5, 0.0, now() - INTERVAL 3 DAY),
-('44444444-4444-4444-4444-444444444444', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'c2c2c2c2-c2c2-c2c2-c2c2-c2c2c2c2c2c2', 'Speed Score', 'python_code', 75.0, true, 'Task completed in 4500ms', 5, 0.0, now() - INTERVAL 4 DAY),
-('55555555-5555-5555-5555-555555555555', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'c2c2c2c2-c2c2-c2c2-c2c2-c2c2c2c2c2c2', 'Speed Score', 'python_code', 80.0, true, 'Task completed in 2100ms', 5, 0.0, now() - INTERVAL 5 DAY),
-('66666666-6666-6666-6666-666666666666', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'c2c2c2c2-c2c2-c2c2-c2c2-c2c2c2c2c2c2', 'Speed Score', 'python_code', 80.0, true, 'Task completed in 2000ms', 5, 0.0, now() - INTERVAL 1 DAY),
-('77777777-7777-7777-7777-777777777777', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'c2c2c2c2-c2c2-c2c2-c2c2-c2c2c2c2c2c2', 'Speed Score', 'python_code', 80.0, true, 'Task completed in 2800ms', 5, 0.0, now() - INTERVAL 2 DAY),
-('88888888-8888-8888-8888-888888888888', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'c2c2c2c2-c2c2-c2c2-c2c2-c2c2c2c2c2c2', 'Speed Score', 'python_code', 80.0, true, 'Task completed in 1500ms', 5, 0.0, now() - INTERVAL 3 DAY);
-
--- Conciseness (metric_definition_id: a4a4a4a4-a4a4-a4a4-a4a4-a4a4a4a4a4a4)
-INSERT INTO task_quality_metrics (task_id, agent_id, workspace_id, metric_definition_id, metric_name, metric_type, score, passed, reasoning, eval_duration_ms, eval_cost_usd, evaluated_at) VALUES 
-('11111111-1111-1111-1111-111111111111', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'a4a4a4a4-a4a4-a4a4-a4a4-a4a4a4a4a4a4', 'Conciseness', 'llm_judge', 75.0, true, 'Response is clear but slightly verbose', 1100, 0.0001, now() - INTERVAL 1 DAY),
-('22222222-2222-2222-2222-222222222222', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'a4a4a4a4-a4a4-a4a4-a4a4-a4a4a4a4a4a4', 'Conciseness', 'llm_judge', 68.0, false, 'Response contains unnecessary elaboration', 1200, 0.0001, now() - INTERVAL 2 DAY),
-('33333333-3333-3333-3333-333333333333', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'a4a4a4a4-a4a4-a4a4-a4a4-a4a4a4a4a4a4', 'Conciseness', 'llm_judge', 88.0, true, 'Very concise and to the point', 950, 0.0001, now() - INTERVAL 3 DAY),
-('44444444-4444-4444-4444-444444444444', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'a4a4a4a4-a4a4-a4a4-a4a4-a4a4a4a4a4a4', 'Conciseness', 'llm_judge', 65.0, false, 'Response is overly detailed for the question', 1300, 0.0001, now() - INTERVAL 4 DAY),
-('55555555-5555-5555-5555-555555555555', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'a4a4a4a4-a4a4-a4a4-a4a4-a4a4a4a4a4a4', 'Conciseness', 'llm_judge', 82.0, true, 'Well-balanced response length', 1050, 0.0001, now() - INTERVAL 5 DAY),
-('66666666-6666-6666-6666-666666666666', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'a4a4a4a4-a4a4-a4a4-a4a4-a4a4a4a4a4a4', 'Conciseness', 'llm_judge', 90.0, true, 'Extremely concise and clear', 900, 0.0001, now() - INTERVAL 1 DAY),
-('77777777-7777-7777-7777-777777777777', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'a4a4a4a4-a4a4-a4a4-a4a4-a4a4a4a4a4a4', 'Conciseness', 'llm_judge', 85.0, true, 'Concise with good coverage', 1000, 0.0001, now() - INTERVAL 2 DAY),
-('88888888-8888-8888-8888-888888888888', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'a4a4a4a4-a4a4-a4a4-a4a4-a4a4a4a4a4a4', 'Conciseness', 'llm_judge', 92.0, true, 'Perfect brevity', 880, 0.0001, now() - INTERVAL 3 DAY);
-
--- Factual Accuracy (metric_definition_id: a3a3a3a3-a3a3-a3a3-a3a3-a3a3a3a3a3a3)
-INSERT INTO task_quality_metrics (task_id, agent_id, workspace_id, metric_definition_id, metric_name, metric_type, score, passed, reasoning, eval_duration_ms, eval_cost_usd, evaluated_at) VALUES 
-('11111111-1111-1111-1111-111111111111', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'a3a3a3a3-a3a3-a3a3-a3a3-a3a3a3a3a3a3', 'Factual Accuracy', 'llm_judge', 94.0, true, 'All facts are accurate and well-sourced', 1500, 0.0002, now() - INTERVAL 1 DAY),
-('22222222-2222-2222-2222-222222222222', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'a3a3a3a3-a3a3-a3a3-a3a3-a3a3a3a3a3a3', 'Factual Accuracy', 'llm_judge', 96.0, true, 'Highly accurate with current information', 1600, 0.0002, now() - INTERVAL 2 DAY),
-('33333333-3333-3333-3333-333333333333', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'a3a3a3a3-a3a3-a3a3-a3a3-a3a3a3a3a3a3', 'Factual Accuracy', 'llm_judge', 91.0, true, 'Accurate information, minor ambiguity in one claim', 1400, 0.0002, now() - INTERVAL 3 DAY),
-('44444444-4444-4444-4444-444444444444', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'a3a3a3a3-a3a3-a3a3-a3a3-a3a3a3a3a3a3', 'Factual Accuracy', 'llm_judge', 88.0, true, 'Generally accurate with good technical detail', 1550, 0.0002, now() - INTERVAL 4 DAY),
-('55555555-5555-5555-5555-555555555555', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'a3a3a3a3-a3a3-a3a3-a3a3-a3a3a3a3a3a3', 'Factual Accuracy', 'llm_judge', 97.0, true, 'Exceptionally accurate with verifiable claims', 1650, 0.0002, now() - INTERVAL 5 DAY),
-('66666666-6666-6666-6666-666666666666', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'a3a3a3a3-a3a3-a3a3-a3a3-a3a3a3a3a3a3', 'Factual Accuracy', 'llm_judge', 93.0, true, 'All facts check out', 1450, 0.0002, now() - INTERVAL 1 DAY),
-('77777777-7777-7777-7777-777777777777', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'a3a3a3a3-a3a3-a3a3-a3a3-a3a3a3a3a3a3', 'Factual Accuracy', 'llm_judge', 95.0, true, 'Accurate and up-to-date information', 1500, 0.0002, now() - INTERVAL 2 DAY),
-('88888888-8888-8888-8888-888888888888', '4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'a3a3a3a3-a3a3-a3a3-a3a3-a3a3a3a3a3a3', 'Factual Accuracy', 'llm_judge', 89.0, true, 'Accurate with good context', 1400, 0.0002, now() - INTERVAL 3 DAY);
-*/-- Sample Task Metrics Data for Development/Demo
+-- ===================================
+-- Quality Metrics (Removed)
+-- ===================================
+-- Note: No default quality metrics are seeded in ClickHouse
+-- Users create custom quality metrics through the UI
+-- The metric definitions are stored in Postgres and referenced here by metric_definition_id
+-- 
+-- Previously seeded default metrics (Response Helpfulness, Safety & Compliance, etc.) have been removed
+-- Only custom metrics created by users will appear in the analytics
+-- 
+/*-- Sample Task Metrics Data for Development/Demo
 -- This gives the analytics page data to display
-USE boilerplate_clickhouse;
+-- Database is specified in connection URL
 
 -- Sample task IDs and agent ID (using the Research & Writing Assistant from agents-seed.sql)
 -- Agent ID: 4a1a7e60-8b2f-4a3b-9c1d-5e6f7a8b9c0d
@@ -176,8 +134,7 @@ INSERT INTO task_metrics (
 
 -- ClickHouse seed data for Demo
 -- Metrics and feedback for healthcare insurance and newsletter agent tasks
-
-USE boilerplate_clickhouse;
+-- Database is specified in connection URL
 
 -- ==========================
 -- SCENARIO 1: Healthcare Insurance Support - Performance Metrics
@@ -188,18 +145,18 @@ USE boilerplate_clickhouse;
 -- Version 1 (original) - Failed to validate policy status
 -- Version 2 (improved) - Successfully validated policy status and caught expired policy
 INSERT INTO task_metrics (
-    task_id, agent_id, workspace_id, agent_name, agent_version,
+    task_id, agent_id, workspace_id, agent_name, parent_agent_id, agent_version,
     metric_category, duration_ms, input_tokens, output_tokens, cost_usd, status,
     response_id, response_index, message_count,
     task_input, task_output,
     created_at
 ) VALUES 
-('10000003-0003-0003-0003-000000000003', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'support-healthinsurance', 'v1', 'performance', 2150, 520, 310, 0.003750, 'completed', 'resp_health_003', 1, 4, 'My policy number is 0345678. Am I covered for physical therapy?', 'Yes! Based on your policy 0345678, physical therapy is covered. Your copay is $25 per session...', now() - INTERVAL 3 DAY),
-('a4cc0ca4-0827-43cd-85e9-eb125c7359f7', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'support-healthinsurance', 'v1', 'performance', 2800, 1885, 1507, 0.017427, 'completed', 'resp_0577462a113957750068edbd4523d08190b3c6105421771bf5', 1, 2, 'My policy number is 0123456, am I covered for physical therapy?', 'Here is what your policy shows for physical therapy (policy 0123456): Coverage summary - Covered: Yes, in-network - Copay: $15 per visit...', now() - INTERVAL 2 DAY),
-('10000010-0010-0010-0010-000000000010', 'cccccccc-dddd-eeee-ffff-444444444444', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'support-healthinsurance', 'v2', 'performance', 2450, 580, 380, 0.004525, 'completed', 'resp_health_010', 1, 3, 'Hi, my policy number is 0456789. I need to get an MRI - is that covered?', 'I need to inform you that your policy 0456789 is currently showing as expired...', now() - INTERVAL 1 DAY),
-('10000006-0006-0006-0006-000000000006', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'support-healthinsurance', 'v1', 'performance', 1650, 420, 250, 0.003025, 'completed', 'resp_health_006', 1, 2, 'Policy 0678901 - What is my ER copay?', 'Emergency room visits have a copay of $150 per visit...', now() - INTERVAL 6 DAY),
-('10000007-0007-0007-0007-000000000007', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'support-healthinsurance', 'v1', 'performance', 1900, 470, 290, 0.003488, 'completed', 'resp_health_007', 1, 2, 'Vision coverage inquiry', 'Vision coverage includes annual eye exams...', now() - INTERVAL 7 DAY),
-('10000009-0009-0009-0009-000000000009', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'support-healthinsurance', 'v1', 'performance', 1850, 460, 280, 0.003375, 'failed', 'resp_health_009', 1, 2, 'Lab work coverage', 'Lab work is typically covered...', now() - INTERVAL 6 DAY);
+('10000003-0003-0003-0003-000000000003', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'support-healthinsurance', 'cccccccc-dddd-eeee-ffff-333333333333', 'v1', 'performance', 2150, 520, 310, 0.003750, 'completed', 'resp_health_003', 1, 4, 'My policy number is 0345678. Am I covered for physical therapy?', 'Yes! Based on your policy 0345678, physical therapy is covered. Your copay is $25 per session...', now() - INTERVAL 3 DAY),
+('a4cc0ca4-0827-43cd-85e9-eb125c7359f7', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'support-healthinsurance', 'cccccccc-dddd-eeee-ffff-333333333333', 'v1', 'performance', 2800, 1885, 1507, 0.017427, 'completed', 'resp_0577462a113957750068edbd4523d08190b3c6105421771bf5', 1, 2, 'My policy number is 0123456, am I covered for physical therapy?', 'Here is what your policy shows for physical therapy (policy 0123456): Coverage summary - Covered: Yes, in-network - Copay: $15 per visit...', now() - INTERVAL 2 DAY),
+('10000010-0010-0010-0010-000000000010', 'cccccccc-dddd-eeee-ffff-444444444444', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'support-healthinsurance', 'cccccccc-dddd-eeee-ffff-333333333333', 'v2', 'performance', 2450, 580, 380, 0.004525, 'completed', 'resp_health_010', 1, 3, 'Hi, my policy number is 0456789. I need to get an MRI - is that covered?', 'I need to inform you that your policy 0456789 is currently showing as expired...', now() - INTERVAL 1 DAY),
+('10000006-0006-0006-0006-000000000006', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'support-healthinsurance', 'cccccccc-dddd-eeee-ffff-333333333333', 'v1', 'performance', 1650, 420, 250, 0.003025, 'completed', 'resp_health_006', 1, 2, 'Policy 0678901 - What is my ER copay?', 'Emergency room visits have a copay of $150 per visit...', now() - INTERVAL 6 DAY),
+('10000007-0007-0007-0007-000000000007', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'support-healthinsurance', 'cccccccc-dddd-eeee-ffff-333333333333', 'v1', 'performance', 1900, 470, 290, 0.003488, 'completed', 'resp_health_007', 1, 2, 'Vision coverage inquiry', 'Vision coverage includes annual eye exams...', now() - INTERVAL 7 DAY),
+('10000009-0009-0009-0009-000000000009', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'support-healthinsurance', 'cccccccc-dddd-eeee-ffff-333333333333', 'v1', 'performance', 1850, 460, 280, 0.003375, 'failed', 'resp_health_009', 1, 2, 'Lab work coverage', 'Lab work is typically covered...', now() - INTERVAL 6 DAY);
 
 
 -- ==========================
@@ -213,15 +170,16 @@ INSERT INTO task_metrics (
 -- V1 failure: Customer discovered policy was expired AFTER being told they were covered
 -- V2 success: Customer grateful that agent caught expired policy before they went to appointment
 INSERT INTO task_metrics (
-    task_id, agent_id, workspace_id, metric_category, metric_name, metric_type,
+    task_id, agent_id, workspace_id, agent_name, parent_agent_id,
+    metric_category, metric_name, metric_type,
     passed, reasoning,
     response_id, response_index, message_count,
     created_at
 ) VALUES 
-('10000003-0003-0003-0003-000000000003', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'feedback', 'user_feedback', 'negative', false, 'Bad - I went to my physical therapy appointment and they told me I am not covered anymore. My policy expired last month! The agent should have checked this.', 'resp_health_003', 1, 4, now() - INTERVAL 3 DAY),
-('a4cc0ca4-0827-43cd-85e9-eb125c7359f7', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'feedback', 'user_feedback', 'positive', true, 'Great - Very thorough explanation of my PT coverage! I now understand my copay, visit limits, referral requirements, and deductible details. Exactly what I needed to know.', 'resp_0577462a113957750068edbd4523d08190b3c6105421771bf5', 1, 2, now() - INTERVAL 2 DAY),
-('10000010-0010-0010-0010-000000000010', 'cccccccc-dddd-eeee-ffff-444444444444', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'feedback', 'user_feedback', 'positive', true, 'Excellent - Thank you for catching that my policy expired! I had no idea and would have been surprised at my appointment. This saved me a lot of trouble.', 'resp_health_010', 1, 3, now() - INTERVAL 1 DAY),
-('10000006-0006-0006-0006-000000000006', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'feedback', 'user_feedback', 'negative', false, 'Not helpful - My actual copay is $250. The agent should have looked up my specific policy details!', 'resp_health_006', 1, 2, now() - INTERVAL 6 DAY);
+('10000003-0003-0003-0003-000000000003', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'support-healthinsurance', 'cccccccc-dddd-eeee-ffff-333333333333', 'feedback', 'user_feedback', 'negative', false, 'Bad - I went to my physical therapy appointment and they told me I am not covered anymore. My policy expired last month! The agent should have checked this.', 'resp_health_003', 1, 4, now() - INTERVAL 3 DAY),
+('a4cc0ca4-0827-43cd-85e9-eb125c7359f7', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'support-healthinsurance', 'cccccccc-dddd-eeee-ffff-333333333333', 'feedback', 'user_feedback', 'positive', true, 'Great - Very thorough explanation of my PT coverage! I now understand my copay, visit limits, referral requirements, and deductible details. Exactly what I needed to know.', 'resp_0577462a113957750068edbd4523d08190b3c6105421771bf5', 1, 2, now() - INTERVAL 2 DAY),
+('10000010-0010-0010-0010-000000000010', 'cccccccc-dddd-eeee-ffff-444444444444', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'support-healthinsurance', 'cccccccc-dddd-eeee-ffff-333333333333', 'feedback', 'user_feedback', 'positive', true, 'Excellent - Thank you for catching that my policy expired! I had no idea and would have been surprised at my appointment. This saved me a lot of trouble.', 'resp_health_010', 1, 3, now() - INTERVAL 1 DAY),
+('10000006-0006-0006-0006-000000000006', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'support-healthinsurance', 'cccccccc-dddd-eeee-ffff-333333333333', 'feedback', 'user_feedback', 'negative', false, 'Not helpful - My actual copay is $250. The agent should have looked up my specific policy details!', 'resp_health_006', 1, 2, now() - INTERVAL 6 DAY);
 
 
 -- ==========================
@@ -254,17 +212,22 @@ INSERT INTO task_metrics (
 -- V1 failure: Gave coverage details without validating policy was expired
 -- V2 success: Validated policy status and caught expiration before providing coverage
 INSERT INTO task_metrics (
-    task_id, agent_id, workspace_id, metric_category, metric_definition_id, metric_name, metric_type,
+    task_id, agent_id, workspace_id, agent_name, parent_agent_id,
+    metric_category, metric_definition_id, metric_name, metric_type,
     passed, score, reasoning,
     eval_duration_ms, eval_cost_usd,
     response_id, response_index, message_count,
     created_at
 ) VALUES 
-('10000003-0003-0003-0003-000000000003', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'quality', 'bbbbbbbb-1111-2222-3333-444444444444', 'Policy Status Validation', 'llm_judge', false, 0, 'Agent provided coverage details for policy 0345678 without validating policy status. Customer later discovered policy was expired, leading to complaint.', 1250, 0.00016, 'resp_health_003', 1, 4, now() - INTERVAL 3 DAY),
-('a4cc0ca4-0827-43cd-85e9-eb125c7359f7', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'quality', 'a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1', 'Response Helpfulness', 'llm_judge', true, 95, 'Comprehensive and well-structured response providing all relevant coverage details: copay, visit limits, network requirements, referral needs, deductible info, and helpful next steps. Excellent organization with clear sections.', 1400, 0.00016, 'resp_0577462a113957750068edbd4523d08190b3c6105421771bf5', 1, 2, now() - INTERVAL 2 DAY),
-('10000010-0010-0010-0010-000000000010', 'cccccccc-dddd-eeee-ffff-444444444444', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'quality', 'bbbbbbbb-1111-2222-3333-444444444444', 'Policy Status Validation', 'llm_judge', true, 100, 'Agent validated policy status for 0456789, detected policy was expired (ended August 15, 2024), and proactively informed customer before providing coverage details. Excellent validation.', 1320, 0.00016, 'resp_health_010', 1, 3, now() - INTERVAL 1 DAY),
-('10000006-0006-0006-0006-000000000006', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'quality', 'bbbbbbbb-1111-2222-3333-444444444444', 'Policy Status Validation', 'llm_judge', false, 0, 'Agent gave generic copay info without querying actual policy 0678901 details or validating status', 1180, 0.00016, 'resp_health_006', 1, 2, now() - INTERVAL 6 DAY),
-('10000009-0009-0009-0009-000000000009', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'quality', 'bbbbbbbb-1111-2222-3333-444444444444', 'Policy Status Validation', 'llm_judge', false, 0, 'Generic response without policy validation', 1150, 0.00016, 'resp_health_009', 1, 2, now() - INTERVAL 6 DAY);
+('10000003-0003-0003-0003-000000000003', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'support-healthinsurance', 'cccccccc-dddd-eeee-ffff-333333333333', 'quality', 'bbbbbbbb-1111-2222-3333-444444444444', 'Policy Status Validation', 'llm_judge', false, 0, 'Agent provided coverage details for policy 0345678 without validating policy status. Customer later discovered policy was expired, leading to complaint.', 1250, 0.00016, 'resp_health_003', 1, 4, now() - INTERVAL 3 DAY),
+('a4cc0ca4-0827-43cd-85e9-eb125c7359f7', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'support-healthinsurance', 'cccccccc-dddd-eeee-ffff-333333333333', 'quality', 'a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1', 'Response Helpfulness', 'llm_judge', true, 95, 'Comprehensive and well-structured response providing all relevant coverage details: copay, visit limits, network requirements, referral needs, deductible info, and helpful next steps. Excellent organization with clear sections.', 1400, 0.00016, 'resp_0577462a113957750068edbd4523d08190b3c6105421771bf5', 1, 2, now() - INTERVAL 2 DAY),
+('a4cc0ca4-0827-43cd-85e9-eb125c7359f7', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'support-healthinsurance', 'cccccccc-dddd-eeee-ffff-333333333333', 'quality', 'a2a2a2a2-a2a2-a2a2-a2a2-a2a2a2a2a2a2', 'Safety & Compliance', 'llm_judge', true, 98, 'Response is safe, professional, and compliant with healthcare communication standards. No problematic content.', 950, 0.00016, 'resp_0577462a113957750068edbd4523d08190b3c6105421771bf5', 1, 2, now() - INTERVAL 2 DAY),
+('10000010-0010-0010-0010-000000000010', 'cccccccc-dddd-eeee-ffff-444444444444', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'support-healthinsurance', 'cccccccc-dddd-eeee-ffff-333333333333', 'quality', 'bbbbbbbb-1111-2222-3333-444444444444', 'Policy Status Validation', 'llm_judge', true, 100, 'Agent validated policy status for 0456789, detected policy was expired (ended August 15, 2024), and proactively informed customer before providing coverage details. Excellent validation.', 1320, 0.00016, 'resp_health_010', 1, 3, now() - INTERVAL 1 DAY),
+('10000010-0010-0010-0010-000000000010', 'cccccccc-dddd-eeee-ffff-444444444444', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'support-healthinsurance', 'cccccccc-dddd-eeee-ffff-333333333333', 'quality', 'a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1', 'Response Helpfulness', 'llm_judge', true, 92, 'Helpful response that correctly identified the expired policy and provided clear next steps for the customer to renew coverage.', 1250, 0.00016, 'resp_health_010', 1, 3, now() - INTERVAL 1 DAY),
+('10000006-0006-0006-0006-000000000006', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'support-healthinsurance', 'cccccccc-dddd-eeee-ffff-333333333333', 'quality', 'bbbbbbbb-1111-2222-3333-444444444444', 'Policy Status Validation', 'llm_judge', false, 0, 'Agent gave generic copay info without querying actual policy 0678901 details or validating status', 1180, 0.00016, 'resp_health_006', 1, 2, now() - INTERVAL 6 DAY),
+('10000007-0007-0007-0007-000000000007', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'support-healthinsurance', 'cccccccc-dddd-eeee-ffff-333333333333', 'quality', 'a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1', 'Response Helpfulness', 'llm_judge', true, 88, 'Good response covering vision coverage details clearly. Helpful and accurate.', 1100, 0.00016, 'resp_health_007', 1, 2, now() - INTERVAL 7 DAY),
+('10000007-0007-0007-0007-000000000007', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'support-healthinsurance', 'cccccccc-dddd-eeee-ffff-333333333333', 'quality', 'a2a2a2a2-a2a2-a2a2-a2a2-a2a2a2a2a2a2', 'Safety & Compliance', 'llm_judge', true, 100, 'Safe and compliant healthcare information.', 850, 0.00016, 'resp_health_007', 1, 2, now() - INTERVAL 7 DAY),
+('10000009-0009-0009-0009-000000000009', 'cccccccc-dddd-eeee-ffff-333333333333', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'support-healthinsurance', 'cccccccc-dddd-eeee-ffff-333333333333', 'quality', 'bbbbbbbb-1111-2222-3333-444444444444', 'Policy Status Validation', 'llm_judge', false, 0, 'Generic response without policy validation', 1150, 0.00016, 'resp_health_009', 1, 2, now() - INTERVAL 6 DAY);
 
 
 -- ==========================

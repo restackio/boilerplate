@@ -668,7 +668,6 @@ class MetricDefinition(Base):
 
     # Metadata
     is_active = Column(Boolean, nullable=False, default=True)
-    is_default = Column(Boolean, nullable=False, default=False)
     created_by = Column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),
@@ -703,3 +702,38 @@ class MetricDefinition(Base):
 
     # Relationships
     workspace = relationship("Workspace")
+    metric_agents = relationship("MetricAgent", back_populates="metric_definition", cascade="all, delete-orphan")
+
+
+class MetricAgent(Base):
+    __tablename__ = "metric_agents"
+
+    id = Column(UUID(as_uuid=True), primary_key=True)
+    metric_definition_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("metric_definitions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    parent_agent_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("agents.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    created_at = Column(
+        DateTime,
+        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+    )
+
+    # Constraints
+    __table_args__ = (
+        UniqueConstraint(
+            "metric_definition_id",
+            "parent_agent_id",
+            name="unique_metric_agent",
+        ),
+    )
+
+    # Relationships
+    metric_definition = relationship("MetricDefinition", back_populates="metric_agents")
+    parent_agent = relationship("Agent")

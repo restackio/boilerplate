@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
-import { getTaskQualityMetrics } from "@/app/actions/metrics";
+import { useRouter } from "next/navigation";
+import { getTaskMetrics } from "@/app/actions/metrics";
 import { getTaskTraces, GetTaskTracesOutput, Span } from "@/app/actions/traces";
 import { getTaskFeedback } from "@/app/actions/feedback";
 import type { FeedbackRecord } from "@/app/actions/feedback";
 import { Button } from "@workspace/ui/components/ui/button";
 import { Badge } from "@workspace/ui/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@workspace/ui/components/ui/table";
-import { CheckCircle2, XCircle, Clock, DollarSign, RefreshCw, Zap, MessageSquare, FunctionSquare, ThumbsUp, ThumbsDown, ClipboardCheck } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, DollarSign, RefreshCw, Zap, MessageSquare, FunctionSquare, ThumbsUp, ThumbsDown, ClipboardCheck, FlaskConical } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@workspace/ui/components/ui/collapsible";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { ScrollArea } from "@workspace/ui/components/ui/scroll-area";
@@ -28,6 +29,21 @@ interface TaskQualityMetric {
   messageCount?: number;
 }
 
+interface TaskPerformanceMetric {
+  metricCategory: string;
+  agentName: string;
+  agentVersion: string;
+  durationMs: number;
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number;
+  status: string;
+  createdAt: string;
+  responseId?: string;
+  responseIndex?: number;
+  messageCount?: number;
+}
+
 interface ResponseMetrics {
   responseIndex: number;
   metrics: TaskQualityMetric[];
@@ -36,11 +52,14 @@ interface ResponseMetrics {
 
 interface TaskAnalyticsTabProps {
   taskId: string;
+  agentId?: string;
 }
 
-export function TaskAnalyticsTab({ taskId }: TaskAnalyticsTabProps) {
+export function TaskAnalyticsTab({ taskId, agentId }: TaskAnalyticsTabProps) {
+  const router = useRouter();
   const { currentWorkspaceId, currentUserId } = useDatabaseWorkspace();
   const [metrics, setMetrics] = useState<TaskQualityMetric[]>([]);
+  const [performanceMetrics, setPerformanceMetrics] = useState<TaskPerformanceMetric[]>([]);
   const [tracesData, setTracesData] = useState<GetTaskTracesOutput | null>(null);
   const [feedbacks, setFeedbacks] = useState<FeedbackRecord[]>([]);
   const [loading, setLoading] = useState(false);
@@ -49,20 +68,24 @@ export function TaskAnalyticsTab({ taskId }: TaskAnalyticsTabProps) {
   async function fetchData() {
     setLoading(true);
     try {
-      const [metricsResults, tracesResults, feedbackResults] = await Promise.all([
-        getTaskQualityMetrics(taskId),
+      const [allMetrics, tracesResults, feedbackResults] = await Promise.all([
+        getTaskMetrics(taskId),
         getTaskTraces(taskId),
         getTaskFeedback(taskId),
       ]);
       
-      // Ensure metrics is always an array and typed correctly
-      const typedMetrics = (Array.isArray(metricsResults) ? metricsResults : []) as TaskQualityMetric[];
-      setMetrics(typedMetrics);
+      // Extract performance and quality metrics from the result
+      const performanceData = Array.isArray(allMetrics?.performance) ? allMetrics.performance : [];
+      const qualityData = Array.isArray(allMetrics?.quality) ? allMetrics.quality : [];
+      
+      setPerformanceMetrics(performanceData as TaskPerformanceMetric[]);
+      setMetrics(qualityData as TaskQualityMetric[]);
       setTracesData(tracesResults);
       setFeedbacks(feedbackResults);
       setLastUpdate(new Date());
     } catch (error) {
       console.error("Failed to fetch data:", error);
+      setPerformanceMetrics([]);
       setMetrics([]);
       setTracesData(null);
       setFeedbacks([]);
@@ -70,6 +93,12 @@ export function TaskAnalyticsTab({ taskId }: TaskAnalyticsTabProps) {
       setLoading(false);
     }
   }
+
+  const handleImproveInPlayground = () => {
+    if (agentId) {
+      router.push(`/playground?agentId=${agentId}`);
+    }
+  };
 
   // Auto-fetch on mount only
   useEffect(() => {
@@ -169,12 +198,64 @@ export function TaskAnalyticsTab({ taskId }: TaskAnalyticsTabProps) {
           </div>
         )}
 
+        {/* Performance Metrics Section */}
+        {performanceMetrics.length > 0 && (
+          <div className="space-y-3">
+            <h4 className="text-sm font-semibold flex items-center gap-2">
+              Performance metrics ({performanceMetrics.length})
+            </h4>
+            
+            {performanceMetrics.map((perfMetric, idx) => (
+              <div
+                key={idx}
+                className="bg-background rounded-lg border p-4 space-y-3"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">{perfMetric.agentName}</p>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Badge variant="outline" className="font-mono">
+                        {perfMetric.agentVersion}
+                      </Badge>
+                      <span>{perfMetric.status}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Duration</p>
+                    <p className="text-sm font-medium">{perfMetric.durationMs}ms</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Input Tokens</p>
+                    <p className="text-sm font-medium">{perfMetric.inputTokens.toLocaleString()}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Output Tokens</p>
+                    <p className="text-sm font-medium">{perfMetric.outputTokens.toLocaleString()}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Cost</p>
+                    <p className="text-sm font-medium">${perfMetric.costUsd.toFixed(4)}</p>
+                  </div>
+                </div>
+
+                {perfMetric.responseId && (
+                  <div className="text-xs text-muted-foreground">
+                    Response ID: {perfMetric.responseId}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Quality Metrics Section */}
         {groupedMetrics.length > 0 && (
           <div className="space-y-3">
             <h4 className="text-sm font-semibold flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4" />
-              Quality Metrics ({metrics.length})
+              Quality metrics ({metrics.length})
             </h4>
             
             {groupedMetrics.map((responseGroup, groupIdx) => (
@@ -229,6 +310,18 @@ export function TaskAnalyticsTab({ taskId }: TaskAnalyticsTabProps) {
                     </p>
                   )}
 
+                  {agentId && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleImproveInPlayground}
+                      className="w-full"
+                    >
+                      <FlaskConical className="h-3.5 w-3.5 mr-1.5" />
+                      Improve in Playground
+                    </Button>
+                  )}
+
                   <div className="flex items-center gap-3 text-xs text-muted-foreground">
                     <div className="flex items-center gap-1">
                       <Clock className="h-3 w-3" />
@@ -254,7 +347,7 @@ export function TaskAnalyticsTab({ taskId }: TaskAnalyticsTabProps) {
         {/* User Feedback Section */}
         <div className="space-y-3">
           <h4 className="text-sm font-semibold flex items-center gap-2">
-            Feedbacks {feedbacks.length > 0 && `(${feedbacks.length})`}
+            User feedbacks {feedbacks.length > 0 && `(${feedbacks.length})`}
           </h4>
           
           {feedbacks.length > 0 ? (
@@ -299,7 +392,7 @@ export function TaskAnalyticsTab({ taskId }: TaskAnalyticsTabProps) {
                       <TableCell className="text-xs text-muted-foreground">
                         #{feedback.responseIndex + 1}
                       </TableCell>
-                      <TableCell className="text-sm">
+                      <TableCell className="text-sm max-w-md whitespace-normal break-words">
                         {feedback.feedbackText || <span className="text-muted-foreground italic">No details provided</span>}
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">
@@ -315,6 +408,7 @@ export function TaskAnalyticsTab({ taskId }: TaskAnalyticsTabProps) {
                               isPositive: feedback.isPositive,
                               feedbackText: feedback.feedbackText,
                             }}
+                            defaultParentAgentIds={agentId ? [agentId] : undefined}
                             trigger={
                               <Button variant="outline" size="sm" className="h-7 px-2">
                                 <ClipboardCheck className="h-3.5 w-3.5" />

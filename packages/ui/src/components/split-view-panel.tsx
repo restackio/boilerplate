@@ -57,7 +57,7 @@ export function SplitViewPanel({
   activeTab,
   onTabChange,
   children,
-  width = "w-4/5",
+  width = "w-2/5",
   className,
   position = "right",
   headerActions,

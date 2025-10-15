@@ -105,14 +105,14 @@ def _merge_quality_metrics(
     """Merge metric definitions with actual results.
 
     Ensures all active quality metrics appear in the summary,
-    even if they have no evaluation data yet. Also enriches with metric_id and is_default.
+    even if they have no evaluation data yet. Also enriches with metric_id.
     """
     existing_summary = quality_data.get("summary", [])
 
     # Create a lookup map from definitions for enrichment
     definitions_map = {d["name"]: d for d in definitions}
 
-    # Enrich existing summary items with metric_id and is_default
+    # Enrich existing summary items with metric_id and agent info
     enriched_summary = []
     existing_names = set()
 
@@ -120,15 +120,13 @@ def _merge_quality_metrics(
         metric_name = metric["metricName"]
         existing_names.add(metric_name)
 
-        # Add metric_id, is_default, is_active, and config from definitions
+        # Add metric_id, is_active, config, and agent info from definitions
         if metric_name in definitions_map:
             definition = definitions_map[metric_name]
             metric["metricId"] = definition["id"]
-            metric["isDefault"] = definition.get(
-                "is_default", False
-            )
             metric["isActive"] = definition.get("is_active", True)
             metric["config"] = definition.get("config", {})
+            metric["parentAgentIds"] = definition.get("parent_agent_ids", [])
 
         enriched_summary.append(metric)
 
@@ -141,11 +139,9 @@ def _merge_quality_metrics(
                 {
                     "metricName": metric_name,
                     "metricId": definition["id"],
-                    "isDefault": definition.get(
-                        "is_default", False
-                    ),
                     "isActive": definition.get("is_active", True),
                     "config": definition.get("config", {}),
+                    "parentAgentIds": definition.get("parent_agent_ids", []),
                     "failRate": 0,
                     "avgScore": None,
                     "evaluationCount": 0,

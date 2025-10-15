@@ -31,9 +31,9 @@ export interface PerformanceTimeSeries {
 export interface QualitySummary {
   metricName: string;
   metricId: string;
-  isDefault: boolean;
   isActive: boolean;
   config: Record<string, unknown>;
+  parentAgentIds?: string[];
   failRate: number;
   avgScore?: number;
   evaluationCount: number;

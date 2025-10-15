@@ -162,7 +162,7 @@ export default function AnalyticsDashboard() {
                   <PerformanceMetricChart 
                     data={analyticsData?.performance?.timeseries || []}
                     metric="cost"
-                    color="purple"
+                    color="orange"
                   />
                 </CardContent>
               </Card>
@@ -178,7 +178,7 @@ export default function AnalyticsDashboard() {
               {analyticsData?.feedback?.timeseries && analyticsData.feedback.timeseries.length > 0 && (
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-base">Feedbacks</CardTitle>
+                    <CardTitle className="text-base">User feedbacks</CardTitle>
                     <div className="flex gap-1">
                       <Button
                         variant="ghost"
@@ -214,10 +214,38 @@ export default function AnalyticsDashboard() {
 
               {/* Other quality metrics */}
               {analyticsData?.quality?.summary && analyticsData.quality.summary.length > 0 && 
-                analyticsData.quality.summary.map((metric) => (
+                analyticsData.quality.summary.map((metric) => {
+                  // Find agent names and IDs for this metric
+                  const metricAgents = metric.parentAgentIds && metric.parentAgentIds.length > 0
+                    ? metric.parentAgentIds
+                        .map(agentId => {
+                          const agent = agents.find(a => a.id === agentId);
+                          return agent ? { id: agent.id, name: agent.name } : null;
+                        })
+                        .filter(Boolean) as { id: string; name: string }[]
+                    : [];
+
+                  return (
                   <Card key={metric.metricName}>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-base">{metric.metricName}</CardTitle>
+                    <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+                      <div className="flex flex-col gap-1">
+                        <CardTitle className="text-base">{metric.metricName}</CardTitle>
+                        <div className="flex flex-wrap gap-1 min-h-[20px]">
+                          {metricAgents.length > 0 ? (
+                            metricAgents.map((agent) => (
+                              <Link
+                                key={agent.id}
+                                href={`/playground?agentId=${agent.id}`}
+                                className="text-xs text-muted-foreground bg-muted hover:bg-muted/80 px-2 py-0.5 rounded transition-colors cursor-pointer"
+                              >
+                                {agent.name}
+                              </Link>
+                            ))
+                          ) : (
+                            <span className="text-xs text-transparent select-none">&nbsp;</span>
+                          )}
+                        </div>
+                      </div>
                       <div className="flex gap-1">
                         <Button
                           variant="ghost"
@@ -230,16 +258,14 @@ export default function AnalyticsDashboard() {
                             See fails
                           </Link>
                         </Button>
-                        {!metric.isDefault && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 px-2"
-                            onClick={() => handleEditMetric(metric)}
-                          >
-                            <Ellipsis className="h-4 w-4" />
-                          </Button>
-                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 px-2"
+                          onClick={() => handleEditMetric(metric)}
+                        >
+                          <Ellipsis className="h-4 w-4" />
+                        </Button>
                       </div>
                     </CardHeader>
                     <CardContent>
@@ -249,7 +275,8 @@ export default function AnalyticsDashboard() {
                       />
                     </CardContent>
                   </Card>
-                ))
+                  );
+                })
               }
             </div>
 

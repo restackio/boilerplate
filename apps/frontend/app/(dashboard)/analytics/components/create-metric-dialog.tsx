@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@workspace/ui/components/ui/button";
+import { Badge } from "@workspace/ui/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -23,8 +24,9 @@ import {
 } from "@workspace/ui/components/ui/select";
 import { Switch } from "@workspace/ui/components/ui/switch";
 import { Slider } from "@workspace/ui/components/ui/slider";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus, Loader2, X, Search } from "lucide-react";
 import { createMetricWithRetroactive } from "@/app/actions/metrics";
+import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
 
 interface CreateMetricDialogProps {
   workspaceId: string;
@@ -34,6 +36,7 @@ interface CreateMetricDialogProps {
     isPositive: boolean;
     feedbackText: string | null | undefined;
   };
+  defaultParentAgentIds?: string[];
   trigger?: React.ReactNode;
 }
 
@@ -42,6 +45,7 @@ export function CreateMetricDialog({
   userId,
   onMetricCreated,
   feedbackContext,
+  defaultParentAgentIds,
   trigger,
 }: CreateMetricDialogProps) {
   const [open, setOpen] = useState(false);
@@ -59,10 +63,29 @@ export function CreateMetricDialog({
   const [judgePrompt, setJudgePrompt] = useState("");
   const [judgeModel, setJudgeModel] = useState("gpt-5-nano");
 
+  // Python Code config
+  const [pythonCode, setPythonCode] = useState("");
+
+  // Formula config
+  const [formula, setFormula] = useState("");
+  const [formulaVariables, setFormulaVariables] = useState<string[]>([]);
+
+  // Parent agents selection
+  const [selectedParentAgentIds, setSelectedParentAgentIds] = useState<string[]>([]);
+  const [agentSearchQuery, setAgentSearchQuery] = useState("");
+  const { agents, fetchAgents } = useWorkspaceScopedActions();
+
   // Retroactive options
   const [runRetroactive, setRunRetroactive] = useState(false);
   const [retroactiveWeeks, setRetroactiveWeeks] = useState(2);
   const [samplePercentage, setSamplePercentage] = useState(10);
+
+  // Fetch agents when dialog opens
+  useEffect(() => {
+    if (open) {
+      fetchAgents({ publishedOnly: false });
+    }
+  }, [open, fetchAgents]);
 
   // Pre-fill form based on feedback context when dialog opens
   useEffect(() => {
@@ -78,7 +101,12 @@ export function CreateMetricDialog({
       setName(`feedback_${feedbackType}_check`);
       setDescription(`Metric based on ${feedbackType} user feedback`);
     }
-  }, [open, feedbackContext]);
+    
+    // Pre-fill associated agents when provided
+    if (open && defaultParentAgentIds && defaultParentAgentIds.length > 0) {
+      setSelectedParentAgentIds(defaultParentAgentIds);
+    }
+  }, [open, feedbackContext, defaultParentAgentIds]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,6 +123,16 @@ export function CreateMetricDialog({
       return;
     }
 
+    if (metricType === "python_code" && !pythonCode.trim()) {
+      setError("Python code is required for Python code metrics");
+      return;
+    }
+
+    if (metricType === "formula" && !formula.trim()) {
+      setError("Formula is required for formula metrics");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -103,6 +141,11 @@ export function CreateMetricDialog({
       if (metricType === "llm_judge") {
         config.judge_prompt = judgePrompt;
         config.judge_model = judgeModel;
+      } else if (metricType === "python_code") {
+        config.code = pythonCode;
+      } else if (metricType === "formula") {
+        config.formula = formula;
+        config.variables = formulaVariables;
       }
 
       // Calculate date range if retroactive
@@ -125,6 +168,7 @@ export function CreateMetricDialog({
         config,
         is_active: true,
         created_by: userId || undefined,
+        parent_agent_ids: selectedParentAgentIds.length > 0 ? selectedParentAgentIds : undefined,
         run_retroactive: runRetroactive,
         retroactive_date_from: retroactiveDateFrom,
         retroactive_date_to: retroactiveDateTo,
@@ -143,6 +187,8 @@ export function CreateMetricDialog({
           setName("");
           setDescription("");
           setJudgePrompt("");
+          setSelectedParentAgentIds([]);
+          setAgentSearchQuery("");
           setRunRetroactive(false);
           setRetroactiveWeeks(2);
           setSamplePercentage(10);
@@ -172,7 +218,7 @@ export function CreateMetricDialog({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>Create metric</DialogTitle>
@@ -217,6 +263,89 @@ export function CreateMetricDialog({
               />
             </div>
 
+            {/* Parent Agents Selection */}
+            <div className="space-y-2">
+              <Label>Associated agents</Label>
+              <p className="text-xs text-muted-foreground">
+                Select which agents should be evaluated. Leave empty to run for all agents.
+              </p>
+              
+              {/* Selected agents badges */}
+              {selectedParentAgentIds.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {selectedParentAgentIds.map((agentId) => {
+                    const agent = agents.find((a) => a.id === agentId);
+                    return (
+                      <Badge key={agentId} className="gap-1.5 pr-1">
+                        <span className="max-w-[200px] truncate">{agent?.name || agentId}</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-4 w-4 p-0 hover:bg-transparent"
+                          onClick={() => setSelectedParentAgentIds(selectedParentAgentIds.filter((id) => id !== agentId))}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </Badge>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Agent search and selection */}
+              <div className="space-y-2">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Search agents to add..."
+                    value={agentSearchQuery}
+                    onChange={(e) => setAgentSearchQuery(e.target.value)}
+                    className="h-8 pl-8 text-sm"
+                  />
+                </div>
+
+                {agentSearchQuery && (
+                  <div className="max-h-40 overflow-y-auto rounded-md border">
+                    {agents
+                      .filter(
+                        (agent) =>
+                          !selectedParentAgentIds.includes(agent.id) &&
+                          (agent.name.toLowerCase().includes(agentSearchQuery.toLowerCase()) ||
+                            agent.description?.toLowerCase().includes(agentSearchQuery.toLowerCase()))
+                      )
+                      .map((agent) => (
+                        <div
+                          key={agent.id}
+                          className="flex items-center justify-between p-2 hover:bg-muted cursor-pointer"
+                          onClick={() => {
+                            setSelectedParentAgentIds([...selectedParentAgentIds, agent.id]);
+                            setAgentSearchQuery("");
+                          }}
+                        >
+                          <div>
+                            <p className="text-sm font-medium">{agent.name}</p>
+                            {agent.description && (
+                              <p className="text-xs text-muted-foreground truncate max-w-xs">
+                                {agent.description}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    {agents.filter(
+                      (agent) =>
+                        !selectedParentAgentIds.includes(agent.id) &&
+                        (agent.name.toLowerCase().includes(agentSearchQuery.toLowerCase()) ||
+                          agent.description?.toLowerCase().includes(agentSearchQuery.toLowerCase()))
+                    ).length === 0 && (
+                      <p className="p-2 text-sm text-muted-foreground">No agents found</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
             {/* Metric Type */}
             <div className="space-y-2">
               <Label htmlFor="type">Type</Label>
@@ -226,44 +355,113 @@ export function CreateMetricDialog({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="llm_judge">LLM as judge</SelectItem>
-                  <SelectItem aria-disabled={true} value="python_code" disabled>Python Code</SelectItem>
-                  <SelectItem aria-disabled={true} value="formula" disabled>Formula</SelectItem>
+                  <SelectItem value="python_code">Python Code</SelectItem>
+                  <SelectItem value="formula">Formula</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            {metricType === "llm_judge" && (
+              <div className="space-y-2">
+                <Label htmlFor="judgeModel">Model</Label>
+                <Select value={judgeModel} onValueChange={setJudgeModel}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="gpt-5-nano">GPT-5 Nano</SelectItem>
+                    <SelectItem value="gpt-5-mini">GPT-5 Mini</SelectItem>
+                    <SelectItem value="gpt-5">GPT-5</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             </div>
 
             {/* LLM Judge Config */}
             {metricType === "llm_judge" && (
-              <>
+              <div className="space-y-2">
+                <Label htmlFor="judgePrompt">Prompt</Label>
+                <Textarea
+                  id="judgePrompt"
+                  placeholder={'Example:\n"Evaluate if this response is helpful and answers the user\'s question clearly. Consider accuracy, completeness, and tone.\n\nReturn JSON: {"passed": true/false, "score": 0-100, "reasoning": "..."}'}
+                  value={judgePrompt}
+                  onChange={(e) => setJudgePrompt(e.target.value)}
+                  rows={6}
+                  required
+                />
+                <p className="text-xs text-muted-foreground">
+                  LLM will receive the task input and output, and evaluate based on your prompt.
+                </p>
+              </div>
+            )}
+
+            {/* Python Code Config */}
+            {metricType === "python_code" && (
+              <div className="space-y-2">
+                <Label htmlFor="pythonCode">Python Code</Label>
+                <Textarea
+                  id="pythonCode"
+                  placeholder={'def evaluate(task_input, task_output, performance):\n    # Your evaluation logic here\n    # Available variables:\n    # - task_input: str\n    # - task_output: str\n    # - performance: dict with duration_ms, input_tokens, output_tokens, status\n    \n    # Return boolean or dict:\n    return {\n        "passed": True,\n        "score": 85.0,  # optional\n        "reasoning": "Response meets criteria"  # optional\n    }'}
+                  value={pythonCode}
+                  onChange={(e) => setPythonCode(e.target.value)}
+                  rows={12}
+                  className="font-mono text-sm"
+                  required
+                />
+                <p className="text-xs text-muted-foreground">
+                  Define an <code className="bg-muted px-1 rounded">evaluate(task_input, task_output, performance)</code> function. 
+                  Return a boolean or dict with <code className="bg-muted px-1 rounded">passed</code>, <code className="bg-muted px-1 rounded">score</code>, and <code className="bg-muted px-1 rounded">reasoning</code>.
+                </p>
+              </div>
+            )}
+
+            {/* Formula Config */}
+            {metricType === "formula" && (
+              <div className="space-y-3">
                 <div className="space-y-2">
-                  <Label htmlFor="judgePrompt">Prompt</Label>
-                  <Textarea
-                    id="judgePrompt"
-                    placeholder={'Example:\n"Evaluate if this response is helpful and answers the user\'s question clearly. Consider accuracy, completeness, and tone.\n\nReturn JSON: {"passed": true/false, "score": 0-100, "reasoning": "..."}'}
-                    value={judgePrompt}
-                    onChange={(e) => setJudgePrompt(e.target.value)}
-                    rows={6}
+                  <Label htmlFor="formula">Formula</Label>
+                  <Input
+                    id="formula"
+                    placeholder="duration_ms < 1000 and input_tokens < 2000"
+                    value={formula}
+                    onChange={(e) => setFormula(e.target.value)}
+                    className="font-mono text-sm"
                     required
                   />
                   <p className="text-xs text-muted-foreground">
-                    LLM will receive the task input and output, and evaluate based on your prompt.
+                    Boolean expression using performance variables. Available: <code className="bg-muted px-1 rounded">duration_ms</code>, <code className="bg-muted px-1 rounded">input_tokens</code>, <code className="bg-muted px-1 rounded">output_tokens</code>, <code className="bg-muted px-1 rounded">cost_usd</code>
                   </p>
                 </div>
-
+                
                 <div className="space-y-2">
-                  <Label htmlFor="judgeModel">Model</Label>
-                  <Select value={judgeModel} onValueChange={setJudgeModel}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="gpt-5-nano">GPT-5 Nano</SelectItem>
-                      <SelectItem value="gpt-5-mini">GPT-5 Mini</SelectItem>
-                      <SelectItem value="gpt-5">GPT-5</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="formulaVariables">Variables</Label>
+                  <div className="flex gap-2 flex-wrap">
+                    {["duration_ms", "input_tokens", "output_tokens", "cost_usd"].map((variable) => {
+                      const isSelected = formulaVariables.includes(variable);
+                      const variant = isSelected ? "default" : "outline";
+                      return (
+                        <Badge
+                          key={variable}
+                          variant={variant as "default" | "secondary" | "destructive" | "outline"}
+                          className="cursor-pointer"
+                          onClick={() => {
+                            setFormulaVariables((prev) =>
+                              prev.includes(variable)
+                                ? prev.filter((v) => v !== variable)
+                                : [...prev, variable]
+                            );
+                          }}
+                        >
+                          {variable}
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Select which performance variables your formula uses
+                  </p>
                 </div>
-              </>
+              </div>
             )}
 
             {/* Retroactive evaluation section */}

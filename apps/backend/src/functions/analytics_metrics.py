@@ -331,7 +331,6 @@ async def _get_quality_metrics(
             metric_defs_lookup = {
                 metric_def.name: {
                     "metricId": str(metric_def.id),
-                    "isDefault": False,  # Custom metrics from DB are not default
                     "isActive": metric_def.is_active,
                     "config": metric_def.config or {},
                 }
@@ -357,7 +356,6 @@ async def _get_quality_metrics(
             metric_name,
             {
                 "metricId": "",
-                "isDefault": True,  # If not in DB, assume it's a default metric
                 "isActive": True,
                 "config": {},
             },
@@ -367,7 +365,6 @@ async def _get_quality_metrics(
             {
                 "metricName": metric_name,
                 "metricId": metric_metadata["metricId"],
-                "isDefault": metric_metadata["isDefault"],
                 "isActive": metric_metadata["isActive"],
                 "config": metric_metadata["config"],
                 "failRate": round(data["failRate"] / count, 3)

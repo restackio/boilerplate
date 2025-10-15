@@ -193,7 +193,7 @@ export function TaskSplitView({
     {
       id: "analytics",
       label: "Analytics",
-      content: <TaskAnalyticsTab taskId={task.id} />,
+      content: <TaskAnalyticsTab taskId={task.id} agentId={task.agent_id} />,
     },
     {
       id: "info",
@@ -215,7 +215,7 @@ export function TaskSplitView({
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={onActiveTabChange}
-      width="w-4/5"
+      width="w-2/5"
       className="bg-muted"
     />
   );

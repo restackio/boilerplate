@@ -141,6 +141,7 @@ class AgentTask:
         self.temporal_parent_agent_id = (
             None  # Temporal workflow ID for sending events
         )
+        self.response_in_progress = False  # Track if currently responding
 
     def _format_todos_for_llm(
         self,
@@ -194,6 +195,7 @@ class AgentTask:
             "task_id": self.task_id,
             "temporal_agent_id": agent_info().workflow_id,
             "last_response_id": self.last_response_id,
+            "response_in_progress": self.response_in_progress,
             "initialized": self.initialized,
         }
 
@@ -207,7 +209,7 @@ class AgentTask:
                 timeout=timedelta(seconds=60),
             )
 
-            # Store messages for OpenAI API call
+            # Store messages for OpenAI API call (so frontend sees them immediately)
             self.messages.extend(messages_event.messages)
 
             # Process each user message individually to maintain conversation continuity
@@ -233,6 +235,17 @@ class AgentTask:
                     self.events.append(user_event)
 
                 try:
+                    # Wait for any in-progress response to complete before starting new one
+                    # This ensures last_response_id is fully committed before we use it
+                    if self.response_in_progress:
+                        await agent.condition(
+                            lambda: not self.response_in_progress,
+                            timeout=timedelta(minutes=10),
+                        )
+                    
+                    # Mark response as in progress
+                    self.response_in_progress = True
+                    
                     # Step 1: prepare request for OpenAI (using current last_response_id for continuity)
                     prepared: LlmResponseInput = await agent.step(
                         function=llm_prepare_response,
@@ -265,6 +278,9 @@ class AgentTask:
                         ),
                     )
                 except Exception as e:
+
+                    self.response_in_progress = False
+                    
                     error_message = (
                         f"Error during llm_response_stream: {e}"
                     )
@@ -283,7 +299,12 @@ class AgentTask:
                         log.info("TODO: save in db")
 
         except Exception as e:
-            log.error(f"Error during message event: {e}")
+            # Reset response_in_progress flag on error
+            self.response_in_progress = False
+            log.error(
+                f"Error during message event: {e}. "
+                f"Setting response_in_progress=False"
+            )
 
             # Create error event for frontend display
             error_event = create_agent_error_event(
@@ -849,6 +870,7 @@ class AgentTask:
             ):
                 response = event_data["response"]
                 response_id = response.get("id")
+                self.response_in_progress = False
                 assistant_content = (
                     self._extract_assistant_content(response)
                 )
