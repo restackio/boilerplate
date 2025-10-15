@@ -43,7 +43,7 @@ export function SignupForm({
         return;
       }
 
-      const workspace = workspaceData.data;
+      const { workspace } = workspaceData.data;
 
       // Create the user with the temporary workspace
       const workflowResult = await executeWorkflow("UserSignupWorkflow", {
@@ -53,9 +53,9 @@ export function SignupForm({
         password,
       });
 
-      if (workflowResult && workflowResult.success && workflowResult.data) {
+      if (workflowResult && workflowResult.success && workflowResult.data && workflowResult.data.user) {
         // Store user info in localStorage
-        localStorage.setItem("currentUser", JSON.stringify(workflowResult.data));
+        localStorage.setItem("currentUser", JSON.stringify(workflowResult.data.user));
         // Redirect to workspace creation page
         router.push("/workspace/create");
       } else {
