@@ -239,7 +239,7 @@ export function useRxjsConversation({
       if (streamEvents.length > 0) {
         conversationStore.updateStreamEvents(streamEvents);
       }
-    } catch (err) {
+    } catch {
       conversationStore.updateStreamEvents([]);
     }
   }, [agentResponses, conversationStore]);

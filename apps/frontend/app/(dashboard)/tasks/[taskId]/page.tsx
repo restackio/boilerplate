@@ -38,7 +38,6 @@ function TaskDetailContent({ task }: { task: Task }) {
     setActiveTab,
     handleUpdateTask,
     handleDeleteTask,
-    handleBack,
     handleSendMessage,
     handleCardClick,
     handleCloseSplitView,

@@ -114,9 +114,8 @@ export class ConversationStore {
   private mergeConversation(stateItems: ConversationItem[], streamEvents: StreamEvent[]): ConversationItem[] {
     if (streamEvents.length === 0) return stateItems;
     
-    const existingIds = new Set(stateItems.map(item => item.id));
     for (const event of streamEvents) {
-      this.processEvent(event, existingIds);
+      this.processEvent(event);
     }
     
     for (const stateItem of stateItems) {
@@ -156,7 +155,7 @@ export class ConversationStore {
     return mergedItems;
   }
 
-  private processEvent(event: StreamEvent, existingIds: Set<string>): void {
+  private processEvent(event: StreamEvent): void {
     // Handle error events specially
     if (event.type === "error" && event.error) {
       const errorId = event.error.id;

@@ -46,7 +46,7 @@ interface UseAgentStateReturn {
   stopAgent: () => Promise<void>;
 }
 
-export function useAgentState({ taskId, agentTaskId, runId, taskStatus }: UseAgentStateProps): UseAgentStateReturn {
+export function useAgentState({ agentTaskId, runId, taskStatus }: UseAgentStateProps): UseAgentStateReturn {
   const [error, setError] = useState<string | null>(null);
   const [currentResponseState, setCurrentResponseState] = useState<unknown>(null);
   
@@ -115,7 +115,7 @@ export function useAgentState({ taskId, agentTaskId, runId, taskStatus }: UseAge
     options: stateOptions,
   });
 
-  const handleResponseMessage = useCallback((data: unknown) => {
+  const handleResponseMessage = useCallback(() => {
     // Streaming data handled by Restack SDK
   }, []);
 

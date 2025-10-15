@@ -6,7 +6,6 @@ import { TasksTable, type Task as UITask } from "../tasks/components/tasks-table
 import { ErrorNotification } from "@workspace/ui/components";
 import { useWorkspaceScopedActions, type Task as HookTask } from "@/hooks/use-workspace-scoped-actions";
 import { CreateTaskForm } from "../tasks/components/create-task-form";
-import { DashboardSkeleton } from "./components/dashboard-skeleton";
 import { RefreshCw } from "lucide-react";
 
 function convertHookTaskToUITask(hookTask: HookTask): UITask {
