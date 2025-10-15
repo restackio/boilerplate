@@ -275,12 +275,26 @@ async def _send_critical_error_to_agent(
 def _finalize_response_span(
     span: Any, final_response: Any
 ) -> None:
-    """Set final response on span for tracing."""
+    """Set final response on span for tracing and add response_id to metadata."""
     if span and final_response:
         try:
             if hasattr(span, "span_data"):
                 span.span_data.response = final_response
-                log.info("Set final Response object on span")
+                # Add response_id to span metadata for queryability
+                if (
+                    hasattr(final_response, "id")
+                    and final_response.id
+                ):
+                    if not hasattr(span.span_data, "metadata"):
+                        span.span_data.metadata = {}
+                    span.span_data.metadata["response_id"] = (
+                        final_response.id
+                    )
+                    log.info(
+                        f"Set Response object and response_id={final_response.id} on span"
+                    )
+                else:
+                    log.info("Set final Response object on span")
         except (
             ValueError,
             TypeError,
@@ -385,6 +399,9 @@ def _initialize_tracing(
                 "temporal_run_id": temporal_run_id,
                 "task_id": function_input.task_id,
                 "agent_id": function_input.agent_id,
+                "agent_name": function_input.agent_name
+                if hasattr(function_input, "agent_name")
+                else None,
                 "workspace_id": function_input.workspace_id,
             },
         )

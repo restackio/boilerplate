@@ -126,7 +126,9 @@ def _merge_quality_metrics(
             metric["metricId"] = definition["id"]
             metric["isActive"] = definition.get("is_active", True)
             metric["config"] = definition.get("config", {})
-            metric["parentAgentIds"] = definition.get("parent_agent_ids", [])
+            metric["parentAgentIds"] = definition.get(
+                "parent_agent_ids", []
+            )
 
         enriched_summary.append(metric)
 
@@ -141,7 +143,9 @@ def _merge_quality_metrics(
                     "metricId": definition["id"],
                     "isActive": definition.get("is_active", True),
                     "config": definition.get("config", {}),
-                    "parentAgentIds": definition.get("parent_agent_ids", []),
+                    "parentAgentIds": definition.get(
+                        "parent_agent_ids", []
+                    ),
                     "failRate": 0,
                     "avgScore": None,
                     "evaluationCount": 0,

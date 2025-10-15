@@ -702,7 +702,11 @@ class MetricDefinition(Base):
 
     # Relationships
     workspace = relationship("Workspace")
-    metric_agents = relationship("MetricAgent", back_populates="metric_definition", cascade="all, delete-orphan")
+    metric_agents = relationship(
+        "MetricAgent",
+        back_populates="metric_definition",
+        cascade="all, delete-orphan",
+    )
 
 
 class MetricAgent(Base):
@@ -735,5 +739,7 @@ class MetricAgent(Base):
     )
 
     # Relationships
-    metric_definition = relationship("MetricDefinition", back_populates="metric_agents")
+    metric_definition = relationship(
+        "MetricDefinition", back_populates="metric_agents"
+    )
     parent_agent = relationship("Agent")

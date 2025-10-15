@@ -171,7 +171,7 @@ class RetroactiveMetrics:
         )
         return None
 
-    async def _process_batch(
+    async def _process_batch(  # noqa: C901
         self,
         workflow_input: RetroactiveMetricsInput,
         metric_def: dict,
@@ -211,12 +211,18 @@ class RetroactiveMetrics:
                 continue
 
             # Filter by parent agent if metric has associated agents
-            parent_agent_ids = metric_def.get("parent_agent_ids", [])
+            parent_agent_ids = metric_def.get(
+                "parent_agent_ids", []
+            )
             if parent_agent_ids:
                 # Get the agent's parent_agent_id from span
                 span_parent_agent_id = span.get("parent_agent_id")
                 # Skip if span's parent agent doesn't match metric's agents
-                if not span_parent_agent_id or span_parent_agent_id not in parent_agent_ids:
+                if (
+                    not span_parent_agent_id
+                    or span_parent_agent_id
+                    not in parent_agent_ids
+                ):
                     continue
 
             processed_count += 1

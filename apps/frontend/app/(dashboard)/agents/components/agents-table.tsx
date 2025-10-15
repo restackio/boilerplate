@@ -283,7 +283,7 @@ export function AgentsTable({
                                 </button>
                               </TooltipTrigger>
                               <TooltipContent>
-                                <p>Latest Draft Version: {agent.latest_draft_version_short}</p>
+                                <p>Latest draft version: {agent.latest_draft_version_short}</p>
                                 <p className="text-xs">ID: {agent.latest_draft_version_id}</p>
                               </TooltipContent>
                             </Tooltip>

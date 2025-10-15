@@ -187,7 +187,7 @@ export default function PlaygroundPage() {
         <PlaygroundMiddlePanel
           agent={draftAgent}
           taskId={leftTaskId}
-          title="Draft Version"
+          title="Draft version"
           taskDescription={taskDescription}
           onTaskDescriptionChange={setTaskDescription}
           onCreateTasks={handleCreateTasks}
@@ -203,7 +203,7 @@ export default function PlaygroundPage() {
           taskId={rightTaskId}
           availableAgents={availableAgents.filter(a => a.status === "published" || a.status === "draft")}
           onAgentChange={handleComparisonAgentChange}
-          title="Comparison Version"
+          title="Compare to"
           isLeftPanelCollapsed={isLeftPanelCollapsed}
         />
       </div>

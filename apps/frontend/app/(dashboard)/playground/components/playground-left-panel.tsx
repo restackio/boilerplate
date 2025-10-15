@@ -97,7 +97,7 @@ export function PlaygroundLeftPanel({
     <CollapsiblePanel
       isCollapsed={isCollapsed}
       onToggleCollapse={onToggleCollapse}
-      title="Agent Configuration"
+      title="Configuration"
       tabs={tabs}
       expandedWidth="w-1/3"
       collapsedWidth="w-12"

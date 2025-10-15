@@ -34,7 +34,7 @@ export function PlaygroundMiddlePanel({
 }: PlaygroundMiddlePanelProps) {
   return (
     <div className={`${isLeftPanelCollapsed ? 'w-1/2' : 'w-1/3'} border-r flex flex-col transition-all duration-300`}>
-      <div className="p-4 border-b bg-background">
+      <div className="p-4 border-b bg-background h-14">
         <div className="flex items-center justify-between">
           <h2 className="font-semibold">{title}</h2>
           {taskId && (
@@ -51,7 +51,7 @@ export function PlaygroundMiddlePanel({
         </div>
       </div>
 
-      <div className="flex-1 p-4 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden">
         {!taskId ? (
           <div className="space-y-4">
             <Card>

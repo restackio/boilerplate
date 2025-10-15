@@ -35,7 +35,8 @@ from src.functions.mock_samples.zendesk_ticket import (
 
 
 def json_to_schema(  # noqa: PLR0911
-    obj: Any, name: str = "Response"  # noqa: ARG001
+    obj: Any,
+    name: str = "Response",  # noqa: ARG001
 ) -> dict[str, Any]:
     """Convert a sample JSON object to a JSON schema for structured outputs."""
     if isinstance(obj, dict):

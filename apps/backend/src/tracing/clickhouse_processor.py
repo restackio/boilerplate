@@ -37,7 +37,7 @@ class ClickHouseTracingProcessor:
         )
         self._flush_thread.start()
         log.info(
-            f"ClickHouse processor: batch={batch_size}, interval={flush_interval_sec}s"
+            f"[Tracing] Initialized: batch={batch_size}, interval={flush_interval_sec}s"
         )
 
     def on_trace_start(self, trace: Any) -> None:
@@ -83,7 +83,9 @@ class ClickHouseTracingProcessor:
                 )
             except Exception as e:  # noqa: BLE001
                 # Catch all exceptions to prevent background thread crash
-                log.error(f"Flush error in event loop: {e}")
+                log.error(
+                    f"[Tracing] Flush error in event loop: {e}"
+                )
 
         # Cleanup loop on shutdown
         self._loop.close()
@@ -98,12 +100,35 @@ class ClickHouseTracingProcessor:
         else:
             # Fallback for synchronous calls (shutdown, force_flush)
             try:
-                asyncio.run(self._flush_buffer_async())
+                # Try to get existing loop first
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    # Loop is running in another thread, schedule the flush
+                    asyncio.run_coroutine_threadsafe(
+                        self._flush_buffer_async(), loop
+                    )
+                else:
+                    # Loop exists but not running, we can use it
+                    loop.run_until_complete(
+                        self._flush_buffer_async()
+                    )
             except RuntimeError:
-                # If no event loop available, fall back to sync (should rarely happen)
-                log.warning(
-                    "No event loop available, skipping flush"
-                )
+                # No event loop at all, create a new one
+                try:
+                    new_loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(new_loop)
+                    try:
+                        new_loop.run_until_complete(
+                            self._flush_buffer_async()
+                        )
+                    finally:
+                        new_loop.close()
+                        asyncio.set_event_loop(None)
+                except Exception as e:  # noqa: BLE001
+                    # Catch all exceptions during cleanup to avoid crashing the application
+                    log.warning(
+                        f"[Tracing] Failed to flush traces: {e}"
+                    )
 
     async def _flush_buffer_async(self) -> None:
         """Async flush implementation."""
@@ -156,7 +181,9 @@ class ClickHouseTracingProcessor:
                         "ended_at",
                     ],
                 )
-                log.info(f"Flushed {len(rows)} spans (async)")
+                log.info(
+                    f"[Tracing] Flushed {len(rows)} spans to ClickHouse"
+                )
         except (
             ValueError,
             TypeError,
@@ -164,7 +191,7 @@ class ClickHouseTracingProcessor:
             OSError,
             AttributeError,
         ) as e:
-            log.error(f"Async flush error: {e}")
+            log.error(f"[Tracing] Async flush error: {e}")
 
     def _calculate_duration_ms(self, span: Any) -> int:
         """Calculate span duration in milliseconds."""
@@ -190,7 +217,9 @@ class ClickHouseTracingProcessor:
             AttributeError,
             KeyError,
         ) as e:
-            log.debug("Failed to parse span duration: %s", e)
+            log.debug(
+                "[Tracing] Failed to parse span duration: %s", e
+            )
         return 0
 
     def _export_span_data(self, span: Any) -> dict:
@@ -224,7 +253,7 @@ class ClickHouseTracingProcessor:
             return inp, out, model
 
         log.info(
-            f"Processing response span - has response: {hasattr(span.span_data, 'response')}, "
+            f"[Tracing] Processing response span - has response: {hasattr(span.span_data, 'response')}, "
             f"response is None: {not getattr(span.span_data, 'response', None)}"
         )
 
@@ -238,7 +267,9 @@ class ClickHouseTracingProcessor:
                 if span.span_data.input
                 else ""
             )
-            log.info(f"Extracted input: {len(inp)} chars")
+            log.info(
+                f"[Tracing] Extracted input: {len(inp)} chars"
+            )
 
         # Extract output and model from Response object
         if span.span_data.response:
@@ -311,12 +342,17 @@ class ClickHouseTracingProcessor:
     def _extract_trace_metadata(
         self,
     ) -> tuple[
-        str | None, str | None, str | None, str | None, str | None
+        str | None,
+        str | None,
+        str | None,
+        str | None,
+        str | None,
+        str | None,
     ]:
         """Extract business IDs from trace.
 
         Returns:
-            Tuple of (task_id, agent_id, workspace_id, temporal_agent_id, temporal_run_id)
+            Tuple of (task_id, agent_id, agent_name, workspace_id, temporal_agent_id, temporal_run_id)
         """
         try:
             from agents.tracing import get_current_trace
@@ -326,6 +362,7 @@ class ClickHouseTracingProcessor:
                 return (
                     t.metadata.get("task_id"),
                     t.metadata.get("agent_id"),
+                    t.metadata.get("agent_name"),
                     t.metadata.get("workspace_id"),
                     t.metadata.get("temporal_agent_id"),
                     t.metadata.get("temporal_run_id"),
@@ -336,9 +373,12 @@ class ClickHouseTracingProcessor:
             AttributeError,
             KeyError,
         ) as e:
-            log.debug("Failed to extract trace metadata: %s", e)
+            log.debug(
+                "[Tracing] Failed to extract trace metadata: %s",
+                e,
+            )
 
-        return None, None, None, None, None
+        return None, None, None, None, None, None
 
     def _span_to_row(self, span: Any) -> list[Any] | None:
         """Convert span using SDK's .export() - DRY."""
@@ -400,6 +440,7 @@ class ClickHouseTracingProcessor:
         (
             task_id,
             agent_id,
+            agent_name,
             workspace_id,
             temporal_agent_id,
             temporal_run_id,
@@ -422,7 +463,7 @@ class ClickHouseTracingProcessor:
             str(span.parent_id) if span.parent_id else None,
             task_id,
             agent_id,
-            None,
+            agent_name,
             workspace_id,
             "v1",
             temporal_agent_id,

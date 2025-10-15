@@ -13,9 +13,7 @@ import {
   EntityNotFoundState,
 } from "@workspace/ui/components";
 import { EmptyState } from "@workspace/ui/components/empty-state";
-import { SplitViewPanel } from "@workspace/ui/components/split-view-panel";
 import { TaskMetrics } from "./task-metrics";
-import { PlaygroundTraces } from "./playground-traces";
 
 interface PlaygroundTaskExecutionProps {
   taskId: string | null;
@@ -36,12 +34,19 @@ function PlaygroundTaskContent({
   className: string;
 }) {
   const [chatMessage, setChatMessage] = useState("");
-  const [showTracesSplit, setShowTracesSplit] = useState(false);
+  const [localTask, setLocalTask] = useState<Task>(task);
+  
+  const { updateTask } = useWorkspaceScopedActions();
+
+  // Sync local task with prop changes
+  useEffect(() => {
+    setLocalTask(task);
+  }, [task]);
 
   const { responseState, agentResponses, loading: agentLoading, sendMessageToAgent } = useAgentState({
     taskId,
     agentTaskId: task.temporal_agent_id,
-    taskStatus: task.status,
+    taskStatus: localTask.status,
   });
 
   const { conversation, updateConversationItemStatus } = useRxjsConversation({
@@ -100,9 +105,31 @@ function PlaygroundTaskContent({
     console.log("Card clicked:", item);
   };
 
+  const handleUpdateTask = async (updates: Partial<Task>) => {
+    try {
+      const result = await updateTask(taskId, {
+        title: localTask.title || "Untitled Task",
+        description: localTask.description || "",
+        status: localTask.status || "in_progress",
+        agent_id: localTask.agent_id || "",
+        assigned_to_id: localTask.assigned_to_id || "",
+        ...updates,
+      });
+      
+      if (result.success && result.data) {
+        setLocalTask(result.data);
+      } else {
+        throw new Error(result.error || "Failed to update task");
+      }
+    } catch (error) {
+      console.error("Failed to update task:", error);
+      throw error;
+    }
+  };
+
   return (
-    <div className={`flex ${showTracesSplit ? 'h-full' : 'flex-col h-full'} ${className}`}>
-      <div className={`flex flex-col ${showTracesSplit ? 'flex-1 min-w-0' : 'h-full'}`}>
+    <div className={`flex flex-col h-full ${className}`}>
+      <div className="flex flex-col h-full">
         <div className="p-3 border-b bg-muted/20">
           <div className="flex items-center gap-2">
             <div className="h-2 w-2 rounded-full bg-green-500" />
@@ -113,8 +140,8 @@ function PlaygroundTaskContent({
           </div>
         </div>
 
-        <div className="flex-1 min-h-0 flex flex-col gap-4">
-          <div className="flex-1 min-h-0">
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+          <div className="flex-1 min-h-0 overflow-y-auto">
             <TaskChatInterface
               conversation={conversation}
               chatMessage={chatMessage}
@@ -124,27 +151,19 @@ function PlaygroundTaskContent({
               onApproveRequest={handleApproveRequest}
               onDenyRequest={handleDenyRequest}
               agentLoading={agentLoading}
-              showSplitView={showTracesSplit}
+              showSplitView={false}
             />
           </div>
           
-          <div className="flex-shrink-0 px-4 pb-4">
+          <div className="flex-shrink-0 px-4 py-2 max-h-[40vh] overflow-y-auto">
             <TaskMetrics 
               taskId={taskId}
-              onViewTraces={() => setShowTracesSplit(true)}
+              task={localTask}
+              onUpdateTask={handleUpdateTask}
             />
           </div>
         </div>
       </div>
-
-      <SplitViewPanel
-        isOpen={showTracesSplit}
-        onClose={() => setShowTracesSplit(false)}
-        width="w-2/5"
-        position="right"
-      >
-        <PlaygroundTraces taskId={taskId} />
-      </SplitViewPanel>
     </div>
   );
 }

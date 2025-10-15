@@ -328,22 +328,28 @@ class TaskMetricsWorkflow:
                 log.info("No active metrics found for workspace")
                 return (quality_results, errors)
 
-            # Filter metrics by parent agent
-            # Include metrics with no agents (global) OR metrics associated with this agent's parent
+            # Filter metrics by agent
+            # Include metrics with no agents (global) OR metrics associated with this agent or its parent
             filtered_metrics = []
             for metric in metrics:
-                parent_agent_ids = metric.get("parent_agent_ids", [])
-                
+                parent_agent_ids = metric.get(
+                    "parent_agent_ids", []
+                )
+
                 # If metric has no associated agents, it's global - include it
-                if not parent_agent_ids:
+                if not parent_agent_ids or (
+                    workflow_input.agent_id in parent_agent_ids
+                    or (
+                        workflow_input.parent_agent_id
+                        and workflow_input.parent_agent_id
+                        in parent_agent_ids
+                    )
+                ):
                     filtered_metrics.append(metric)
-                # If metric has associated agents, check if current agent's parent matches
-                elif workflow_input.parent_agent_id and workflow_input.parent_agent_id in parent_agent_ids:
-                    filtered_metrics.append(metric)
-            
+
             if not filtered_metrics:
                 log.info(
-                    f"No metrics match agent {workflow_input.agent_name} (parent: {workflow_input.parent_agent_id})"
+                    f"No metrics match agent {workflow_input.agent_name} (id: {workflow_input.agent_id}, parent: {workflow_input.parent_agent_id})"
                 )
                 return (quality_results, errors)
 

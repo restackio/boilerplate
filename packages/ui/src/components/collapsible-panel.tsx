@@ -130,11 +130,11 @@ export function CollapsiblePanel({
     >
       {/* Header */}
       <div className={cn(
-        "flex items-center justify-between p-4",
+        "flex items-center justify-between px-3 py-4 h-14",
         showBorder && "border-b bg-background"
       )}>
         {!isCollapsed && (
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 pl-1">
             {title && (
               <h2 className="font-semibold truncate">{title}</h2>
             )}

@@ -1,21 +1,49 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ChevronDown, ChevronRight, Activity, CheckCircle2, XCircle, Clock, DollarSign, BarChart3 } from "lucide-react";
+import { CheckCircle2, XCircle, CircleCheck, CircleX, RefreshCw, Zap } from "lucide-react";
 import { Button } from "@workspace/ui/components/ui/button";
 import { Badge } from "@workspace/ui/components/ui/badge";
-import { getTaskQualityMetrics, type QualityMetricResult } from "@/app/actions/metrics";
+import { getTaskMetrics } from "@/app/actions/metrics";
+import { Task } from "@/hooks/use-workspace-scoped-actions";
 
 interface TaskMetricsProps {
   taskId: string;
-  onViewTraces?: () => void;
+  task?: Task;
+  onUpdateTask?: (updates: Partial<Task>) => Promise<void>;
 }
 
-export function TaskMetrics({ taskId, onViewTraces }: TaskMetricsProps) {
-  const [isExpanded, setIsExpanded] = useState(true);
-  const [metrics, setMetrics] = useState<QualityMetricResult[]>([]);
+interface QualityMetric {
+  metricName: string;
+  metricType: string;
+  passed: boolean;
+  score?: number;
+  reasoning?: string;
+  evalDurationMs: number;
+  evalCostUsd: number;
+  metricCategory: "quality";
+  responseIndex?: number;
+}
+
+interface PerformanceMetric {
+  responseId: string;
+  responseIndex: number;
+  durationMs: number;
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number;
+  status: string;
+  metricCategory: "performance";
+}
+
+type Metric = QualityMetric | PerformanceMetric;
+
+export function TaskMetrics({ taskId, task, onUpdateTask }: TaskMetricsProps) {
+  const [metrics, setMetrics] = useState<Metric[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     if (!hasLoaded) {
@@ -27,9 +55,12 @@ export function TaskMetrics({ taskId, onViewTraces }: TaskMetricsProps) {
   async function fetchMetrics() {
     setLoading(true);
     try {
-      const results = await getTaskQualityMetrics(taskId);
-      const typedResults = (Array.isArray(results) ? results : []) as QualityMetricResult[];
-      setMetrics(typedResults);
+      const results = await getTaskMetrics(taskId);
+      const combined = [
+        ...(Array.isArray(results.performance) ? results.performance : []),
+        ...(Array.isArray(results.quality) ? results.quality : [])
+      ] as Metric[];
+      setMetrics(combined);
       setHasLoaded(true);
     } catch (error) {
       console.error("Failed to fetch metrics:", error);
@@ -39,159 +70,184 @@ export function TaskMetrics({ taskId, onViewTraces }: TaskMetricsProps) {
     }
   }
 
-  if (loading && !hasLoaded) {
-    return (
-      <div className="max-w-4xl mx-auto border border-border/40 bg-muted/25 p-3 rounded-lg">
-        <div className="text-sm text-muted-foreground">Loading metrics...</div>
-      </div>
-    );
-  }
-
-  if (!hasLoaded || metrics.length === 0) {
-    return null;
-  }
-
-  // Calculate summary stats
-  const totalPassed = metrics.filter(m => m.passed).length;
-  const overallPassRate = (totalPassed / metrics.length) * 100;
-  const totalCost = metrics.reduce((sum, m) => sum + m.evalCostUsd, 0);
-  const totalDuration = metrics.reduce((sum, m) => sum + m.evalDurationMs, 0);
-
-  // Group by response index
-  const metricsByResponse = metrics.reduce((acc, metric) => {
-    const key = metric.responseIndex ?? 0;
-    if (!acc[key]) {
-      acc[key] = [];
+  async function handleRefresh() {
+    setIsRefreshing(true);
+    try {
+      const results = await getTaskMetrics(taskId);
+      const combined = [
+        ...(Array.isArray(results.performance) ? results.performance : []),
+        ...(Array.isArray(results.quality) ? results.quality : [])
+      ] as Metric[];
+      setMetrics(combined);
+    } catch (error) {
+      console.error("Failed to refresh metrics:", error);
+    } finally {
+      setIsRefreshing(false);
     }
-    acc[key].push(metric);
-    return acc;
-  }, {} as Record<number, QualityMetricResult[]>);
+  }
 
-  const responseCount = Object.keys(metricsByResponse).length;
+  async function handleMarkAsCompleted() {
+    if (!onUpdateTask || !task) return;
+    
+    setIsUpdating(true);
+    try {
+      await onUpdateTask({ status: "completed" });
+    } catch (error) {
+      console.error("Failed to mark task as completed:", error);
+    } finally {
+      setIsUpdating(false);
+    }
+  }
+
+  async function handleMarkAsFailed() {
+    if (!onUpdateTask || !task) return;
+    
+    setIsUpdating(true);
+    try {
+      await onUpdateTask({ status: "failed" });
+    } catch (error) {
+      console.error("Failed to mark task as failed:", error);
+    } finally {
+      setIsUpdating(false);
+    }
+  }
+
+  // Check if task is in a terminal state
+  const isTaskCompleted = task?.status === "completed" || task?.status === "failed" || task?.status === "closed";
 
   return (
-    <div className="max-w-4xl mx-auto border border-border/40 bg-muted/25 p-2 rounded-lg space-y-2">
-      {/* Header with summary stats and toggle */}
-      <div className="flex items-center justify-between gap-2">
-        <div 
-          className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity flex-1"
-          onClick={() => setIsExpanded(!isExpanded)}
-        >
-          <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-            {isExpanded ? (
-              <ChevronDown className="h-4 w-4" />
-            ) : (
-              <ChevronRight className="h-4 w-4" />
-            )}
-          </Button>
-          <Activity className="h-4 w-4 text-green-600" />
-          <span className="text-sm font-medium text-foreground">Quality Metrics</span>
-          
-          {/* Summary badges */}
-          <Badge variant={overallPassRate >= 80 ? "default" : overallPassRate >= 60 ? "secondary" : "destructive"}>
-            {overallPassRate.toFixed(0)}% Pass
-          </Badge>
-          <span className="text-xs text-muted-foreground">
-            {totalPassed} of {metrics.length} passed
-          </span>
-          {responseCount > 1 && (
-            <span className="text-xs text-muted-foreground">
-              • {responseCount} responses
-            </span>
+    <div className="max-w-4xl mx-auto border border-border/40 bg-muted/25 rounded-lg overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-2 p-3 border-b bg-muted/50">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-foreground">Metrics</span>
+          {loading && !hasLoaded && (
+            <span className="text-xs text-muted-foreground">Loading...</span>
+          )}
+          {!loading && metrics.length === 0 && (
+            <span className="text-xs text-muted-foreground">No metrics yet</span>
           )}
         </div>
-
-        {/* Performance stats and traces button */}
-        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-          <div className="flex items-center gap-1">
-            <Clock className="h-3 w-3" />
-            {totalDuration}ms
-          </div>
-          <div className="flex items-center gap-1">
-            <DollarSign className="h-3 w-3" />
-            ${totalCost.toFixed(4)}
-          </div>
-          {onViewTraces && (
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="h-7 gap-1.5"
-              onClick={(e) => {
-                e.stopPropagation();
-                onViewTraces();
-              }}
-            >
-              <BarChart3 className="h-3 w-3" />
-              View Traces
-            </Button>
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="h-7 w-7 p-0"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            title="Refresh metrics"
+          >
+            <RefreshCw className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+          </Button>
+          {task && onUpdateTask && !isTaskCompleted && (
+            <>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="h-7 gap-1.5"
+                onClick={handleMarkAsFailed}
+                disabled={isUpdating}
+              >
+                <CircleX className="h-3 w-3" />
+                Mark Failed
+              </Button>
+              <Button 
+                variant="default" 
+                size="sm" 
+                className="h-7 gap-1.5"
+                onClick={handleMarkAsCompleted}
+                disabled={isUpdating}
+              >
+                <CircleCheck className="h-3 w-3" />
+                Mark Completed
+              </Button>
+            </>
           )}
         </div>
       </div>
 
-      {/* Metrics list - only shown when expanded */}
-      {isExpanded && (
-        <div className="space-y-3 pl-1 pt-2">
-          {Object.entries(metricsByResponse).map(([responseIndex, responseMetrics]) => {
-            const responsePassed = responseMetrics.filter(m => m.passed).length;
-            const responsePassRate = (responsePassed / responseMetrics.length) * 100;
-
-            return (
-              <div key={responseIndex} className="space-y-2">
-                {/* Response header (only if multiple responses) */}
-                {responseCount > 1 && (
-                  <div className="flex items-center gap-2 pb-1">
-                    <div className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center">
-                      <span className="text-xs font-medium">{responseIndex}</span>
-                    </div>
-                    <div className="flex-1 border-t" />
-                    <Badge variant="outline" className="text-xs">
-                      {responsePassRate.toFixed(0)}% Pass
-                    </Badge>
-                  </div>
-                )}
+      {/* Metrics Table */}
+      {!loading && metrics.length > 0 && (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b bg-muted/30">
+                <th className="text-left p-2 font-medium text-xs">Status</th>
+                <th className="text-left p-2 font-medium text-xs">Metric</th>
+                <th className="text-left p-2 font-medium text-xs">Category</th>
+                <th className="text-right p-2 font-medium text-xs">Details</th>
+                <th className="text-right p-2 font-medium text-xs">Duration</th>
+                <th className="text-right p-2 font-medium text-xs">Cost</th>
+              </tr>
+            </thead>
+            <tbody>
+              {metrics.map((metric, idx) => {
+                const isQuality = metric.metricCategory === "quality";
+                const qualityMetric = metric as QualityMetric;
+                const performanceMetric = metric as PerformanceMetric;
                 
-                {/* Metrics for this response */}
-                {responseMetrics.map((metric, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-start gap-2 text-sm hover:bg-background/50 p-2 rounded"
-                  >
-                    {metric.passed ? (
-                      <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
-                    ) : (
-                      <XCircle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{metric.metricName}</span>
-                        {metric.score !== undefined && (
-                          <Badge variant="outline" className="text-xs">
-                            {metric.score.toFixed(0)}/100
-                          </Badge>
-                        )}
-                      </div>
-                      {metric.reasoning && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {metric.reasoning}
-                        </p>
+                return (
+                  <tr key={idx} className="border-b hover:bg-accent/50 transition-colors">
+                    <td className="p-2">
+                      {isQuality ? (
+                        qualityMetric.passed ? (
+                          <CheckCircle2 className="h-4 w-4 text-green-600" />
+                        ) : (
+                          <XCircle className="h-4 w-4 text-red-600" />
+                        )
+                      ) : (
+                        <Zap className="h-4 w-4 text-blue-600" />
                       )}
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                        <span className="capitalize">{metric.metricType.replace("_", " ")}</span>
-                        <span>•</span>
-                        <span>{metric.evalDurationMs}ms</span>
-                        {metric.evalCostUsd > 0 && (
-                          <>
-                            <span>•</span>
-                            <span>${metric.evalCostUsd.toFixed(4)}</span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            );
-          })}
+                    </td>
+                    <td className="p-2">
+                      {isQuality ? (
+                        <>
+                          <div className="font-medium">{qualityMetric.metricName}</div>
+                          {qualityMetric.reasoning && (
+                            <div className="text-xs text-muted-foreground mt-0.5 max-w-md line-clamp-2">
+                              {qualityMetric.reasoning}
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <div className="font-medium">Performance</div>
+                          <div className="text-xs text-muted-foreground mt-0.5">
+                            Response {performanceMetric.responseIndex} • {performanceMetric.status}
+                          </div>
+                        </>
+                      )}
+                    </td>
+                    <td className="p-2 capitalize text-muted-foreground text-xs">
+                      {isQuality ? qualityMetric.metricType.replace("_", " ") : "performance"}
+                    </td>
+                    <td className="p-2 text-right">
+                      {isQuality ? (
+                        qualityMetric.score !== undefined && (
+                          <Badge variant="outline" className="text-xs">
+                            {qualityMetric.score.toFixed(0)}/100
+                          </Badge>
+                        )
+                      ) : (
+                        <div className="text-xs text-muted-foreground">
+                          {performanceMetric.inputTokens + performanceMetric.outputTokens} tokens
+                        </div>
+                      )}
+                    </td>
+                    <td className="p-2 text-right text-muted-foreground text-xs">
+                      {isQuality ? `${qualityMetric.evalDurationMs}ms` : `${performanceMetric.durationMs}ms`}
+                    </td>
+                    <td className="p-2 text-right text-muted-foreground text-xs">
+                      {isQuality 
+                        ? (qualityMetric.evalCostUsd > 0 ? `$${qualityMetric.evalCostUsd.toFixed(4)}` : '-')
+                        : (performanceMetric.costUsd > 0 ? `$${performanceMetric.costUsd.toFixed(4)}` : '-')
+                      }
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
     </div>

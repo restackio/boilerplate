@@ -90,7 +90,7 @@ export default function TasksOverviewChart({ data, publishEvents = [] }: TasksOv
               {data.map((item, idx) => (
                 <div
                   key={idx}
-                  className="flex-1 bg-black dark:bg-white rounded-t transition-all hover:bg-black/80 dark:hover:bg-white/80 cursor-pointer"
+                  className="flex-1 bg-neutral-800 dark:bg-neutral-200 rounded-t transition-all hover:bg-black/80 dark:hover:bg-white/80 cursor-pointer"
                   style={{ height: `${(item.taskCount / maxTasks) * 100}%` }}
                   title={`${new Date(item.date).toLocaleDateString()}\n${formatNumber(item.taskCount)} tasks`}
                 />
@@ -174,13 +174,13 @@ export default function TasksOverviewChart({ data, publishEvents = [] }: TasksOv
                 className="absolute bottom-0 group"
                 style={{ left: `${annotation.position}%`, transform: 'translateX(-50%)' }}
               >
-                <Link href={`/agents/${annotation.agentId}`} className="flex flex-col items-center">
+                <div className="flex flex-col items-center">
                   <div className="w-2 h-2 rounded-full bg-purple-500 mb-1" />
-                  <div className="text-[10px] text-purple-600 font-medium cursor-pointer hover:text-purple-700 transition-colors">
+                  <div className="text-[10px] text-purple-600 font-medium cursor-pointer">
                     {annotation.version}
                   </div>
-                </Link>
-                <div className="hidden group-hover:block absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-10 w-56 p-3 bg-popover text-popover-foreground text-xs rounded-md shadow-lg border pointer-events-none">
+                </div>
+                <div className="hidden group-hover:block absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-10 w-56 p-3 bg-popover text-popover-foreground text-xs rounded-md shadow-lg border">
                   <div className="font-semibold text-sm">{annotation.agentName}</div>
                   <div className="text-purple-600 text-[10px] mt-0.5">
                     {annotation.version} published

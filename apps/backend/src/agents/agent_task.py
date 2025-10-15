@@ -141,7 +141,9 @@ class AgentTask:
         self.temporal_parent_agent_id = (
             None  # Temporal workflow ID for sending events
         )
-        self.response_in_progress = False  # Track if currently responding
+        self.response_in_progress = (
+            False  # Track if currently responding
+        )
 
     def _format_todos_for_llm(
         self,
@@ -242,10 +244,10 @@ class AgentTask:
                             lambda: not self.response_in_progress,
                             timeout=timedelta(minutes=10),
                         )
-                    
+
                     # Mark response as in progress
                     self.response_in_progress = True
-                    
+
                     # Step 1: prepare request for OpenAI (using current last_response_id for continuity)
                     prepared: LlmResponseInput = await agent.step(
                         function=llm_prepare_response,
@@ -278,9 +280,8 @@ class AgentTask:
                         ),
                     )
                 except Exception as e:
-
                     self.response_in_progress = False
-                    
+
                     error_message = (
                         f"Error during llm_response_stream: {e}"
                     )

@@ -52,7 +52,7 @@ Core building blocks: `Button`, `Input`, `Card`, `Dialog`, `Badge`, `Avatar`, `T
 ```tsx
 <Card>
   <CardHeader>
-    <CardTitle>Agent Configuration</CardTitle>
+    <CardTitle>Configuration</CardTitle>
   </CardHeader>
   <CardContent>
     <Input placeholder="Agent name" />
