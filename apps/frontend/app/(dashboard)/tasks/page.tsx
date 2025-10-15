@@ -141,8 +141,8 @@ export default function TasksPage() {
     // Transform all tasks first
     const transformedTasks = tasks.map((task) => ({
       ...task,
-      created: task.created_at || new Date().toISOString(),
-      updated: task.updated_at || new Date().toISOString(),
+      created: task.created_at || "",
+      updated: task.updated_at || "",
     }));
 
     // Filter by metric/feedback if filteredTaskIds is set

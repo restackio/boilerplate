@@ -81,9 +81,9 @@ export function TaskSubtasksList({ subtasks: subtasksRaw }: TaskSubtasksListProp
       {/* Subtasks list - only shown when expanded */}
       {isExpanded && (
         <div className="space-y-2 pl-1">
-          {subtasks.map((subtask) => (
+          {subtasks.map((subtask, index) => (
             <div
-              key={subtask.task_id}
+              key={subtask.task_id ?? "subtask-" + index}
               className="flex items-center justify-between gap-2 text-sm hover:bg-background/50"
             >
               <div className="flex items-center gap-3 flex-1 min-w-0">

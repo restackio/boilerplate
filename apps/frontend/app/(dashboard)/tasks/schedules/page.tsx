@@ -66,8 +66,8 @@ export default function SchedulesPage() {
         schedule_status: task.schedule_status,
         agent_name: task.agent_name,
         team_name: task.team_name,
-        created: task.created_at || new Date().toISOString(),
-        updated: task.updated_at || new Date().toISOString(),
+        created: task.created_at || "",
+        updated: task.updated_at || "",
         task_count: taskCount,
       };
     });

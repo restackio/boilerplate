@@ -14,6 +14,7 @@ import TasksOverviewChart from "./tasks-overview-chart";
 import PerformanceMetricChart from "./performance-metric-chart";
 import QualityMetricChart from "./quality-metric-chart";
 import { EditMetricDialog } from "./edit-metric-dialog";
+import { AnalyticsDashboardSkeleton } from "./analytics-dashboard-skeleton";
 
 export default function AnalyticsDashboard() {
   const { currentWorkspaceId, isReady, loading } = useDatabaseWorkspace();
@@ -97,11 +98,7 @@ export default function AnalyticsDashboard() {
 
   // Show loading state while workspace is initializing
   if (loading.isLoading || !isReady || !currentWorkspaceId) {
-    return (
-      <div className="flex items-center justify-center h-[400px]">
-        <p className="text-sm text-muted-foreground">Loading workspace...</p>
-      </div>
-    );
+    return <AnalyticsDashboardSkeleton />;
   }
 
   return (
@@ -110,9 +107,7 @@ export default function AnalyticsDashboard() {
       <MetricsFilters filters={filters} onFiltersChange={setFilters} agents={agents} />
 
       {isLoading ? (
-        <div className="flex items-center justify-center h-[400px]">
-          <p className="text-sm text-muted-foreground">Loading analytics...</p>
-        </div>
+        <AnalyticsDashboardSkeleton />
       ) : (
         <>
 

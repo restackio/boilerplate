@@ -1,6 +1,8 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { useWorkspaceScopedActions, Task } from "@/hooks/use-workspace-scoped-actions";
 import { useTaskDetail } from "./hooks/use-task-detail";
 import { sendMcpApproval } from "@/app/actions/agent";
 import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
@@ -8,21 +10,19 @@ import {
   TaskHeader,
   TaskChatInterface,
   TaskSplitView,
+  TaskDetailSkeleton,
 } from "./components";
 import {
-  EntityLoadingState,
   EntityErrorState,
   EntityNotFoundState,
   ConfirmationDialog,
   createConfirmationConfig,
 } from "@workspace/ui/components";
 
-export default function TaskDetailPage() {
+// Content component that only renders when we have a valid temporal_agent_id
+function TaskDetailContent({ task }: { task: Task }) {
   const { currentWorkspaceId } = useDatabaseWorkspace();
   const {
-    task,
-    isLoading,
-    error,
     showDeleteDialog,
     isUpdating,
     isDeleting,
@@ -44,73 +44,41 @@ export default function TaskDetailPage() {
     handleCloseSplitView,
     handleOpenAnalytics,
     updateConversationItemStatus,
-  } = useTaskDetail();
+  } = useTaskDetail(task);
 
   const handleApproveRequest = async (itemId: string) => {
-    if (!task?.temporal_agent_id) {
-      return;
-    }
-
     try {
-      // Optimistically update the UI
       updateConversationItemStatus(itemId, "completed");
-
       const result = await sendMcpApproval({
-        agentId: task.temporal_agent_id,
+        agentId: task.temporal_agent_id!,
         approvalId: itemId,
         approved: true,
       });
-
       if (!result.success) {
-        // Revert the optimistic update on failure
         updateConversationItemStatus(itemId, "waiting-approval");
       }
     } catch (error) {
       console.error("Error approving MCP request:", error);
-      // Revert the optimistic update on error
       updateConversationItemStatus(itemId, "waiting-approval");
     }
   };
 
   const handleDenyRequest = async (itemId: string) => {
-    if (!task?.temporal_agent_id) {
-      return;
-    }
-
     try {
-      // Optimistically update the UI
       updateConversationItemStatus(itemId, "failed");
-
       const result = await sendMcpApproval({
-        agentId: task.temporal_agent_id,
+        agentId: task.temporal_agent_id!,
         approvalId: itemId,
         approved: false,
       });
-
       if (!result.success) {
-        // Revert the optimistic update on failure
         updateConversationItemStatus(itemId, "waiting-approval");
       }
     } catch (error) {
       console.error("Error denying MCP request:", error);
-      // Revert the optimistic update on error
       updateConversationItemStatus(itemId, "waiting-approval");
     }
   };
-
-  const taskId = useParams()?.taskId as string;
-
-  if (isLoading) {
-    return <EntityLoadingState entityId={taskId} entityType="task" />;
-  }
-
-  if (error) {
-    return <EntityErrorState error={error} entityId={taskId} entityType="task" onBack={handleBack} />;
-  }
-
-  if (!task) {
-    return <EntityNotFoundState entityId={taskId} entityType="task" onBack={handleBack} />;
-  }
 
   return (
     <div>
@@ -160,5 +128,62 @@ export default function TaskDetailPage() {
       />
     </div>
   );
+}
+
+// Wrapper component that handles loading task data
+export default function TaskDetailPage() {
+  const params = useParams();
+  const router = useRouter();
+  const taskId = params?.taskId as string;
+  
+  const [task, setTask] = useState<Task | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const { getTaskById } = useWorkspaceScopedActions();
+
+  useEffect(() => {
+    const fetchTask = async () => {
+      if (!taskId) return;
+      
+      setIsLoading(true);
+      setError(null);
+      
+      try {
+        const result = await getTaskById(taskId);
+        if (result.success && result.data) {
+          setTask(result.data);
+        } else {
+          setError(result.error || "Failed to load task");
+        }
+      } catch (err) {
+        console.error("Error fetching task:", err);
+        setError("Failed to load task");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTask();
+  }, [taskId, getTaskById]);
+
+  if (isLoading) {
+    return <TaskDetailSkeleton taskId={taskId} />;
+  }
+
+  if (error) {
+    return <EntityErrorState error={error} entityId={taskId} entityType="task" onBack={() => router.push("/tasks")} />;
+  }
+
+  if (!task) {
+    return <EntityNotFoundState entityId={taskId} entityType="task" onBack={() => router.push("/tasks")} />;
+  }
+
+  // Wait for temporal_agent_id before rendering content with subscriptions
+  if (!task.temporal_agent_id) {
+    return <TaskDetailSkeleton taskId={taskId} />;
+  }
+
+  return <TaskDetailContent task={task} />;
 }
 

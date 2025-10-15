@@ -86,8 +86,6 @@ export function TaskChatInterface({
     return null;
   }, [isTaskActive, responseState, task?.agent_state?.subtasks]);
 
-  console.log("conversation", conversation);
-
   return (
     <div className={`${showSplitView ? 'w-1/2' : 'w-full max-w-4xl mx-auto'} flex flex-col bg-background`}>
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -187,7 +185,7 @@ function RenderConversationItem({
         >
           <ReasoningTrigger />
           <ReasoningContent>
-            {reasoningText || "Agent is thinking..."}
+            {reasoningText}
           </ReasoningContent>
         </Reasoning>
       );
@@ -270,19 +268,19 @@ function RenderConversationItem({
       );
     }
       
-    case 'response_status': {
-      const responseStatus = item.openai_event?.response?.status || item.openai_event?.type?.split('.').pop();
-      return (
-        <div key={item.id} className="flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground">
-          <span className={`${item.isStreaming ? 'animate-pulse' : ''}`}>
-            {responseStatus === 'created' && '...'}
-            {responseStatus === 'in_progress' && '...'}
-            {responseStatus === 'completed' && ''}
-            {item.openai_event?.type === 'response.created' && '...'}
-          </span>
-        </div>
-      );
-    }
+    // case 'response_status': {
+    //   const responseStatus = item.openai_event?.response?.status || item.openai_event?.type?.split('.').pop();
+    //   return (
+    //     <div key={item.id} className="flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground">
+    //       <span className={`${item.isStreaming ? 'animate-pulse' : ''}`}>
+    //         {responseStatus === 'created' && '...'}
+    //         {responseStatus === 'in_progress' && '...'}
+    //         {responseStatus === 'completed' && ''}
+    //         {item.openai_event?.type === 'response.created' && '...'}
+    //       </span>
+    //     </div>
+    //   );
+    // }
       
     default: {
       const { isUser, textContent, isReasoningType } = conversationItemData;

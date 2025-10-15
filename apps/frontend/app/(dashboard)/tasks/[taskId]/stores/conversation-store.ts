@@ -2,6 +2,16 @@ import { BehaviorSubject, combineLatest, Observable } from 'rxjs';
 import { map, distinctUntilChanged, shareReplay } from 'rxjs/operators';
 import { ConversationItem } from '../types';
 
+/**
+ * Conversation Store - Two-Layer Architecture
+ * 
+ * 1. State Layer - Persistent backend state (source of truth)
+ * 2. Streaming Layer - Real-time character-by-character updates
+ * 
+ * Merges both layers intelligently: state provides structure,
+ * streaming adds live updates. Falls back gracefully if streaming fails.
+ */
+
 export interface StreamEvent {
   type: string;
   item?: {
@@ -86,31 +96,64 @@ export class ConversationStore {
     this.textDeltaBuffers.clear();
   }
 
-  private mergeConversation(stateItems: ConversationItem[], streamEvents: StreamEvent[]): ConversationItem[] {
-    // Get existing item IDs to avoid duplicates
-    const existingIds = new Set(stateItems.map(item => item.id));
-    
-    // Sort stream events by sequence number to ensure proper ordering
-    const sortedStreamEvents = [...streamEvents].sort((a, b) => 
-      (a.sequence_number || 0) - (b.sequence_number || 0)
+  public updateItemStatus(itemId: string, status: string) {
+    const currentItems = this.stateItemsSubject.value;
+    const updatedItems = currentItems.map(item => 
+      item.id === itemId 
+        ? { 
+            ...item, 
+            openai_output: item.openai_output 
+              ? { ...item.openai_output, status }
+              : { id: itemId, type: item.type, status }
+          }
+        : item
     );
+    this.updateStateItems(updatedItems);
+  }
+
+  private mergeConversation(stateItems: ConversationItem[], streamEvents: StreamEvent[]): ConversationItem[] {
+    if (streamEvents.length === 0) return stateItems;
     
-    // Process stream events to create/update streaming items
-    for (const event of sortedStreamEvents) {
+    const existingIds = new Set(stateItems.map(item => item.id));
+    for (const event of streamEvents) {
       this.processEvent(event, existingIds);
     }
     
-    // Convert streaming items to conversation items
-    const streamingConversationItems: ConversationItem[] = [];
-    for (const [itemId, streamItem] of this.streamingItems) {
-      if (!existingIds.has(itemId) && streamItem.id) {
-        streamingConversationItems.push(streamItem as ConversationItem);
+    for (const stateItem of stateItems) {
+      if (!stateItem.isStreaming && this.streamingItems.has(stateItem.id)) {
+        this.streamingItems.delete(stateItem.id);
+        this.textDeltaBuffers.delete(stateItem.id);
       }
     }
     
-    // Merge all items (backend already provides proper ordering)
-    const allItems = [...stateItems, ...streamingConversationItems];
-    return allItems;
+    const mergedItems = stateItems.map(stateItem => {
+      if (stateItem.isStreaming && this.streamingItems.has(stateItem.id)) {
+        const streamingOverlay = this.streamingItems.get(stateItem.id);
+        if (streamingOverlay?.id) {
+          return {
+            ...stateItem,
+            openai_output: {
+              ...stateItem.openai_output,
+              ...streamingOverlay.openai_output,
+              content: streamingOverlay.openai_output?.content || stateItem.openai_output?.content || [],
+              summary: streamingOverlay.openai_output?.summary || stateItem.openai_output?.summary || [],
+            },
+            isStreaming: streamingOverlay.isStreaming ?? stateItem.isStreaming,
+            timestamp: streamingOverlay.timestamp || stateItem.timestamp,
+          };
+        }
+      }
+      return stateItem;
+    });
+    
+    const stateItemIds = new Set(stateItems.map(item => item.id));
+    for (const [itemId, streamItem] of this.streamingItems) {
+      if (!stateItemIds.has(itemId) && streamItem.id) {
+        mergedItems.push(streamItem as ConversationItem);
+      }
+    }
+    
+    return mergedItems;
   }
 
   private processEvent(event: StreamEvent, existingIds: Set<string>): void {
@@ -121,9 +164,7 @@ export class ConversationStore {
       if (this.processedEvents.has(eventKey)) return;
       this.processedEvents.add(eventKey);
       
-      // Skip if item exists in persistent state
-      if (existingIds.has(errorId)) return;
-      
+      // Build error item (will be overlaid on state or shown standalone)
       const errorItem: Partial<ConversationItem> = {
         id: errorId,
         type: "error",
@@ -145,9 +186,7 @@ export class ConversationStore {
     
     const itemId = event.item_id;
     
-    // Skip if item exists in persistent state
-    if (existingIds.has(itemId)) return;
-    
+    // Always build streaming overlay (will be merged with state item if it exists)
     // Get or create streaming item
     let streamItem = this.streamingItems.get(itemId);
     if (!streamItem) {
@@ -179,6 +218,7 @@ export class ConversationStore {
   private getItemType(event: StreamEvent): string {
     if (event.type.includes('reasoning')) return 'reasoning';
     if (event.type.includes('web_search')) return 'web_search_call';
+    if (event.type.includes('mcp_list_tools')) return 'mcp_list_tools';
     if (event.type.includes('mcp')) return 'mcp_call';
     if (event.type.includes('tool')) return 'tool_call';
     return 'assistant';
@@ -242,6 +282,34 @@ export class ConversationStore {
       streamItem.openai_output.status = "completed";
       
       // Clean up delta buffer when item is completed
+      if (streamItem.id) {
+        this.textDeltaBuffers.delete(streamItem.id);
+      }
+    }
+    
+    // Handle MCP list tools failure events (response.mcp_list_tools.failed)
+    if (event.type.includes('failed') && event.type.includes('mcp_list_tools')) {
+      streamItem.isStreaming = false;
+      streamItem.openai_output.status = "failed";
+      if (event.error) {
+        streamItem.openai_output.error = event.error;
+      }
+      
+      // Clean up delta buffer when item is failed
+      if (streamItem.id) {
+        this.textDeltaBuffers.delete(streamItem.id);
+      }
+    }
+    
+    // Handle MCP call failure events (response.mcp_call.failed)
+    if (event.type.includes('failed') && event.type.includes('mcp_call') && !event.type.includes('mcp_list_tools')) {
+      streamItem.isStreaming = false;
+      streamItem.openai_output.status = "failed";
+      if (event.error) {
+        streamItem.openai_output.error = event.error;
+      }
+      
+      // Clean up delta buffer when item is failed
       if (streamItem.id) {
         this.textDeltaBuffers.delete(streamItem.id);
       }

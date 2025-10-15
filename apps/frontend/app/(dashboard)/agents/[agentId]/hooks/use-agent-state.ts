@@ -1,6 +1,17 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+/**
+ * Agent State Hook
+ * 
+ * Manages two subscriptions for real-time agent interaction:
+ * 1. State subscription - Persistent conversation state from backend
+ * 2. Streaming subscription - Live character-by-character updates
+ * 
+ * Note: Subscription errors are expected for completed/failed tasks since
+ * Temporal workflows no longer exist. These are gracefully handled.
+ */
+
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { subscribeAgentState, subscribeAgentResponses } from "@restackio/react";
 import { startAgent, sendAgentMessage, stopAgent } from "@/app/actions/agent";
 
@@ -21,6 +32,7 @@ interface UseAgentStateProps {
   taskId: string;
   agentTaskId?: string;
   runId?: string;
+  taskStatus?: string; // Task status to determine if errors are expected
   onStateChange?: (state: AgentState) => void;
 }
 
@@ -34,156 +46,126 @@ interface UseAgentStateReturn {
   stopAgent: () => Promise<void>;
 }
 
-export function useAgentState({ taskId, agentTaskId, runId }: UseAgentStateProps): UseAgentStateReturn {
+export function useAgentState({ taskId, agentTaskId, runId, taskStatus }: UseAgentStateProps): UseAgentStateReturn {
   const [error, setError] = useState<string | null>(null);
   const [currentResponseState, setCurrentResponseState] = useState<unknown>(null);
   
+  // Check if task is in a terminal state where subscription errors are expected
+  const isTerminalState = useMemo(() => {
+    return taskStatus === 'completed' || taskStatus === 'failed' || taskStatus === 'cancelled';
+  }, [taskStatus]);
 
+  // Suppress console errors from Restack SDK for terminal states
+  useEffect(() => {
+    if (!isTerminalState) return;
 
-  // Subscribe to response state for persistent response items with state replacement
-  // Only subscribe if we have agentTaskId (runId is optional)
-  const subscriptionParams = {
+    const originalError = console.error;
+    console.error = (...args: unknown[]) => {
+      // Filter out expected Restack subscription errors for terminal states
+      const message = String(args[0] || '');
+      if (
+        message.includes('Stream events encountered an error') ||
+        message.includes('State subscription error') ||
+        message.includes('Agent state subscription')
+      ) {
+        return; // Silently ignore
+      }
+      // Pass through other errors
+      originalError.apply(console, args);
+    };
+
+    return () => {
+      console.error = originalError;
+    };
+  }, [isTerminalState]);
+  
+  const subscriptionParams = useMemo(() => ({
     apiAddress: process.env.NEXT_PUBLIC_RESTACK_ENGINE_API_ADDRESS || "http://localhost:9233",
     apiToken: process.env.NEXT_PUBLIC_RESTACK_ENGINE_API_KEY,
-    agentId: agentTaskId || `task_agent_${taskId}`,
-    runId: runId || "",
-    stateName: "state_response",
-  };
+    // Pass empty agentId for terminal states to prevent subscription attempts
+    agentId: isTerminalState ? "" : (agentTaskId || ""),
+    runId: isTerminalState ? "" : (runId || ""),
+    stateName: "state_response" as const,
+  }), [agentTaskId, runId, isTerminalState]);
+
+  const handleStateMessage = useCallback((data: unknown) => {
+    setCurrentResponseState(data);
+  }, []);
+
+  const handleStateError = useCallback((error: Error) => {
+    // Subscription errors are expected for completed/failed tasks
+    // since Temporal workflows no longer exist. Silently ignore these.
+    if (isTerminalState) {
+      return;
+    }
+    
+    // Only log and set error for active tasks
+    console.error("State subscription error:", error?.message || 'Unknown error');
+    setError(error.message || "Failed to subscribe to response state");
+  }, [isTerminalState]);
+
+  const stateOptions = useMemo(() => ({
+    onMessage: handleStateMessage,
+    onError: handleStateError,
+  }), [handleStateMessage, handleStateError]);
   
-  
+  // Subscribe to state (will be disabled via empty agentId for terminal states)
   subscribeAgentState({
     ...subscriptionParams,
-    options: {
-      onMessage: (data: unknown) => {
-        // Only process messages if we have a valid agentTaskId
-        if (!agentTaskId) return;
-        
-        try {
-          // Always replace the state with the latest data, don't accumulate
-          if (Array.isArray(data)) {
-            setCurrentResponseState(data);
-          } else {
-            setCurrentResponseState(data);
-          }
-        } catch (err) {
-          console.error("Error processing agent state message:", err);
-          setError("Failed to process agent state update");
-        }
-      },
-      onError: (error: Error) => {
-        // Only process errors if we have a valid agentTaskId
-        if (!agentTaskId) return;
-        
-        console.error("subscribeResponseState error:", error);
-        setError(error.message || "Failed to subscribe to response state");
-      },
-    },
+    options: stateOptions,
   });
 
-  // Subscribe to agent responses using the official Restack React hook
-  // Use a valid agent ID that should exist in the system
+  const handleResponseMessage = useCallback((data: unknown) => {
+    // Streaming data handled by Restack SDK
+  }, []);
+
+  const handleResponseError = useCallback((error: Error) => {
+    // Streaming errors are expected for completed/failed tasks
+    // since Temporal workflows no longer exist. Silently ignore these.
+    void error; // Explicitly void to avoid unused variable warning
+  }, []);
+
+  const responseOptions = useMemo(() => ({
+    onMessage: handleResponseMessage,
+    onError: handleResponseError,
+  }), [handleResponseMessage, handleResponseError]);
+
+  // Subscribe to streaming responses (will be disabled via empty agentId for terminal states)
   const agentResponses = subscribeAgentResponses({
     apiAddress: process.env.NEXT_PUBLIC_RESTACK_ENGINE_API_ADDRESS || "http://localhost:9233",
     apiToken: process.env.NEXT_PUBLIC_RESTACK_ENGINE_API_KEY,
-    agentId: agentTaskId || `task_agent_${taskId}`,
-    runId: runId || "",
-    options: {
-      onMessage: () => {
-        // Only process messages if we have a valid agentTaskId
-        if (!agentTaskId) return;
-        
-        try {
-          // Process agent responses safely
-          // The data is already processed by the Restack hook
-        } catch (err) {
-          console.error("Error processing agent responses message:", err);
-          setError("Failed to process agent responses update");
-        }
-      },
-      onError: (error: Error) => {
-        // Only process errors if we have a valid agentTaskId
-        if (!agentTaskId) return;
-        
-        console.error("subscribeAgentResponses error:", error);
-        setError(error.message || "Failed to subscribe to agent responses");
-      },
-    },
+    // Pass empty agentId for terminal states to prevent subscription attempts
+    agentId: isTerminalState ? "" : (agentTaskId || ""),
+    runId: isTerminalState ? "" : (runId || ""),
+    options: responseOptions,
   });
 
-  // Send message to agent using server action
   const sendMessageToAgent = useCallback(async (message: string) => {
-    if (!agentTaskId) {
-      throw new Error("No agent task ID available");
-    }
+    if (!agentTaskId) throw new Error("No agent task ID available");
 
-    try {
-      const result = await sendAgentMessage({
-        agentId: agentTaskId,
-        message: message,
-      });
-
-      if (!result.success) {
-        throw new Error(result.error || "Failed to send message to agent");
-      }
-    } catch (err) {
-      throw new Error(err instanceof Error ? err.message : "Failed to send message to agent");
-    }
+    const result = await sendAgentMessage({ agentId: agentTaskId, message });
+    if (!result.success) throw new Error(result.error || "Failed to send message");
   }, [agentTaskId]);
 
-  // Start agent execution using server action
   const startAgentExecution = useCallback(async (taskDescription: string) => {
-    if (!agentTaskId) {
-      throw new Error("No agent task ID available");
-    }
+    if (!agentTaskId) throw new Error("No agent task ID available");
 
-    try {
-      const result = await startAgent({
-        agentId: agentTaskId,
-        taskDescription: taskDescription,
-      });
-
-      if (!result.success) {
-        throw new Error(result.error || "Failed to start agent");
-      }
-
-      return result;
-    } catch (err) {
-      throw new Error(err instanceof Error ? err.message : "Failed to start agent");
-    }
+    const result = await startAgent({ agentId: agentTaskId, taskDescription });
+    if (!result.success) throw new Error(result.error || "Failed to start agent");
+    return result;
   }, [agentTaskId]);
 
-  // Stop agent execution using server action
   const stopAgentExecution = useCallback(async () => {
-    if (!agentTaskId) {
-      throw new Error("No agent task ID available");
-    }
+    if (!agentTaskId) throw new Error("No agent task ID available");
 
-    try {
-      const result = await stopAgent({
-        agentId: agentTaskId,
-      });
-
-      if (!result.success) {
-        throw new Error(result.error || "Failed to stop agent");
-      }
-    } catch (err) {
-      throw new Error(err instanceof Error ? err.message : "Failed to stop agent");
-    }
+    const result = await stopAgent({ agentId: agentTaskId });
+    if (!result.success) throw new Error(result.error || "Failed to stop agent");
   }, [agentTaskId]);
-
-  // Use the manually managed state that replaces rather than accumulates
-  const cleanResponseState = useMemo(() => {
-    if (!agentTaskId || !currentResponseState) {
-      return null;
-    }
-    
-    return currentResponseState;
-  }, [currentResponseState, agentTaskId]);
 
   return {
-    responseState: cleanResponseState, // Return cleaned unified response state
-    agentResponses: agentTaskId ? agentResponses : null, // Return agentResponses separately
-    loading: false, // The subscription handles loading state internally
+    responseState: currentResponseState,
+    agentResponses,
+    loading: false,
     error,
     sendMessageToAgent,
     startAgent: startAgentExecution,
