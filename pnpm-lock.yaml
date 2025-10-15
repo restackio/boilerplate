@@ -7,10 +7,6 @@ settings:
 importers:
 
   .:
-    dependencies:
-      '@restackio/ai':
-        specifier: ^0.0.147
-        version: 0.0.147
     devDependencies:
       '@workspace/eslint-config':
         specifier: workspace:*
