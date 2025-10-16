@@ -588,7 +588,7 @@ def _run_startup_tasks() -> None:
     import sys
 
     docker_path = Path("/app/packages/database/scripts")
-    local_path =  Path("../..packages/database/scripts")
+    local_path =  Path("../../packages/database/scripts")
     
     scripts_dir = docker_path if docker_path.exists() else local_path
     
