@@ -52,3 +52,20 @@ lerna-debug.log*
 *.md
 !README.md
 
+# Test files
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+__tests__/
+test/
+
+# Cache directories
+.turbo/
+.eslintcache
+.cache/
+
+# Editor files
+*.swp
+*.swo
+.cursor/
