@@ -2,8 +2,7 @@
 
 import { Button } from "@workspace/ui/components/ui/button";
 import { Textarea } from "@workspace/ui/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/ui/card";
-import { Play, RotateCcw } from "lucide-react";
+import { RotateCcw } from "lucide-react";
 import { Agent } from "@/hooks/use-workspace-scoped-actions";
 import { PlaygroundTaskExecution } from "./playground-task-execution";
 

@@ -97,6 +97,7 @@ export default function PlaygroundPage() {
     if (leftTaskIdParam && rightTaskIdParam) {
       setIsLeftPanelCollapsed(true);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run once on mount
 
   const handleDraftAgentChange = useCallback((updates: Partial<Agent>) => {
