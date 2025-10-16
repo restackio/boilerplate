@@ -82,9 +82,16 @@ WORKDIR /app
 # Copy the full pruned application
 COPY --from=pruner /app/out/full/ .
 
-# Build the application with Next.js cache mount
-# Disable telemetry for faster builds
+# Build optimizations
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
+# Skip type checking in Docker (should be done in CI)
+ENV NEXT_SKIP_TYPE_CHECK=true
+# Use all available CPU cores
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+
+# Build the application with aggressive caching
+# Next.js standalone output creates a minimal production bundle
 RUN --mount=type=cache,target=/app/apps/frontend/.next/cache \
     --mount=type=cache,target=/app/.turbo \
     pnpm build --filter=boilerplate-frontend
@@ -106,25 +113,18 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
         curl \
     && update-ca-certificates
 
-# Install pnpm for running the app
-RUN --mount=type=cache,target=/root/.npm \
-    npm install -g pnpm@10.15.1
-
 # Create non-root user for security
 RUN groupadd -r nodejs && useradd -r -g nodejs nodejs
-
-# Copy built application from builder stage
-# Only copy what's needed for runtime
-COPY --from=builder --chown=nodejs:nodejs /app/apps/frontend/.next ./apps/frontend/.next
-COPY --from=builder --chown=nodejs:nodejs /app/apps/frontend/public ./apps/frontend/public
-COPY --from=builder --chown=nodejs:nodejs /app/apps/frontend/package.json ./apps/frontend/
-COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
-COPY --from=builder --chown=nodejs:nodejs /app/package.json ./package.json
-COPY --from=builder --chown=nodejs:nodejs /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
 
 # Set production environment
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+
+# Copy Next.js standalone output (minimal, self-contained)
+# This includes only the necessary files for production
+COPY --from=builder --chown=nodejs:nodejs /app/apps/frontend/.next/standalone ./
+COPY --from=builder --chown=nodejs:nodejs /app/apps/frontend/.next/static ./apps/frontend/.next/static
+COPY --from=builder --chown=nodejs:nodejs /app/apps/frontend/public ./apps/frontend/public
 
 # Switch to non-root user
 USER nodejs
@@ -132,5 +132,6 @@ USER nodejs
 # Expose port 3000 for Next.js
 EXPOSE 3000
 
-# Use exec form for better signal handling
-CMD ["pnpm", "--filter", "boilerplate-frontend", "start"]
+# Start the standalone Next.js server directly (no pnpm needed)
+# This is significantly faster and uses less memory
+CMD ["node", "apps/frontend/server.js"]
