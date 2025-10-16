@@ -12,7 +12,9 @@ from src.utils.password import hash_password, verify_password
 
 # Pydantic models for input validation
 class UserSignupInput(BaseModel):
-    workspace_id: str
+    workspace_id: str | None = Field(
+        None, description="Optional workspace ID to add user to immediately"
+    )
     name: str = Field(..., min_length=1, max_length=255)
     email: str = Field(..., min_length=1, max_length=255)
     password: str = Field(..., min_length=6, max_length=100)
@@ -53,17 +55,18 @@ async def user_signup(user_data: UserSignupInput) -> AuthOutput:
     """Sign up a new user."""
     async for db in get_async_db():
         try:
-            # Verify workspace exists
-            workspace_query = select(Workspace).where(
-                Workspace.id == uuid.UUID(user_data.workspace_id)
-            )
-            workspace_result = await db.execute(workspace_query)
-            workspace = workspace_result.scalar_one_or_none()
-
-            if not workspace:
-                return AuthOutput(
-                    success=False, error="Workspace not found"
+            # If workspace_id is provided, verify it exists
+            if user_data.workspace_id:
+                workspace_query = select(Workspace).where(
+                    Workspace.id == uuid.UUID(user_data.workspace_id)
                 )
+                workspace_result = await db.execute(workspace_query)
+                workspace = workspace_result.scalar_one_or_none()
+
+                if not workspace:
+                    return AuthOutput(
+                        success=False, error="Workspace not found"
+                    )
 
             # Check if user already exists
             existing_user_query = select(User).where(
@@ -98,16 +101,17 @@ async def user_signup(user_data: UserSignupInput) -> AuthOutput:
             db.add(user)
             await db.flush()  # Flush to get the user ID
 
-            # Create user-workspace relationship
-            user_workspace_id = uuid.uuid4()
-            user_workspace = UserWorkspace(
-                id=user_workspace_id,
-                user_id=user.id,
-                workspace_id=uuid.UUID(user_data.workspace_id),
-                role="owner",  # First user in workspace is owner
-            )
+            # Create user-workspace relationship if workspace_id provided
+            if user_data.workspace_id:
+                user_workspace_id = uuid.uuid4()
+                user_workspace = UserWorkspace(
+                    id=user_workspace_id,
+                    user_id=user.id,
+                    workspace_id=uuid.UUID(user_data.workspace_id),
+                    role="owner",  # First user in workspace is owner
+                )
+                db.add(user_workspace)
 
-            db.add(user_workspace)
             await db.commit()
             await db.refresh(user)
 

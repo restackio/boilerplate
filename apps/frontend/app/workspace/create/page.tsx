@@ -87,17 +87,6 @@ export default function CreateWorkspacePage() {
     setError("");
 
     try {
-      // Create the workspace
-      const workspaceData = await executeWorkflow("WorkspacesCreateWorkflow", {
-        name: formData.companyName,
-      });
-
-      if (!workspaceData.success || !workspaceData.data) {
-        setError("Failed to create workspace");
-        setIsLoading(false);
-        return;
-      }
-
       // Get current user from localStorage
       const storedUser = localStorage.getItem("currentUser");
       if (!storedUser) {
@@ -108,15 +97,14 @@ export default function CreateWorkspacePage() {
 
       const userData = JSON.parse(storedUser);
 
-      // Add user to the new workspace
-      const userWorkspaceData = await executeWorkflow("UserWorkspacesCreateWorkflow", {
-        user_id: userData.id,
-        workspace_id: workspaceData.data.id,
-        role: "owner",
+      // Create the workspace and automatically add user as owner
+      const workspaceData = await executeWorkflow("WorkspacesCreateWorkflow", {
+        name: formData.companyName,
+        created_by_user_id: userData.id,
       });
 
-      if (!userWorkspaceData.success) {
-        setError("Failed to add user to workspace");
+      if (!workspaceData.success || !workspaceData.data) {
+        setError("Failed to create workspace");
         setIsLoading(false);
         return;
       }
@@ -124,7 +112,7 @@ export default function CreateWorkspacePage() {
       // Update user data with new workspace
       const updatedUser = {
         ...userData,
-        workspace_ids: [...(userData.workspace_ids || []), workspaceData.data.id],
+        workspace_ids: [...(userData.workspace_ids || []), workspaceData.data.workspace.id],
       };
       localStorage.setItem("currentUser", JSON.stringify(updatedUser));
 

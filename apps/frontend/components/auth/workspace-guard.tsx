@@ -8,7 +8,7 @@ import { Button } from "@workspace/ui/components/ui/button";
 import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 
 export function WorkspaceGuard({ children }: { children: React.ReactNode }) {
-  const { isReady, loading } = useDatabaseWorkspace();
+  const { isReady, loading, workspaces } = useDatabaseWorkspace();
   const router = useRouter();
 
   useEffect(() => {
@@ -17,6 +17,13 @@ export function WorkspaceGuard({ children }: { children: React.ReactNode }) {
       router.push("/login");
     }
   }, [loading.error, router]);
+
+  useEffect(() => {
+    // If not loading and no workspaces exist, redirect to workspace creation
+    if (!loading.isLoading && !loading.error && workspaces.length === 0) {
+      router.push("/workspace/create");
+    }
+  }, [loading.isLoading, loading.error, workspaces.length, router]);
 
   // Show loading state while checking workspace
   if (loading.isLoading) {

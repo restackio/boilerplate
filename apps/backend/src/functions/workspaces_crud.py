@@ -11,6 +11,9 @@ from src.database.models import UserWorkspace, Workspace
 # Pydantic models for input validation
 class WorkspaceCreateInput(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
+    created_by_user_id: str | None = Field(
+        None, description="User ID to add as owner of the workspace"
+    )
 
 
 class WorkspaceUpdateInput(BaseModel):
@@ -96,28 +99,47 @@ async def workspaces_create(
 ) -> WorkspaceSingleOutput:
     """Create a new workspace."""
     async for db in get_async_db():
-        workspace_id = uuid.uuid4()
-        workspace = Workspace(
-            id=workspace_id,
-            name=workspace_data.name,
-        )
+        try:
+            workspace_id = uuid.uuid4()
+            workspace = Workspace(
+                id=workspace_id,
+                name=workspace_data.name,
+            )
 
-        db.add(workspace)
-        await db.commit()
-        await db.refresh(workspace)
+            db.add(workspace)
+            await db.flush()  # Flush to get the workspace ID
 
-        result = WorkspaceOutput(
-            id=str(workspace.id),
-            name=workspace.name,
-            created_at=workspace.created_at.isoformat()
-            if workspace.created_at
-            else None,
-            updated_at=workspace.updated_at.isoformat()
-            if workspace.updated_at
-            else None,
-        )
+            # If created_by_user_id is provided, add user as owner
+            if workspace_data.created_by_user_id:
+                user_workspace_id = uuid.uuid4()
+                user_workspace = UserWorkspace(
+                    id=user_workspace_id,
+                    user_id=uuid.UUID(workspace_data.created_by_user_id),
+                    workspace_id=workspace.id,
+                    role="owner",
+                )
+                db.add(user_workspace)
 
-        return WorkspaceSingleOutput(workspace=result)
+            await db.commit()
+            await db.refresh(workspace)
+
+            result = WorkspaceOutput(
+                id=str(workspace.id),
+                name=workspace.name,
+                created_at=workspace.created_at.isoformat()
+                if workspace.created_at
+                else None,
+                updated_at=workspace.updated_at.isoformat()
+                if workspace.updated_at
+                else None,
+            )
+
+            return WorkspaceSingleOutput(workspace=result)
+        except Exception as e:
+            await db.rollback()
+            raise NonRetryableError(
+                message=f"Failed to create workspace: {e!s}"
+            ) from e
     return None
 
 

@@ -74,7 +74,11 @@ class UserWorkspacesGetByWorkspaceWorkflow:
 
 @workflow.defn()
 class UserWorkspacesCreateWorkflow:
-    """Workflow to add a user to a workspace."""
+    """Workflow to add a user to an existing workspace.
+    
+    Note: This is for adding additional users/members to workspaces that already exist.
+    When creating a NEW workspace, use WorkspacesCreateWorkflow with created_by_user_id instead.
+    """
 
     @workflow.run
     async def run(
