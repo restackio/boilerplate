@@ -586,66 +586,78 @@ def init_tracing() -> None:
 def _run_startup_tasks() -> None:
     """Run database migrations and demo data insertion before starting services."""
     import sys
-
-    docker_path = Path("/app/packages/database/scripts")
-    local_path =  Path("../../packages/database/scripts")
     
-    scripts_dir = docker_path if docker_path.exists() else local_path
-    
-    # Run migrations
-    logger.info("Running database migrations...")
-    migrate_script = scripts_dir / "migrate.sh"
-    if migrate_script.exists():
-        result = subprocess.run(
-            [str(migrate_script)],
-            check=False,
-            capture_output=True,
-            text=True,
-        )
-        if result.returncode != 0:
-            logger.error(f"Migration failed: {result.stderr}")
-            sys.exit(1)
-        logger.info("Database migrations completed successfully")
-    else:
-        logger.warning(f"Migration script not found: {migrate_script}")
-    
-    # Handle demo data
-    demo_mode = os.getenv("DEMO_MODE", "false").lower() == "true"
-    reset_demo = os.getenv("RESET_DEMO", "false").lower() == "true"
-    
-    if demo_mode:
-        if reset_demo:
-            logger.info("Resetting demo data...")
-            reset_script = scripts_dir / "reset-demo.sh"
-            if reset_script.exists():
-                result = subprocess.run(
-                    [str(reset_script)],
-                    check=False,
-                    capture_output=True,
-                    text=True,
-                )
-                if result.returncode != 0:
-                    logger.error(f"Demo reset failed: {result.stderr}")
-                    sys.exit(1)
-                logger.info("Demo data reset completed successfully")
-            else:
-                logger.warning(f"Reset script not found: {reset_script}")
+    try:
+        # Determine scripts directory based on environment
+        docker_path = Path("/app/packages/database/scripts")
+        # Use absolute path resolution from file location for local dev
+        local_path = Path(__file__).resolve().parent.parent.parent.parent / "packages" / "database" / "scripts"
+        
+        scripts_dir = docker_path if docker_path.exists() else local_path
+        
+        logger.info(f"Scripts directory: {scripts_dir}")
+        logger.info(f"Scripts directory exists: {scripts_dir.exists()}")
+        
+        # Run migrations
+        logger.info("Running database migrations...")
+        migrate_script = scripts_dir / "migrate.sh"
+        if migrate_script.exists():
+            result = subprocess.run(
+                [str(migrate_script)],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            if result.returncode != 0:
+                logger.error(f"Migration failed: {result.stderr}")
+                sys.exit(1)
+            logger.info("Database migrations completed successfully")
         else:
-            logger.info("Inserting demo data...")
-            insert_script = scripts_dir / "insert-demo.sh"
-            if insert_script.exists():
-                result = subprocess.run(
-                    [str(insert_script)],
-                    check=False,
-                    capture_output=True,
-                    text=True,
-                )
-                if result.returncode != 0:
-                    logger.error(f"Demo insert failed: {result.stderr}")
-                    sys.exit(1)
-                logger.info("Demo data inserted successfully")
+            logger.warning(f"Migration script not found: {migrate_script}")
+        
+        # Handle demo data
+        demo_mode = os.getenv("DEMO_MODE", "false").lower() == "true"
+        reset_demo = os.getenv("RESET_DEMO", "false").lower() == "true"
+        
+        if demo_mode:
+            if reset_demo:
+                logger.info("Resetting demo data...")
+                reset_script = scripts_dir / "reset-demo.sh"
+                if reset_script.exists():
+                    result = subprocess.run(
+                        [str(reset_script)],
+                        check=False,
+                        capture_output=True,
+                        text=True,
+                    )
+                    if result.returncode != 0:
+                        logger.error(f"Demo reset failed: {result.stderr}")
+                        sys.exit(1)
+                    logger.info("Demo data reset completed successfully")
+                else:
+                    logger.warning(f"Reset script not found: {reset_script}")
             else:
-                logger.warning(f"Insert script not found: {insert_script}")
+                logger.info("Inserting demo data...")
+                insert_script = scripts_dir / "insert-demo.sh"
+                if insert_script.exists():
+                    result = subprocess.run(
+                        [str(insert_script)],
+                        check=False,
+                        capture_output=True,
+                        text=True,
+                    )
+                    if result.returncode != 0:
+                        logger.error(f"Demo insert failed: {result.stderr}")
+                        sys.exit(1)
+                    logger.info("Demo data inserted successfully")
+                else:
+                    logger.warning(f"Insert script not found: {insert_script}")
+    
+    except Exception as e:
+        logger.error(f"Unexpected error in startup tasks: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
 
 
 async def main() -> None:

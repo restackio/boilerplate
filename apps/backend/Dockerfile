@@ -53,5 +53,4 @@ ENV PATH="/app/.venv/bin:$PATH"
 EXPOSE 80
 
 # Start backend service
-# Migrations and demo data are now handled in src/services.py:start()
 CMD ["uv", "run", "start"]
