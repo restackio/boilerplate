@@ -1,58 +1,58 @@
-"""Webhook payload formatters for different services."""
+"""Format webhook payloads into task descriptions."""
 import json
 import time
 from typing import Any
 
 
 def _extract_github_title(payload: dict[str, Any], headers: dict[str, str]) -> str | None:
-    """Extract GitHub-specific title."""
-    if "pull_request" in payload:
-        action = payload.get("action", "unknown")
-        pr_number = payload.get("number", "unknown")
-        return f"GitHub PR #{pr_number} {action}"
-    if "commits" in payload and "ref" in payload:
-        ref = payload.get("ref", "unknown").replace("refs/heads/", "")
-        return f"GitHub push to {ref}"
-    if headers.get("x-github-event"):
-        event_type = headers.get("x-github-event")
-        return f"GitHub {event_type}"
+    """Extract title from GitHub webhook."""
+    event = headers.get("x-github-event", "").lower()
+
+    if event == "pull_request" and "pull_request" in payload:
+        pr = payload["pull_request"]
+        action = payload.get("action", "")
+        return f"GitHub PR {action}: {pr.get('title', 'Untitled')}"
+
+    if event == "issues" and "issue" in payload:
+        issue = payload["issue"]
+        action = payload.get("action", "")
+        return f"GitHub Issue {action}: {issue.get('title', 'Untitled')}"
+
+    if event == "push" and "commits" in payload:
+        branch = payload.get("ref", "").split("/")[-1]
+        commit_count = len(payload["commits"])
+        return f"GitHub Push: {commit_count} commit(s) to {branch}"
+
     return None
 
 
 def _extract_service_title(payload: dict[str, Any], headers: dict[str, str]) -> str | None:
-    """Extract title from various service payloads."""
-    # Linear patterns
-    if payload.get("type") and "issue" in payload.get("type", ""):
-        issue_data = payload.get("data", {})
-        issue_title = issue_data.get("title", "Unknown Issue")
-        return f"Linear: {issue_title}"
+    """Extract title from various service webhooks."""
+    # Linear
+    if payload.get("type") == "Issue" and "data" in payload:
+        return f"Linear Issue: {payload['data'].get('title', 'Untitled')}"
 
-    # Zendesk patterns
+    # Zendesk
     if "ticket" in payload:
-        ticket_data = payload.get("ticket", {})
-        ticket_id = ticket_data.get("id", "unknown")
-        ticket_subject = ticket_data.get("subject", "Unknown Subject")
-        return f"Zendesk Ticket #{ticket_id}: {ticket_subject}"
+        return f"Zendesk: {payload['ticket'].get('subject', 'New ticket')}"
 
-    # Datadog patterns
-    if "alert" in payload or headers.get("user-agent", "").lower().startswith("datadog"):
-        alert_title = payload.get("title", payload.get("alert_title", "Unknown Alert"))
-        return f"Datadog: {alert_title}"
-
-    # PagerDuty patterns
+    # PagerDuty
     if "incident" in payload:
-        incident_data = payload.get("incident", {})
-        incident_title = incident_data.get("title", "Unknown Incident")
-        return f"PagerDuty: {incident_title}"
+        return f"PagerDuty: {payload['incident'].get('title', 'New incident')}"
+
+    # Datadog
+    if "alert_type" in payload:
+        return f"Datadog Alert: {payload.get('title', 'Alert')}"
 
     return None
 
 
 def _extract_generic_title(payload: dict[str, Any]) -> str | None:
-    """Extract generic title from common fields."""
+    """Try to extract a generic title from common fields."""
     for field in ["title", "subject", "name", "summary"]:
-        if payload.get(field):
-            return f"Webhook: {payload[field]}"
+        if field in payload and payload[field]:
+            return str(payload[field])
+
     return None
 
 

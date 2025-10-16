@@ -16,18 +16,18 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy dependency files
-COPY apps/backend/pyproject.toml ./
-COPY apps/backend/uv.lock ./
-COPY apps/backend/README.md ./
+COPY pyproject.toml ./
+COPY uv.lock ./
+COPY README.md ./
 
 # Install dependencies first (better layer caching)
 RUN uv sync --no-dev
 
 # Copy source code
-COPY apps/backend/src ./src
+COPY src ./src
 
 # Copy database package (migrations, demo, scripts)
-COPY packages/database/ /app/packages/database/
+COPY ../../packages/database/ /app/packages/database/
 RUN chmod +x /app/packages/database/scripts/*.sh
 
 # Expose port 80

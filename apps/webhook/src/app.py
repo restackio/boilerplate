@@ -63,6 +63,7 @@ def create_webhook_app() -> FastAPI:
 
         Examples:
         - /webhook/workspace/ws-123/agent/zendesk-support
+        - /webhook/workspace/ws-123/agent/github-pr
 
         Body should contain:
         {

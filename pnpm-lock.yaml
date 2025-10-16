@@ -89,6 +89,8 @@ importers:
 
   apps/mcp_server: {}
 
+  apps/slack-bot: {}
+
   apps/webhook: {}
 
   packages/database: {}
