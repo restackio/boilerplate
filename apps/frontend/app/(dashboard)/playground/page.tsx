@@ -123,7 +123,7 @@ export default function PlaygroundPage() {
     const params = new URLSearchParams(searchParams.toString());
     params.delete("leftTaskId");
     params.delete("rightTaskId");
-    router.replace(`?${params.toString()}`);
+    router.replace(`?${params.toString()}`, { scroll: false });
   };
 
   const handleCreateTasks = async () => {
@@ -166,7 +166,7 @@ export default function PlaygroundPage() {
         const params = new URLSearchParams(searchParams.toString());
         params.set("leftTaskId", result.data.draft_task_id);
         params.set("rightTaskId", result.data.comparison_task_id);
-        router.replace(`?${params.toString()}`);
+        router.replace(`?${params.toString()}`, { scroll: false });
       } else {
         throw new Error(`Task creation failed: ${result.error || 'Unknown error'}`);
       }
@@ -203,6 +203,8 @@ export default function PlaygroundPage() {
       <PlaygroundHeader 
         draftAgent={draftAgent}
         comparisonAgent={comparisonAgent}
+        leftTaskId={leftTaskId}
+        rightTaskId={rightTaskId}
       />
       
       <div className="flex-1 flex overflow-hidden">

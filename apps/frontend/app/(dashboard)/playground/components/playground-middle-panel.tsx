@@ -51,7 +51,7 @@ export function PlaygroundMiddlePanel({
       </div>
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        {!taskId ? (
+        {!taskId && (
           <div className="space-y-4 p-4">
                 <Textarea
                   value={taskDescription}
@@ -86,15 +86,15 @@ export function PlaygroundMiddlePanel({
               </p>
             </div>
           </div>
-        ) : (
-          <div className="flex-1 overflow-y-auto">
-            <PlaygroundTaskExecution
-              taskId={taskId}
-              agentName={agent.name || "Draft Agent"}
-              className="h-full"
-            />
-          </div>
         )}
+        
+        <div className={`flex-1 overflow-y-auto ${!taskId ? 'hidden' : ''}`}>
+          <PlaygroundTaskExecution
+            taskId={taskId}
+            agentName={agent.name || "Draft Agent"}
+            className="h-full"
+          />
+        </div>
       </div>
     </div>
   );

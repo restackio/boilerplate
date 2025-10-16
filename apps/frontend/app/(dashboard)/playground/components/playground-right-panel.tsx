@@ -81,7 +81,7 @@ export function PlaygroundRightPanel({
       </div>
 
       <div className="flex-1 overflow-hidden flex flex-col">
-        {!agent ? (
+        {!agent && (
           <Card className="h-full flex items-center justify-center">
             <CardContent>
               <EmptyState
@@ -90,7 +90,9 @@ export function PlaygroundRightPanel({
               />
             </CardContent>
           </Card>
-        ) : !taskId ? (
+        )}
+        
+        {agent && !taskId && (
           <Card className="h-full flex items-center justify-center">
             <CardContent>
               <EmptyState
@@ -99,8 +101,10 @@ export function PlaygroundRightPanel({
               />
             </CardContent>
           </Card>
-        ) : (
-          <div className="flex-1 overflow-y-auto">
+        )}
+        
+        {agent && (
+          <div className={`flex-1 overflow-y-auto ${!taskId ? 'hidden' : ''}`}>
             <PlaygroundTaskExecution
               taskId={taskId}
               agentName={agent.name || "Comparison Agent"}

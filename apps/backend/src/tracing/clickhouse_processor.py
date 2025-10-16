@@ -57,9 +57,17 @@ class ClickHouseTracingProcessor:
                 self._flush_ready.set()  # Signal background thread
 
     def shutdown(self) -> None:
+        """Gracefully shutdown the processor, flushing remaining spans."""
+
+        # Signal shutdown and wait for background thread
         self._shutdown_event.set()
+        self._flush_ready.set()  # Wake up the thread immediately
         self._flush_thread.join(timeout=10)
-        self._flush_buffer()
+
+        # Final flush of any remaining spans
+        if self._span_buffer:
+            self._flush_buffer()
+
 
     def force_flush(self) -> None:
         self._flush_buffer()
@@ -88,7 +96,21 @@ class ClickHouseTracingProcessor:
                 )
 
         # Cleanup loop on shutdown
-        self._loop.close()
+        try:
+            # Cancel all pending tasks
+            pending = asyncio.all_tasks(self._loop)
+            for task in pending:
+                task.cancel()
+
+            # Wait for tasks to be cancelled
+            if pending:
+                self._loop.run_until_complete(
+                    asyncio.gather(*pending, return_exceptions=True)
+                )
+        except Exception as e:  # noqa: BLE001
+            log.error(f"[Tracing] Error cancelling tasks on shutdown: {e}")
+        finally:
+            self._loop.close()
 
     def _flush_buffer(self) -> None:
         """Synchronous flush - schedules async work if loop is available."""

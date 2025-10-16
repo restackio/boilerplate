@@ -3,12 +3,12 @@
 import { useEffect, useState } from "react";
 import { useWorkspaceScopedActions, Task } from "@/hooks/use-workspace-scoped-actions";
 import { useAgentState } from "@/app/(dashboard)/agents/[agentId]/hooks/use-agent-state";
+import { AgentStreamProvider } from "@/app/(dashboard)/agents/[agentId]/providers/agent-stream-provider";
 import { useRxjsConversation } from "@/app/(dashboard)/tasks/[taskId]/hooks/use-rxjs-conversation";
 import { sendMcpApproval } from "@/app/actions/agent";
-import { OpenAIEvent, ConversationItem } from "@/app/(dashboard)/tasks/[taskId]/types";
+import { OpenAIEvent } from "@/app/(dashboard)/tasks/[taskId]/types";
 import { TaskChatInterface } from "@/app/(dashboard)/tasks/[taskId]/components";
 import {
-  EntityLoadingState,
   EntityErrorState,
   EntityNotFoundState,
 } from "@workspace/ui/components";
@@ -21,17 +21,19 @@ interface PlaygroundTaskExecutionProps {
   className?: string;
 }
 
-// Content component that only renders when we have a valid temporal_agent_id
-function PlaygroundTaskContent({ 
+// Inner component that uses the agent state hook (must be inside provider)
+function PlaygroundTaskContentInner({ 
   task, 
   taskId, 
   agentName, 
-  className 
+  className,
+  metricsRefreshTrigger
 }: { 
   task: Task; 
   taskId: string; 
   agentName: string; 
   className: string;
+  metricsRefreshTrigger: number;
 }) {
   const [chatMessage, setChatMessage] = useState("");
   const [localTask, setLocalTask] = useState<Task>(task);
@@ -101,8 +103,8 @@ function PlaygroundTaskContent({
     }
   };
 
-  const handleCardClick = (item: ConversationItem) => {
-    console.log("Card clicked:", item);
+  const handleCardClick = () => {
+    // Card click handler - can be extended for additional functionality
   };
 
   const handleUpdateTask = async (updates: Partial<Task>) => {
@@ -160,11 +162,51 @@ function PlaygroundTaskContent({
               taskId={taskId}
               task={localTask}
               onUpdateTask={handleUpdateTask}
+              refreshTrigger={metricsRefreshTrigger}
             />
           </div>
         </div>
       </div>
     </div>
+  );
+}
+
+// Wrapper component that provides the AgentStreamProvider
+// The provider internally chooses between active (with subscriptions) or mock (without)
+function PlaygroundTaskContent({ 
+  task, 
+  taskId, 
+  agentName, 
+  className 
+}: { 
+  task: Task; 
+  taskId: string; 
+  agentName: string; 
+  className: string;
+}) {
+  const [metricsRefreshTrigger, setMetricsRefreshTrigger] = useState(0);
+
+  const handleResponseComplete = () => {
+    // Trigger metrics refresh when response completes
+    setMetricsRefreshTrigger(prev => prev + 1);
+  };
+
+  return (
+    <AgentStreamProvider
+      agentTaskId={task.temporal_agent_id || ''}
+      runId={task.agent_state?.metadata?.temporal_run_id}
+      taskStatus={task.status}
+      initialState={task.agent_state}
+      onResponseComplete={handleResponseComplete}
+    >
+      <PlaygroundTaskContentInner 
+        task={task}
+        taskId={taskId}
+        agentName={agentName}
+        className={className}
+        metricsRefreshTrigger={metricsRefreshTrigger}
+      />
+    </AgentStreamProvider>
   );
 }
 
@@ -186,26 +228,45 @@ export function PlaygroundTaskExecution({
       return;
     }
 
+    // Only fetch if we don't already have the task
+    if (task && task.id === taskId) {
+      setIsLoading(false);
+      return;
+    }
+
+    let isMounted = true;
+
     const fetchTask = async () => {
+      if (!isMounted) return;
+
       try {
-        setIsLoading(true);
-        setError(null);
         const taskResult = await getTaskById(taskId);
+        
+        if (!isMounted) return;
+
         if (taskResult.success && taskResult.data) {
           setTask(taskResult.data);
+          setIsLoading(false);
         } else {
           setError("Failed to load task");
+          setIsLoading(false);
         }
       } catch (err) {
+        if (!isMounted) return;
+        
         console.error("Error fetching task:", err);
         setError("Failed to load task");
-      } finally {
         setIsLoading(false);
       }
     };
 
     fetchTask();
-  }, [taskId, getTaskById]);
+
+    return () => {
+      isMounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [taskId]); // Only depend on taskId to prevent re-fetching
 
   if (!taskId) {
     return (
@@ -220,8 +281,19 @@ export function PlaygroundTaskExecution({
 
   if (isLoading) {
     return (
-      <div className={className}>
-        <EntityLoadingState entityId={taskId} entityType="task" />
+      <div className={`flex flex-col h-full ${className}`}>
+        <div className="p-3 border-b bg-muted/20 animate-pulse">
+          <div className="flex items-center gap-2">
+            <div className="h-2 w-2 rounded-full bg-muted" />
+            <div className="h-4 w-32 bg-muted rounded" />
+          </div>
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-2">
+            <div className="h-6 w-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            <span className="text-sm text-muted-foreground">Initializing task...</span>
+          </div>
+        </div>
       </div>
     );
   }
@@ -242,14 +314,6 @@ export function PlaygroundTaskExecution({
     );
   }
 
-  // Wait for temporal_agent_id before rendering content with subscriptions
-  if (!task.temporal_agent_id) {
-    return (
-      <div className={className}>
-        <EntityLoadingState entityId={taskId} entityType="task" />
-      </div>
-    );
-  }
-
+  // AgentStreamProvider handles missing temporal_agent_id internally
   return <PlaygroundTaskContent task={task} taskId={taskId} agentName={agentName} className={className} />;
 }

@@ -6,6 +6,7 @@ import { useWorkspaceScopedActions, Task } from "@/hooks/use-workspace-scoped-ac
 import { useTaskDetail } from "./hooks/use-task-detail";
 import { sendMcpApproval } from "@/app/actions/agent";
 import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
+import { AgentStreamProvider } from "@/app/(dashboard)/agents/[agentId]/providers/agent-stream-provider";
 import {
   TaskHeader,
   TaskChatInterface,
@@ -19,8 +20,8 @@ import {
   createConfirmationConfig,
 } from "@workspace/ui/components";
 
-// Content component that only renders when we have a valid temporal_agent_id
-function TaskDetailContent({ task }: { task: Task }) {
+// Inner component that uses hooks requiring the provider
+function TaskDetailContentInner({ task }: { task: Task }) {
   const { currentWorkspaceId } = useDatabaseWorkspace();
   const {
     showDeleteDialog,
@@ -88,7 +89,7 @@ function TaskDetailContent({ task }: { task: Task }) {
         onOpenAnalytics={handleOpenAnalytics}
       />
       
-      <div className={`flex ${showSplitView ? 'h-[calc(100vh-80px)]' : ''}`}>
+      <div className={`flex ${showSplitView ? 'h-[calc(100vh-120px)]' : ''}`}>
         <TaskChatInterface
           conversation={conversation}
           chatMessage={chatMessage}
@@ -126,6 +127,21 @@ function TaskDetailContent({ task }: { task: Task }) {
         {...createConfirmationConfig.delete(task.title, "task")}
       />
     </div>
+  );
+}
+
+// Wrapper component that provides the AgentStreamProvider
+// The provider internally chooses between active (with subscriptions) or mock (without)
+function TaskDetailContent({ task }: { task: Task }) {
+  return (
+    <AgentStreamProvider
+      agentTaskId={task.temporal_agent_id || ''}
+      runId={task.agent_state?.metadata?.temporal_run_id}
+      taskStatus={task.status}
+      initialState={task.agent_state}
+    >
+      <TaskDetailContentInner task={task} />
+    </AgentStreamProvider>
   );
 }
 

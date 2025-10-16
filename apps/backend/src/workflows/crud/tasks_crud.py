@@ -144,7 +144,7 @@ class TasksCreateWorkflow:
                 "TasksCreateWorkflow agent", agent_task=agent_task
             )
 
-            await workflow.step(
+            updated_result = await workflow.step(
                 function=tasks_update_agent_task_id,
                 function_input=TaskUpdateAgentTaskIdInput(
                     task_id=result.task.id,
@@ -172,7 +172,8 @@ class TasksCreateWorkflow:
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e
         else:
-            return result
+            # Return the updated result with temporal_agent_id set
+            return updated_result
 
 
 @workflow.defn()

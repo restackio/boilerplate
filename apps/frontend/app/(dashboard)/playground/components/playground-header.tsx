@@ -7,9 +7,16 @@ import { Agent } from "@/hooks/use-workspace-scoped-actions";
 interface PlaygroundHeaderProps {
   draftAgent: Agent;
   comparisonAgent: Agent | null;
+  leftTaskId?: string | null;
+  rightTaskId?: string | null;
 }
 
-export function PlaygroundHeader({ draftAgent, comparisonAgent }: PlaygroundHeaderProps) {
+export function PlaygroundHeader({ 
+  draftAgent, 
+  comparisonAgent, 
+  leftTaskId, 
+  rightTaskId 
+}: PlaygroundHeaderProps) {
   const breadcrumbs = [
     { label: "Agents", href: "/agents" },
     { label: draftAgent.name, href: `/agents/${draftAgent.id}` },
@@ -22,7 +29,7 @@ export function PlaygroundHeader({ draftAgent, comparisonAgent }: PlaygroundHead
         <span className="text-sm font-medium">Draft:</span>
         <AgentStatusBadge status={draftAgent.status as "draft" | "published" | "archived"} size="sm" />
         <span className="text-sm text-muted-foreground">
-          {draftAgent.id.slice(-8)}
+          {leftTaskId ? `Task: ${leftTaskId.slice(-8)}` : draftAgent.id.slice(-8)}
         </span>
       </div>
       
@@ -31,7 +38,7 @@ export function PlaygroundHeader({ draftAgent, comparisonAgent }: PlaygroundHead
           <span className="text-sm font-medium">vs</span>
           <AgentStatusBadge status={comparisonAgent.status as "draft" | "published" | "archived"} size="sm" />
           <span className="text-sm text-muted-foreground">
-            {comparisonAgent.id.slice(-8)}
+            {rightTaskId ? `Task: ${rightTaskId.slice(-8)}` : comparisonAgent.id.slice(-8)}
           </span>
         </div>
       )}

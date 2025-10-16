@@ -3,42 +3,29 @@
 /**
  * Agent State Hook
  * 
- * Manages two subscriptions for real-time agent interaction:
- * 1. State subscription - Persistent conversation state from backend
- * 2. Streaming subscription - Live character-by-character updates
+ * Provides access to agent streaming data from the AgentStreamProvider.
+ * This hook must be used within an AgentStreamProvider context.
  * 
- * Note: Subscription errors are expected for completed/failed tasks since
- * Temporal workflows no longer exist. These are gracefully handled.
+ * The provider manages subscriptions to ensure:
+ * - Single EventSource connection per agent
+ * - Proper cleanup when response completes
+ * - No reconnection loops after completion
  */
 
-import { useState, useCallback, useMemo, useEffect } from "react";
-import { subscribeAgentState, subscribeAgentResponses } from "@restackio/react";
+import { useCallback } from "react";
 import { startAgent, sendAgentMessage, stopAgent } from "@/app/actions/agent";
-
-interface AgentState {
-  taskId: string;
-  agentTaskId: string;
-  status: "running" | "completed" | "failed" | "waiting";
-  messages: Array<{
-    role: "user" | "assistant" | "system";
-    content: string;
-    timestamp: string;
-  }>;
-  progress?: number;
-  error?: string;
-}
+import { useAgentStream } from "../providers/agent-stream-provider";
 
 interface UseAgentStateProps {
   taskId: string;
   agentTaskId?: string;
   runId?: string;
-  taskStatus?: string; // Task status to determine if errors are expected
-  onStateChange?: (state: AgentState) => void;
+  taskStatus?: string;
 }
 
 interface UseAgentStateReturn {
-  responseState: unknown; // Unified persistent state (contains both messages and response items)
-  agentResponses: unknown; // Live streaming responses
+  responseState: unknown;
+  agentResponses: unknown;
   loading: boolean;
   error: string | null;
   sendMessageToAgent: (message: string) => Promise<void>;
@@ -46,99 +33,9 @@ interface UseAgentStateReturn {
   stopAgent: () => Promise<void>;
 }
 
-export function useAgentState({ agentTaskId, runId, taskStatus }: UseAgentStateProps): UseAgentStateReturn {
-  const [error, setError] = useState<string | null>(null);
-  const [currentResponseState, setCurrentResponseState] = useState<unknown>(null);
-  
-  // Check if task is in a terminal state where subscription errors are expected
-  const isTerminalState = useMemo(() => {
-    return taskStatus === 'completed' || taskStatus === 'failed' || taskStatus === 'cancelled';
-  }, [taskStatus]);
-
-  // Suppress console errors from Restack SDK for terminal states
-  useEffect(() => {
-    if (!isTerminalState) return;
-
-    const originalError = console.error;
-    console.error = (...args: unknown[]) => {
-      // Filter out expected Restack subscription errors for terminal states
-      const message = String(args[0] || '');
-      if (
-        message.includes('Stream events encountered an error') ||
-        message.includes('State subscription error') ||
-        message.includes('Agent state subscription')
-      ) {
-        return; // Silently ignore
-      }
-      // Pass through other errors
-      originalError.apply(console, args);
-    };
-
-    return () => {
-      console.error = originalError;
-    };
-  }, [isTerminalState]);
-  
-  const subscriptionParams = useMemo(() => ({
-    apiAddress: process.env.NEXT_PUBLIC_RESTACK_ENGINE_API_ADDRESS || "http://localhost:9233",
-    apiToken: process.env.NEXT_PUBLIC_RESTACK_ENGINE_API_KEY,
-    // Pass empty agentId for terminal states to prevent subscription attempts
-    agentId: isTerminalState ? "" : (agentTaskId || ""),
-    runId: isTerminalState ? "" : (runId || ""),
-    stateName: "state_response" as const,
-  }), [agentTaskId, runId, isTerminalState]);
-
-  const handleStateMessage = useCallback((data: unknown) => {
-    setCurrentResponseState(data);
-  }, []);
-
-  const handleStateError = useCallback((error: Error) => {
-    // Subscription errors are expected for completed/failed tasks
-    // since Temporal workflows no longer exist. Silently ignore these.
-    if (isTerminalState) {
-      return;
-    }
-    
-    // Only log and set error for active tasks
-    console.error("State subscription error:", error?.message || 'Unknown error');
-    setError(error.message || "Failed to subscribe to response state");
-  }, [isTerminalState]);
-
-  const stateOptions = useMemo(() => ({
-    onMessage: handleStateMessage,
-    onError: handleStateError,
-  }), [handleStateMessage, handleStateError]);
-  
-  // Subscribe to state (will be disabled via empty agentId for terminal states)
-  subscribeAgentState({
-    ...subscriptionParams,
-    options: stateOptions,
-  });
-
-  const handleResponseMessage = useCallback(() => {
-    // Streaming data handled by Restack SDK
-  }, []);
-
-  const handleResponseError = useCallback((error: Error) => {
-    // Streaming errors are expected for completed/failed tasks
-    // since Temporal workflows no longer exist. Silently ignore these.
-    void error; // Explicitly void to avoid unused variable warning
-  }, []);
-
-  const responseOptions = useMemo(() => ({
-    onMessage: handleResponseMessage,
-    onError: handleResponseError,
-  }), [handleResponseMessage, handleResponseError]);
-
-  // Subscribe to streaming responses (will be disabled via empty agentId for terminal states)
-  const agentResponses = subscribeAgentResponses({
-    apiAddress: process.env.NEXT_PUBLIC_RESTACK_ENGINE_API_ADDRESS || "http://localhost:9233",
-    apiToken: process.env.NEXT_PUBLIC_RESTACK_ENGINE_API_KEY,
-    // Pass empty agentId for terminal states to prevent subscription attempts
-    agentId: isTerminalState ? "" : (agentTaskId || ""),
-    runId: isTerminalState ? "" : (runId || ""),
-    options: responseOptions,
-  });
+export function useAgentState({ agentTaskId }: UseAgentStateProps): UseAgentStateReturn {
+  // Get streaming data from provider
+  const { responseState, agentResponses, loading, error } = useAgentStream();
 
   const sendMessageToAgent = useCallback(async (message: string) => {
     if (!agentTaskId) throw new Error("No agent task ID available");
@@ -163,9 +60,9 @@ export function useAgentState({ agentTaskId, runId, taskStatus }: UseAgentStateP
   }, [agentTaskId]);
 
   return {
-    responseState: currentResponseState,
+    responseState,
     agentResponses,
-    loading: false,
+    loading,
     error,
     sendMessageToAgent,
     startAgent: startAgentExecution,

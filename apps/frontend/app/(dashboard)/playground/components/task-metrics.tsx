@@ -11,6 +11,7 @@ interface TaskMetricsProps {
   taskId: string;
   task?: Task;
   onUpdateTask?: (updates: Partial<Task>) => Promise<void>;
+  refreshTrigger?: number;
 }
 
 interface QualityMetric {
@@ -38,7 +39,7 @@ interface PerformanceMetric {
 
 type Metric = QualityMetric | PerformanceMetric;
 
-export function TaskMetrics({ taskId, task, onUpdateTask }: TaskMetricsProps) {
+export function TaskMetrics({ taskId, task, onUpdateTask, refreshTrigger }: TaskMetricsProps) {
   const [metrics, setMetrics] = useState<Metric[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
@@ -51,6 +52,14 @@ export function TaskMetrics({ taskId, task, onUpdateTask }: TaskMetricsProps) {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [taskId, hasLoaded]);
+
+  // Auto-refresh when triggered externally (e.g., response completion)
+  useEffect(() => {
+    if (refreshTrigger && refreshTrigger > 0 && hasLoaded) {
+      handleRefresh();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshTrigger]);
 
   async function fetchMetrics() {
     setLoading(true);

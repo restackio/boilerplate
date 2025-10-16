@@ -87,8 +87,8 @@ export function TaskChatInterface({
   }, [isTaskActive, responseState, task?.agent_state?.subtasks]);
 
   return (
-    <div className={`${showSplitView ? 'w-3/5' : 'w-full max-w-4xl mx-auto'} flex flex-col bg-background`}>
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+    <div className={`${showSplitView ? 'w-3/5 h-full' : 'w-full max-w-4xl mx-auto'} flex flex-col bg-background`}>
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
         {conversation.length === 0 ? (
           <EmptyState
             title="No messages yet"

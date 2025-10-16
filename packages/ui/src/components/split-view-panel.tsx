@@ -67,13 +67,14 @@ export function SplitViewPanel({
 
   const panelContent = (
     <div className={cn(
-      "bg-muted/50 min-h-screen border-l",
+      "bg-muted/50 border-l flex flex-col",
       width,
+      overlay ? "min-h-screen" : "h-full",
       position === "left" && "border-r border-l-0",
       overlay && "absolute inset-y-0 right-0 z-40 shadow-lg",
       className
     )}>
-      <div className="p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
         {/* Header */}
         <div className="flex items-center justify-start">
           
