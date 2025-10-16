@@ -1,3 +1,6 @@
+# syntax=docker/dockerfile:1.4
+# Enable BuildKit features for better caching and performance
+
 # ============
 # Base stage
 # ============
@@ -5,21 +8,25 @@ FROM node:20-bullseye-slim AS base
 # Use the official Node 20 image based on bullseye slim.
 # This stage serves as the base image for all subsequent stages.
 
+# Configure npm for better performance
+RUN npm config set update-notifier false \
+    && npm config set fund false
+
 # ============
-# Builder stage
+# Pruner stage
 # ============
-FROM base AS builder
+FROM base AS pruner
 
 WORKDIR /app
 
-# Install Turbo globally as it is needed during the build.
-RUN npm install -g turbo@2.5.6
+# Install Turbo globally with cache mount
+RUN --mount=type=cache,target=/root/.npm \
+    npm install -g turbo@2.5.6
 
-# First copy workspace configuration files
-COPY package.json pnpm-workspace.yaml turbo.json ./
-COPY pnpm-lock.yaml ./
+# Copy workspace configuration files first
+COPY package.json pnpm-workspace.yaml turbo.json pnpm-lock.yaml ./
 
-# Copy package.json files from all workspaces to understand the dependency structure
+# Copy all package.json files to understand dependency structure
 COPY apps/backend/package.json ./apps/backend/
 COPY apps/frontend/package.json ./apps/frontend/
 COPY apps/mcp_server/package.json ./apps/mcp_server/
@@ -29,65 +36,101 @@ COPY packages/eslint-config/package.json ./packages/eslint-config/
 COPY packages/typescript-config/package.json ./packages/typescript-config/
 COPY packages/ui/package.json ./packages/ui/
 
-# Now copy the rest of the application source code
-COPY . .
+# Copy only what turbo prune needs (more targeted than COPY . .)
+COPY apps/frontend ./apps/frontend
+COPY packages ./packages
+COPY turbo.json ./
 
-# Prune the workspace to only include the necessary scopes.
-RUN turbo prune --docker --scope boilerplate-frontend
+# Prune the workspace to only include necessary dependencies
+RUN turbo prune boilerplate-frontend --docker
 
 # ============
-# Installer stage
+# Dependencies stage
 # ============
-FROM base AS installer
+FROM base AS dependencies
 
 WORKDIR /app
 
-# Update the certificate store in this Debian-based stage.
-RUN apt-get update && \
-    apt-get install -y ca-certificates && \
-    update-ca-certificates  \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN npm install -g pnpm@10.15.1 && \
-    npm install -g turbo@2.5.6
-
-# Copy pre-pruned dependency files from the builder stage.
-COPY --from=builder /app/out/json/ .
-COPY --from=builder /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
-
-# Install dependencies.
-RUN pnpm install 
-
-# Copy the full application and build it.
-COPY --from=builder /app/out/full/ .
-
-# Ensure the UI package source files are available for the CSS import
-COPY --from=builder /app/packages/ui/src ./packages/ui/src
-
-RUN pnpm build
-
-# ============
-# Final Runner stage
-# ============
-FROM node:20-bullseye-slim AS runner
-
-WORKDIR /app
-
-# Copy the production-ready built application from the installer stage.
-COPY --from=installer /app .
-
-# Install only runtime packages. Here we install curl and ca-certificates,
-# then update the certificate store for secure TLS connections.
-RUN npm install -g pnpm@10.15.1 \
+# Install system dependencies
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    rm -f /etc/apt/apt.conf.d/docker-clean \
     && apt-get update \
-    && apt-get install -y ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+    && apt-get install -y --no-install-recommends ca-certificates \
+    && update-ca-certificates
+
+# Install pnpm and turbo globally with cache mount
+RUN --mount=type=cache,target=/root/.npm \
+    npm install -g pnpm@10.15.1 turbo@2.5.6
+
+# Copy pre-pruned dependency files from the pruner stage
+COPY --from=pruner /app/out/json/ .
+COPY --from=pruner /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
+
+# Install dependencies with pnpm cache mount
+# Using --frozen-lockfile for reproducible builds
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile
+
+# ============
+# Builder stage
+# ============
+FROM dependencies AS builder
+
+WORKDIR /app
+
+# Copy the full pruned application
+COPY --from=pruner /app/out/full/ .
+
+# Build the application with Next.js cache mount
+# Disable telemetry for faster builds
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN --mount=type=cache,target=/app/apps/frontend/.next/cache \
+    --mount=type=cache,target=/app/.turbo \
+    pnpm build --filter=boilerplate-frontend
+
+# ============
+# Runner stage (production)
+# ============
+FROM base AS runner
+
+WORKDIR /app
+
+# Install runtime dependencies (curl for healthchecks, ca-certificates for HTTPS)
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    rm -f /etc/apt/apt.conf.d/docker-clean \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        curl \
+    && update-ca-certificates
+
+# Install pnpm for running the app
+RUN --mount=type=cache,target=/root/.npm \
+    npm install -g pnpm@10.15.1
+
+# Create non-root user for security
+RUN groupadd -r nodejs && useradd -r -g nodejs nodejs
+
+# Copy built application from builder stage
+# Only copy what's needed for runtime
+COPY --from=builder --chown=nodejs:nodejs /app/apps/frontend/.next ./apps/frontend/.next
+COPY --from=builder --chown=nodejs:nodejs /app/apps/frontend/public ./apps/frontend/public
+COPY --from=builder --chown=nodejs:nodejs /app/apps/frontend/package.json ./apps/frontend/
+COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=nodejs:nodejs /app/package.json ./package.json
+COPY --from=builder --chown=nodejs:nodejs /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
+
+# Set production environment
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Switch to non-root user
+USER nodejs
 
 # Expose port 3000 for Next.js
 EXPOSE 3000
 
-# Start the application using pnpm.
-CMD ["pnpm", "start"]
-
-# # Dummy shell for troubleshooting
-# CMD ["sh"]
+# Use exec form for better signal handling
+CMD ["pnpm", "--filter", "boilerplate-frontend", "start"]
