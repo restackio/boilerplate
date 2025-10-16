@@ -39,6 +39,7 @@ FROM base AS runtime
 COPY --from=dependencies /app/.venv /app/.venv
 
 # Copy database package (migrations, demo data, scripts)
+# Path is relative to Dockerfile location for Kaniko builds
 COPY ../../packages/database/ /app/packages/database/
 RUN chmod +x /app/packages/database/scripts/*.sh
 
@@ -51,21 +52,6 @@ ENV PATH="/app/.venv/bin:$PATH"
 # Expose port 80
 EXPOSE 80
 
-# Run migrations, handle demo data, then start backend
-# Use exec form for better signal handling
-CMD ["/bin/bash", "-c", "\
-  set -e && \
-  echo '[Backend] Running database migrations...' && \
-  /app/packages/database/scripts/migrate.sh && \
-  if [ \"$DEMO_MODE\" = \"true\" ]; then \
-    if [ \"$RESET_DEMO\" = \"true\" ]; then \
-      echo '[Backend] Resetting demo data...' && \
-      /app/packages/database/scripts/reset-demo.sh; \
-    else \
-      echo '[Backend] Inserting demo data...' && \
-      /app/packages/database/scripts/insert-demo.sh; \
-    fi; \
-  fi && \
-  echo '[Backend] Starting backend service...' && \
-  exec uv run start \
-"]
+# Start backend service
+# Migrations and demo data are now handled in src/services.py:start()
+CMD ["uv", "run", "start"]
