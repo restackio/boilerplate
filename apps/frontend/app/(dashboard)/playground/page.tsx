@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
 import { executeWorkflow } from "@/app/actions/workflow";
@@ -16,6 +16,7 @@ import { Agent } from "@/hooks/use-workspace-scoped-actions";
 
 export default function PlaygroundPage() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const agentId = searchParams.get("agentId");
   const { isReady, workspaceId } = useDatabaseWorkspace();
   const { getAgentById, fetchAgents, updateAgent } = useWorkspaceScopedActions();
@@ -80,6 +81,24 @@ export default function PlaygroundPage() {
     loadAgentData();
   }, [isReady, agentId, getAgentById, fetchAgents]);
 
+  // Load task IDs from URL on mount
+  useEffect(() => {
+    const leftTaskIdParam = searchParams.get("leftTaskId");
+    const rightTaskIdParam = searchParams.get("rightTaskId");
+    
+    if (leftTaskIdParam) {
+      setLeftTaskId(leftTaskIdParam);
+    }
+    if (rightTaskIdParam) {
+      setRightTaskId(rightTaskIdParam);
+    }
+    
+    // If we have task IDs in the URL, auto-collapse the left panel
+    if (leftTaskIdParam && rightTaskIdParam) {
+      setIsLeftPanelCollapsed(true);
+    }
+  }, []); // Only run once on mount
+
   const handleDraftAgentChange = useCallback((updates: Partial<Agent>) => {
     if (draftAgent) {
       setDraftAgent({ ...draftAgent, ...updates });
@@ -98,6 +117,12 @@ export default function PlaygroundPage() {
     setRightTaskId(null);
     setTaskDescription("");
     setIsLeftPanelCollapsed(false);
+    
+    // Remove task IDs from URL
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("leftTaskId");
+    params.delete("rightTaskId");
+    router.replace(`?${params.toString()}`);
   };
 
   const handleCreateTasks = async () => {
@@ -135,6 +160,12 @@ export default function PlaygroundPage() {
       if (result.success && result.data) {
         setLeftTaskId(result.data.draft_task_id);
         setRightTaskId(result.data.comparison_task_id);
+        
+        // Add task IDs to URL for sharing
+        const params = new URLSearchParams(searchParams.toString());
+        params.set("leftTaskId", result.data.draft_task_id);
+        params.set("rightTaskId", result.data.comparison_task_id);
+        router.replace(`?${params.toString()}`);
       } else {
         throw new Error(`Task creation failed: ${result.error || 'Unknown error'}`);
       }

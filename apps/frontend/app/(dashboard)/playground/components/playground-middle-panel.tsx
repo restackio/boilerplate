@@ -53,12 +53,7 @@ export function PlaygroundMiddlePanel({
 
       <div className="flex-1 flex flex-col overflow-hidden">
         {!taskId ? (
-          <div className="space-y-4">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm">Task</CardTitle>
-              </CardHeader>
-              <CardContent>
+          <div className="space-y-4 p-4">
                 <Textarea
                   value={taskDescription}
                   onChange={(e) => onTaskDescriptionChange(e.target.value)}
@@ -66,8 +61,6 @@ export function PlaygroundMiddlePanel({
                   className="min-h-[120px] max-h-[200px] resize-none"
                   rows={5}
                 />
-              </CardContent>
-            </Card>
 
             <Button 
               onClick={onCreateTasks}
@@ -82,14 +75,13 @@ export function PlaygroundMiddlePanel({
                 </>
               ) : (
                 <>
-                  <Play className="h-4 w-4 mr-2" />
                   Start comparison
                 </>
               )}
             </Button>
             
             <div className="text-xs text-muted-foreground text-center space-y-1">
-              <p>Task execution will appear here once started</p>
+              <p>Task will appear here once started</p>
               <p className="text-[10px] opacity-75">
                 All changes (instructions, model, tools) will be saved before testing
               </p>

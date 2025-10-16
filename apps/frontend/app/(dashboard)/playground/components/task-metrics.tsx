@@ -223,7 +223,7 @@ export function TaskMetrics({ taskId, task, onUpdateTask }: TaskMetricsProps) {
                     </td>
                     <td className="p-2 text-right">
                       {isQuality ? (
-                        qualityMetric.score !== undefined && (
+                        qualityMetric.score != null && (
                           <Badge variant="outline" className="text-xs">
                             {qualityMetric.score.toFixed(0)}/100
                           </Badge>
