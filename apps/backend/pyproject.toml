@@ -47,6 +47,7 @@ extend-select = ["ALL"]
 ignore = [
     "ANN401", "E501", "D100", "D101", "D102", "D103", "D107", 
     "TRY002", "D213", "D203", "COM812", "D104", "INP001", "PLC0415",
+    "ISC001",  # Conflicts with formatter
 ]
 
 [tool.ruff.format]

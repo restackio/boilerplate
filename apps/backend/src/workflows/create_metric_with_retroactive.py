@@ -43,7 +43,7 @@ class CreateMetricWithRetroactiveInput:
     description: str | None = None
     is_active: bool = True
     created_by: str | None = None
-    parent_agent_ids: list[str] | None = None 
+    parent_agent_ids: list[str] | None = None
 
     # Retroactive evaluation options (optional)
     run_retroactive: bool = False

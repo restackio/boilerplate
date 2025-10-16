@@ -9,7 +9,7 @@
     "install": "uv sync",
     "build": "uv sync --frozen",
     "lint": "ruff check .",
-    "lint:fix": "ruff check . --fix",
+    "lint:fix": "ruff format && ruff check . --fix",
     "type-check": "echo 'Python MCP server does not need type checking'",
     "postinstall": "mkdir -p node_modules"
   },
