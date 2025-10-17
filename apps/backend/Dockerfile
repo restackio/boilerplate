@@ -25,7 +25,8 @@ FROM base AS dependencies
 
 # Copy only dependency files for better caching
 # README.md is required by uv for package metadata
-COPY pyproject.toml uv.lock README.md ./
+# Paths are relative to build context (project root)
+COPY apps/backend/pyproject.toml apps/backend/uv.lock apps/backend/README.md ./
 
 # Install Python dependencies
 RUN uv sync --no-dev --frozen
@@ -39,12 +40,12 @@ FROM base AS runtime
 COPY --from=dependencies /app/.venv /app/.venv
 
 # Copy database package (migrations, demo data, scripts)
-# Path is relative to Dockerfile location for Kaniko builds
-COPY ../../packages/database/ /app/packages/database/
+# Paths are relative to build context (project root)
+COPY packages/database/ /app/packages/database/
 RUN chmod +x /app/packages/database/scripts/*.sh
 
 # Copy application source (changes most frequently, copy last)
-COPY src ./src
+COPY apps/backend/src ./src
 
 # Set Python path to use installed dependencies
 ENV PATH="/app/.venv/bin:$PATH"
