@@ -35,11 +35,21 @@ COPY packages/database/package.json ./packages/database/ \
 COPY apps/frontend ./apps/frontend
 COPY packages ./packages
 
+# Accept build arguments - can be passed as NEXT_PUBLIC_* or regular vars (we'll map them)
+ARG RESTACK_ENGINE_STREAM_ADDRESS
+ARG RESTACK_ENGINE_API_KEY
+ARG POSTHOG_KEY
+ARG POSTHOG_HOST
+ARG NEXT_PUBLIC_RESTACK_ENGINE_API_ADDRESS=${RESTACK_ENGINE_STREAM_ADDRESS}
+ARG NEXT_PUBLIC_RESTACK_ENGINE_API_KEY=${RESTACK_ENGINE_API_KEY}
+ARG NEXT_PUBLIC_POSTHOG_KEY=${POSTHOG_KEY}
+ARG NEXT_PUBLIC_POSTHOG_HOST=${POSTHOG_HOST}
+
 # Prune, install, and build - proper turbo prune workflow
 # 1. Prune to get minimal package.json files and full source
 # 2. Install dependencies using pruned package.json
 # 3. Copy full source (keeps node_modules from step 2)
-# 4. Build
+# 4. Build with environment variables
 RUN turbo prune boilerplate-frontend --docker \
     && cp -r out/json/. . \
     && pnpm install --frozen-lockfile \
@@ -48,6 +58,10 @@ RUN turbo prune boilerplate-frontend --docker \
        NEXT_TELEMETRY_DISABLED=1 \
        NEXT_SKIP_TYPE_CHECK=true \
        NODE_OPTIONS="--max-old-space-size=4096" \
+       NEXT_PUBLIC_RESTACK_ENGINE_API_ADDRESS="${NEXT_PUBLIC_RESTACK_ENGINE_API_ADDRESS}" \
+       NEXT_PUBLIC_RESTACK_ENGINE_API_KEY="${NEXT_PUBLIC_RESTACK_ENGINE_API_KEY}" \
+       NEXT_PUBLIC_POSTHOG_KEY="${NEXT_PUBLIC_POSTHOG_KEY}" \
+       NEXT_PUBLIC_POSTHOG_HOST="${NEXT_PUBLIC_POSTHOG_HOST}" \
        pnpm build --filter=boilerplate-frontend
 
 # ============
