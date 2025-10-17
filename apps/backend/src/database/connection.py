@@ -88,14 +88,22 @@ async def close_async_db() -> None:
 
 def get_clickhouse_client() -> clickhouse_connect.driver.Client:
     """Get ClickHouse client connection (synchronous - use for compatibility only)."""
+    host = os.getenv("CLICKHOUSE_HOST", "localhost")
+    port = int(os.getenv("CLICKHOUSE_PORT", "8123"))
+    username = os.getenv("CLICKHOUSE_USER", "clickhouse")
+    password = os.getenv("CLICKHOUSE_PASSWORD", "clickhouse")
+    database = os.getenv("CLICKHOUSE_DATABASE", "boilerplate_clickhouse")
+    
+    # Auto-detect if we need secure connection (ClickHouse Cloud uses port 8443 or 9440)
+    secure = port in (8443, 9440)
+    
     return clickhouse_connect.get_client(
-        host=os.getenv("CLICKHOUSE_HOST", "localhost"),
-        port=int(os.getenv("CLICKHOUSE_PORT", "8123")),
-        username=os.getenv("CLICKHOUSE_USER", "clickhouse"),
-        password=os.getenv("CLICKHOUSE_PASSWORD", "clickhouse"),
-        database=os.getenv(
-            "CLICKHOUSE_DATABASE", "boilerplate_clickhouse"
-        ),
+        host=host,
+        port=port,
+        username=username,
+        password=password,
+        database=database,
+        secure=secure,
     )
 
 
@@ -103,12 +111,24 @@ async def get_clickhouse_async_client() -> (
     clickhouse_connect.driver.AsyncClient
 ):
     """Get async ClickHouse client connection."""
+    host = os.getenv("CLICKHOUSE_HOST", "localhost")
+    port = int(os.getenv("CLICKHOUSE_PORT", "8123"))
+    username = os.getenv("CLICKHOUSE_USER", "clickhouse")
+    password = os.getenv("CLICKHOUSE_PASSWORD", "clickhouse")
+    database = os.getenv("CLICKHOUSE_DATABASE", "boilerplate_clickhouse")
+    
+    # Auto-detect if we need secure connection (ClickHouse Cloud uses port 8443 or 9440)
+    secure = port in (8443, 9440)
+    
+    logger.info(
+        f"Connecting to ClickHouse: {username}@{host}:{port}/{database} (secure={secure})"
+    )
+    
     return await clickhouse_connect.get_async_client(
-        host=os.getenv("CLICKHOUSE_HOST", "localhost"),
-        port=int(os.getenv("CLICKHOUSE_PORT", "8123")),
-        username=os.getenv("CLICKHOUSE_USER", "clickhouse"),
-        password=os.getenv("CLICKHOUSE_PASSWORD", "clickhouse"),
-        database=os.getenv(
-            "CLICKHOUSE_DATABASE", "boilerplate_clickhouse"
-        ),
+        host=host,
+        port=port,
+        username=username,
+        password=password,
+        database=database,
+        secure=secure,
     )
