@@ -48,6 +48,7 @@ COPY src ./src
 
 # Set Python path to use installed dependencies
 ENV PATH="/app/.venv/bin:$PATH"
+ENV PYTHONPATH="/app"
 
 # Expose port 80
 EXPOSE 80
