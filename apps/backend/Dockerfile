@@ -47,16 +47,12 @@ COPY --from=dependencies /app/.venv ./.venv
 # Copy project files (needed for uv run to work)
 COPY apps/backend/pyproject.toml apps/backend/uv.lock apps/backend/README.md ./
 
-
 # Paths are relative to build context (project root)
 COPY packages/database/ /app/packages/database/
 RUN chmod +x /app/packages/database/scripts/*.sh
 
 # Copy application source (changes most frequently, copy last)
 COPY apps/backend/src ./src
-
-# # Install the backend package itself
-# RUN uv pip install . --no-deps
 
 # Set Python path to use installed dependencies
 ENV PATH="/app/.venv/bin:$PATH"
