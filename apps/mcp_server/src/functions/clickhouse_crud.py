@@ -67,22 +67,23 @@ class ClickHouseListTablesOutput(BaseModel):
 
 
 async def _create_clickhouse_client() -> AsyncClient:
-    """Create an async ClickHouse client connection."""
+    """Create an async ClickHouse client connection.
+    
+    Requires CLICKHOUSE_URL environment variable in format:
+    - http://user:password@host:port/database (for local/insecure)
+    - https://user:password@host:port/database (for ClickHouse Cloud)
+    """
     try:
-        return await clickhouse_connect.get_async_client(
-            host=os.getenv("CLICKHOUSE_HOST", "localhost"),
-            port=int(os.getenv("CLICKHOUSE_PORT", "8123")),
-            username=os.getenv("CLICKHOUSE_USER", "clickhouse"),
-            password=os.getenv(
-                "CLICKHOUSE_PASSWORD", "clickhouse"
-            ),
-            database=os.getenv(
-                "CLICKHOUSE_DATABASE", "boilerplate_clickhouse"
-            ),
+        clickhouse_url = os.getenv(
+            "CLICKHOUSE_URL",
+            "http://clickhouse:clickhouse@localhost:8123/boilerplate_clickhouse"
         )
+        return await clickhouse_connect.get_async_client(dsn=clickhouse_url)
     except Exception as e:
         msg = f"Failed to connect to ClickHouse: {e!s}"
         raise ConnectionError(msg) from e
+
+
 
 
 @function.defn()
@@ -140,7 +141,7 @@ async def clickhouse_list_tables(
 ) -> ClickHouseListTablesOutput:
     """List available ClickHouse tables in a database with metadata."""
     try:
-        client = _create_clickhouse_client()
+        client = await _create_clickhouse_client()
 
         # Build query with optional filters
         # Note: format_query_value properly escapes SQL values

@@ -8,7 +8,6 @@
     "demo:insert": "bash scripts/insert-demo.sh",
     "demo:reset": "bash scripts/reset-demo.sh",
     "postgres:connect": "psql $DATABASE_URL",
-    "clickhouse:connect": "clickhouse-client --host ${CLICKHOUSE_HOST:-localhost} --port ${CLICKHOUSE_PORT:-8123} --user ${CLICKHOUSE_USER:-clickhouse} --password ${CLICKHOUSE_PASSWORD:-clickhouse}",
     "postinstall": "mkdir -p node_modules"
   },
   "files": [

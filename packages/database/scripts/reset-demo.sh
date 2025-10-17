@@ -49,32 +49,21 @@ fi
 # ClickHouse: Delete and re-insert
 echo "→ Deleting ClickHouse demo data..."
 
-# Parse ClickHouse connection - prioritize individual env vars over URL
-if [ -n "$CLICKHOUSE_HOST" ] && [ -n "$CLICKHOUSE_DATABASE" ]; then
-  # Use individual environment variables
-  CLICKHOUSE_USER="${CLICKHOUSE_USERNAME:-default}"
-  CLICKHOUSE_PASSWORD="${CLICKHOUSE_PASSWORD:-}"
-  CLICKHOUSE_PORT="${CLICKHOUSE_PORT:-8123}"
-  CLICKHOUSE_DB="${CLICKHOUSE_DATABASE}"
-else
-  # Fall back to URL parsing
-  CLICKHOUSE_URL_CLEAN="${CLICKHOUSE_URL#clickhouse://}"
-  CLICKHOUSE_URL_CLEAN="${CLICKHOUSE_URL_CLEAN#http://}"
-  CLICKHOUSE_URL_CLEAN="${CLICKHOUSE_URL_CLEAN#https://}"
-  
-  if [[ $CLICKHOUSE_URL_CLEAN =~ ^([^:]+):([^@]+)@(.+)$ ]]; then
-    CLICKHOUSE_USER="${BASH_REMATCH[1]}"
-    CLICKHOUSE_PASSWORD="${BASH_REMATCH[2]}"
-    CLICKHOUSE_URL_CLEAN="${BASH_REMATCH[3]}"
-  fi
-  
-  if [[ $CLICKHOUSE_URL_CLEAN =~ ^([^:]+):([^/]+)/(.+)$ ]]; then
-    CLICKHOUSE_HOST="${BASH_REMATCH[1]}"
-    CLICKHOUSE_PORT="${BASH_REMATCH[2]}"
-    CLICKHOUSE_DB="${BASH_REMATCH[3]}"
-  fi
-  
-  CLICKHOUSE_USER="${CLICKHOUSE_USER:-default}"
+# Parse CLICKHOUSE_URL only
+CLICKHOUSE_URL_CLEAN="${CLICKHOUSE_URL#clickhouse://}"
+CLICKHOUSE_URL_CLEAN="${CLICKHOUSE_URL_CLEAN#http://}"
+CLICKHOUSE_URL_CLEAN="${CLICKHOUSE_URL_CLEAN#https://}"
+
+if [[ $CLICKHOUSE_URL_CLEAN =~ ^([^:]+):([^@]+)@(.+)$ ]]; then
+  CLICKHOUSE_USER="${BASH_REMATCH[1]}"
+  CLICKHOUSE_PASSWORD="${BASH_REMATCH[2]}"
+  CLICKHOUSE_URL_CLEAN="${BASH_REMATCH[3]}"
+fi
+
+if [[ $CLICKHOUSE_URL_CLEAN =~ ^([^:]+):([^/]+)/(.+)$ ]]; then
+  CLICKHOUSE_HOST="${BASH_REMATCH[1]}"
+  CLICKHOUSE_PORT="${BASH_REMATCH[2]}"
+  CLICKHOUSE_DB="${BASH_REMATCH[3]}"
 fi
 
 # Detect secure connection
