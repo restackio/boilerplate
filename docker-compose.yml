@@ -170,6 +170,11 @@ services:
     build:
       context: .
       dockerfile: ./apps/frontend/Dockerfile
+      args:
+        RESTACK_ENGINE_STREAM_ADDRESS: ${NEXT_PUBLIC_RESTACK_ENGINE_API_ADDRESS:-${RESTACK_ENGINE_STREAM_ADDRESS:-http://localhost:9233}}
+        RESTACK_ENGINE_API_KEY: ${NEXT_PUBLIC_RESTACK_ENGINE_API_KEY:-${RESTACK_ENGINE_API_KEY:-}}
+        POSTHOG_KEY: ${NEXT_PUBLIC_POSTHOG_KEY:-${POSTHOG_KEY:-}}
+        POSTHOG_HOST: ${NEXT_PUBLIC_POSTHOG_HOST:-${POSTHOG_HOST:-}}
     container_name: boilerplate_frontend
     ports:
       - "3000:3000"

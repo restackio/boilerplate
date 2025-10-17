@@ -583,26 +583,35 @@ def init_tracing() -> None:
         logger.warning("Continuing without tracing...")
 
 
-def _run_startup_tasks() -> None:
+def _run_startup_tasks() -> None:  # noqa: PLR0912
     """Run database migrations and demo data insertion before starting services."""
     import sys
-    
+
     try:
         # Determine scripts directory based on environment
         docker_path = Path("/app/packages/database/scripts")
         # Use absolute path resolution from file location for local dev
-        local_path = Path(__file__).resolve().parent.parent.parent.parent / "packages" / "database" / "scripts"
-        
-        scripts_dir = docker_path if docker_path.exists() else local_path
-        
-        logger.info(f"Scripts directory: {scripts_dir}")
-        logger.info(f"Scripts directory exists: {scripts_dir.exists()}")
-        
+        local_path = (
+            Path(__file__).resolve().parent.parent.parent.parent
+            / "packages"
+            / "database"
+            / "scripts"
+        )
+
+        scripts_dir = (
+            docker_path if docker_path.exists() else local_path
+        )
+
+        logger.info("Scripts directory: %s", scripts_dir)
+        logger.info(
+            "Scripts directory exists: %s", scripts_dir.exists()
+        )
+
         # Run migrations
         logger.info("Running database migrations...")
         migrate_script = scripts_dir / "migrate.sh"
         if migrate_script.exists():
-            result = subprocess.run(
+            result = subprocess.run(  # noqa: S603
                 [str(migrate_script)],
                 check=False,
                 text=True,
@@ -610,54 +619,74 @@ def _run_startup_tasks() -> None:
                 stderr=sys.stderr,
             )
             if result.returncode != 0:
-                logger.error(f"Migration failed with exit code {result.returncode}")
+                logger.error(
+                    "Migration failed: %s", result.stderr
+                )
                 sys.exit(1)
-            logger.info("Database migrations completed successfully")
+            logger.info(
+                "Database migrations completed successfully"
+            )
         else:
-            logger.warning(f"Migration script not found: {migrate_script}")
-        
+            logger.warning(
+                "Migration script not found: %s", migrate_script
+            )
+
         # Handle demo data
-        demo_mode = os.getenv("DEMO_MODE", "false").lower() == "true"
-        reset_demo = os.getenv("RESET_DEMO", "false").lower() == "true"
-        
+        demo_mode = (
+            os.getenv("DEMO_MODE", "false").lower() == "true"
+        )
+        reset_demo = (
+            os.getenv("RESET_DEMO", "false").lower() == "true"
+        )
+
         if demo_mode:
             if reset_demo:
                 logger.info("Resetting demo data...")
                 reset_script = scripts_dir / "reset-demo.sh"
                 if reset_script.exists():
-                    result = subprocess.run(
+                    result = subprocess.run(  # noqa: S603
                         [str(reset_script)],
                         check=False,
                         capture_output=True,
                         text=True,
                     )
                     if result.returncode != 0:
-                        logger.error(f"Demo reset failed: {result.stderr}")
+                        logger.error(
+                            "Demo reset failed: %s", result.stderr
+                        )
                         sys.exit(1)
-                    logger.info("Demo data reset completed successfully")
+                    logger.info(
+                        "Demo data reset completed successfully"
+                    )
                 else:
-                    logger.warning(f"Reset script not found: {reset_script}")
+                    logger.warning(
+                        "Reset script not found: %s", reset_script
+                    )
             else:
                 logger.info("Inserting demo data...")
                 insert_script = scripts_dir / "insert-demo.sh"
                 if insert_script.exists():
-                    result = subprocess.run(
+                    result = subprocess.run(  # noqa: S603
                         [str(insert_script)],
                         check=False,
                         capture_output=True,
                         text=True,
                     )
                     if result.returncode != 0:
-                        logger.error(f"Demo insert failed: {result.stderr}")
+                        logger.error(
+                            "Demo insert failed: %s",
+                            result.stderr,
+                        )
                         sys.exit(1)
                     logger.info("Demo data inserted successfully")
                 else:
-                    logger.warning(f"Insert script not found: {insert_script}")
-    
-    except Exception as e:
-        logger.error(f"Unexpected error in startup tasks: {e}")
-        import traceback
-        traceback.print_exc()
+                    logger.warning(
+                        "Insert script not found: %s",
+                        insert_script,
+                    )
+
+    except Exception:
+        logger.exception("Unexpected error in startup tasks")
         sys.exit(1)
 
 

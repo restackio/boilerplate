@@ -27,7 +27,9 @@ WORKDIR /app
 
 # Copy only dependency files for better caching
 # README.md is required by uv for package metadata
-COPY apps/backend/pyproject.toml apps/backend/uv.lock README.md ./
+
+# Paths are relative to build context (project root)
+COPY apps/backend/pyproject.toml apps/backend/uv.lock apps/backend/README.md ./
 
 # Install Python dependencies
 RUN uv sync --no-dev --frozen
@@ -42,16 +44,19 @@ WORKDIR /app
 # Copy installed dependencies from dependencies stage
 COPY --from=dependencies /app/.venv ./.venv
 
-# Copy database package (migrations, demo data, scripts)
-# Path is relative to Dockerfile location for Kaniko builds
-COPY packages/database/ ./packages/database/
-RUN chmod +x ./packages/database/scripts/*.sh
+# Copy project files (needed for uv run to work)
+COPY apps/backend/pyproject.toml apps/backend/uv.lock apps/backend/README.md ./
 
-# Copy the backend application source code
-COPY apps/backend/ ./
 
-# Install the backend package itself
-RUN uv pip install . --no-deps
+# Paths are relative to build context (project root)
+COPY packages/database/ /app/packages/database/
+RUN chmod +x /app/packages/database/scripts/*.sh
+
+# Copy application source (changes most frequently, copy last)
+COPY apps/backend/src ./src
+
+# # Install the backend package itself
+# RUN uv pip install . --no-deps
 
 # Set Python path to use installed dependencies
 ENV PATH="/app/.venv/bin:$PATH"
