@@ -92,11 +92,13 @@ def get_clickhouse_client() -> clickhouse_connect.driver.Client:
     port = int(os.getenv("CLICKHOUSE_PORT", "8123"))
     username = os.getenv("CLICKHOUSE_USER", "clickhouse")
     password = os.getenv("CLICKHOUSE_PASSWORD", "clickhouse")
-    database = os.getenv("CLICKHOUSE_DATABASE", "boilerplate_clickhouse")
-    
+    database = os.getenv(
+        "CLICKHOUSE_DATABASE", "boilerplate_clickhouse"
+    )
+
     # Auto-detect if we need secure connection (ClickHouse Cloud uses port 8443 or 9440)
     secure = port in (8443, 9440)
-    
+
     return clickhouse_connect.get_client(
         host=host,
         port=port,
@@ -115,15 +117,22 @@ async def get_clickhouse_async_client() -> (
     port = int(os.getenv("CLICKHOUSE_PORT", "8123"))
     username = os.getenv("CLICKHOUSE_USER", "clickhouse")
     password = os.getenv("CLICKHOUSE_PASSWORD", "clickhouse")
-    database = os.getenv("CLICKHOUSE_DATABASE", "boilerplate_clickhouse")
-    
+    database = os.getenv(
+        "CLICKHOUSE_DATABASE", "boilerplate_clickhouse"
+    )
+
     # Auto-detect if we need secure connection (ClickHouse Cloud uses port 8443 or 9440)
     secure = port in (8443, 9440)
-    
+
     logger.info(
-        f"Connecting to ClickHouse: {username}@{host}:{port}/{database} (secure={secure})"
+        "Connecting to ClickHouse: %s@%s:%s/%s (secure=%s)",
+        username,
+        host,
+        port,
+        database,
+        secure,
     )
-    
+
     return await clickhouse_connect.get_async_client(
         host=host,
         port=port,

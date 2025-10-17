@@ -1,2 +1,1 @@
 """Webhook server package."""
-
