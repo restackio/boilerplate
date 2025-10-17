@@ -13,7 +13,8 @@ from src.utils.password import hash_password, verify_password
 # Pydantic models for input validation
 class UserSignupInput(BaseModel):
     workspace_id: str | None = Field(
-        None, description="Optional workspace ID to add user to immediately"
+        None,
+        description="Optional workspace ID to add user to immediately",
     )
     name: str = Field(..., min_length=1, max_length=255)
     email: str = Field(..., min_length=1, max_length=255)
@@ -58,9 +59,12 @@ async def user_signup(user_data: UserSignupInput) -> AuthOutput:
             # If workspace_id is provided, verify it exists
             if user_data.workspace_id:
                 workspace_query = select(Workspace).where(
-                    Workspace.id == uuid.UUID(user_data.workspace_id)
+                    Workspace.id
+                    == uuid.UUID(user_data.workspace_id)
                 )
-                workspace_result = await db.execute(workspace_query)
+                workspace_result = await db.execute(
+                    workspace_query
+                )
                 workspace = workspace_result.scalar_one_or_none()
 
                 if not workspace:
@@ -107,7 +111,9 @@ async def user_signup(user_data: UserSignupInput) -> AuthOutput:
                 user_workspace = UserWorkspace(
                     id=user_workspace_id,
                     user_id=user.id,
-                    workspace_id=uuid.UUID(user_data.workspace_id),
+                    workspace_id=uuid.UUID(
+                        user_data.workspace_id
+                    ),
                     role="owner",  # First user in workspace is owner
                 )
                 db.add(user_workspace)

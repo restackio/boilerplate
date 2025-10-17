@@ -12,7 +12,8 @@ from src.database.models import UserWorkspace, Workspace
 class WorkspaceCreateInput(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     created_by_user_id: str | None = Field(
-        None, description="User ID to add as owner of the workspace"
+        None,
+        description="User ID to add as owner of the workspace",
     )
 
 
@@ -114,7 +115,9 @@ async def workspaces_create(
                 user_workspace_id = uuid.uuid4()
                 user_workspace = UserWorkspace(
                     id=user_workspace_id,
-                    user_id=uuid.UUID(workspace_data.created_by_user_id),
+                    user_id=uuid.UUID(
+                        workspace_data.created_by_user_id
+                    ),
                     workspace_id=workspace.id,
                     role="owner",
                 )
