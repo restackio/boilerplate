@@ -39,6 +39,9 @@ FROM base AS runtime
 # Copy installed dependencies from dependencies stage
 COPY --from=dependencies /app/.venv /app/.venv
 
+# Copy project files (needed for uv run to work)
+COPY apps/backend/pyproject.toml apps/backend/uv.lock apps/backend/README.md ./
+
 # Copy database package (migrations, demo data, scripts)
 # Paths are relative to build context (project root)
 COPY packages/database/ /app/packages/database/
