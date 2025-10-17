@@ -12,6 +12,9 @@ COPY . .
 # Install dependencies
 RUN uv sync --no-dev
 
+# Install the mcp_server package itself
+RUN uv pip install . --no-deps
+
 # Expose port 80
 EXPOSE 80
 

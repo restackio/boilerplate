@@ -23,9 +23,11 @@ RUN apt-get update \
 # ============
 FROM base AS dependencies
 
+WORKDIR /app
+
 # Copy only dependency files for better caching
 # README.md is required by uv for package metadata
-COPY pyproject.toml uv.lock README.md ./
+COPY apps/backend/pyproject.toml apps/backend/uv.lock README.md ./
 
 # Install Python dependencies
 RUN uv sync --no-dev --frozen
@@ -35,20 +37,24 @@ RUN uv sync --no-dev --frozen
 # ============
 FROM base AS runtime
 
+WORKDIR /app
+
 # Copy installed dependencies from dependencies stage
-COPY --from=dependencies /app/.venv /app/.venv
+COPY --from=dependencies /app/.venv ./.venv
 
 # Copy database package (migrations, demo data, scripts)
 # Path is relative to Dockerfile location for Kaniko builds
-COPY ../../packages/database/ /app/packages/database/
-RUN chmod +x /app/packages/database/scripts/*.sh
+COPY packages/database/ ./packages/database/
+RUN chmod +x ./packages/database/scripts/*.sh
 
-# Copy application source (changes most frequently, copy last)
-COPY src ./src
+# Copy the backend application source code
+COPY apps/backend/ ./
+
+# Install the backend package itself
+RUN uv pip install . --no-deps
 
 # Set Python path to use installed dependencies
 ENV PATH="/app/.venv/bin:$PATH"
-ENV PYTHONPATH="/app"
 
 # Expose port 80
 EXPOSE 80

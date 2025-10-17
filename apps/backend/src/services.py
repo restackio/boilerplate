@@ -605,11 +605,12 @@ def _run_startup_tasks() -> None:
             result = subprocess.run(
                 [str(migrate_script)],
                 check=False,
-                capture_output=True,
                 text=True,
+                stdout=sys.stdout,
+                stderr=sys.stderr,
             )
             if result.returncode != 0:
-                logger.error(f"Migration failed: {result.stderr}")
+                logger.error(f"Migration failed with exit code {result.returncode}")
                 sys.exit(1)
             logger.info("Database migrations completed successfully")
         else:
