@@ -1,4 +1,3 @@
-import os
 import uuid
 from typing import Any
 
@@ -6,6 +5,7 @@ from pydantic import BaseModel, Field
 from restack_ai.function import NonRetryableError, function, log
 from sqlalchemy import and_, select
 
+from src.client import mcp_address
 from src.database.connection import get_async_db
 from src.database.models import (
     AgentTool,
@@ -265,7 +265,7 @@ async def _load_mcp_servers(
 def _get_mcp_server_url(mcp_server: McpServer) -> str:
     """Get the appropriate URL for an MCP server."""
     if getattr(mcp_server, "local", False):
-        return os.getenv("RESTACK_ENGINE_MCP_ADDRESS")
+        return mcp_address
     return mcp_server.server_url
 
 
