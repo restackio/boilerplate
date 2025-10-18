@@ -68,7 +68,7 @@ class ClickHouseListTablesOutput(BaseModel):
 
 async def _create_clickhouse_client() -> AsyncClient:
     """Create an async ClickHouse client connection.
-    
+
     Requires CLICKHOUSE_URL environment variable in format:
     - http://user:password@host:port/database (for local/insecure)
     - https://user:password@host:port/database (for ClickHouse Cloud)
