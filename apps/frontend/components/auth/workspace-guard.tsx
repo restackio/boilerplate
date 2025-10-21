@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { CenteredLoading } from "@workspace/ui/components/loading-states";
 import { NotificationBanner } from "@workspace/ui/components/notification-banner";
@@ -10,6 +10,7 @@ import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 export function WorkspaceGuard({ children }: { children: React.ReactNode }) {
   const { isReady, loading, workspaces } = useDatabaseWorkspace();
   const router = useRouter();
+  const hasRedirectedRef = useRef(false);
 
   useEffect(() => {
     // Simple logic: if there's an error, redirect to login
@@ -19,8 +20,11 @@ export function WorkspaceGuard({ children }: { children: React.ReactNode }) {
   }, [loading.error, router]);
 
   useEffect(() => {
-    // If not loading and no workspaces exist, redirect to workspace creation
-    if (!loading.isLoading && !loading.error && workspaces.length === 0) {
+    // Only check for empty workspaces once after loading completes
+    // This prevents redirect loops after workspace creation
+    if (!loading.isLoading && !loading.error && workspaces.length === 0 && !hasRedirectedRef.current) {
+      hasRedirectedRef.current = true;
+      console.log("No workspaces found, redirecting to workspace creation");
       router.push("/workspace/create");
     }
   }, [loading.isLoading, loading.error, workspaces.length, router]);

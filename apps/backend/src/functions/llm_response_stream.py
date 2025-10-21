@@ -2,6 +2,7 @@ import asyncio
 import os
 import warnings
 from collections.abc import AsyncIterator
+from datetime import UTC, datetime
 from typing import Any
 
 from dotenv import load_dotenv
@@ -184,12 +185,13 @@ class AsyncTee:
 
 
 def _serialize_event(event: ResponseStreamEvent) -> dict | str:
-    """Serialize event to dict using OpenAI SDK patterns."""
+    """Serialize event to dict using OpenAI SDK patterns and add timestamp."""
+    event_data = None
     if hasattr(event, "model_dump"):
         try:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", UserWarning)
-                return event.model_dump()
+                event_data = event.model_dump()
         except (
             APIResponseValidationError,
             ValueError,
@@ -198,16 +200,23 @@ def _serialize_event(event: ResponseStreamEvent) -> dict | str:
             log.warning(
                 f"OpenAI model_dump failed for event {getattr(event, 'type', 'unknown')}: {e}"
             )
-            return (
+            event_data = (
                 event.__dict__
                 if hasattr(event, "__dict__")
                 else {"error": str(e)}
             )
-    return (
-        event.__dict__
-        if hasattr(event, "__dict__")
-        else str(event)
-    )
+    else:
+        event_data = (
+            event.__dict__
+            if hasattr(event, "__dict__")
+            else str(event)
+        )
+
+    # Add timestamp for accurate duration tracking
+    if isinstance(event_data, dict):
+        event_data["timestamp"] = datetime.now(tz=UTC).isoformat()
+
+    return event_data
 
 
 async def _send_event_to_agent(

@@ -29,19 +29,19 @@ export function WorkspaceSwitcher({
     name: string;
     logo: React.ElementType;
     key?: string;
-    id?: string;
+    id: string;
   }[];
   activeWorkspace?: {
     name: string;
     logo: React.ElementType;
     key?: string;
-    id?: string;
+    id: string;
   };
   onWorkspaceChange?: (workspace: {
     name: string;
     logo: React.ElementType;
     key?: string;
-    id?: string;
+    id: string;
   }) => void;
 }) {
   const { isMobile } = useSidebar();

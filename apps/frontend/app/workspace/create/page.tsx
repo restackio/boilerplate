@@ -109,14 +109,21 @@ export default function CreateWorkspacePage() {
         return;
       }
 
-      // Update user data with new workspace
-      const updatedUser = {
-        ...userData,
-        workspace_ids: [...(userData.workspace_ids || []), workspaceData.data.workspace.id],
-      };
-      localStorage.setItem("currentUser", JSON.stringify(updatedUser));
+      console.log("Workspace created successfully:", workspaceData.data);
+      console.log("Workspace ID:", workspaceData.data.id);
+
+      // Store the new workspace ID in sessionStorage so we can navigate to it after reload
+      if (workspaceData.data.id) {
+        sessionStorage.setItem("newWorkspaceId", workspaceData.data.id);
+        console.log("Stored newWorkspaceId in sessionStorage:", workspaceData.data.id);
+        console.log("SessionStorage now contains:", sessionStorage.getItem("newWorkspaceId"));
+      } else {
+        console.error("No workspace ID found in response!");
+      }
 
       // Force a page reload to refresh workspace data
+      // The dashboard will check for newWorkspaceId and switch to it
+      console.log("Redirecting to dashboard...");
       window.location.href = "/dashboard";
     } catch (error) {
       void error; // Suppress unused warning
@@ -314,7 +321,7 @@ export default function CreateWorkspacePage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <CheckCircle className="size-5" />
-                  Review and Create Workspace
+                  Review and create workspace
                 </CardTitle>
                 <CardDescription>
                   Review your workspace details and create your workspace
@@ -348,7 +355,7 @@ export default function CreateWorkspacePage() {
                     disabled={isLoading}
                     size="lg"
                   >
-                    {isLoading ? "Creating Workspace..." : "Create Workspace"}
+                    {isLoading ? "Creating..." : "Create"}
                   </Button>
                 </div>
               </CardContent>

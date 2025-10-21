@@ -84,4 +84,9 @@ export interface ConversationItem {
   // For error events
   error?: ErrorDetails;
   isStreaming?: boolean;
+  // Custom metrics calculated from state response data
+  start_timestamp?: string;
+  end_timestamp?: string;
+  duration_seconds?: number;
+  reasoning_duration_seconds?: number;
 } 

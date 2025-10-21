@@ -5,6 +5,7 @@ export * from "./schedules-table";
 export * from "./ai-elements/prompt-input";
 export * from "./ai-elements/reasoning";
 export * from "./ai-elements/response";
+export * from "./ai-elements/shimmer";
 
 // Generic reusable patterns (Phase 1 additions)
 export * from "./actionable-card";

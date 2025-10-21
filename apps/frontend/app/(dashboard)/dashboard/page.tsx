@@ -32,7 +32,6 @@ function convertHookTaskToUITask(hookTask: HookTask): UITask {
 }
 
 export default function DashboardPage() {
-
   const { tasks, tasksLoading, fetchTasks, createTask } = useWorkspaceScopedActions();
   const router = useRouter();
 
