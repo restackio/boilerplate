@@ -82,7 +82,7 @@ function AgentStreamActiveProvider({
     agentId: agentTaskId, // Always use the provided agentTaskId
     runId: runId || "",
     stateName: "state_response" as const,
-  }), [apiAddress, apiToken, agentTaskId, runId]);
+  }), [apiAddress, agentTaskId, runId]);
 
   const handleStateMessage = useCallback((data: unknown) => {
     // Always process state messages (todos, subtasks, metadata updates)
