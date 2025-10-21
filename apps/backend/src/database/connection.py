@@ -95,7 +95,7 @@ def get_clickhouse_client() -> clickhouse_connect.driver.Client:
     """
     clickhouse_url = os.getenv(
         "CLICKHOUSE_URL",
-        "http://clickhouse:clickhouse@localhost:8123/boilerplate_clickhouse"
+        "http://clickhouse:clickhouse@localhost:8123/boilerplate_clickhouse",
     )
     return clickhouse_connect.get_client(dsn=clickhouse_url)
 
@@ -111,8 +111,10 @@ async def get_clickhouse_async_client() -> (
     """
     clickhouse_url = os.getenv(
         "CLICKHOUSE_URL",
-        "http://clickhouse:clickhouse@localhost:8123/boilerplate_clickhouse"
+        "http://clickhouse:clickhouse@localhost:8123/boilerplate_clickhouse",
     )
 
     logger.info("Connecting to ClickHouse using CLICKHOUSE_URL")
-    return await clickhouse_connect.get_async_client(dsn=clickhouse_url)
+    return await clickhouse_connect.get_async_client(
+        dsn=clickhouse_url
+    )

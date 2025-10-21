@@ -76,14 +76,14 @@ async def _create_clickhouse_client() -> AsyncClient:
     try:
         clickhouse_url = os.getenv(
             "CLICKHOUSE_URL",
-            "http://clickhouse:clickhouse@localhost:8123/boilerplate_clickhouse"
+            "http://clickhouse:clickhouse@localhost:8123/boilerplate_clickhouse",
         )
-        return await clickhouse_connect.get_async_client(dsn=clickhouse_url)
+        return await clickhouse_connect.get_async_client(
+            dsn=clickhouse_url
+        )
     except Exception as e:
         msg = f"Failed to connect to ClickHouse: {e!s}"
         raise ConnectionError(msg) from e
-
-
 
 
 @function.defn()
