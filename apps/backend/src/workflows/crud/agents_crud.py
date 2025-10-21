@@ -8,6 +8,10 @@ from restack_ai.workflow import (
 )
 
 with import_functions():
+    from src.functions.agent_tools_crud import (
+        AgentToolCreateInput,
+        agent_tools_create,
+    )
     from src.functions.agents_crud import (
         AgentArchiveInput,
         AgentArchiveOutput,
@@ -32,6 +36,7 @@ with import_functions():
         agents_get_by_status,
         agents_get_versions,
         agents_read,
+        agents_read_all,
         agents_read_table,
         agents_update,
         agents_update_status,
@@ -71,16 +76,84 @@ class AgentsCreateWorkflow:
     ) -> AgentSingleOutput:
         log.info("AgentsCreateWorkflow started")
         try:
-            return await workflow.step(
+            # Create the agent first
+            agent_result = await workflow.step(
                 function=agents_create,
                 function_input=workflow_input,
                 start_to_close_timeout=timedelta(seconds=30),
             )
 
-        except Exception as e:
+            # If this is a pipeline agent, automatically add the required tools
+            if (
+                workflow_input.type == "pipeline"
+                and agent_result.agent
+            ):
+                log.info(
+                    "Adding pipeline tools for new pipeline agent"
+                )
+
+                # MCP server ID for the pipeline tools (from database seed)
+                mcp_server_id = (
+                    "c0000000-0000-0000-0000-000000000001"
+                )
+
+                # Define the pipeline tools to add
+                pipeline_tools = [
+                    {
+                        "tool_name": "generatemock",
+                        "custom_description": "Extract data using mock generation (Step 1: Extract)",
+                    },
+                    {
+                        "tool_name": "transformdata",
+                        "custom_description": "Transform data using AI analysis (Step 2: Transform)",
+                    },
+                    {
+                        "tool_name": "loadintodataset",
+                        "custom_description": "Load enriched data to dataset (Step 3: Load)",
+                    },
+                ]
+
+                # Create each tool
+                for tool_config in pipeline_tools:
+                    try:
+                        await workflow.step(
+                            function=agent_tools_create,
+                            function_input=AgentToolCreateInput(
+                                agent_id=agent_result.agent.id,
+                                tool_type="mcp",
+                                mcp_server_id=mcp_server_id,
+                                tool_name=tool_config[
+                                    "tool_name"
+                                ],
+                                custom_description=tool_config[
+                                    "custom_description"
+                                ],
+                                require_approval=False,
+                                enabled=True,
+                            ),
+                            start_to_close_timeout=timedelta(
+                                seconds=30
+                            ),
+                        )
+                        log.info(
+                            f"Added pipeline tool: {tool_config['tool_name']}"
+                        )
+                    except (
+                        ValueError,
+                        TypeError,
+                        KeyError,
+                    ) as tool_error:
+                        log.error(
+                            f"Failed to add pipeline tool {tool_config['tool_name']}: {tool_error}"
+                        )
+                        # Continue adding other tools even if one fails
+
+        except (ValueError, TypeError, ConnectionError) as e:
             error_message = f"Error during agents_create: {e}"
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e
+        else:
+            return agent_result
 
 
 @workflow.defn()
@@ -193,6 +266,29 @@ class AgentsGetVersionsWorkflow:
             error_message = (
                 f"Error during agents_get_versions: {e}"
             )
+            log.error(error_message)
+            raise NonRetryableError(message=error_message) from e
+
+
+@workflow.defn()
+class AgentsReadAllWorkflow:
+    """Workflow to read ALL agents without grouping."""
+
+    @workflow.run
+    async def run(
+        self, workflow_input: AgentGetByWorkspaceInput
+    ) -> AgentListOutput:
+        """Read all agents without grouping."""
+        log.info("AgentsReadAllWorkflow started")
+        try:
+            return await workflow.step(
+                function=agents_read_all,
+                function_input=workflow_input,
+                start_to_close_timeout=timedelta(seconds=30),
+            )
+
+        except Exception as e:
+            error_message = f"Error during agents_read_all: {e}"
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e
 

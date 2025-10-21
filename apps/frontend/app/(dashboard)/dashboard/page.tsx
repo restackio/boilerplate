@@ -3,9 +3,10 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { TasksTable, type Task as UITask } from "../tasks/components/tasks-table";
-import { CenteredLoading, ErrorNotification } from "@workspace/ui/components";
+import { ErrorNotification } from "@workspace/ui/components";
 import { useWorkspaceScopedActions, type Task as HookTask } from "@/hooks/use-workspace-scoped-actions";
 import { CreateTaskForm } from "../tasks/components/create-task-form";
+import { RefreshCw } from "lucide-react";
 
 function convertHookTaskToUITask(hookTask: HookTask): UITask {
   return {
@@ -25,13 +26,12 @@ function convertHookTaskToUITask(hookTask: HookTask): UITask {
     is_scheduled: hookTask.is_scheduled,
     schedule_status: hookTask.schedule_status,
     restack_schedule_id: hookTask.restack_schedule_id,
-    created: hookTask.created_at || new Date().toISOString(),
-    updated: hookTask.updated_at || new Date().toISOString(),
+    created: hookTask.created_at || "",
+    updated: hookTask.updated_at || "",
   };
 }
 
 export default function DashboardPage() {
-
   const { tasks, tasksLoading, fetchTasks, createTask } = useWorkspaceScopedActions();
   const router = useRouter();
 
@@ -44,7 +44,7 @@ export default function DashboardPage() {
   const handleCreateTask = async (taskData: {
     title: string;
     description: string;
-    status: "open" | "active" | "waiting" | "closed" | "completed";
+    status: "in_progress" | "in_review" | "closed" | "completed";
     agent_id: string;
     assigned_to_id: string;
     // Schedule-related fields
@@ -84,7 +84,33 @@ export default function DashboardPage() {
 
       {/* My tasks */}
       {tasksLoading.isLoading ? (
-        <CenteredLoading message="Loading tasks..." height="h-32" />
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold">My tasks</h2>
+            <button
+              className="text-sm text-primary hover:underline"
+            >
+              View all tasks →
+            </button>
+          </div>
+          <div className="rounded-lg border">
+            {/* Table Header */}
+            <div className="grid grid-cols-12 gap-4 p-4 border-b bg-muted/30">
+              <div className="col-span-3 text-sm font-medium">Task</div>
+              <div className="col-span-2 text-sm font-medium">Status</div>
+              <div className="col-span-2 text-sm font-medium">Agent</div>
+              <div className="col-span-2 text-sm font-medium">Team</div>
+              <div className="col-span-2 text-sm font-medium">Created by</div>
+              <div className="col-span-1 text-sm font-medium">Updated</div>
+            </div>
+            <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-2 text-muted-foreground" />
+              <p className="text-muted-foreground">Loading tasks...</p>
+            </div>
+          </div>
+          </div>
+        </div>
       ) : tasksLoading.error ? (
         <ErrorNotification error={`Failed to load tasks: ${tasksLoading.error}`} />
       ) : (

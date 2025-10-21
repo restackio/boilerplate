@@ -33,21 +33,8 @@ export function SignupForm({
     }
 
     try {
-      // Create a temporary workspace for the user (they'll create their own later)
-      const workspaceData = await executeWorkflow("WorkspacesCreateWorkflow", {
-        name: "My Workspace",
-      });
-
-      if (!workspaceData.success || !workspaceData.data) {
-        setSubmissionError("Failed to create initial workspace");
-        return;
-      }
-
-      const { workspace } = workspaceData.data;
-
-      // Create the user with the temporary workspace
+      // Create the user (without workspace)
       const workflowResult = await executeWorkflow("UserSignupWorkflow", {
-        workspace_id: workspace.id,
         name,
         email,
         password,

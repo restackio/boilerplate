@@ -8,6 +8,8 @@ import {
   CopyCheck,
   Building,
   Plug,
+  Database,
+  BarChart3,
   type LucideIcon,
 } from "lucide-react";
 import { getLucideIcon } from "@workspace/ui/lib/get-lucide-icon";
@@ -94,6 +96,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { workspaces, currentWorkspaceId, currentUser, loading, setCurrentWorkspaceId } = useDatabaseWorkspace();
   const { teams, fetchTeams } = useWorkspaceScopedActions();
 
+  // Log workspace changes
+  React.useEffect(() => {
+  }, [currentWorkspaceId, workspaces]);
+
   // Format workspaces for UI
   const formattedWorkspaces = workspaces.map(formatWorkspaceForUI);
   const formattedUser = currentUser ? formatUserForUI(currentUser) : null;
@@ -152,6 +158,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         icon: Bot,
       },
       {
+        title: "Analytics",
+        url: "/analytics",
+        icon: BarChart3,
+      },
+      {
+        title: "Context",
+        url: "/datasets",
+        icon: Database,
+      },
+      {
         title: "Integrations",
         url: "/integrations",
         icon: Plug,
@@ -161,11 +177,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   };
 
   const handleWorkspaceChange = (workspace: WorkspaceForChange) => {
+    console.log("Workspace change requested:", workspace.id);
     if (workspace.id) {
       setCurrentWorkspaceId(workspace.id);
     }
   };
-  void handleWorkspaceChange; // Suppress unused warning
 
   const handleLogout = () => {
     localStorage.removeItem("currentUser");
@@ -178,6 +194,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <WorkspaceSwitcher
           workspaces={data.workspaces}
           activeWorkspace={currentWorkspace ? formatWorkspaceForUI(currentWorkspace) : undefined}
+          onWorkspaceChange={handleWorkspaceChange}
         />
       </SidebarHeader>
       <SidebarContent>

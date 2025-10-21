@@ -35,6 +35,7 @@ export interface Agent {
   name: string;
   description?: string;
   instructions: string;
+  type: "interactive" | "pipeline";
   status: "published" | "draft" | "archived" | "testing" | "paused"; // Extended to handle demo data
   parent_agent_id?: string;
   created_at?: string;

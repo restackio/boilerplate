@@ -23,7 +23,7 @@ interface SchedulePageTask {
   id: string;
   title: string;
   description?: string;
-  status: "open" | "active" | "waiting" | "closed" | "completed";
+  status: "in_progress" | "in_review" | "closed" | "completed" | "failed";
   agent_id: string;
   agent_name: string;
   assigned_to_id: string;
@@ -79,8 +79,8 @@ export default function SchedulePage() {
 
         setScheduleTask({
           ...mainTask,
-          created: mainTask.created_at || new Date().toISOString(),
-          updated: mainTask.updated_at || new Date().toISOString(),
+          created: mainTask.created_at || "",
+          updated: mainTask.updated_at || "",
         });
 
         // Find all tasks that were created from this schedule
@@ -88,8 +88,8 @@ export default function SchedulePage() {
           .filter(task => task.schedule_task_id === scheduleId && task.id !== scheduleId)
           .map(task => ({
             ...task,
-            created: task.created_at || new Date().toISOString(),
-            updated: task.updated_at || new Date().toISOString(),
+            created: task.created_at || "",
+            updated: task.updated_at || "",
           }));
         
         setRelatedTasks(related);

@@ -3,16 +3,17 @@
 import { useEffect, useState } from "react";
 import { useWorkspaceScopedActions, Task } from "@/hooks/use-workspace-scoped-actions";
 import { useAgentState } from "@/app/(dashboard)/agents/[agentId]/hooks/use-agent-state";
+import { AgentStreamProvider } from "@/app/(dashboard)/agents/[agentId]/providers/agent-stream-provider";
 import { useRxjsConversation } from "@/app/(dashboard)/tasks/[taskId]/hooks/use-rxjs-conversation";
 import { sendMcpApproval } from "@/app/actions/agent";
-import { OpenAIEvent, ConversationItem } from "@/app/(dashboard)/tasks/[taskId]/types";
+import { OpenAIEvent } from "@/app/(dashboard)/tasks/[taskId]/types";
 import { TaskChatInterface } from "@/app/(dashboard)/tasks/[taskId]/components";
 import {
-  EntityLoadingState,
   EntityErrorState,
   EntityNotFoundState,
 } from "@workspace/ui/components";
 import { EmptyState } from "@workspace/ui/components/empty-state";
+import { TaskMetrics } from "./task-metrics";
 
 interface PlaygroundTaskExecutionProps {
   taskId: string | null;
@@ -20,63 +21,45 @@ interface PlaygroundTaskExecutionProps {
   className?: string;
 }
 
-export function PlaygroundTaskExecution({ 
+// Inner component that uses the agent state hook (must be inside provider)
+function PlaygroundTaskContentInner({ 
+  task, 
   taskId, 
-  agentName,
-  className = "" 
-}: PlaygroundTaskExecutionProps) {
-  const [task, setTask] = useState<Task | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  agentName, 
+  className,
+  metricsRefreshTrigger
+}: { 
+  task: Task; 
+  taskId: string; 
+  agentName: string; 
+  className: string;
+  metricsRefreshTrigger: number;
+}) {
   const [chatMessage, setChatMessage] = useState("");
+  const [localTask, setLocalTask] = useState<Task>(task);
+  
+  const { updateTask } = useWorkspaceScopedActions();
 
-  const { getTaskById } = useWorkspaceScopedActions();
+  // Sync local task with prop changes
+  useEffect(() => {
+    setLocalTask(task);
+  }, [task]);
 
   const { responseState, agentResponses, loading: agentLoading, sendMessageToAgent } = useAgentState({
-    taskId: taskId || undefined,
-    agentTaskId: task?.agent_task_id || undefined,
-    onStateChange: () => {
-      // Handle state changes if needed
-    },
+    taskId,
+    agentTaskId: task.temporal_agent_id,
+    taskStatus: localTask.status,
   });
 
   const { conversation, updateConversationItemStatus } = useRxjsConversation({
     responseState: responseState as { events: OpenAIEvent[]; [key: string]: unknown } | false,
     agentResponses: agentResponses as { events?: OpenAIEvent[]; [key: string]: unknown }[],
-    taskAgentTaskId: task?.agent_task_id || undefined,
-    storeKey: taskId || 'default', // Use taskId as unique store key
+    persistedState: task.agent_state,
+    storeKey: taskId,
   });
 
-  // Fetch task data when taskId changes
-  useEffect(() => {
-    if (!taskId) {
-      setIsLoading(false);
-      return;
-    }
-
-    const fetchTask = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-        const taskResult = await getTaskById(taskId);
-        if (taskResult.success && taskResult.data) {
-          setTask(taskResult.data);
-        } else {
-          setError("Failed to load task");
-        }
-      } catch (err) {
-        console.error("Error fetching task:", err);
-        setError("Failed to load task");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchTask();
-  }, [taskId, getTaskById]);
-
   const handleSendMessage = async () => {
-    if (!chatMessage.trim() || !task?.agent_task_id) return;
+    if (!chatMessage.trim()) return;
 
     try {
       await sendMessageToAgent(chatMessage);
@@ -86,63 +69,204 @@ export function PlaygroundTaskExecution({
     }
   };
 
-
   const handleApproveRequest = async (itemId: string) => {
-    if (!task?.agent_task_id) {
-      return;
-    }
-
     try {
-      // Optimistically update the UI
       updateConversationItemStatus(itemId, "completed");
-
       const result = await sendMcpApproval({
-        agentId: task.agent_task_id,
+        agentId: task.temporal_agent_id!,
         approvalId: itemId,
         approved: true,
       });
-
       if (!result.success) {
-        // Revert the optimistic update on failure
         updateConversationItemStatus(itemId, "waiting-approval");
       }
     } catch (error) {
       console.error("Error approving MCP request:", error);
-      // Revert the optimistic update on error
       updateConversationItemStatus(itemId, "waiting-approval");
     }
   };
 
   const handleDenyRequest = async (itemId: string) => {
-    if (!task?.agent_task_id) {
-      return;
-    }
-
     try {
-      // Optimistically update the UI
       updateConversationItemStatus(itemId, "failed");
-
       const result = await sendMcpApproval({
-        agentId: task.agent_task_id,
+        agentId: task.temporal_agent_id!,
         approvalId: itemId,
         approved: false,
       });
-
       if (!result.success) {
-        // Revert the optimistic update on failure
         updateConversationItemStatus(itemId, "waiting-approval");
       }
     } catch (error) {
       console.error("Error denying MCP request:", error);
-      // Revert the optimistic update on error
       updateConversationItemStatus(itemId, "waiting-approval");
     }
   };
 
-  const handleCardClick = (item: ConversationItem) => {
-    // Handle card click - could be used for showing details or expanding content
-    console.log("Card clicked:", item);
+  const handleCardClick = () => {
+    // Card click handler - can be extended for additional functionality
   };
+
+  const handleUpdateTask = async (updates: Partial<Task>) => {
+    try {
+      const result = await updateTask(taskId, {
+        title: localTask.title || "Untitled Task",
+        description: localTask.description || "",
+        status: localTask.status || "in_progress",
+        agent_id: localTask.agent_id || "",
+        assigned_to_id: localTask.assigned_to_id || "",
+        ...updates,
+      });
+      
+      if (result.success && result.data) {
+        setLocalTask(result.data);
+      } else {
+        throw new Error(result.error || "Failed to update task");
+      }
+    } catch (error) {
+      console.error("Failed to update task:", error);
+      throw error;
+    }
+  };
+
+  return (
+    <div className={`flex flex-col h-full ${className}`}>
+      <div className="flex flex-col h-full">
+        <div className="p-3 border-b bg-muted/20">
+          <div className="flex items-center gap-2">
+            <div className="h-2 w-2 rounded-full bg-green-500" />
+            <span className="text-sm font-medium">{agentName}</span>
+            <span className="text-xs text-muted-foreground">
+              Task: {task.title}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            <TaskChatInterface
+              conversation={conversation}
+              chatMessage={chatMessage}
+              onChatMessageChange={setChatMessage}
+              onSendMessage={handleSendMessage}
+              onCardClick={handleCardClick}
+              onApproveRequest={handleApproveRequest}
+              onDenyRequest={handleDenyRequest}
+              agentLoading={agentLoading}
+              showSplitView={false}
+            />
+          </div>
+          
+          <div className="flex-shrink-0 px-4 py-2 max-h-[40vh] overflow-y-auto">
+            <TaskMetrics 
+              taskId={taskId}
+              task={localTask}
+              onUpdateTask={handleUpdateTask}
+              refreshTrigger={metricsRefreshTrigger}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Wrapper component that provides the AgentStreamProvider
+// The provider internally chooses between active (with subscriptions) or mock (without)
+function PlaygroundTaskContent({ 
+  task, 
+  taskId, 
+  agentName, 
+  className 
+}: { 
+  task: Task; 
+  taskId: string; 
+  agentName: string; 
+  className: string;
+}) {
+  const [metricsRefreshTrigger, setMetricsRefreshTrigger] = useState(0);
+
+  const handleResponseComplete = () => {
+    // Trigger metrics refresh when response completes
+    setMetricsRefreshTrigger(prev => prev + 1);
+  };
+
+  return (
+    <AgentStreamProvider
+      agentTaskId={task.temporal_agent_id || ''}
+      runId={task.agent_state?.metadata?.temporal_run_id}
+      taskStatus={task.status}
+      initialState={task.agent_state}
+      onResponseComplete={handleResponseComplete}
+    >
+      <PlaygroundTaskContentInner 
+        task={task}
+        taskId={taskId}
+        agentName={agentName}
+        className={className}
+        metricsRefreshTrigger={metricsRefreshTrigger}
+      />
+    </AgentStreamProvider>
+  );
+}
+
+// Wrapper component that handles loading task data
+export function PlaygroundTaskExecution({ 
+  taskId, 
+  agentName,
+  className = "" 
+}: PlaygroundTaskExecutionProps) {
+  const [task, setTask] = useState<Task | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const { getTaskById } = useWorkspaceScopedActions();
+
+  useEffect(() => {
+    if (!taskId) {
+      setIsLoading(false);
+      return;
+    }
+
+    // Only fetch if we don't already have the task
+    if (task && task.id === taskId) {
+      setIsLoading(false);
+      return;
+    }
+
+    let isMounted = true;
+
+    const fetchTask = async () => {
+      if (!isMounted) return;
+
+      try {
+        const taskResult = await getTaskById(taskId);
+        
+        if (!isMounted) return;
+
+        if (taskResult.success && taskResult.data) {
+          setTask(taskResult.data);
+          setIsLoading(false);
+        } else {
+          setError("Failed to load task");
+          setIsLoading(false);
+        }
+      } catch (err) {
+        if (!isMounted) return;
+        
+        console.error("Error fetching task:", err);
+        setError("Failed to load task");
+        setIsLoading(false);
+      }
+    };
+
+    fetchTask();
+
+    return () => {
+      isMounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [taskId]); // Only depend on taskId to prevent re-fetching
 
   if (!taskId) {
     return (
@@ -157,8 +281,19 @@ export function PlaygroundTaskExecution({
 
   if (isLoading) {
     return (
-      <div className={className}>
-        <EntityLoadingState entityId={taskId} entityType="task" />
+      <div className={`flex flex-col h-full ${className}`}>
+        <div className="p-3 border-b bg-muted/20 animate-pulse">
+          <div className="flex items-center gap-2">
+            <div className="h-2 w-2 rounded-full bg-muted" />
+            <div className="h-4 w-32 bg-muted rounded" />
+          </div>
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-2">
+            <div className="h-6 w-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            <span className="text-sm text-muted-foreground">Initializing task...</span>
+          </div>
+        </div>
       </div>
     );
   }
@@ -179,33 +314,6 @@ export function PlaygroundTaskExecution({
     );
   }
 
-  return (
-    <div className={`flex flex-col h-full ${className}`}>
-      {/* Agent header */}
-      <div className="p-3 border-b bg-muted/20">
-        <div className="flex items-center gap-2">
-          <div className="h-2 w-2 rounded-full bg-green-500" />
-          <span className="text-sm font-medium">{agentName}</span>
-          <span className="text-xs text-muted-foreground">
-            Task: {task.title}
-          </span>
-        </div>
-      </div>
-
-      {/* Chat interface */}
-      <div className="flex-1 min-h-0">
-        <TaskChatInterface
-          conversation={conversation}
-          chatMessage={chatMessage}
-          onChatMessageChange={setChatMessage}
-          onSendMessage={handleSendMessage}
-          onCardClick={handleCardClick}
-          onApproveRequest={handleApproveRequest}
-          onDenyRequest={handleDenyRequest}
-          agentLoading={agentLoading}
-          showSplitView={false}
-        />
-      </div>
-    </div>
-  );
+  // AgentStreamProvider handles missing temporal_agent_id internally
+  return <PlaygroundTaskContent task={task} taskId={taskId} agentName={agentName} className={className} />;
 }

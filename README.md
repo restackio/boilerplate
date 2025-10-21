@@ -21,16 +21,48 @@ cp .env.example .env
 - Set `OPENAI_API_KEY` with a valid OpenAI API key
 - Set `RESTACK_ENGINE_MCP_ADDRESS` for ngrok tunnel with `ngrok http 112233`
 
+### First time setup
 ```bash
-pnpm quickstart
+pnpm localsetup
 ```
+
+This installs dependencies, starts infrastructure (PostgreSQL, ClickHouse, Restack), runs migrations, and inserts demo data.
+
+### Start development
+```bash
+pnpm localdev
+```
+
+This starts infrastructure and all dev servers with hot reloading **without resetting your database**.
+
+<details>
+<summary>Manual setup (if you prefer step-by-step)</summary>
+
+```bash
+# Install dependencies
+pnpm install
+
+# Start infrastructure (PostgreSQL, ClickHouse, Restack)
+pnpm infra:start
+
+# Wait for services to be ready, then run migrations
+pnpm db:migrate
+
+# Insert demo data
+pnpm db:demo:insert
+
+# Start all dev servers
+pnpm dev
+```
+</details>
 
 ### Access your platform
 - **Agent Orchestration**: http://localhost:3000  
 - **Developer Tracing**: http://localhost:5233
 - **API**: http://localhost:8000
+- **ClickHouse**: http://localhost:8123 (metrics and analytics)
 
-**Performance tip:** quickstart runs nextjs with hot reloading, changing pages takes a second. For instant loading, use `pnpm build && pnpm start` instead of dev mode.
+**Performance tip:** development mode uses hot reloading. For faster page loads, use `pnpm build && pnpm start` instead of `pnpm localdev`.
 
 ## What can you build?
 
@@ -202,25 +234,43 @@ Fully managed infrastructure:
 
 ### Option 4: Self-hosted Docker (Hobbyist)
 ```bash
-# Production build
+# Production with Docker Compose
+pnpm prod:up
+
+# Or build and run locally
 pnpm build
 pnpm start
-
-# Or with Docker Compose
-docker-compose up -d
 ```
 
 ## Platform management
 
 ```bash
-# Start platform
-pnpm docker:reset
+# Quick commands
+pnpm localsetup          # First time setup (install, infra, migrations, demo data)
+pnpm localdev            # Start infrastructure + dev servers
+pnpm dev                 # Start all dev servers with hot reloading (infra must be running)
 
-# View logs
-pnpm docker:logs
+# Infrastructure management
+pnpm infra:start         # Start infrastructure (PostgreSQL, ClickHouse, Restack)
+pnpm infra:stop          # Stop infrastructure
+pnpm infra:restart       # Restart infrastructure services
+pnpm infra:logs          # View container logs
+pnpm infra:ps            # Check service status
+pnpm infra:reset         # Complete infrastructure reset (⚠️ destroys data)
 
-# Stop platform
-pnpm docker:down
+# Database operations
+pnpm db:migrate          # Run database migrations (uses localhost by default)
+pnpm db:demo:insert      # Insert demo data (uses localhost by default)
+pnpm postgres:connect    # Connect to PostgreSQL
+pnpm clickhouse:connect  # Connect to ClickHouse
+
+# Production (self-hosted Docker)
+pnpm build               # Build for production
+pnpm prod:up             # Start production services
+pnpm prod:down           # Stop production services
+pnpm prod:logs           # View production logs
+pnpm prod:restart        # Restart production services (backend, mcp, webhook)
+pnpm prod:reset          # Full production reset (⚠️ destroys data)
 ```
 
 ## For developers

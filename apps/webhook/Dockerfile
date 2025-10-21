@@ -1,4 +1,3 @@
-# Build stage
 FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
 
 WORKDIR /app
@@ -7,7 +6,7 @@ WORKDIR /app
 COPY pyproject.toml ./
 COPY uv.lock ./
 
-# Copy source code
+# Copy application source
 COPY . .
 
 # Install dependencies

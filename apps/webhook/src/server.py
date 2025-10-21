@@ -1,4 +1,5 @@
 """Webhook server entry point and CLI commands."""
+
 import logging
 import webbrowser
 
@@ -14,7 +15,7 @@ def start() -> None:
     """Start webhook server (production mode)."""
     logging.basicConfig(
         level=logging.INFO,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
 
     logger.info("Starting Webhook Server on http://0.0.0.0:8000")
@@ -34,11 +35,15 @@ def dev() -> None:
     """Development mode with auto-reload."""
     logging.basicConfig(
         level=logging.INFO,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
 
-    logger.info("Starting Webhook Server in development mode on http://127.0.0.1:8000")
-    logger.info("Auto-reload enabled - server will restart on file changes")
+    logger.info(
+        "Starting Webhook Server in development mode on http://127.0.0.1:8000"
+    )
+    logger.info(
+        "Auto-reload enabled - server will restart on file changes"
+    )
 
     # Open webhook server docs in browser
     try:

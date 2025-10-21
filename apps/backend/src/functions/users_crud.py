@@ -59,7 +59,7 @@ class UserListOutput(BaseModel):
 
 @function.defn()
 async def users_read(
-    function_input: dict | None = None,  # noqa: ARG001
+    _function_input: dict | None = None,
 ) -> UserListOutput:
     """Read all users."""
     async for db in get_async_db():

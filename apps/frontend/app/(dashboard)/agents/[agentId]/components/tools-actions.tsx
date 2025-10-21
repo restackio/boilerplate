@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@workspace/ui/components/ui/button";
-import { Plus, Globe, Code, Image, Plug } from "lucide-react";
+import { Plus, Globe, Code, Image, Plug, HelpCircleIcon } from "lucide-react";
 import { ToolType } from "./tools-list";
 
 interface ToolsActionsProps {
@@ -39,8 +39,9 @@ export function ToolsActions({
   if (isReadOnly) {
     return (
       <div className="p-4 bg-muted/50 rounded-lg border border-dashed">
-        <p className="text-sm text-muted-foreground text-center">
-          🔒 Tools cannot be modified for published agents. Create a new draft to make changes.
+        <p className="text-sm text-muted-foreground flex items-center">
+          <HelpCircleIcon className="h-4 w-4 mr-2" />
+          Tools cannot be modified for published agents. Create a new version to make changes.
         </p>
       </div>
     );

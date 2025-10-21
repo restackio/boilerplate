@@ -13,12 +13,14 @@ import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 import { Agent } from "@/hooks/use-workspace-scoped-actions";
 import { ScheduleSetupDialog, ScheduleSpec } from "./schedule-setup-dialog";
 import { executeWorkflow } from "@/app/actions/workflow";
+import Link from "next/link";
+import { AgentStatusBadge } from "@workspace/ui/components/agent-status-badge";
 
 interface CreateTaskFormProps {
   onSubmit: (taskData: {
     title: string;
     description: string;
-    status: "open" | "active" | "waiting" | "closed" | "completed";
+    status: "in_progress" | "in_review" | "closed" | "completed";
     agent_id: string;
     assigned_to_id: string;
     // Schedule-related fields
@@ -132,7 +134,7 @@ export function CreateTaskForm({
       const baseTaskData = {
         title: taskDescription.substring(0, 50) + (taskDescription.length > 50 ? "..." : ""),
         description: taskDescription,
-        status: "open" as const,
+        status: "in_progress" as const,
         assigned_to_id: currentUser?.id || "",
       };
 
@@ -214,7 +216,7 @@ export function CreateTaskForm({
       const baseTaskData = {
         title: taskDescription.substring(0, 50) + (taskDescription.length > 50 ? "..." : ""),
         description: taskDescription,
-        status: "open" as const,
+        status: "in_progress" as const,
         assigned_to_id: currentUser?.id || "",
         agent_id: selectedAgentId,
         // Schedule-related fields
@@ -323,14 +325,14 @@ export function CreateTaskForm({
                     <button
                       type="button"
                       onClick={handleSelectAllVersions}
-                      className="text-xs text-blue-600 hover:text-blue-800"
+                      className="text-xs text-foreground hover:underline"
                     >
                       All
                     </button>
                     <button
                       type="button"
                       onClick={handleClearAllVersions}
-                      className="text-xs text-neutral-600 hover:text-neutral-800"
+                      className="text-xs text-neutral-500 hover:underline"
                     >
                       Clear
                     </button>
@@ -339,7 +341,7 @@ export function CreateTaskForm({
                 <DropdownMenuSeparator />
                 <div className="p-2 space-y-2 max-h-64 overflow-y-auto">
                   {allAgentVersions.map((version) => (
-                    <div key={version.id} className="flex items-center space-x-2 px-2 py-1 hover:bg-neutral-50 rounded">
+                    <div key={version.id} className="flex items-center space-x-2 px-2 py-1 hover:bg-muted rounded">
                       <Checkbox
                         id={`dropdown-${version.id}`}
                         checked={selectedVersionIds.includes(version.id)}
@@ -347,16 +349,35 @@ export function CreateTaskForm({
                       />
                       <label 
                         htmlFor={`dropdown-${version.id}`} 
-                        className="text-sm flex-1 cursor-pointer flex items-center justify-between"
+                        className="text-sm flex-1 cursor-pointer"
                       >
-                        <span>{version.name}</span>
-                        <span className={`text-xs px-2 py-1 rounded ${
-                          version.status === 'published'
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-neutral-100 text-neutral-600'
-                        }`}>
-                          {version.status}
-                        </span>
+                        <div className="flex items-center justify-between">
+                          <div className="flex flex-col">
+                            <span className="font-medium">
+                              ID: {version.id.slice(version.id.length - 5, version.id.length)}
+                            </span>
+                            <div className="flex items-center space-x-2 text-xs text-neutral-500 mt-0.5">
+                              <span>
+                                {version.updated_at 
+                                  ? new Date(version.updated_at).toLocaleString('en-US', { 
+                                      month: 'short', 
+                                      day: 'numeric', 
+                                      year: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    })
+                                  : 'Unknown date'
+                                }
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex flex-col space-y-1">
+                           <AgentStatusBadge status={version.status} size="sm" />
+                            <Link className="text-xs text-neutral-600 hover:text-neutral-800" href={`/agents/${version.id}`} target="_blank">
+                              Open in new tab
+                            </Link>
+                          </div>
+                        </div>
                       </label>
                     </div>
                   ))}

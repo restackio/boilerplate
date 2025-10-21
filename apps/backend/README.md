@@ -66,10 +66,10 @@ uv run start
 ### Database
 ```bash
 # Connect to database
-pnpm db:connect
+pnpm postgres:connect
 
 # Reset and seed database
-pnpm db:setup
+pnpm postgres:setup
 ```
 
 ### Debugging workflows

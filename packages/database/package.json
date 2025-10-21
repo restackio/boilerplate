@@ -2,18 +2,17 @@
   "name": "@boilerplate/database",
   "version": "0.0.1",
   "private": true,
-  "description": "Database schema and seed data for the boilerplate",
-  "main": "index.js",
+  "description": "Database migrations and demo data for the boilerplate",
   "scripts": {
-    "db:reset": "psql $DATABASE_URL -f schema.sql",
-    "db:seed:workspace": "psql $DATABASE_URL -f workspace-seed.sql",
-    "db:seed:agents": "psql $DATABASE_URL -f agents-seed.sql",
-    "db:seed": "pnpm db:seed:workspace && pnpm db:seed:agents",
-    "db:setup": "pnpm db:reset && pnpm db:seed"
+    "migrate": "bash scripts/migrate.sh",
+    "demo:insert": "bash scripts/insert-demo.sh",
+    "demo:reset": "bash scripts/reset-demo.sh",
+    "postgres:connect": "psql $DATABASE_URL",
+    "postinstall": "mkdir -p node_modules"
   },
   "files": [
-    "schema.sql",
-    "workspace-seed.sql",
-    "agents-seed.sql"
+    "migrations/",
+    "demo/",
+    "scripts/"
   ]
 } 

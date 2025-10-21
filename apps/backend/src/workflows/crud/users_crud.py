@@ -10,8 +10,13 @@ from restack_ai.workflow import (
 with import_functions():
     from src.functions.users_crud import (
         UserCreateInput,
+        UserDeleteOutput,
+        UserEmailInput,
+        UserIdInput,
         UserListOutput,
         UserSingleOutput,
+        UserUpdateInput,
+        UserWorkspaceIdInput,
         users_create,
         users_delete,
         users_get_by_email,
@@ -69,7 +74,9 @@ class UsersUpdateWorkflow:
     """Workflow to update an existing user."""
 
     @workflow.run
-    async def run(self, workflow_input: dict) -> UserSingleOutput:
+    async def run(
+        self, workflow_input: UserUpdateInput
+    ) -> UserSingleOutput:
         log.info("UsersUpdateWorkflow started")
         try:
             return await workflow.step(
@@ -89,7 +96,9 @@ class UsersDeleteWorkflow:
     """Workflow to delete a user."""
 
     @workflow.run
-    async def run(self, workflow_input: dict) -> dict[str, bool]:
+    async def run(
+        self, workflow_input: UserIdInput
+    ) -> UserDeleteOutput:
         log.info("UsersDeleteWorkflow started")
         try:
             return await workflow.step(
@@ -110,7 +119,7 @@ class UsersGetByIdWorkflow:
 
     @workflow.run
     async def run(
-        self, workflow_input: dict
+        self, workflow_input: UserIdInput
     ) -> UserSingleOutput | None:
         log.info("UsersGetByIdWorkflow started")
         try:
@@ -132,7 +141,7 @@ class UsersGetByEmailWorkflow:
 
     @workflow.run
     async def run(
-        self, workflow_input: dict
+        self, workflow_input: UserEmailInput
     ) -> UserSingleOutput | None:
         log.info("UsersGetByEmailWorkflow started")
         try:
@@ -155,7 +164,9 @@ class UsersGetByWorkspaceWorkflow:
     """Workflow to get all users in a workspace."""
 
     @workflow.run
-    async def run(self, workflow_input: dict) -> UserListOutput:
+    async def run(
+        self, workflow_input: UserWorkspaceIdInput
+    ) -> UserListOutput:
         log.info("UsersGetByWorkspaceWorkflow started")
         try:
             return await workflow.step(

@@ -3,11 +3,11 @@ from datetime import UTC, datetime
 
 from pydantic import BaseModel, Field
 from restack_ai.function import NonRetryableError, function
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import selectinload
 
 from src.database.connection import get_async_db
-from src.database.models import Agent, AgentTool
+from src.database.models import Agent, AgentSubagent, AgentTool
 
 
 def _raise_source_agent_not_found_error(
@@ -34,6 +34,10 @@ class AgentCreateInput(BaseModel):
         default="draft", pattern="^(published|draft|archived)$"
     )
     parent_agent_id: str | None = None
+    # Agent type: interactive (user-facing) or pipeline (data processing)
+    type: str = Field(
+        default="interactive", pattern="^(interactive|pipeline)$"
+    )
     # New GPT-5 model configuration fields
     model: str = Field(
         default="gpt-5",
@@ -61,10 +65,14 @@ class AgentCloneInput(BaseModel):
     status: str = Field(
         default="draft", pattern="^(published|draft|archived)$"
     )
+    # Agent type: interactive (user-facing) or pipeline (data processing)
+    type: str = Field(
+        default="interactive", pattern="^(interactive|pipeline)$"
+    )
     # New GPT-5 model configuration fields
     model: str = Field(
         default="gpt-5",
-        pattern=r"^(gpt-5|gpt-5-mini|gpt-5-nano|gpt-5-2025-08-07|gpt-5-mini-2025-08-07|gpt-5-nano-2025-08-07|gpt-4\.1|gpt-4\.1-mini|gpt-4\.1-nano|gpt-4o|gpt-4o-mini)$",
+        pattern=r"^(gpt-5|gpt-5-mini|gpt-5-nano|gpt-5-2025-08-07|gpt-5-mini-2025-08-07|gpt-5-nano-2025-08-07|gpt-4\.1|gpt-4\.1-mini|gpt-4\.1-nano|gpt-4o|gpt-4o-mini|o3-deep-research|o4-mini-deep-research)$",
     )
     reasoning_effort: str = Field(
         default="medium", pattern="^(minimal|low|medium|high)$"
@@ -85,10 +93,14 @@ class AgentUpdateInput(BaseModel):
         None, pattern="^(published|draft|archived)$"
     )
     parent_agent_id: str | None = None
+    # Agent type: interactive (user-facing) or pipeline (data processing)
+    type: str | None = Field(
+        None, pattern="^(interactive|pipeline)$"
+    )
     # New GPT-5 model configuration fields
     model: str | None = Field(
         None,
-        pattern=r"^(gpt-5|gpt-5-mini|gpt-5-nano|gpt-5-2025-08-07|gpt-5-mini-2025-08-07|gpt-5-nano-2025-08-07|gpt-4\.1|gpt-4\.1-mini|gpt-4\.1-nano|gpt-4o|gpt-4o-mini)$",
+        pattern=r"^(gpt-5|gpt-5-mini|gpt-5-nano|gpt-5-2025-08-07|gpt-5-mini-2025-08-07|gpt-5-nano-2025-08-07|gpt-4\.1|gpt-4\.1-mini|gpt-4\.1-nano|gpt-4o|gpt-4o-mini|o3-deep-research|o4-mini-deep-research)$",
     )
     reasoning_effort: str | None = Field(
         None, pattern="^(minimal|low|medium|high)$"
@@ -129,6 +141,8 @@ class AgentOutput(BaseModel):
     instructions: str | None
     status: str
     parent_agent_id: str | None
+    # Agent type: interactive (user-facing) or pipeline (data processing)
+    type: str = "interactive"
     # New GPT-5 model configuration fields
     model: str = "gpt-5"
     reasoning_effort: str = "medium"
@@ -350,6 +364,7 @@ class AgentTableOutput(BaseModel):
     name: str
     description: str | None = None
     instructions: str | None = None
+    type: str | None = None
     status: str
     parent_agent_id: str | None = None
     model: str | None = "gpt-5"
@@ -424,6 +439,7 @@ def _process_agent_group(
         name=display_agent.name,
         description=display_agent.description,
         instructions=display_agent.instructions,
+        type=display_agent.type,
         status=display_agent.status,
         parent_agent_id=str(display_agent.parent_agent_id)
         if display_agent.parent_agent_id
@@ -451,13 +467,67 @@ def _process_agent_group(
 
 
 @function.defn()
+async def agents_read_all(
+    function_input: AgentGetByWorkspaceInput,
+) -> AgentListOutput:
+    """Read ALL agents from database without grouping (for publish history)."""
+    async for db in get_async_db():
+        try:
+            # Build query to get all agents
+            query = select(Agent).where(
+                Agent.workspace_id
+                == uuid.UUID(function_input.workspace_id)
+            )
+
+            # Apply published_only filter if requested
+            if function_input.published_only:
+                query = query.where(Agent.status == "published")
+
+            query = query.order_by(Agent.created_at.asc())
+
+            result = await db.execute(query)
+            agents = result.scalars().all()
+
+            output_result = [
+                AgentOutput(
+                    id=str(agent.id),
+                    workspace_id=str(agent.workspace_id),
+                    name=agent.name,
+                    description=agent.description,
+                    instructions=agent.instructions,
+                    status=agent.status,
+                    parent_agent_id=str(agent.parent_agent_id)
+                    if agent.parent_agent_id
+                    else None,
+                    model=agent.model or "gpt-5",
+                    reasoning_effort=agent.reasoning_effort
+                    or "medium",
+                    created_at=agent.created_at.isoformat()
+                    if agent.created_at
+                    else None,
+                    updated_at=agent.updated_at.isoformat()
+                    if agent.updated_at
+                    else None,
+                )
+                for agent in agents
+            ]
+
+            return AgentListOutput(agents=output_result)
+        except Exception as e:
+            raise NonRetryableError(
+                message=f"Database error: {e!s}"
+            ) from e
+    return None
+
+
+@function.defn()
 async def agents_read_table(
     function_input: AgentGetByWorkspaceInput,
 ) -> AgentTableListOutput:
     """Read all agents from database for table display with enhanced versioning info."""
     async for db in get_async_db():
         try:
-            # Get all agents for the workspace
+            # Build base query
             all_agents_query = (
                 select(Agent)
                 .options(selectinload(Agent.team))
@@ -465,9 +535,16 @@ async def agents_read_table(
                     Agent.workspace_id
                     == uuid.UUID(function_input.workspace_id)
                 )
-                .order_by(
-                    Agent.name.asc(), Agent.created_at.desc()
+            )
+
+            # Apply published_only filter if requested
+            if function_input.published_only:
+                all_agents_query = all_agents_query.where(
+                    Agent.status == "published"
                 )
+
+            all_agents_query = all_agents_query.order_by(
+                Agent.name.asc(), Agent.created_at.desc()
             )
 
             result = await db.execute(all_agents_query)
@@ -530,6 +607,8 @@ async def agents_create(
                 instructions=agent_data.instructions,
                 status=agent_data.status,
                 parent_agent_id=parent_agent_id,
+                # Agent type
+                type=agent_data.type,
                 # New GPT-5 model configuration fields
                 model=agent_data.model,
                 reasoning_effort=agent_data.reasoning_effort,
@@ -552,6 +631,8 @@ async def agents_create(
                 parent_agent_id=str(agent.parent_agent_id)
                 if agent.parent_agent_id
                 else None,
+                # Agent type
+                type=agent.type or "interactive",
                 # New GPT-5 model configuration fields
                 model=agent.model or "gpt-5",
                 reasoning_effort=agent.reasoning_effort
@@ -630,6 +711,8 @@ async def agents_update(
                 parent_agent_id=str(agent.parent_agent_id)
                 if agent.parent_agent_id
                 else None,
+                # Agent type
+                type=agent.type or "interactive",
                 # New GPT-5 model configuration fields
                 model=agent.model or "gpt-5",
                 reasoning_effort=agent.reasoning_effort
@@ -745,6 +828,8 @@ async def agents_get_by_id(
                 parent_agent_id=str(agent.parent_agent_id)
                 if agent.parent_agent_id
                 else None,
+                # Agent type
+                type=agent.type or "interactive",
                 # New GPT-5 model configuration fields
                 model=agent.model or "gpt-5",
                 reasoning_effort=agent.reasoning_effort
@@ -867,49 +952,73 @@ async def agents_get_by_status(
 async def agents_get_versions(
     function_input: AgentGetVersionsInput,
 ) -> AgentListOutput:
-    """Get all versions of an agent by parent_agent_id."""
+    """Get all versions of an agent by parent_agent_id or agent_id."""
     async for db in get_async_db():
         try:
             # Convert parent_agent_id string to UUID
             try:
-                parent_agent_id = uuid.UUID(
+                agent_id = uuid.UUID(
                     function_input.parent_agent_id
                 )
             except ValueError as e:
                 raise NonRetryableError(
-                    message="Invalid parent_agent_id format"
+                    message="Invalid agent_id format"
                 ) from e
-            agents_query = select(Agent).where(
-                Agent.parent_agent_id == parent_agent_id
+
+            # First, check if this agent is a child (has a parent_agent_id)
+            check_query = select(Agent).where(
+                Agent.id == agent_id
             )
+            check_result = await db.execute(check_query)
+            current_agent = check_result.scalar_one_or_none()
+
+            if not current_agent:
+                return AgentListOutput(agents=[])
+
+            # Determine the root parent ID
+            root_parent_id = (
+                current_agent.parent_agent_id or agent_id
+            )
+
+            # Get all versions: the parent + all children with that parent_agent_id
+            agents_query = (
+                select(Agent)
+                .where(
+                    or_(
+                        Agent.id == root_parent_id,
+                        Agent.parent_agent_id == root_parent_id,
+                    )
+                )
+                .order_by(Agent.created_at.desc())
+            )
+
             result = await db.execute(agents_query)
             agents = result.scalars().all()
 
-            output_result = []
-            for agent in agents:
-                output_result.append(  # noqa: PERF401
-                    AgentOutput(
-                        id=str(agent.id),
-                        workspace_id=str(agent.workspace_id),
-                        name=agent.name,
-                        description=agent.description,
-                        instructions=agent.instructions,
-                        status=agent.status,
-                        parent_agent_id=str(agent.parent_agent_id)
-                        if agent.parent_agent_id
-                        else None,
-                        # New GPT-5 model configuration fields
-                        model=agent.model or "gpt-5",
-                        reasoning_effort=agent.reasoning_effort
-                        or "medium",
-                        created_at=agent.created_at.isoformat()
-                        if agent.created_at
-                        else None,
-                        updated_at=agent.updated_at.isoformat()
-                        if agent.updated_at
-                        else None,
-                    )
+            output_result = [
+                AgentOutput(
+                    id=str(agent.id),
+                    workspace_id=str(agent.workspace_id),
+                    name=agent.name,
+                    description=agent.description,
+                    instructions=agent.instructions,
+                    status=agent.status,
+                    parent_agent_id=str(agent.parent_agent_id)
+                    if agent.parent_agent_id
+                    else None,
+                    # New GPT-5 model configuration fields
+                    model=agent.model or "gpt-5",
+                    reasoning_effort=agent.reasoning_effort
+                    or "medium",
+                    created_at=agent.created_at.isoformat()
+                    if agent.created_at
+                    else None,
+                    updated_at=agent.updated_at.isoformat()
+                    if agent.updated_at
+                    else None,
                 )
+                for agent in agents
+            ]
             return AgentListOutput(agents=output_result)
         except Exception as e:
             raise NonRetryableError(
@@ -1177,6 +1286,8 @@ async def agents_clone(
                 or source_agent.instructions,
                 status=clone_data.status,
                 parent_agent_id=source_agent_id,  # Set the source as parent
+                # Agent type inherited from source agent
+                type=clone_data.type,
                 model=clone_data.model,
                 reasoning_effort=clone_data.reasoning_effort,
             )
@@ -1207,6 +1318,23 @@ async def agents_clone(
                 )
                 db.add(new_tool)
 
+            # Get all subagents from the source agent
+            subagents_query = select(AgentSubagent).where(
+                AgentSubagent.parent_agent_id == source_agent_id
+            )
+            subagents_result = await db.execute(subagents_query)
+            source_subagents = subagents_result.scalars().all()
+
+            # Clone each subagent relationship
+            for source_subagent in source_subagents:
+                new_subagent = AgentSubagent(
+                    id=uuid.uuid4(),
+                    parent_agent_id=new_agent.id,
+                    subagent_id=source_subagent.subagent_id,
+                    enabled=source_subagent.enabled,
+                )
+                db.add(new_subagent)
+
             await db.commit()
             await db.refresh(new_agent)
 
@@ -1221,6 +1349,8 @@ async def agents_clone(
                 parent_agent_id=str(new_agent.parent_agent_id)
                 if new_agent.parent_agent_id
                 else None,
+                # Agent type
+                type=new_agent.type or "interactive",
                 model=new_agent.model or "gpt-5",
                 reasoning_effort=new_agent.reasoning_effort
                 or "medium",

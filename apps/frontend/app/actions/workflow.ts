@@ -31,8 +31,8 @@ export async function runWorkflow({
     };
   } catch (error) {
     const endTime = Date.now();
-    console.error(`❌ [runWorkflow] Error after ${endTime - startTime}ms:`, error);
-    console.error(`❌ [runWorkflow] Error details:`, {
+    console.error(`[runWorkflow] Error after ${endTime - startTime}ms:`, error);
+    console.error(`[runWorkflow] Error details:`, {
       name: error.name,
       message: error.message,
       stack: error.stack,
@@ -100,7 +100,7 @@ export async function getWorkflowResult({
     return result;
   } catch (error) {
     const endTime = Date.now();
-    console.error(`❌ [getWorkflowResult] Error after ${endTime - startTime}ms:`, error);
+    console.error(`[getWorkflowResult] Error after ${endTime - startTime}ms:`, error);
     throw error;
   }
 }
@@ -187,7 +187,6 @@ export async function getMcpServerById(mcpServerId: string) {
     runId
   });
 }
-
 
 export async function listMcpServerTools(
   serverUrl: string, 
@@ -309,6 +308,36 @@ export async function updateAgentMcpServer(agentMcpServerData: {
   return await updateAgentTool({
     agent_tool_id: agentMcpServerData.agent_mcp_server_id,
     allowed_tools: agentMcpServerData.allowed_tools,
+  });
+}
+
+export async function createDataset(datasetData: {
+  workspace_id: string;
+  name: string;
+  description?: string;
+  storage_type?: string;
+  tags?: string[];
+}) {
+  const { workflowId, runId } = await runWorkflow({
+    workflowName: "DatasetsCreateWorkflow",
+    input: datasetData
+  });
+  
+  return await getWorkflowResult({
+    workflowId,
+    runId
+  });
+}
+
+export async function getDatasets(workspaceId: string) {
+  const { workflowId, runId } = await runWorkflow({
+    workflowName: "DatasetsReadWorkflow",
+    input: { workspace_id: workspaceId }
+  });
+  
+  return await getWorkflowResult({
+    workflowId,
+    runId
   });
 }
 

@@ -1,6 +1,11 @@
 import uuid
+from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import (
+    BaseModel,
+    Field,
+    field_validator,
+)
 from restack_ai.function import NonRetryableError, function
 from sqlalchemy import delete, func, select
 
@@ -38,6 +43,14 @@ class McpServerCreateInput(BaseModel):
         default_factory=McpRequireApproval
     )
 
+    @field_validator("server_url", mode="before")
+    @classmethod
+    def validate_server_url(cls, v: str | None) -> str | None:
+        """Convert empty string to None."""
+        if v == "":
+            return None
+        return v
+
 
 class McpServerUpdateInput(BaseModel):
     mcp_server_id: str = Field(..., min_length=1)
@@ -49,6 +62,16 @@ class McpServerUpdateInput(BaseModel):
     server_description: str | None = None
     headers: dict[str, str] | None = None
     require_approval: McpRequireApproval | None = None
+
+    @field_validator("server_url")
+    @classmethod
+    def validate_server_url(
+        cls, v: str | None, _info: Any
+    ) -> str | None:
+        """Convert empty string to None."""
+        if v == "":
+            return None
+        return v
 
 
 class McpServerIdInput(BaseModel):
@@ -159,17 +182,41 @@ async def mcp_servers_create(
     """Create a new MCP server."""
     async for db in get_async_db():
         try:
+            # Ensure server_url is None for local servers to satisfy constraint
+            server_url = (
+                None
+                if mcp_server_data.local
+                else mcp_server_data.server_url
+            )
+
+            # Handle require_approval field safely
+            require_approval_data = {}
+            if mcp_server_data.require_approval:
+                try:
+                    require_approval_data = mcp_server_data.require_approval.model_dump()
+                except (AttributeError, ValueError):
+                    # Fallback to default structure if model_dump fails
+                    require_approval_data = {
+                        "never": {"tool_names": []},
+                        "always": {"tool_names": []},
+                    }
+            else:
+                require_approval_data = {
+                    "never": {"tool_names": []},
+                    "always": {"tool_names": []},
+                }
+
             mcp_server = McpServer(
                 id=uuid.uuid4(),
                 workspace_id=uuid.UUID(
                     mcp_server_data.workspace_id
                 ),
                 server_label=mcp_server_data.server_label,
-                server_url=mcp_server_data.server_url,
+                server_url=server_url,
                 local=mcp_server_data.local,
                 server_description=mcp_server_data.server_description,
                 headers=mcp_server_data.headers,
-                require_approval=mcp_server_data.require_approval.model_dump(),
+                require_approval=require_approval_data,
             )
             db.add(mcp_server)
             await db.commit()
@@ -195,9 +242,12 @@ async def mcp_servers_create(
             return McpServerSingleOutput(mcp_server=result)
         except Exception as e:
             await db.rollback()
-            raise NonRetryableError(
-                message=f"Failed to create MCP server: {e!s}"
-            ) from e
+            # Log the full error details for debugging
+            import traceback
+
+            error_details = traceback.format_exc()
+            error_message = f"Failed to create MCP server: {e!s}. Details: {error_details}"
+            raise NonRetryableError(message=error_message) from e
     return None
 
 
@@ -241,6 +291,13 @@ async def mcp_servers_update(
                         )
                     else:
                         setattr(mcp_server, key, value)
+
+            # Ensure constraint is satisfied: if local=True, server_url must be None
+            if (
+                mcp_server.local
+                and mcp_server.server_url is not None
+            ):
+                mcp_server.server_url = None
 
             await db.commit()
             await db.refresh(mcp_server)

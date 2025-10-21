@@ -285,7 +285,7 @@ export const AgentConfigForm = forwardRef<AgentConfigFormRef, AgentConfigFormPro
       </ConfigField>
 
       {/* Instructions */}
-      <ConfigField variant={variant} title="System Instructions">
+      <ConfigField variant={variant} title="Instructions">
         <div className="space-y-4">
           {showInstructionsPreview && (
             <div className="flex items-center gap-2">
@@ -346,7 +346,7 @@ export const AgentConfigForm = forwardRef<AgentConfigFormRef, AgentConfigFormPro
           {enableTemplates && !isReadOnly && templates.length > 0 && (
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <Label className="text-xs">Insert template</Label>
+                <Label className="text-xs">Insert from template</Label>
                 <Select onValueChange={handleTemplateSelect}>
                   <SelectTrigger className="h-8 w-[240px]">
                     <SelectValue placeholder="Choose a template" />

@@ -9,7 +9,6 @@ import {
 import {
   Settings,
   Webhook,
-  Workflow,
   History,
 } from "lucide-react";
 import { Agent, ApiResponse } from "@/hooks/use-workspace-scoped-actions";
@@ -52,12 +51,12 @@ const tabsConfig = [
     icon: Webhook,
     enabled: true,
   },
-  {
-    id: "flow",
-    label: "Flow",
-    icon: Workflow,
-    enabled: true,
-  },
+  // {
+  //   id: "flow",
+  //   label: "Flow",
+  //   icon: Workflow,
+  //   enabled: true,
+  // },
   {
     id: "versions",
     label: "Version history",

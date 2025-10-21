@@ -10,7 +10,8 @@ dependencies = [
     "watchfiles>=1.1.0",
     "python-dotenv>=1.1.1",
     "openai[aiohttp]==1.107.1",
-    "restack-ai>=0.0.112",
+    "openai-agents>=0.3.3",
+    "restack-ai>=0.0.115",
     "psycopg2-binary>=2.9.9",
     "asyncpg>=0.29.0",
     "sqlalchemy>=2.0.43",
@@ -19,6 +20,7 @@ dependencies = [
     "bcrypt>=4.0.1",
     "mcp>=1.13.1",
     "cryptography>=45.0.7",
+    "clickhouse-connect>=0.9.0",
     "ruff>=0.13.0",
 ]
 
@@ -42,7 +44,11 @@ line-length = 66
 
 [tool.ruff.lint]
 extend-select = ["ALL"]
-ignore = ["ANN401", "E501", "D100", "D101", "D102", "D103", "D107", "TRY002", "D213", "D203", "COM812", "D104", "INP001", "PLC0415"]
+ignore = [
+    "ANN401", "E501", "D100", "D101", "D102", "D103", "D107", 
+    "TRY002", "D213", "D203", "COM812", "D104", "INP001", "PLC0415",
+    "ISC001",  # Conflicts with formatter
+]
 
 [tool.ruff.format]
 quote-style = "double"

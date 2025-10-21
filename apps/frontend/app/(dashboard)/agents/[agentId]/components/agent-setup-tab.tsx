@@ -1,16 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef, forwardRef, useImperativeHandle } from "react";
+import { useState, useCallback, useMemo, useRef, forwardRef, useImperativeHandle } from "react";
 import { Label } from "@workspace/ui/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@workspace/ui/components/ui/select";
 import { AgentToolsManager } from "./agent-tools-manager";
-import { PROMPT_TEMPLATES } from "./prompt-templates";
 import { AgentConfigurationForm, type AgentConfigData, type AgentConfigurationFormRef } from "./agent-configuration-form";
 
 interface Agent {
@@ -35,35 +27,17 @@ interface AgentSetupTabProps {
   onChange?: (agentData: AgentConfigData) => void; // Deprecated - use ref instead
 }
 
-export const AgentSetupTab = forwardRef<AgentSetupTabRef, AgentSetupTabProps>(({ agent, onChange, workspaceId }, ref) => {
+export const AgentSetupTab = forwardRef<AgentSetupTabRef, AgentSetupTabProps>(({ agent, workspaceId }, ref) => {
   const [nameError, setNameError] = useState("");
-  const [currentInstructions, setCurrentInstructions] = useState("");
   const formRef = useRef<AgentConfigurationFormRef>(null);
   
   // Check if agent is published (read-only)
   const isReadOnly = agent?.status === "published";
 
-  // Handle form data changes
-  const handleFormChange = useCallback((data: AgentConfigData) => {
-    onChange?.(data);
-  }, [onChange]);
-
   // Handle name validation
   const handleNameValidation = useCallback((isValid: boolean, error: string) => {
     setNameError(error);
   }, []);
-
-  // Handle instructions changes for template insertion
-  const handleInstructionsChange = useCallback((newInstructions: string) => {
-    setCurrentInstructions(newInstructions);
-    handleFormChange({
-      name: agent?.name || "",
-      description: agent?.description || "",
-      instructions: newInstructions,
-      model: agent?.model || "gpt-5",
-      reasoning_effort: agent?.reasoning_effort || "medium",
-    });
-  }, [agent?.name, agent?.description, agent?.model, agent?.reasoning_effort, handleFormChange]);
 
   // Memoize initial data to prevent unnecessary re-renders
   const initialData = useMemo(() => ({
@@ -73,13 +47,6 @@ export const AgentSetupTab = forwardRef<AgentSetupTabRef, AgentSetupTabProps>(({
     model: agent?.model || "gpt-5",
     reasoning_effort: agent?.reasoning_effort || "medium",
   }), [agent?.name, agent?.description, agent?.instructions, agent?.model, agent?.reasoning_effort]);
-
-  // Update current instructions when agent changes
-  useEffect(() => {
-    if (agent?.instructions) {
-      setCurrentInstructions(agent.instructions);
-    }
-  }, [agent?.instructions]);
 
   // Expose getCurrentData function via ref
   useImperativeHandle(ref, () => ({
@@ -113,37 +80,6 @@ export const AgentSetupTab = forwardRef<AgentSetupTabRef, AgentSetupTabProps>(({
         )}
       </div>
 
-      {/* Template Insertion - Only show in edit mode */}
-      {!isReadOnly && (
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Label className="text-xs">Insert template</Label>
-            <Select onValueChange={(id) => {
-              const template = PROMPT_TEMPLATES.find(x => x.id === id);
-              if (template) {
-                const newInstructions = currentInstructions 
-                  ? currentInstructions + "\n\n" + template.content 
-                  : template.content;
-                handleInstructionsChange(newInstructions);
-              }
-            }}>
-              <SelectTrigger className="h-8 w-[240px]">
-                <SelectValue placeholder="GPT-5 best-practice templates" />
-              </SelectTrigger>
-              <SelectContent>
-                {PROMPT_TEMPLATES.map(template => (
-                  <SelectItem key={template.id} value={template.id}>
-                    {template.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Select a template to append to your current instructions
-          </p>
-        </div>
-      )}
     </div>
   );
 });

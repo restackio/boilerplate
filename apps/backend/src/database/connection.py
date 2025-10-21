@@ -2,6 +2,7 @@ import logging
 import os
 from collections.abc import AsyncGenerator
 
+import clickhouse_connect
 from dotenv import load_dotenv
 from sqlalchemy.exc import DisconnectionError
 from sqlalchemy.ext.asyncio import (
@@ -22,7 +23,7 @@ if os.getenv("NODE_ENV") != "production":
 # Database URL from environment - convert to async format
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://postgres:postgres@localhost:5432/boilerplate_db",
+    "postgresql://postgres:postgres@localhost:5432/boilerplate_postgres",
 )
 # Convert to async URL if it's not already
 if DATABASE_URL.startswith("postgresql://"):
@@ -83,3 +84,37 @@ async def init_async_db() -> None:
 async def close_async_db() -> None:
     """Close database connections (async version)."""
     await async_engine.dispose()
+
+
+def get_clickhouse_client() -> clickhouse_connect.driver.Client:
+    """Get ClickHouse client connection (synchronous - use for compatibility only).
+
+    Requires CLICKHOUSE_URL environment variable in format:
+    - http://user:password@host:port/database (for local/insecure)
+    - https://user:password@host:port/database (for ClickHouse Cloud)
+    """
+    clickhouse_url = os.getenv(
+        "CLICKHOUSE_URL",
+        "http://clickhouse:clickhouse@localhost:8123/boilerplate_clickhouse",
+    )
+    return clickhouse_connect.get_client(dsn=clickhouse_url)
+
+
+async def get_clickhouse_async_client() -> (
+    clickhouse_connect.driver.AsyncClient
+):
+    """Get async ClickHouse client connection.
+
+    Requires CLICKHOUSE_URL environment variable in format:
+    - http://user:password@host:port/database (for local/insecure)
+    - https://user:password@host:port/database (for ClickHouse Cloud)
+    """
+    clickhouse_url = os.getenv(
+        "CLICKHOUSE_URL",
+        "http://clickhouse:clickhouse@localhost:8123/boilerplate_clickhouse",
+    )
+
+    logger.info("Connecting to ClickHouse using CLICKHOUSE_URL")
+    return await clickhouse_connect.get_async_client(
+        dsn=clickhouse_url
+    )

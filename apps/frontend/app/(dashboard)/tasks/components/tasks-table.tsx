@@ -3,12 +3,12 @@
 
 import {
   LifeBuoy,
-  CheckSquare,
+  CheckCircle,
   Clock,
   Users,
-  AlertTriangle,
+  CirclePause,
   Eye,
-  Activity,
+  CircleDashed,
   DollarSign,
   Shield,
   Bot,
@@ -16,6 +16,10 @@ import {
   ClipboardList,
   TrendingUp,
   UserPlus,
+  CircleX,
+  Activity,
+  MessageSquare,
+  Workflow,
 } from "lucide-react";
 import { Badge } from "@workspace/ui/components/ui/badge";
 import { Button } from "@workspace/ui/components/ui/button";
@@ -31,16 +35,19 @@ import {
   TableRow,
 } from "@workspace/ui/components/ui/table";
 import { EmptyState } from "@workspace/ui/components/ui/empty-state";
+import { getLucideIcon } from "@workspace/ui/lib/get-lucide-icon";
 import Link from "next/link";
+import { taskStatusOptions, getStatusColor, getStatusBadge } from "../utils/task-status-utils";
 
 // Task data type
 export interface Task {
   id: string;
   title: string;
   description?: string;
-  status: "open" | "active" | "waiting" | "closed" | "completed";
+  status: "in_progress" | "in_review" | "closed" | "completed" | "failed";
   agent_id: string;
   agent_name: string;
+  type?: "interactive" | "pipeline";
   assigned_to_id: string;
   assigned_to_name: string;
   team_id?: string;
@@ -85,6 +92,13 @@ export const taskColumnsConfig = [
     .build(),
   dtf
     .option()
+    .id("type")
+    .accessor((row: Task) => row.type || "interactive")
+    .displayName("Agent Type")
+    .icon(Bot)
+    .build(),
+  dtf
+    .option()
     .id("team")
     .accessor((row: Task) => row.team_name || "No Team")
     .displayName("Team")
@@ -109,14 +123,8 @@ export const taskTeamOptions = [
   { label: "HR", value: "HR", icon: UserPlus },
 ];
 
-// Status options
-export const taskStatusOptions = [
-  { label: "Open", value: "open", icon: Clock },
-  { label: "Active", value: "active", icon: Activity },
-  { label: "Waiting", value: "waiting", icon: AlertTriangle },
-  { label: "Closed", value: "closed", icon: CheckSquare },
-  { label: "Completed", value: "completed", icon: CheckSquare },
-];
+// Re-export status options for backward compatibility
+export { taskStatusOptions } from "../utils/task-status-utils";
 
 // Agent options (placeholder - would be populated from backend)
 export const taskAgentOptions = [
@@ -127,6 +135,12 @@ export const taskAgentOptions = [
   { label: "Intercom Support Agent", value: "intercom-support", icon: Bot },
 ];
 
+// Agent type options
+export const taskAgentTypeOptions = [
+  { label: "Interactive", value: "interactive", icon: MessageSquare },
+  { label: "Pipeline", value: "pipeline", icon: Workflow },
+];
+
 // Created by options
 export const taskCreatedByOptions = [
   { label: "Schedule", value: "Schedule", icon: Clock },
@@ -135,22 +149,23 @@ export const taskCreatedByOptions = [
 
 
 
-// Helper function for status colors
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case "completed":
-      return "bg-green-100 text-green-800";
-    case "active":
-      return "bg-blue-100 text-blue-800";
-    case "waiting":
-      return "bg-yellow-100 text-yellow-800";
-    case "closed":
-      return "bg-neutral-100 text-neutral-800";
-    case "open":
-      return "bg-orange-100 text-orange-800";
-    default:
-      return "bg-neutral-100 text-neutral-800";
+// Re-export helper functions for backward compatibility
+export { getStatusColor, getStatusBadge, getStatusIcon } from "../utils/task-status-utils";
+
+// Helper function to get the team icon for a task
+const getTeamIcon = (task: Task, teams: Array<{ label: string; value: string; icon: any }>) => {
+  if (!task.team_name || task.team_name === "No Team") {
+    return Users;
   }
+  
+  // Find the team in the teams array to get its icon
+  const team = teams.find(t => t.value === task.team_name);
+  if (team && team.icon) {
+    return team.icon;
+  }
+  
+  // Fallback to Users icon if team not found
+  return Users;
 };
 
 
@@ -182,6 +197,7 @@ export function TasksTable({
       options: {
         status: taskStatusOptions,
         agent: taskAgentOptions,
+        type: taskAgentTypeOptions,
         team: teams,
         created_by: taskCreatedByOptions,
       },
@@ -240,9 +256,20 @@ export function TasksTable({
                           <Bot className="h-3 w-3 flex-shrink-0" />
                           <span className="truncate">{task.agent_name}</span>
                         </span>
+                        <span className="flex items-center gap-1 truncate">
+                          {task.type === "pipeline" ? (
+                            <CircleDashed className="h-3 w-3 flex-shrink-0" />
+                          ) : (
+                            <User className="h-3 w-3 flex-shrink-0" />
+                          )}
+                          <span className="truncate capitalize">{task.type || "interactive"}</span>
+                        </span>
                         {task.team_name && (
                           <span className="flex items-center gap-1 truncate">
-                            <Users className="h-3 w-3 flex-shrink-0" />
+                            {(() => {
+                              const TeamIcon = getTeamIcon(task, teams || []);
+                              return <TeamIcon className="h-3 w-3 flex-shrink-0" />;
+                            })()}
                             <span className="truncate">{task.team_name}</span>
                           </span>
                         )}
@@ -251,21 +278,24 @@ export function TasksTable({
                   </Link>
                 </TableCell>
                 <TableCell className="p-3">
-                  <Badge
-                    className={`${getStatusColor(task.status)} border-0 w-fit text-xs`}
-                  >
-                    {task.status}
-                  </Badge>
+                  {getStatusBadge(task.status, "default", "xs")}
                 </TableCell>
                 <TableCell className="hidden sm:table-cell p-3">
                   <div className="flex items-center space-x-2">
-                    <Bot className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  {task.type === "pipeline" ? (
+                      <Workflow className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    ) : (
+                      <MessageSquare className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    )}
                     <span className="text-sm truncate">{task.agent_name}</span>
                   </div>
                 </TableCell>
                 <TableCell className="hidden md:table-cell p-3">
                   <div className="flex items-center space-x-2">
-                    <Users className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    {(() => {
+                      const TeamIcon = getTeamIcon(task, teams || []);
+                      return <TeamIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />;
+                    })()}
                     <span className="text-sm truncate">{task.team_name || "No Team"}</span>
                   </div>
                 </TableCell>

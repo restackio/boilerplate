@@ -2,20 +2,17 @@ services:
   # PostgreSQL Database
   postgres:
     image: postgres:17-alpine
-    container_name: boilerplate_db
+    container_name: boilerplate_postgres
     env_file:
       - .env
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-boilerplate_db}
+      POSTGRES_DB: ${POSTGRES_DB:-boilerplate_postgres}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./packages/database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
-      - ./packages/database/workspace-seed.sql:/docker-entrypoint-initdb.d/02-workspace-seed.sql
-      - ./packages/database/agents-seed.sql:/docker-entrypoint-initdb.d/03-agents-seed.sql
     command: >
       postgres
       -c shared_buffers=512MB
@@ -27,7 +24,36 @@ services:
       -c max_parallel_workers_per_gather=2
       -c jit=off
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d boilerplate_db"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d boilerplate_postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - boilerplate-network
+
+  # ClickHouse Database for Analytics and Datasets
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    container_name: boilerplate_clickhouse
+    env_file:
+      - .env
+    environment:
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB:-boilerplate_clickhouse}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-clickhouse}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-clickhouse}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    ports:
+      - "${CLICKHOUSE_PORT:-8123}:8123"
+      - "9000:9000"
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse/
+      - clickhouse_logs:/var/log/clickhouse-server/
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--query", "SELECT 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -58,18 +84,28 @@ services:
   # Backend Service
   backend:
     build:
-      context: ./apps/backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./apps/backend/Dockerfile
     container_name: boilerplate_backend
     env_file:
       - .env
     environment:
-      - RESTACK_ENGINE_ADDRESS=${RESTACK_ENGINE_ADDRESS:-host.docker.internal:7233}
-      - RESTACK_ENGINE_API_ADDRESS=${RESTACK_ENGINE_API_ADDRESS:-host.docker.internal:6233}
-      - RESTACK_ENGINE_STREAM_ADDRESS=${RESTACK_ENGINE_STREAM_ADDRESS:-host.docker.internal:9233}
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/boilerplate_db
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - DEMO_MODE=${DEMO_MODE:-false}
+      - RESET_DEMO=${RESET_DEMO:-false}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/boilerplate_postgres}
+      - CLICKHOUSE_URL=${CLICKHOUSE_URL:-http://clickhouse:clickhouse@clickhouse:8123/boilerplate_clickhouse}
+      - RESTACK_ENGINE_ADDRESS=${RESTACK_ENGINE_ADDRESS:-restack:7233}
+      - RESTACK_ENGINE_API_ADDRESS=${RESTACK_ENGINE_API_ADDRESS:-restack:6233}
+      - RESTACK_ENGINE_STREAM_ADDRESS=${RESTACK_ENGINE_STREAM_ADDRESS:-restack:9233}
+      - NO_COLOR=1
+      - PYTHONUNBUFFERED=1
     depends_on:
       postgres:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+      restack:
         condition: service_healthy
     networks:
       - boilerplate-network
@@ -84,12 +120,21 @@ services:
     env_file:
       - .env
     environment:
-      - RESTACK_ENGINE_ADDRESS=${RESTACK_ENGINE_ADDRESS:-host.docker.internal:7233}
-      - RESTACK_ENGINE_API_ADDRESS=${RESTACK_ENGINE_API_ADDRESS:-host.docker.internal:6233}
-      - RESTACK_ENGINE_STREAM_ADDRESS=${RESTACK_ENGINE_STREAM_ADDRESS:-host.docker.internal:9233}
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/boilerplate_db
+      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/boilerplate_postgres}
+      - CLICKHOUSE_URL=${CLICKHOUSE_URL:-http://clickhouse:clickhouse@clickhouse:8123/boilerplate_clickhouse}
+      - RESTACK_ENGINE_ADDRESS=${RESTACK_ENGINE_ADDRESS:-restack:7233}
+      - RESTACK_ENGINE_API_ADDRESS=${RESTACK_ENGINE_API_ADDRESS:-restack:6233}
+      - RESTACK_ENGINE_STREAM_ADDRESS=${RESTACK_ENGINE_STREAM_ADDRESS:-restack:9233}
+      - NO_COLOR=1
+      - PYTHONUNBUFFERED=1
     depends_on:
+      backend:
+        condition: service_started
       postgres:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+      restack:
         condition: service_healthy
     networks:
       - boilerplate-network
@@ -106,12 +151,19 @@ services:
     env_file:
       - .env
     environment:
-      - RESTACK_ENGINE_ADDRESS=${RESTACK_ENGINE_ADDRESS:-host.docker.internal:7233}
-      - RESTACK_ENGINE_API_ADDRESS=${RESTACK_ENGINE_API_ADDRESS:-host.docker.internal:6233}
-      - RESTACK_ENGINE_STREAM_ADDRESS=${RESTACK_ENGINE_STREAM_ADDRESS:-host.docker.internal:9233}
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/boilerplate_db
+      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/boilerplate_postgres}
+      - CLICKHOUSE_URL=${CLICKHOUSE_URL:-http://clickhouse:clickhouse@clickhouse:8123/boilerplate_clickhouse}
+      - RESTACK_ENGINE_ADDRESS=${RESTACK_ENGINE_ADDRESS:-restack:7233}
+      - RESTACK_ENGINE_API_ADDRESS=${RESTACK_ENGINE_API_ADDRESS:-restack:6233}
+      - RESTACK_ENGINE_STREAM_ADDRESS=${RESTACK_ENGINE_STREAM_ADDRESS:-restack:9233}
     depends_on:
+      backend:
+        condition: service_started
       postgres:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+      restack:
         condition: service_healthy
     networks:
       - boilerplate-network
@@ -122,15 +174,20 @@ services:
     build:
       context: .
       dockerfile: ./apps/frontend/Dockerfile
+      args:
+        RESTACK_ENGINE_STREAM_ADDRESS: ${NEXT_PUBLIC_RESTACK_ENGINE_API_ADDRESS:-${RESTACK_ENGINE_STREAM_ADDRESS:-http://localhost:9233}}
+        POSTHOG_KEY: ${NEXT_PUBLIC_POSTHOG_KEY:-${POSTHOG_KEY:-}}
+        POSTHOG_HOST: ${NEXT_PUBLIC_POSTHOG_HOST:-${POSTHOG_HOST:-}}
     container_name: boilerplate_frontend
     ports:
       - "3000:3000"
     env_file:
       - .env
     environment:
-      - RESTACK_ENGINE_ADDRESS=${RESTACK_ENGINE_ADDRESS:-host.docker.internal:7233}
-      - RESTACK_ENGINE_API_ADDRESS=${RESTACK_ENGINE_API_ADDRESS:-host.docker.internal:6233}
-      - RESTACK_ENGINE_STREAM_ADDRESS=${RESTACK_ENGINE_STREAM_ADDRESS:-host.docker.internal:9233}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/boilerplate_postgres}
+      - RESTACK_ENGINE_ADDRESS=${RESTACK_ENGINE_ADDRESS:-restack:7233}
+      - RESTACK_ENGINE_API_ADDRESS=${RESTACK_ENGINE_API_ADDRESS:-restack:6233}
+      - RESTACK_ENGINE_STREAM_ADDRESS=${RESTACK_ENGINE_STREAM_ADDRESS:-restack:9233}
       - NODE_ENV=${NODE_ENV:-production}
     depends_on:
       - backend
@@ -142,6 +199,10 @@ services:
 
 volumes:
   postgres_data:
+    driver: local
+  clickhouse_data:
+    driver: local
+  clickhouse_logs:
     driver: local
 
 networks:

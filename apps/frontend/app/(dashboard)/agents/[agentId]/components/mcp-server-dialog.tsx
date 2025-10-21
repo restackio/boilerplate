@@ -13,8 +13,8 @@ import {
 } from "@workspace/ui/components/ui/select";
 import { Checkbox } from "@workspace/ui/components/ui/checkbox";
 import { Switch } from "@workspace/ui/components/ui/switch";
-// Removed unused imports: Card, CardContent, CardHeader, CardTitle, Separator, Shield, Info, Search, Input
-import { Loader2, ShieldCheck, AlertTriangle, ShieldAlert } from "lucide-react";
+import { Input } from "@workspace/ui/components/ui/input";
+import { Loader2, ShieldCheck, AlertTriangle, ShieldAlert, Search } from "lucide-react";
 import { McpServer } from "@/hooks/use-workspace-scoped-actions";
 import { listMcpServerTools } from "@/app/actions/workflow";
 
@@ -58,6 +58,7 @@ export function McpServerDialog({
   const [listedTools, setListedTools] = useState<Array<{name: string, description?: string}>>([]);
   const [isListing, setIsListing] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Reset form when dialog opens/closes or initialize edit mode
   useEffect(() => {
@@ -68,6 +69,7 @@ export function McpServerDialog({
       setListedTools([]);
       setIsListing(false);
       setListError(null);
+      setSearchQuery("");
     } else if (editMode) {
       // Initialize edit mode
       setSelectedMcpServerId(editMode.serverId);
@@ -154,6 +156,16 @@ export function McpServerDialog({
     
     return [...new Set([...neverTools, ...alwaysTools])];
   }, [listedTools, selectedServer]);
+
+  // Filter tools based on search query
+  const filteredTools = useMemo(() => {
+    if (!searchQuery.trim()) return availableTools;
+    
+    const query = searchQuery.toLowerCase();
+    return availableTools.filter(tool => 
+      tool.toLowerCase().includes(query)
+    );
+  }, [availableTools, searchQuery]);
 
   const getToolApprovalStatus = (toolName: string): 'never' | 'always' | 'unknown' => {
     if (!selectedServer?.require_approval) return 'unknown';
@@ -285,12 +297,26 @@ export function McpServerDialog({
                 </div>
               ) : availableTools.length > 0 ? (
                   <>
-
+                    {/* Search Input */}
+                    <div className="space-y-2">
+                      <Label htmlFor="tool-search">Search tools</Label>
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="tool-search"
+                          placeholder="Filter tools by name..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="pl-10"
+                        />
+                      </div>
+                    </div>
 
                     {/* Tools List */}
-                    <div className="space-y-3 max-h-60 overflow-y-auto">
-                      { 
-                        availableTools.map((tool) => {
+                    {filteredTools.length > 0 ? (
+                      <div className="space-y-3 max-h-60 overflow-y-auto">
+                        { 
+                          filteredTools.map((tool) => {
                           const approvalStatus = getToolApprovalStatus(tool);
                           const isSelected = selectedTools.has(tool);
                           const requiresApproval = toolApprovalSettings[tool] ?? (approvalStatus === 'always');
@@ -344,7 +370,14 @@ export function McpServerDialog({
                           );
                         })
                       }
-                    </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Search className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                        <p>No tools match your search</p>
+                        <p className="text-xs mt-1">Try adjusting your search terms</p>
+                      </div>
+                    )}
                   </>
                 ) : (
                   <div className="text-center py-8 text-muted-foreground">

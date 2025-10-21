@@ -1,5 +1,4 @@
 import json
-import os
 
 import aiohttp
 from pydantic import (
@@ -9,6 +8,8 @@ from pydantic import (
     field_validator,
 )
 from restack_ai.function import function
+
+from src.client import mcp_address
 
 
 def _extract_tools_from_result(result: dict) -> list[dict]:
@@ -28,7 +29,7 @@ def _extract_tools_from_result(result: dict) -> list[dict]:
 
 
 class McpToolsListInput(BaseModel):
-    server_url: str | None = Field(None)
+    server_url: str | None = None
     headers: dict[str, str] | None = None
     local: bool = Field(default=False)
     workspace_id: str | None = Field(
@@ -74,7 +75,7 @@ class McpToolsListOutput(BaseModel):
 
 
 class McpSessionInitInput(BaseModel):
-    server_url: str = Field(..., min_length=1)
+    server_url: str | None = None
     headers: dict[str, str] | None = None
     local: bool = Field(default=False)
 
@@ -104,7 +105,7 @@ class McpToolsSessionOutput(BaseModel):
 
 
 class McpToolsListDirectInput(BaseModel):
-    server_url: str = Field(..., min_length=1)
+    server_url: str | None = None
     headers: dict[str, str] | None = None
     local: bool = Field(default=False)
 
@@ -128,7 +129,8 @@ async def mcp_session_init(
     try:
         # Get the effective server URL (use RESTACK_ENGINE_MCP_ADDRESS for local servers)
         effective_url = _get_effective_server_url(
-            function_input.server_url, local=function_input.local
+            local=function_input.local,
+            server_url=function_input.server_url,
         )
 
         async with aiohttp.ClientSession() as session:
@@ -231,7 +233,14 @@ async def mcp_session_init(
                 error="Failed to initialize MCP session - no valid endpoint found",
             )
 
-    except Exception as e:  # noqa: BLE001
+    except (
+        ValueError,
+        TypeError,
+        ConnectionError,
+        OSError,
+        RuntimeError,
+        AttributeError,
+    ) as e:
         return McpSessionInitOutput(
             success=False,
             error=f"Error initializing MCP session: {e!s}",
@@ -239,11 +248,11 @@ async def mcp_session_init(
 
 
 def _get_effective_server_url(
-    server_url: str, *, local: bool
+    *, local: bool, server_url: str | None = None
 ) -> str:
-    """Get the effective server URL, using RESTACK_ENGINE_MCP_ADDRESS environment variable for local servers."""
+    """Get the effective server URL, using mcp_address from client for local servers."""
     if local:
-        return os.getenv("RESTACK_ENGINE_MCP_ADDRESS", server_url)
+        return mcp_address or server_url
     return server_url
 
 
@@ -374,7 +383,14 @@ async def mcp_tools_list(
                     error=f"Failed to get tools list: HTTP {tools_response.status}",
                 )
 
-    except Exception as e:  # noqa: BLE001
+    except (
+        ValueError,
+        TypeError,
+        ConnectionError,
+        OSError,
+        RuntimeError,
+        AttributeError,
+    ) as e:
         return McpToolsSessionOutput(
             success=False,
             error=f"Error getting tools list: {e!s}",
@@ -389,7 +405,8 @@ async def mcp_tools_list_direct(
     try:
         # Get the effective server URL (use RESTACK_ENGINE_MCP_ADDRESS for local servers)
         effective_url = _get_effective_server_url(
-            function_input.server_url, local=function_input.local
+            local=function_input.local,
+            server_url=function_input.server_url,
         )
 
         async with aiohttp.ClientSession() as session:
@@ -422,6 +439,8 @@ async def mcp_tools_list_direct(
                     content_type = tools_response.headers.get(
                         "content-type", ""
                     )
+
+                    # Debug: Log the response details
 
                     if "text/event-stream" in content_type:
                         # Parse SSE format - read line by line to avoid timeout
@@ -473,6 +492,7 @@ async def mcp_tools_list_direct(
                     else:
                         # Regular JSON response
                         tools_data = await tools_response.json()
+
                         if (
                             isinstance(tools_data, dict)
                             and "result" in tools_data
@@ -486,6 +506,7 @@ async def mcp_tools_list_direct(
                             tools_with_desc = (
                                 _extract_tools_from_result(result)
                             )
+
                             return McpToolsListDirectOutput(
                                 success=True,
                                 tools=tool_names,
@@ -497,7 +518,14 @@ async def mcp_tools_list_direct(
                     error=f"Failed to get tools list: HTTP {tools_response.status}",
                 )
 
-    except Exception as e:  # noqa: BLE001
+    except (
+        ValueError,
+        TypeError,
+        ConnectionError,
+        OSError,
+        RuntimeError,
+        AttributeError,
+    ) as e:
         return McpToolsListDirectOutput(
             success=False,
             error=f"Error getting tools list: {e!s}",

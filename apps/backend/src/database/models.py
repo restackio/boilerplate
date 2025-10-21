@@ -207,6 +207,10 @@ class Agent(Base):
         ForeignKey("agents.id", ondelete="SET NULL"),
         nullable=True,
     )
+    # Agent type: interactive (user-facing) or pipeline (data processing)
+    type = Column(
+        String(20), nullable=False, default="interactive"
+    )
     # New GPT-5 model configuration fields
     model = Column(String(100), nullable=False, default="gpt-5")
     reasoning_effort = Column(
@@ -230,6 +234,10 @@ class Agent(Base):
         CheckConstraint(
             status.in_(["published", "draft", "archived"]),
             name="valid_status",
+        ),
+        CheckConstraint(
+            type.in_(["interactive", "pipeline"]),
+            name="valid_type",
         ),
         CheckConstraint(
             model.in_(
@@ -275,7 +283,7 @@ class AgentTool(Base):
     )
     tool_type = Column(
         String(32), nullable=False
-    )  # file_search, web_search, mcp, code_interpreter, image_generation, local_shell
+    )  # file_search, web_search, mcp, code_interpreter, image_generation, local_shell, transform, load
     mcp_server_id = Column(
         UUID(as_uuid=True),
         ForeignKey("mcp_servers.id", ondelete="CASCADE"),
@@ -350,6 +358,60 @@ class AgentTool(Base):
     mcp_server = relationship("McpServer", backref="agent_tools")
 
 
+class AgentSubagent(Base):
+    __tablename__ = "agent_subagents"
+
+    id = Column(UUID(as_uuid=True), primary_key=True)
+    parent_agent_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("agents.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    subagent_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("agents.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    enabled = Column(Boolean, nullable=False, default=True)
+    created_at = Column(
+        DateTime,
+        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+    )
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+        onupdate=lambda: datetime.now(tz=UTC).replace(
+            tzinfo=None
+        ),
+    )
+
+    # Constraints
+    __table_args__ = (
+        UniqueConstraint(
+            "parent_agent_id",
+            "subagent_id",
+            name="unique_parent_subagent",
+        ),
+        Index(
+            "idx_agent_subagents_parent_agent_id",
+            "parent_agent_id",
+        ),
+        Index("idx_agent_subagents_subagent_id", "subagent_id"),
+    )
+
+    # Relationships
+    parent_agent = relationship(
+        "Agent",
+        foreign_keys=[parent_agent_id],
+        backref="configured_subagents",
+    )
+    subagent = relationship(
+        "Agent",
+        foreign_keys=[subagent_id],
+        backref="parent_agents",
+    )
+
+
 class Task(Base):
     __tablename__ = "tasks"
 
@@ -377,12 +439,19 @@ class Task(Base):
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
     )
-    agent_task_id = Column(
-        String(255), nullable=True
-    )  # Restack agent task ID for state management
-    messages = Column(
+    temporal_agent_id = Column(String(255), nullable=True)
+    agent_state = Column(
         JSONB, nullable=True
-    )  # Store conversation history for completed tasks
+    )  # Complete agent state (events, todos, subtasks) - populated when task completes
+    # Subtask-related columns
+    parent_task_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("tasks.id", ondelete="CASCADE"),
+        nullable=True,
+    )  # Reference to parent task if this is a subtask
+    temporal_parent_agent_id = Column(
+        String(255), nullable=True
+    )  # Parent's Temporal workflow ID for event routing (cached for performance)
     # Schedule-related columns
     schedule_spec = Column(
         JSONB, nullable=True
@@ -398,9 +467,7 @@ class Task(Base):
     schedule_status = Column(
         String(50), nullable=True, default="inactive"
     )  # Schedule status: active, inactive, paused
-    restack_schedule_id = Column(
-        String(255), nullable=True
-    )  # Restack schedule ID for managing the schedule
+    temporal_schedule_id = Column(String(255), nullable=True)
     created_at = Column(
         DateTime,
         default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
@@ -418,11 +485,11 @@ class Task(Base):
         CheckConstraint(
             status.in_(
                 [
-                    "open",
-                    "active",
-                    "waiting",
+                    "in_progress",
+                    "in_review",
                     "closed",
                     "completed",
+                    "failed",
                 ]
             ),
             name="valid_task_status",
@@ -445,6 +512,15 @@ class Task(Base):
     agent = relationship("Agent", back_populates="tasks")
     assigned_to_user = relationship(
         "User", foreign_keys=[assigned_to_id]
+    )
+    # Self-referencing relationship for parent-child tasks (subtasks)
+    parent_task = relationship(
+        "Task", remote_side=[id], foreign_keys=[parent_task_id]
+    )
+    subtasks = relationship(
+        "Task",
+        back_populates="parent_task",
+        foreign_keys=[parent_task_id],
     )
     # Self-referencing relationship for schedule tasks
     schedule_task = relationship(
@@ -514,3 +590,156 @@ class UserOAuthConnection(Base):
     mcp_server = relationship(
         "McpServer", back_populates="user_oauth_connections"
     )
+
+
+class Dataset(Base):
+    __tablename__ = "datasets"
+
+    id = Column(UUID(as_uuid=True), primary_key=True)
+    workspace_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    name = Column(String(255), nullable=False)
+    description = Column(Text)
+
+    # Storage configuration (storage-agnostic)
+    storage_type = Column(
+        String(50), nullable=False, default="clickhouse"
+    )
+    storage_config = Column(
+        JSONB, nullable=False
+    )  # Storage-specific configuration
+    last_updated_at = Column(DateTime)
+    created_at = Column(
+        DateTime,
+        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+    )
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+        onupdate=lambda: datetime.now(tz=UTC).replace(
+            tzinfo=None
+        ),
+    )
+
+    # Constraints
+    __table_args__ = (
+        CheckConstraint(
+            storage_type.in_(
+                ["clickhouse"]
+            ),  # Future: 'postgres', 's3', 'bigquery', etc.
+            name="valid_storage_type",
+        ),
+        UniqueConstraint(
+            "workspace_id",
+            "name",
+            name="unique_dataset_name_per_workspace",
+        ),
+    )
+
+    # Relationships
+    workspace = relationship("Workspace")
+
+
+class MetricDefinition(Base):
+    __tablename__ = "metric_definitions"
+
+    id = Column(UUID(as_uuid=True), primary_key=True)
+    workspace_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    # Metric details
+    name = Column(String(255), nullable=False)
+    description = Column(Text)
+    category = Column(
+        String(50), nullable=False
+    )  # quality, cost, performance, custom
+    metric_type = Column(
+        String(50), nullable=False
+    )  # llm_judge, python_code, formula
+
+    # Type-specific configuration (judge_prompt for llm_judge, code for python_code, formula for formula)
+    config = Column(JSONB, nullable=False)
+
+    # Metadata
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_by = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+    )
+
+    created_at = Column(
+        DateTime,
+        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+    )
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+        onupdate=lambda: datetime.now(tz=UTC).replace(
+            tzinfo=None
+        ),
+    )
+
+    # Constraints
+    __table_args__ = (
+        CheckConstraint(
+            metric_type.in_(
+                ["llm_judge", "python_code", "formula"]
+            ),
+            name="valid_metric_type",
+        ),
+        UniqueConstraint(
+            "workspace_id",
+            "name",
+            name="unique_metric_per_workspace",
+        ),
+    )
+
+    # Relationships
+    workspace = relationship("Workspace")
+    metric_agents = relationship(
+        "MetricAgent",
+        back_populates="metric_definition",
+        cascade="all, delete-orphan",
+    )
+
+
+class MetricAgent(Base):
+    __tablename__ = "metric_agents"
+
+    id = Column(UUID(as_uuid=True), primary_key=True)
+    metric_definition_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("metric_definitions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    parent_agent_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("agents.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    created_at = Column(
+        DateTime,
+        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+    )
+
+    # Constraints
+    __table_args__ = (
+        UniqueConstraint(
+            "metric_definition_id",
+            "parent_agent_id",
+            name="unique_metric_agent",
+        ),
+    )
+
+    # Relationships
+    metric_definition = relationship(
+        "MetricDefinition", back_populates="metric_agents"
+    )
+    parent_agent = relationship("Agent")

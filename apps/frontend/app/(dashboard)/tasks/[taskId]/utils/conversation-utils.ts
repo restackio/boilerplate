@@ -17,6 +17,11 @@ export const getItemStatus = (item: ConversationItem): string => {
     return "failed";
   }
 
+  // Check for failed MCP list tools by event type - these come from response.mcp_list_tools.failed events
+  if (item.openai_event?.type === "response.mcp_list_tools.failed") {
+    return "failed";
+  }
+
   // For MCP approval requests, check if they have a status first
   if (item.type === "mcp_approval_request") {
     // If there's an explicit status, use it
@@ -74,6 +79,13 @@ export const extractTextContent = (item: ConversationItem): string => {
     // Extract error information from the event
     const eventData = item.openai_event as any; // eslint-disable-line @typescript-eslint/no-explicit-any
     return `MCP Call Failed: ${eventData.item_id || 'Unknown tool'} - ${eventData.error?.message || 'Unknown error'}`;
+  }
+
+  // Handle failed MCP list tools from response.mcp_list_tools.failed events
+  if (item.openai_event?.type === "response.mcp_list_tools.failed") {
+    const eventData = item.openai_event as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+    const serverLabel = item.openai_output?.server_label || eventData.server_label || 'Unknown server';
+    return `Failed to list MCP tools from ${serverLabel}: ${eventData.error?.message || 'Connection failed'}`;
   }
 
   const output = item.openai_output;
@@ -241,7 +253,9 @@ export const getStatusColor = (status: string): string => {
     case "closed":
     case "cancelled":
       return "bg-neutral-100 text-neutral-800 dark:bg-neutral-900/20 dark:text-neutral-300";
-    case "open":
+    case "in_progress":
+      return "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300";
+    case "in_review":
       return "bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-300";
     default:
       return "bg-neutral-100 text-neutral-800 dark:bg-neutral-900/20 dark:text-neutral-300";

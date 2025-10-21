@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Test webhook endpoints with sample payloads."""
+
 # ruff: noqa: T201, BLE001, ANN201
 import requests
 
@@ -8,9 +9,9 @@ WEBHOOK_BASE_URL = "http://localhost:8000"
 WORKSPACE_ID = "c926e979-1f16-46bf-a7cc-8aab70162d65"
 AGENT_NAME = "websearch"
 
+
 def test_github_webhook():
     """Test GitHub pull request webhook."""
-    print("🔄 Testing GitHub webhook...")
 
     url = f"{WEBHOOK_BASE_URL}/webhook/workspace/{WORKSPACE_ID}/agent/{AGENT_NAME}"
 
@@ -20,28 +21,29 @@ def test_github_webhook():
         "pull_request": {
             "title": "Add new search feature",
             "body": "This PR adds a new search feature to the application",
-            "user": {
-                "login": "developer"
-            }
+            "user": {"login": "developer"},
         },
         "repository": {
             "name": "my-repo",
-            "full_name": "org/my-repo"
-        }
+            "full_name": "org/my-repo",
+        },
     }
 
     headers = {
         "Content-Type": "application/json",
         "X-GitHub-Event": "pull_request",
-        "User-Agent": "GitHub-Hookshot/123"
+        "User-Agent": "GitHub-Hookshot/123",
     }
 
     try:
-        response = requests.post(url, json=payload, headers=headers, timeout=10)
+        response = requests.post(
+            url, json=payload, headers=headers, timeout=10
+        )
         print(f"Status: {response.status_code}")
         print(f"Response: {response.json()}")
     except Exception as e:
         print(f"Error: {e}")
+
 
 def test_linear_webhook():
     """Test Linear issue webhook."""
@@ -56,26 +58,25 @@ def test_linear_webhook():
             "id": "issue-123",
             "title": "Bug: Search not working properly",
             "description": "Users are reporting that search is not returning correct results",
-            "state": {
-                "name": "Todo"
-            },
-            "assignee": {
-                "name": "John Doe"
-            }
-        }
+            "state": {"name": "Todo"},
+            "assignee": {"name": "John Doe"},
+        },
     }
 
     headers = {
         "Content-Type": "application/json",
-        "User-Agent": "Linear-Webhook/1.0"
+        "User-Agent": "Linear-Webhook/1.0",
     }
 
     try:
-        response = requests.post(url, json=payload, headers=headers, timeout=10)
+        response = requests.post(
+            url, json=payload, headers=headers, timeout=10
+        )
         print(f"Status: {response.status_code}")
         print(f"Response: {response.json()}")
     except Exception as e:
         print(f"Error: {e}")
+
 
 def test_custom_webhook():
     """Test custom webhook with title and description."""
@@ -85,19 +86,20 @@ def test_custom_webhook():
 
     payload = {
         "title": "Custom Task: Investigate Performance Issue",
-        "description": "User reported that the search feature is taking too long to respond. Please investigate and optimize if needed."
+        "description": "User reported that the search feature is taking too long to respond. Please investigate and optimize if needed.",
     }
 
-    headers = {
-        "Content-Type": "application/json"
-    }
+    headers = {"Content-Type": "application/json"}
 
     try:
-        response = requests.post(url, json=payload, headers=headers, timeout=10)
+        response = requests.post(
+            url, json=payload, headers=headers, timeout=10
+        )
         print(f"Status: {response.status_code}")
         print(f"Response: {response.json()}")
     except Exception as e:
         print(f"Error: {e}")
+
 
 def test_health_check():
     """Test health check endpoint."""
@@ -112,12 +114,13 @@ def test_health_check():
     except Exception as e:
         print(f"Error: {e}")
 
+
 if __name__ == "__main__":
     print("Testing Webhook Server")
     print(f"Base URL: {WEBHOOK_BASE_URL}")
     print(f"Workspace: {WORKSPACE_ID}")
     print(f"Agent: {AGENT_NAME}")
-    print("="*50)
+    print("=" * 50)
 
     test_health_check()
     test_github_webhook()
@@ -125,4 +128,3 @@ if __name__ == "__main__":
     test_custom_webhook()
 
     print("\n✨ Testing complete!")
-

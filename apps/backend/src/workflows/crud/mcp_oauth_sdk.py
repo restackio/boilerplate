@@ -153,7 +153,14 @@ class McpOAuthInitializeWorkflow:
             query_params = parse_qs(parsed_url.query)
             client_id = query_params.get("client_id", [None])[0]
 
-            return {  # noqa: TRY300
+        except (ValueError, TypeError, AttributeError) as e:
+            error_message = (
+                f"Error during MCP OAuth initialize workflow: {e}"
+            )
+            log.error(error_message)
+            raise NonRetryableError(message=error_message) from e
+        else:
+            return {
                 "success": True,
                 "authorization_url": auth_url_result.auth_url.authorization_url,
                 "state": auth_url_result.auth_url.state,
@@ -162,13 +169,6 @@ class McpOAuthInitializeWorkflow:
                 "server_url": server.server_url,
                 "server_label": server.server_label,
             }
-
-        except (ValueError, TypeError, AttributeError) as e:
-            error_message = (
-                f"Error during MCP OAuth initialize workflow: {e}"
-            )
-            log.error(error_message)
-            raise NonRetryableError(message=error_message) from e
 
 
 @workflow.defn()
@@ -329,12 +329,6 @@ class McpOAuthCallbackWorkflow:
                 }
 
             log.info("OAuth flow completed successfully")
-            return {  # noqa: TRY300
-                "success": True,
-                "message": "OAuth connection established successfully",
-                "token_id": save_result.token.id,
-                "server_url": server_result.server.server_url,
-            }
 
         except (ValueError, TypeError, AttributeError) as e:
             error_message = (
@@ -342,6 +336,13 @@ class McpOAuthCallbackWorkflow:
             )
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e
+        else:
+            return {
+                "success": True,
+                "message": "OAuth connection established successfully",
+                "token_id": save_result.token.id,
+                "server_url": server_result.server.server_url,
+            }
 
 
 @workflow.defn()
@@ -367,7 +368,6 @@ class OAuthTokensGetByWorkspaceWorkflow:
             log.info(
                 f"Successfully retrieved {len(result.tokens)} tokens"
             )
-            return result  # noqa: TRY300
 
         except (ValueError, TypeError, AttributeError) as e:
             error_message = (
@@ -375,6 +375,8 @@ class OAuthTokensGetByWorkspaceWorkflow:
             )
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e
+        else:
+            return result
 
 
 @workflow.defn()
@@ -400,12 +402,13 @@ class BearerTokenCreateWorkflow:
             log.info(
                 f"Successfully created Bearer token with ID: {result.token.id}"
             )
-            return result  # noqa: TRY300
 
         except (ValueError, TypeError, AttributeError) as e:
             error_message = f"Error creating Bearer token: {e}"
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e
+        else:
+            return result
 
 
 @workflow.defn()
@@ -431,12 +434,13 @@ class OAuthTokenDeleteWorkflow:
             log.info(
                 f"Successfully deleted OAuth token for user: {workflow_input.user_id}, server: {workflow_input.mcp_server_id}"
             )
-            return result  # noqa: TRY300
 
         except (ValueError, TypeError, AttributeError) as e:
             error_message = f"Error deleting OAuth token: {e}"
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e
+        else:
+            return result
 
 
 @workflow.defn()
@@ -462,12 +466,13 @@ class OAuthTokenRefreshWorkflow:
             log.info(
                 f"Successfully refreshed OAuth token for user: {workflow_input.user_id}, server: {workflow_input.mcp_server_id}"
             )
-            return result  # noqa: TRY300
 
         except (ValueError, TypeError, AttributeError) as e:
             error_message = f"Error refreshing OAuth token: {e}"
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e
+        else:
+            return result
 
 
 @workflow.defn()
@@ -499,11 +504,6 @@ class OAuthTokenSetDefaultWorkflow:
                 }
 
             log.info("Token set as default successfully")
-            return {  # noqa: TRY300
-                "success": True,
-                "message": "Token set as default successfully",
-                "token": result.token,
-            }
 
         except (ValueError, TypeError, AttributeError) as e:
             error_message = (
@@ -511,6 +511,12 @@ class OAuthTokenSetDefaultWorkflow:
             )
             log.error(error_message)
             return {"success": False, "error": error_message}
+        else:
+            return {
+                "success": True,
+                "message": "Token set as default successfully",
+                "token": result.token,
+            }
 
 
 @workflow.defn()
@@ -542,13 +548,14 @@ class OAuthTokenSetDefaultByIdWorkflow:
                 }
 
             log.info("Token set as default by ID successfully")
-            return {  # noqa: TRY300
-                "success": True,
-                "message": "Token set as default successfully",
-                "token": result.token,
-            }
 
         except (ValueError, TypeError, AttributeError) as e:
             error_message = f"Error during set default token by ID workflow: {e}"
             log.error(error_message)
             return {"success": False, "error": error_message}
+        else:
+            return {
+                "success": True,
+                "message": "Token set as default successfully",
+                "token": result.token,
+            }

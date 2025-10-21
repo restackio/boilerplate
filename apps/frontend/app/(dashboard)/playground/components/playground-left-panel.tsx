@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useCallback, useRef, useEffect } from "react";
+import { useMemo, useCallback, useRef } from "react";
 import { CollapsiblePanel } from "@workspace/ui/components/collapsible-panel";
-import { AgentConfigForm, type AgentConfigFormRef } from "@workspace/ui/components/agent-config-form";
+import { AgentConfigurationForm, type AgentConfigurationFormRef } from "../../agents/[agentId]/components/agent-configuration-form";
 import { Brain, Wrench, FileText } from "lucide-react";
 import { Agent } from "@/hooks/use-workspace-scoped-actions";
 import { PlaygroundToolsDisplay } from "./playground-tools-display";
@@ -22,7 +22,8 @@ export function PlaygroundLeftPanel({
   onToggleCollapse,
   workspaceId,
 }: PlaygroundLeftPanelProps) {
-  const formRef = useRef<AgentConfigFormRef>(null);
+  const instructionsFormRef = useRef<AgentConfigurationFormRef>(null);
+  const modelFormRef = useRef<AgentConfigurationFormRef>(null);
 
   // Static initial data - form will manage its own state
   const initialData = useMemo(() => ({
@@ -32,7 +33,7 @@ export function PlaygroundLeftPanel({
   }), [agent.instructions, agent.model, agent.reasoning_effort]);
 
   // Function to sync form data back to agent when needed
-  const syncFormToAgent = useCallback(() => {
+  const syncFormToAgent = useCallback((formRef: React.RefObject<AgentConfigurationFormRef>) => {
     const formData = formRef.current?.getCurrentData();
     if (formData) {
       onAgentChange({
@@ -43,13 +44,6 @@ export function PlaygroundLeftPanel({
     }
   }, [onAgentChange]);
 
-  // Sync on blur or when switching tabs (optional - for better UX)
-  useEffect(() => {
-    const handleBlur = () => syncFormToAgent();
-    window.addEventListener('blur', handleBlur);
-    return () => window.removeEventListener('blur', handleBlur);
-  }, [syncFormToAgent]);
-
   // Define tabs for the collapsible panel
   const tabs = [
     {
@@ -57,15 +51,16 @@ export function PlaygroundLeftPanel({
       label: "Instructions",
       icon: FileText,
       content: (
-        <div onBlur={syncFormToAgent}>
-          <AgentConfigForm
-            ref={formRef}
+        <div onBlur={() => syncFormToAgent(instructionsFormRef)}>
+          <AgentConfigurationForm
+            ref={instructionsFormRef}
             initialData={initialData}
             showNameField={false}
             showDescriptionField={false}
-            showInstructionsPreview={false}
+            showModelSection={false}
+            showInstructionsSection={true}
             variant="compact"
-            instructionsMinHeight="200px"
+            instructionsMinHeight="400px"
           />
         </div>
       ),
@@ -75,13 +70,14 @@ export function PlaygroundLeftPanel({
       label: "Model",
       icon: Brain,
       content: (
-        <div onBlur={syncFormToAgent}>
-          <AgentConfigForm
-            ref={formRef}
+        <div onBlur={() => syncFormToAgent(modelFormRef)}>
+          <AgentConfigurationForm
+            ref={modelFormRef}
             initialData={initialData}
             showNameField={false}
             showDescriptionField={false}
-            showInstructionsPreview={false}
+            showModelSection={true}
+            showInstructionsSection={false}
             variant="compact"
           />
         </div>
@@ -101,9 +97,8 @@ export function PlaygroundLeftPanel({
     <CollapsiblePanel
       isCollapsed={isCollapsed}
       onToggleCollapse={onToggleCollapse}
-      title="Agent Configuration"
+      title="Configuration"
       tabs={tabs}
-      activeTab="instructions"
       expandedWidth="w-1/3"
       collapsedWidth="w-12"
       direction="horizontal"
