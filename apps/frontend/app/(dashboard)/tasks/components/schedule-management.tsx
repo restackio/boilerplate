@@ -113,8 +113,8 @@ export function ScheduleManagement({ task, onScheduleUpdated }: ScheduleManageme
   return (
     <div className="flex items-center space-x-2">
       {/* Schedule Status Badge */}
-      <Badge className={`${getStatusColor(task.schedule_status)} border-0 flex items-center gap-1`}>
-        <StatusIcon status={task.schedule_status} size="sm" />
+      <Badge className={`${getStatusColor(task.schedule_status || "inactive")} border-0 flex items-center gap-1`}>
+        <StatusIcon status={(task.schedule_status || "inactive") as "active" | "inactive" | "paused"} size="sm" />
         {task.schedule_status || "inactive"}
       </Badge>
 
