@@ -166,7 +166,7 @@ requires-dist = [
     { name = "psycopg2-binary", specifier = ">=2.9.9" },
     { name = "pydantic", extras = ["email"], specifier = ">=2.11.7" },
     { name = "python-dotenv", specifier = ">=1.1.1" },
-    { name = "restack-ai", specifier = ">=0.0.114" },
+    { name = "restack-ai", specifier = ">=0.0.115" },
     { name = "ruff", specifier = ">=0.13.0" },
     { name = "sqlalchemy", specifier = ">=2.0.43" },
     { name = "watchfiles", specifier = ">=1.1.0" },
@@ -902,12 +902,11 @@ wheels = [
 
 [[package]]
 name = "restack-ai"
-version = "0.0.114"
+version = "0.0.115"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
     { name = "asyncio" },
-    { name = "colorama" },
     { name = "msgspec" },
     { name = "pydantic" },
     { name = "python-dotenv" },
@@ -915,9 +914,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "websockets" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/63/2c/0bb0a9326b02062e16fbaf06c62b431f04d0f368f282eac4c31cde610191/restack_ai-0.0.114.tar.gz", hash = "sha256:0d7bc0a444c69326e66ef88a55eced6d98d4744f3a476c17bdd317efe7ea65d4", size = 23047, upload-time = "2025-10-06T18:56:27.888Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c7/c2/a2a2b7780ec3a111ac9baaef0706535339238e3d734b00d37c7ab952cdb5/restack_ai-0.0.115.tar.gz", hash = "sha256:ed760dcd41d12bc9f8c93ab9b091719e5c6973599bf3eefb2f947236307d0755", size = 23317, upload-time = "2025-10-18T15:53:40.149Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b3/88/abdfb9e6caffb7470ac93e64196d27dff9587c2e4ba88ddbc038e1baeedc/restack_ai-0.0.114-py3-none-any.whl", hash = "sha256:28eed4417c96c59acbf2e4422e0bd2297a34a890e72e5c5376f56690354bed68", size = 28609, upload-time = "2025-10-06T18:56:26.501Z" },
+    { url = "https://files.pythonhosted.org/packages/fc/49/6a3201a55633e4801c7b1914efd168ea8347d74ee69b326a22e1cd71cd78/restack_ai-0.0.115-py3-none-any.whl", hash = "sha256:195cb6130334bd432d3f6797701fe2abdeda806f3bda5a89d19c15ef4273e5c6", size = 28838, upload-time = "2025-10-18T15:53:38.863Z" },
 ]
 
 [[package]]

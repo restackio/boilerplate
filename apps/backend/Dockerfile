@@ -23,8 +23,11 @@ RUN apt-get update \
 # ============
 FROM base AS dependencies
 
+WORKDIR /app
+
 # Copy only dependency files for better caching
 # README.md is required by uv for package metadata
+
 # Paths are relative to build context (project root)
 COPY apps/backend/pyproject.toml apps/backend/uv.lock apps/backend/README.md ./
 
@@ -36,13 +39,14 @@ RUN uv sync --no-dev --frozen
 # ============
 FROM base AS runtime
 
+WORKDIR /app
+
 # Copy installed dependencies from dependencies stage
-COPY --from=dependencies /app/.venv /app/.venv
+COPY --from=dependencies /app/.venv ./.venv
 
 # Copy project files (needed for uv run to work)
 COPY apps/backend/pyproject.toml apps/backend/uv.lock apps/backend/README.md ./
 
-# Copy database package (migrations, demo data, scripts)
 # Paths are relative to build context (project root)
 COPY packages/database/ /app/packages/database/
 RUN chmod +x /app/packages/database/scripts/*.sh
@@ -52,6 +56,10 @@ COPY apps/backend/src ./src
 
 # Set Python path to use installed dependencies
 ENV PATH="/app/.venv/bin:$PATH"
+
+# Disable colorama to prevent recursion errors in Docker
+ENV NO_COLOR=1
+ENV PYTHONUNBUFFERED=1
 
 # Expose port 80
 EXPOSE 80

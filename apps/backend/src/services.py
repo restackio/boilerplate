@@ -614,8 +614,9 @@ def _run_startup_tasks() -> None:  # noqa: PLR0912
             result = subprocess.run(  # noqa: S603
                 [str(migrate_script)],
                 check=False,
-                capture_output=True,
                 text=True,
+                stdout=sys.stdout,
+                stderr=sys.stderr,
             )
             if result.returncode != 0:
                 logger.error(

@@ -87,57 +87,32 @@ async def close_async_db() -> None:
 
 
 def get_clickhouse_client() -> clickhouse_connect.driver.Client:
-    """Get ClickHouse client connection (synchronous - use for compatibility only)."""
-    host = os.getenv("CLICKHOUSE_HOST", "localhost")
-    port = int(os.getenv("CLICKHOUSE_PORT", "8123"))
-    username = os.getenv("CLICKHOUSE_USER", "clickhouse")
-    password = os.getenv("CLICKHOUSE_PASSWORD", "clickhouse")
-    database = os.getenv(
-        "CLICKHOUSE_DATABASE", "boilerplate_clickhouse"
-    )
+    """Get ClickHouse client connection (synchronous - use for compatibility only).
 
-    # Auto-detect if we need secure connection (ClickHouse Cloud uses port 8443 or 9440)
-    secure = port in (8443, 9440)
-
-    return clickhouse_connect.get_client(
-        host=host,
-        port=port,
-        username=username,
-        password=password,
-        database=database,
-        secure=secure,
+    Requires CLICKHOUSE_URL environment variable in format:
+    - http://user:password@host:port/database (for local/insecure)
+    - https://user:password@host:port/database (for ClickHouse Cloud)
+    """
+    clickhouse_url = os.getenv(
+        "CLICKHOUSE_URL",
+        "http://clickhouse:clickhouse@localhost:8123/boilerplate_clickhouse"
     )
+    return clickhouse_connect.get_client(dsn=clickhouse_url)
 
 
 async def get_clickhouse_async_client() -> (
     clickhouse_connect.driver.AsyncClient
 ):
-    """Get async ClickHouse client connection."""
-    host = os.getenv("CLICKHOUSE_HOST", "localhost")
-    port = int(os.getenv("CLICKHOUSE_PORT", "8123"))
-    username = os.getenv("CLICKHOUSE_USER", "clickhouse")
-    password = os.getenv("CLICKHOUSE_PASSWORD", "clickhouse")
-    database = os.getenv(
-        "CLICKHOUSE_DATABASE", "boilerplate_clickhouse"
+    """Get async ClickHouse client connection.
+
+    Requires CLICKHOUSE_URL environment variable in format:
+    - http://user:password@host:port/database (for local/insecure)
+    - https://user:password@host:port/database (for ClickHouse Cloud)
+    """
+    clickhouse_url = os.getenv(
+        "CLICKHOUSE_URL",
+        "http://clickhouse:clickhouse@localhost:8123/boilerplate_clickhouse"
     )
 
-    # Auto-detect if we need secure connection (ClickHouse Cloud uses port 8443 or 9440)
-    secure = port in (8443, 9440)
-
-    logger.info(
-        "Connecting to ClickHouse: %s@%s:%s/%s (secure=%s)",
-        username,
-        host,
-        port,
-        database,
-        secure,
-    )
-
-    return await clickhouse_connect.get_async_client(
-        host=host,
-        port=port,
-        username=username,
-        password=password,
-        database=database,
-        secure=secure,
-    )
+    logger.info("Connecting to ClickHouse using CLICKHOUSE_URL")
+    return await clickhouse_connect.get_async_client(dsn=clickhouse_url)

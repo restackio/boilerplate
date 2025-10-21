@@ -60,7 +60,21 @@ function AgentStreamActiveProvider({
   const [error, setError] = useState<string | null>(null);
   const hasCompletedRef = useRef(false);
 
-  const apiAddress = process.env.NEXT_PUBLIC_RESTACK_ENGINE_API_ADDRESS || "http://localhost:9233";
+  const rawApiAddress = process.env.NEXT_PUBLIC_RESTACK_ENGINE_API_ADDRESS || "http://localhost:9233";
+
+  // Normalize API address to ensure it has a protocol (prevents relative URL issues)
+  const apiAddress = useMemo(() => {
+    if (!rawApiAddress) return "http://localhost:9233";
+    
+    // If it already has a protocol, use as-is
+    if (rawApiAddress.startsWith("http://") || rawApiAddress.startsWith("https://")) {
+      return rawApiAddress;
+    }
+    
+    // Add https:// for production domains, http:// for localhost
+    const isLocalhost = rawApiAddress.includes("localhost") || rawApiAddress.includes("127.0.0.1");
+    return isLocalhost ? `http://${rawApiAddress}` : `https://${rawApiAddress}`;
+  }, [rawApiAddress]);
 
   // Prepare subscription parameters (always subscribe in this component)
   const subscriptionParams = useMemo(() => ({
