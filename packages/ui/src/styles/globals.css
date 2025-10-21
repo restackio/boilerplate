@@ -136,3 +136,16 @@
     @apply bg-background text-foreground;
   }
 }
+
+@keyframes shimmer {
+  0% {
+    background-position: 100% center;
+  }
+  100% {
+    background-position: -100% center;
+  }
+}
+
+@theme {
+  --animate-shimmer: shimmer 2s linear infinite;
+}

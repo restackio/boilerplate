@@ -12,7 +12,6 @@ AGENT_NAME = "websearch"
 
 def test_github_webhook():
     """Test GitHub pull request webhook."""
-    print("🔄 Testing GitHub webhook...")
 
     url = f"{WEBHOOK_BASE_URL}/webhook/workspace/{WORKSPACE_ID}/agent/{AGENT_NAME}"
 

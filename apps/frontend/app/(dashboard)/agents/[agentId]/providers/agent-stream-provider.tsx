@@ -61,7 +61,6 @@ function AgentStreamActiveProvider({
   const hasCompletedRef = useRef(false);
 
   const rawApiAddress = process.env.NEXT_PUBLIC_RESTACK_ENGINE_API_ADDRESS || "http://localhost:9233";
-  const apiToken = process.env.NEXT_PUBLIC_RESTACK_ENGINE_API_KEY;
 
   // Normalize API address to ensure it has a protocol (prevents relative URL issues)
   const apiAddress = useMemo(() => {
@@ -80,7 +79,6 @@ function AgentStreamActiveProvider({
   // Prepare subscription parameters (always subscribe in this component)
   const subscriptionParams = useMemo(() => ({
     apiAddress,
-    apiToken,
     agentId: agentTaskId, // Always use the provided agentTaskId
     runId: runId || "",
     stateName: "state_response" as const,
@@ -136,7 +134,6 @@ function AgentStreamActiveProvider({
   // Response subscription (hooks must be called at top level)
   const agentResponses = subscribeAgentResponses({
     apiAddress,
-    apiToken,
     agentId: agentTaskId,
     runId: runId || "",
     options: responseOptions,

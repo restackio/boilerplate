@@ -51,6 +51,7 @@ export function TaskChatInterface({
   agentId,
   workspaceId,
 }: TaskChatInterfaceProps) {
+  // Track reasoning durations
   const conversationEndRef = useRef<HTMLDivElement>(null);
 
   const isTaskActive = task?.status === 'in_progress';
@@ -109,6 +110,7 @@ export function TaskChatInterface({
                   workspaceId={workspaceId}
                   responseIndex={index}
                   messageCount={conversation.length}
+                  reasoningDuration={item.type === 'reasoning' ? (typeof item.reasoning_duration_seconds === 'number' ? item.reasoning_duration_seconds : undefined) : undefined}
                 />
               </div>
             ))}
@@ -153,6 +155,7 @@ function RenderConversationItem({
   workspaceId,
   responseIndex,
   messageCount,
+  reasoningDuration,
 }: {
   item: ConversationItem;
   onApproveRequest?: (itemId: string) => void;
@@ -163,6 +166,7 @@ function RenderConversationItem({
   workspaceId?: string;
   responseIndex: number;
   messageCount: number;
+  reasoningDuration?: number;
 }) {
   const conversationItemData = useConversationItem(item);
   switch (item.type) {
@@ -177,15 +181,20 @@ function RenderConversationItem({
 
     case 'reasoning': {
       const reasoningText = item.openai_output?.summary?.map(s => s.text).join('\n\n') || '';
+      
+      // Reasoning is "in progress" if it doesn't have a duration yet
+      // Duration will be calculated when response.output_item.done is received
+      const isInProgress = !reasoningDuration || reasoningDuration === 0;
+      
       return (
         <Reasoning 
           key={item.id}
-          isStreaming={item.isStreaming || item.openai_output?.status === 'in-progress'}
-          duration={0}
+          isStreaming={isInProgress}
+          duration={reasoningDuration || 0}
         >
           <ReasoningTrigger />
           <ReasoningContent>
-            {reasoningText}
+            {reasoningText || 'No reasoning available'}
           </ReasoningContent>
         </Reasoning>
       );
