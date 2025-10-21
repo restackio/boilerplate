@@ -152,6 +152,26 @@ echo ""
 # ClickHouse migrations
 echo "→ Running ClickHouse migrations..."
 
+# Auto-detect if we should use Docker
+# Try to use Docker if clickhouse-client is not available locally and container exists
+if [ -z "$USE_DOCKER" ]; then
+  if ! command -v clickhouse-client &> /dev/null; then
+    if docker ps --format '{{.Names}}' | grep -q '^boilerplate_clickhouse$'; then
+      USE_DOCKER=true
+      echo "  ℹ Using Docker container for ClickHouse migrations (clickhouse-client not found locally)"
+    else
+      echo "  ⚠ Warning: clickhouse-client not found and Docker container not running"
+      echo "  Please start the ClickHouse container with: docker compose -f docker-compose.dev.yml up -d clickhouse"
+      echo "  Skipping ClickHouse migrations..."
+      echo "✓ ClickHouse migrations skipped"
+      echo "========================================"
+      exit 0
+    fi
+  else
+    USE_DOCKER=false
+  fi
+fi
+
 for migration_file in "$CLICKHOUSE_MIGRATIONS_DIR"/*.sql; do
   if [ ! -f "$migration_file" ]; then
     echo "  No migrations found in $CLICKHOUSE_MIGRATIONS_DIR"
