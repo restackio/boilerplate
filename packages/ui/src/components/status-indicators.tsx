@@ -169,6 +169,23 @@ export function StatusBadge({
   icon: customIcon,
 }: StatusBadgeProps) {
   const config = statusConfigs[status];
+  
+  // Handle invalid status values
+  if (!config) {
+    console.warn(`Invalid status variant: "${status}". Using "info" as fallback.`);
+    return (
+      <StatusBadge
+        status="info"
+        label={label || String(status)}
+        size={size}
+        showIcon={showIcon}
+        animateIcon={animateIcon}
+        className={className}
+        icon={customIcon}
+      />
+    );
+  }
+  
   const Icon = customIcon || config.icon;
   const displayLabel = label || config.label;
 
@@ -221,6 +238,21 @@ export function StatusIcon({
   icon: customIcon,
 }: StatusIconProps) {
   const config = statusConfigs[status];
+  
+  // Handle invalid status values
+  if (!config) {
+    console.warn(`Invalid status variant: "${status}". Using "info" as fallback.`);
+    return (
+      <StatusIcon
+        status="info"
+        size={size}
+        animate={animate}
+        className={className}
+        icon={customIcon}
+      />
+    );
+  }
+  
   const Icon = customIcon || config.icon;
 
   const sizeClasses = {
@@ -275,6 +307,10 @@ export function getStatusIconColor(status: StatusVariant): string {
 // Status Color Helper (for custom styling)
 export function getStatusColor(status: StatusVariant): string {
   const config = statusConfigs[status];
+  if (!config) {
+    console.warn(`Invalid status variant: "${status}". Returning empty className.`);
+    return "";
+  }
   return config.className || "";
 }
 
@@ -300,6 +336,20 @@ export function StatusProgress({
   className,
 }: StatusProgressProps) {
   const config = statusConfigs[status];
+  
+  // Handle invalid status values
+  if (!config) {
+    console.warn(`Invalid status variant: "${status}". Using "info" as fallback.`);
+    return (
+      <StatusProgress
+        status="info"
+        progress={progress}
+        label={label || String(status)}
+        showPercentage={showPercentage}
+        className={className}
+      />
+    );
+  }
 
   return (
     <div className={cn("space-y-2", className)}>
@@ -356,14 +406,19 @@ export function StatusSummary({
         className
       )}
     >
-      {statuses.map(({ status, count, label }) => (
-        <div key={status} className="flex items-center gap-2">
-          <StatusIcon status={status} size="sm" />
-          <span className="text-sm">
-            {label || statusConfigs[status].label}: {count}
-          </span>
-        </div>
-      ))}
+      {statuses.map(({ status, count, label }) => {
+        const config = statusConfigs[status];
+        const displayLabel = label || (config ? config.label : String(status));
+        
+        return (
+          <div key={status} className="flex items-center gap-2">
+            <StatusIcon status={status} size="sm" />
+            <span className="text-sm">
+              {displayLabel}: {count}
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 }
