@@ -80,10 +80,10 @@ export function CreateMetricDialog({
   const [retroactiveWeeks, setRetroactiveWeeks] = useState(2);
   const [samplePercentage, setSamplePercentage] = useState(10);
 
-  // Fetch agents when dialog opens
+  // Fetch agents when dialog opens (published only by default)
   useEffect(() => {
     if (open) {
-      fetchAgents({ publishedOnly: false });
+      fetchAgents({ publishedOnly: true });
     }
   }, [open, fetchAgents]);
 

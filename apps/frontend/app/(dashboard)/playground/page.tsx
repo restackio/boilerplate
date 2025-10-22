@@ -12,14 +12,14 @@ import {
   PlaygroundMiddlePanel,
   PlaygroundRightPanel
 } from "./components";
-import { Agent } from "@/hooks/use-workspace-scoped-actions";
+import type { Agent } from "@/hooks/use-workspace-scoped-actions";
 
 export default function PlaygroundPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const agentId = searchParams.get("agentId");
   const { isReady, workspaceId } = useDatabaseWorkspace();
-  const { getAgentById, fetchAgents, updateAgent } = useWorkspaceScopedActions();
+  const { getAgentById, getAgentVersions, updateAgent } = useWorkspaceScopedActions();
 
   // State for the draft agent being edited
   const [draftAgent, setDraftAgent] = useState<Agent | null>(null);
@@ -53,21 +53,29 @@ export default function PlaygroundPage() {
         if (agentResult.success && agentResult.data) {
           setDraftAgent(agentResult.data);
           
-          // Find the published version of this agent group
-          const agentsResult = await fetchAgents();
-          if (agentsResult.success && agentsResult.data) {
-            setAvailableAgents(agentsResult.data);
+          // Get the parent agent ID (or use current id if it's a parent)
+          const rootAgentId = agentResult.data.parent_agent_id || agentId;
+          
+          // Fetch all versions for this agent group (more efficient than fetching all workspace agents)
+          const versionsResult = await getAgentVersions(rootAgentId);
+          
+          if (versionsResult.success && versionsResult.data) {
+            const allVersions = versionsResult.data as Agent[];
+            setAvailableAgents(allVersions);
             
-            // Find published version in the same agent group
-            const rootAgentId = agentResult.data.parent_agent_id || agentId;
-            const publishedVersion = agentsResult.data.find(
-              agent => 
-                (agent.id === rootAgentId || agent.parent_agent_id === rootAgentId) && 
-                agent.status === "published"
+            // Find the latest published version
+            const publishedVersions = allVersions.filter(
+              agent => agent.status === "published"
             );
             
-            if (publishedVersion) {
-              setComparisonAgent(publishedVersion);
+            // Sort by updated_at and get the most recent
+            if (publishedVersions.length > 0) {
+              const latestPublished = publishedVersions.sort((a, b) => {
+                const dateA = new Date(a.updated_at || a.created_at || '1970-01-01').getTime();
+                const dateB = new Date(b.updated_at || b.created_at || '1970-01-01').getTime();
+                return dateB - dateA;
+              })[0];
+              setComparisonAgent(latestPublished);
             }
           }
         }
@@ -79,7 +87,7 @@ export default function PlaygroundPage() {
     };
 
     loadAgentData();
-  }, [isReady, agentId, getAgentById, fetchAgents]);
+  }, [isReady, agentId, getAgentById, getAgentVersions]);
 
   // Load task IDs from URL on mount
   useEffect(() => {
@@ -235,7 +243,7 @@ export default function PlaygroundPage() {
         <PlaygroundRightPanel
           agent={comparisonAgent}
           taskId={rightTaskId}
-          availableAgents={availableAgents.filter(a => a.status === "published" || a.status === "draft")}
+          availableAgents={Array.isArray(availableAgents) ? availableAgents.filter(a => a.status === "published" || a.status === "draft") : []}
           onAgentChange={handleComparisonAgentChange}
           title="Compare to"
           isLeftPanelCollapsed={isLeftPanelCollapsed}
