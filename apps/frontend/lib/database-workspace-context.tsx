@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
 import { useWorkspaceActions } from "../hooks/use-workspace-actions";
 import { User } from "../types/user";
 import { Workspace } from "../hooks/use-workspace-actions";
@@ -26,11 +26,6 @@ export function DatabaseWorkspaceProvider({ children }: { children: React.ReactN
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
-  // Track if we've already initialized to prevent duplicate API calls
-  // (important for React strict mode and race conditions)
-  const hasInitialized = useRef(false);
-  const hasFetchedWorkspaces = useRef(false);
 
   // Wrap setCurrentWorkspaceId to persist to localStorage
   const setCurrentWorkspaceId = useCallback((id: string) => {
@@ -40,11 +35,8 @@ export function DatabaseWorkspaceProvider({ children }: { children: React.ReactN
 
   const { workspaces, fetchWorkspaces } = useWorkspaceActions(currentUser, currentWorkspaceId);
 
-  // Initialize user and workspace from localStorage on mount (only once)
+  // Initialize user and workspace from localStorage on mount
   useEffect(() => {
-    if (hasInitialized.current) return;
-    hasInitialized.current = true;
-    
     const initialize = () => {
       try {
         setIsLoading(true);
@@ -83,10 +75,9 @@ export function DatabaseWorkspaceProvider({ children }: { children: React.ReactN
     initialize();
   }, []); // Empty dependency array - only run once on mount
 
-  // Fetch workspaces when currentUser is set (only once)
+  // Fetch workspaces when currentUser is set  
   useEffect(() => {
-    if (currentUser && fetchWorkspaces && !hasFetchedWorkspaces.current) {
-      hasFetchedWorkspaces.current = true;
+    if (currentUser && fetchWorkspaces) {
       const loadWorkspaces = async () => {
         try {
           await fetchWorkspaces(currentUser);
@@ -98,9 +89,6 @@ export function DatabaseWorkspaceProvider({ children }: { children: React.ReactN
         }
       };
       loadWorkspaces();
-    } else if (currentUser && hasFetchedWorkspaces.current) {
-      // Already fetched, just set loading to false
-      setIsLoading(false);
     }
     // ESLint disable: fetchWorkspaces creates dependency loop if included
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -3,6 +3,7 @@
 import { ReactNode } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
 import { Loader2, ChevronRight } from "lucide-react";
 import { cn } from "../lib/utils";
 
@@ -174,12 +175,13 @@ export function ErrorCard({
       status={{ label: "Error", variant: "destructive" }}
       className={className}
       actions={onRetry && (
-        <button 
+        <Button 
           onClick={onRetry}
-          className="text-sm text-primary hover:text-primary/80 underline"
+          variant="link"
+          className="text-sm h-auto p-0"
         >
           Try again
-        </button>
+        </Button>
       )}
     >
       <div className="text-sm text-destructive">{error}</div>

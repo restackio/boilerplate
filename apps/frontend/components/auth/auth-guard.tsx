@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CenteredLoading } from "@workspace/ui/components/loading-states";
 
@@ -11,13 +11,8 @@ interface AuthGuardProps {
 export function AuthGuard({ children }: AuthGuardProps) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const router = useRouter();
-  const hasChecked = useRef(false);
 
   useEffect(() => {
-    // Only check authentication once on mount
-    if (hasChecked.current) return;
-    hasChecked.current = true;
-    
     // Check if user is authenticated
     const storedUser = localStorage.getItem("currentUser");
     if (storedUser) {
@@ -35,8 +30,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
     // If not authenticated, redirect to login
     setIsAuthenticated(false);
     router.push("/login");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run once on mount
+  }, [router]);
 
   if (isAuthenticated === null) {
     return (

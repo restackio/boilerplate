@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AuthForm, useAuthFormState } from "@workspace/ui/components";
+import { Button } from "@workspace/ui/components/ui/button";
 import { executeWorkflow } from "@/app/actions/workflow";
 
 export function LoginForm({
@@ -40,16 +41,17 @@ export function LoginForm({
   };
 
   const forgotPasswordLink = (
-    <button
+    <Button
       type="button"
       onClick={() => {
         // TODO: Implement forgot password functionality
         alert("Forgot password functionality coming soon!");
       }}
-      className="ml-auto text-sm underline-offset-4 hover:underline"
+      variant="link"
+      className="ml-auto text-sm h-auto p-0"
     >
       Forgot your password?
-    </button>
+    </Button>
   );
 
   const fields = [

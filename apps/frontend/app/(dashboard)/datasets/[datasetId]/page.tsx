@@ -108,7 +108,7 @@ export default function DatasetDetailPage() {
 
   useEffect(() => {
     fetchDataset();
-  }, [fetchDataset]);
+  }, [currentWorkspaceId, isReady, datasetId, fetchDataset]);
 
   useEffect(() => {
     if (currentWorkspaceId && isReady && datasetId) {
