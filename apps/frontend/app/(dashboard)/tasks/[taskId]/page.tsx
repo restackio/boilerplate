@@ -89,7 +89,7 @@ function TaskDetailContentInner({ task, onRefetch }: { task: Task; onRefetch: ()
         onOpenAnalytics={handleOpenAnalytics}
       />
       
-      <div className={`flex ${showSplitView ? 'h-[calc(100vh-120px)]' : ''}`}>
+      <div className={`flex ${showSplitView ? 'h-[calc(100vh-65px)]' : ''}`}>
         <TaskChatInterface
           conversation={conversation}
           chatMessage={chatMessage}

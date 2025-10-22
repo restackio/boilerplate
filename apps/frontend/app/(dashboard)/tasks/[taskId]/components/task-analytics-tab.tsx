@@ -179,7 +179,7 @@ export function TaskAnalyticsTab({ taskId, agentId }: TaskAnalyticsTabProps) {
             />
             <MetricCard
               label="Cost"
-              value={`$${(tracesData.total_cost_usd || 0).toFixed(4)}`}
+              value={`$${(tracesData.total_cost_usd || 0).toFixed(3)}`}
               
             />
             <MetricCard
@@ -237,7 +237,7 @@ export function TaskAnalyticsTab({ taskId, agentId }: TaskAnalyticsTabProps) {
                   </div>
                   <div className="space-y-1">
                     <p className="text-xs text-muted-foreground">Cost</p>
-                    <p className="text-sm font-medium">${perfMetric.costUsd.toFixed(4)}</p>
+                    <p className="text-sm font-medium">${perfMetric.costUsd.toFixed(3)}</p>
                   </div>
                 </div>
 
@@ -366,37 +366,33 @@ export function TaskAnalyticsTab({ taskId, agentId }: TaskAnalyticsTabProps) {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[100px]">Type</TableHead>
-                    <TableHead className="w-[80px]">Response</TableHead>
                     <TableHead>Feedback</TableHead>
-                    <TableHead className="w-[120px]">Date</TableHead>
                     <TableHead className="w-[80px]">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {feedbacks.map((feedback, index) => (
                     <TableRow key={index}>
-                      <TableCell>
-                        {feedback.isPositive ? (
-                          <Badge variant="outline" className="gap-1 text-green-600 border-green-600 bg-green-600/10">
-                            <ThumbsUp className="h-3 w-3" />
-                            Positive
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="gap-1 text-red-600 border-red-600 bg-red-600/10">
-                            <ThumbsDown className="h-3 w-3" />
-                            Negative
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        #{feedback.responseIndex + 1}
-                      </TableCell>
-                      <TableCell className="text-sm max-w-md whitespace-normal break-words">
-                        {feedback.feedbackText || <span className="text-muted-foreground italic">No details provided</span>}
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {formatDate(feedback.createdAt)}
+                        <TableCell className="text-sm max-w-md whitespace-normal break-words space-y-2">
+                          <div className="flex items-center gap-2">
+                            {feedback.isPositive ? (
+                            <Badge variant="outline" className="gap-1 text-green-600 border-green-600 bg-green-600/10">
+                              <ThumbsUp className="h-3 w-3" />
+                              Positive
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="gap-1 text-red-600 border-red-600 bg-red-600/10">
+                              <ThumbsDown className="h-3 w-3" />
+                              Negative
+                            </Badge>
+                          )}
+                          <p className="text-xs text-muted-foreground">
+                            {formatDate(feedback.createdAt)} #{feedback.responseIndex + 1}
+                          </p>
+                        </div>
+                        <p>
+                          {feedback.feedbackText || <span className="text-muted-foreground italic">No details provided</span>}
+                        </p>
                       </TableCell>
                       <TableCell>
                         {currentWorkspaceId && (
