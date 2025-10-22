@@ -171,7 +171,7 @@ export function AgentsTable({
       <EmptyState
         icon={<Bot className="h-12 w-12" />}
         title="No agents yet"
-        description="AI agents will appear here when you create them. Agents help automate your support workflow across different channels."
+        description="AI agents will appear here when created."
       />
     );
   }

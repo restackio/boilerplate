@@ -30,7 +30,9 @@ export default function TasksPage() {
       fetchTasks();
       fetchTeams();
     }
-  }, [isReady, currentWorkspaceId, fetchTasks, fetchTeams]);
+    // Only refetch when workspace changes or becomes ready, not when fetch functions change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isReady, currentWorkspaceId]);
 
   // Fetch filtered task IDs when metric or feedback filters are present
   useEffect(() => {

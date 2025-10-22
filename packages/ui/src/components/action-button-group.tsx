@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, ReactNode } from "react";
+import Link from "next/link";
 import { Button } from "./ui/button";
 import { Loader2, Archive, Trash2, type LucideIcon } from "lucide-react";
 import { cn } from "../lib/utils";
@@ -206,9 +207,9 @@ export function EntityHeader({
               <li key={index} className="flex items-center">
                 {index > 0 && <span className="mx-2">/</span>}
                 {crumb.href ? (
-                  <a href={crumb.href} className="hover:text-foreground">
+                  <Link href={crumb.href} className="hover:text-foreground">
                     {crumb.label}
-                  </a>
+                  </Link>
                 ) : (
                   <span className="text-foreground">{crumb.label}</span>
                 )}

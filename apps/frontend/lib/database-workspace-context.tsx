@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useWorkspaceActions } from "../hooks/use-workspace-actions";
 import { User } from "../types/user";
 import { Workspace } from "../hooks/use-workspace-actions";
@@ -26,16 +26,24 @@ export function DatabaseWorkspaceProvider({ children }: { children: React.ReactN
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Track if we've already initialized to prevent duplicate API calls
+  const hasInitialized = useRef(false);
+  const hasFetchedWorkspaces = useRef(false);
 
-  // Wrap setCurrentWorkspaceId to add logging
+  // Wrap setCurrentWorkspaceId to persist to localStorage
   const setCurrentWorkspaceId = useCallback((id: string) => {
     setCurrentWorkspaceIdInternal(id);
+    localStorage.setItem("currentWorkspaceId", id);
   }, []);
 
   const { workspaces, fetchWorkspaces } = useWorkspaceActions(currentUser, currentWorkspaceId);
 
-  // Initialize user from localStorage on mount
+  // Initialize user and workspace from localStorage on mount (only once)
   useEffect(() => {
+    if (hasInitialized.current) return;
+    hasInitialized.current = true;
+    
     const initialize = () => {
       try {
         setIsLoading(true);
@@ -56,6 +64,13 @@ export function DatabaseWorkspaceProvider({ children }: { children: React.ReactN
         }
 
         setCurrentUser(userData);
+        
+        // Restore workspace from localStorage if available
+        const storedWorkspaceId = localStorage.getItem("currentWorkspaceId");
+        if (storedWorkspaceId) {
+          setCurrentWorkspaceIdInternal(storedWorkspaceId);
+        }
+        
         // Note: fetchWorkspaces will be called in a separate useEffect when currentUser is set
       } catch (error) {
         console.error("Failed to initialize workspace", error);
@@ -67,9 +82,10 @@ export function DatabaseWorkspaceProvider({ children }: { children: React.ReactN
     initialize();
   }, []); // Empty dependency array - only run once on mount
 
-  // Fetch workspaces when currentUser is set  
+  // Fetch workspaces when currentUser is set (only once)
   useEffect(() => {
-    if (currentUser && fetchWorkspaces) {
+    if (currentUser && fetchWorkspaces && !hasFetchedWorkspaces.current) {
+      hasFetchedWorkspaces.current = true;
       const loadWorkspaces = async () => {
         try {
           await fetchWorkspaces(currentUser);
@@ -81,6 +97,9 @@ export function DatabaseWorkspaceProvider({ children }: { children: React.ReactN
         }
       };
       loadWorkspaces();
+    } else if (currentUser && hasFetchedWorkspaces.current) {
+      // Already fetched, just set loading to false
+      setIsLoading(false);
     }
     // ESLint disable: fetchWorkspaces creates dependency loop if included
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -88,29 +107,43 @@ export function DatabaseWorkspaceProvider({ children }: { children: React.ReactN
 
   // Auto-select workspace when available
   useEffect(() => {
-    if (workspaces.length > 0 && !currentWorkspaceId) {
-      // Check if there's a newly created workspace to navigate to
-      const newWorkspaceId = sessionStorage.getItem("newWorkspaceId");
-
-      if (newWorkspaceId) {
-        // Clear the session storage
-        sessionStorage.removeItem("newWorkspaceId");
-        console.log("Cleared newWorkspaceId from sessionStorage");
-        
-        // Check if the new workspace exists in the list
-        const newWorkspace = workspaces.find(w => w.id === newWorkspaceId);
-        console.log("Looking for workspace with ID:", newWorkspaceId, "Found:", !!newWorkspace);
-        
-        if (newWorkspace) {
-          setCurrentWorkspaceId(newWorkspaceId);
-          return;
-        } else {
-          console.warn("New workspace ID not found in workspaces list!");
-        }
+    if (workspaces.length === 0) return;
+    
+    // If we have a current workspace ID, validate it exists in the workspace list
+    if (currentWorkspaceId) {
+      const workspaceExists = workspaces.find(w => w.id === currentWorkspaceId);
+      if (!workspaceExists) {
+        console.warn("Current workspace not found in workspace list, resetting...");
+        // Current workspace doesn't exist anymore, clear it and fall through to auto-select
+        setCurrentWorkspaceIdInternal(null);
+        localStorage.removeItem("currentWorkspaceId");
+      } else {
+        // Workspace is valid, nothing to do
+        return;
       }
-
-      setCurrentWorkspaceId(workspaces[0].id);
     }
+    
+    // No current workspace or it's invalid, auto-select one
+    // Check if there's a newly created workspace to navigate to
+    const newWorkspaceId = sessionStorage.getItem("newWorkspaceId");
+
+    if (newWorkspaceId) {
+      // Clear the session storage
+      sessionStorage.removeItem("newWorkspaceId");
+      
+      // Check if the new workspace exists in the list
+      const newWorkspace = workspaces.find(w => w.id === newWorkspaceId);
+      
+      if (newWorkspace) {
+        setCurrentWorkspaceId(newWorkspaceId);
+        return;
+      } else {
+        console.warn("New workspace ID not found in workspaces list!");
+      }
+    }
+
+    // Default to first workspace
+    setCurrentWorkspaceId(workspaces[0].id);
     // setCurrentWorkspaceId is stable (useCallback with empty deps), so it's safe to exclude
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspaces, currentWorkspaceId]);

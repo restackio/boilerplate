@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any */
 
 import * as React from "react";
+import Link from "next/link";
 import { ChevronsUpDown, Plus, Building } from "lucide-react";
 
 import {
@@ -107,14 +108,14 @@ export function WorkspaceSwitcher({
             ))}
             <DropdownMenuSeparator />
             <DropdownMenuItem className="gap-2 p-2" asChild>
-              <a href="/workspace/create" className="flex items-center">
+              <Link href="/workspace/create" className="flex items-center">
                 <div className="flex size-6 items-center justify-center rounded-md border bg-transparent">
                   <Plus className="size-4" />
                 </div>
                 <div className="text-muted-foreground font-medium">
                   Add workspace
                 </div>
-              </a>
+              </Link>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

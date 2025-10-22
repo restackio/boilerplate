@@ -60,7 +60,9 @@ export default function DatasetsPage() {
 
   useEffect(() => {
     fetchDatasets();
-  }, [fetchDatasets]);
+    // Only refetch when workspace changes or becomes ready, not when fetch function changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentWorkspaceId, isReady]);
 
   const handleRefresh = () => {
     fetchDatasets();

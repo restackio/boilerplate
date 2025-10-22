@@ -180,7 +180,9 @@ export default function TaskDetailPage() {
 
   useEffect(() => {
     fetchTask();
-  }, [fetchTask]);
+    // Only refetch when taskId changes, not when fetch function changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [taskId]);
 
   if (isLoading) {
     return <TaskDetailSkeleton taskId={taskId} />;

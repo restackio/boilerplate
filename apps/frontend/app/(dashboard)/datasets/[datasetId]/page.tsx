@@ -108,13 +108,17 @@ export default function DatasetDetailPage() {
 
   useEffect(() => {
     fetchDataset();
-  }, [currentWorkspaceId, isReady, datasetId, fetchDataset]);
+    // Only refetch when workspace/dataset changes, not when fetch function changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentWorkspaceId, isReady, datasetId]);
 
   useEffect(() => {
     if (currentWorkspaceId && isReady && datasetId) {
       fetchEvents();
     }
-  }, [currentWorkspaceId, isReady, datasetId, fetchEvents]);
+    // Only refetch when workspace/dataset changes, not when fetch function changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentWorkspaceId, isReady, datasetId]);
 
   const handleRefresh = () => {
     fetchDataset();

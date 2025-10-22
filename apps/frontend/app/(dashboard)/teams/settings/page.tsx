@@ -94,8 +94,8 @@ export default function TeamsSettingsPage() {
       
       <div className="px-4">
         <div className="mb-6">
-          <h1 className="text-2xl font-semibold">Team Settings</h1>
-          <p className="text-muted-foreground">Manage your teams and their configurations</p>
+          <h1 className="text-2xl font-semibold">Team settings</h1>
+          <p className="text-muted-foreground">Manage teams and their configurations</p>
         </div>
 
       <div className="bg-card rounded-lg border">
@@ -111,7 +111,7 @@ export default function TeamsSettingsPage() {
                 <p className="text-muted-foreground mb-4">No teams found</p>
                 <Button onClick={handleCreateTeam}>
                   <Plus className="h-4 w-4 mr-1" />
-                  Create your first team
+                  Create Team
                 </Button>
               </div>
             ) : (
@@ -151,11 +151,11 @@ export default function TeamsSettingsPage() {
       {showCreateForm && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
           <div className="bg-card border rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-lg font-semibold mb-4">Create New Team</h2>
+            <h2 className="text-lg font-semibold mb-4">Create team</h2>
             
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="create-name">Team Name</Label>
+                <Label htmlFor="create-name">Name</Label>
                 <Input
                   id="create-name"
                   value={createFormData.name}
@@ -176,7 +176,7 @@ export default function TeamsSettingsPage() {
               </div>
               
               <LucideIconPicker
-                label="Team Icon"
+                label="Icon"
                 value={createFormData.icon}
                 onValueChange={(iconName) => setCreateFormData(prev => ({ ...prev, icon: iconName }))}
                 placeholder="Choose an icon for your team"
@@ -188,7 +188,7 @@ export default function TeamsSettingsPage() {
                 Cancel
               </Button>
               <Button onClick={handleSubmitCreateTeam} disabled={creating}>
-                {creating ? "Creating..." : "Create Team"}
+                {creating ? "Creating..." : "Create"}
               </Button>
             </div>
           </div>

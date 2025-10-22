@@ -24,20 +24,11 @@ export function LoginForm({
         password,
       });
 
-      console.log("Login workflow result:", workflowResult);
-
       if (workflowResult && workflowResult.success && workflowResult.data && workflowResult.data.user) {
         // Store user info in localStorage
         localStorage.setItem("currentUser", JSON.stringify(workflowResult.data.user));
         router.push("/dashboard");
       } else {
-        console.log("Login failed - checking conditions:", {
-          hasWorkflowResult: !!workflowResult,
-          workflowSuccess: workflowResult?.success,
-          hasData: !!workflowResult?.data,
-          hasUser: !!workflowResult?.data?.user,
-          error: workflowResult?.error || workflowResult?.data?.error
-        });
         setSubmissionError(workflowResult?.error || workflowResult?.data?.error || "Invalid email or password");
       }
     } catch (error) {
@@ -49,12 +40,16 @@ export function LoginForm({
   };
 
   const forgotPasswordLink = (
-    <a
-      href="#"
+    <button
+      type="button"
+      onClick={() => {
+        // TODO: Implement forgot password functionality
+        alert("Forgot password functionality coming soon!");
+      }}
       className="ml-auto text-sm underline-offset-4 hover:underline"
     >
       Forgot your password?
-    </a>
+    </button>
   );
 
   const fields = [

@@ -110,7 +110,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     if (currentWorkspaceId && teams.length === 0) {
       fetchTeams();
     }
-  }, [currentWorkspaceId, fetchTeams, teams.length]);
+    // Only refetch when workspace changes, not when fetch function changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentWorkspaceId, teams.length]);
 
   if (loading.isLoading) {
     return <CenteredLoading message="Loading sidebar..." />;
@@ -177,7 +179,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   };
 
   const handleWorkspaceChange = (workspace: WorkspaceForChange) => {
-    console.log("Workspace change requested:", workspace.id);
     if (workspace.id) {
       setCurrentWorkspaceId(workspace.id);
     }
@@ -185,6 +186,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   const handleLogout = () => {
     localStorage.removeItem("currentUser");
+    localStorage.removeItem("currentWorkspaceId");
     window.location.href = "/login";
   };
 

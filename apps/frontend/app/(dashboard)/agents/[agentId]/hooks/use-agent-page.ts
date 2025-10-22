@@ -67,7 +67,9 @@ export function useAgentPage(agentId: string) {
 
   useEffect(() => {
     fetchAgent();
-  }, [fetchAgent]);
+    // Only refetch when agentId or ready state changes, not when fetch function changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agentId, isReady]);
 
   // Memoize the onChange callback to prevent infinite re-renders
   const handleDraftChange = useCallback((d: AgentConfigData) => {

@@ -79,7 +79,9 @@ export default function PlaygroundPage() {
     };
 
     loadAgentData();
-  }, [isReady, agentId, getAgentById, fetchAgents]);
+    // Only reload when agentId or ready state changes, not when fetch functions change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isReady, agentId]);
 
   // Load task IDs from URL on mount
   useEffect(() => {

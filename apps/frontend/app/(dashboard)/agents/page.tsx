@@ -24,7 +24,9 @@ export default function TechnicalSupportAgentsPage() {
       fetchAgents();
       fetchTeams();
     }
-  }, [isReady, currentWorkspaceId, fetchAgents, fetchTeams]);
+    // Only refetch when workspace changes or becomes ready, not when fetch functions change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isReady, currentWorkspaceId]);
 
   const handleAgentClick = (agentId: string) => {
     // Optimized navigation - uses Next.js router for instant navigation
