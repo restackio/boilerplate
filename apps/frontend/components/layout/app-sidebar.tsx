@@ -177,7 +177,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   };
 
   const handleWorkspaceChange = (workspace: WorkspaceForChange) => {
-    console.log("Workspace change requested:", workspace.id);
     if (workspace.id) {
       setCurrentWorkspaceId(workspace.id);
     }
@@ -185,6 +184,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   const handleLogout = () => {
     localStorage.removeItem("currentUser");
+    localStorage.removeItem("currentWorkspaceId");
     window.location.href = "/login";
   };
 

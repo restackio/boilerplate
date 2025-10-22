@@ -4,6 +4,7 @@ import {
   ChevronRight,
   type LucideIcon,
 } from "lucide-react";
+import Link from "next/link";
 
 import {
   Collapsible,
@@ -56,9 +57,9 @@ export function NavTeams({
                       {team.items?.map((subItem) => (
                         <SidebarMenuSubItem key={subItem.title}>
                           <SidebarMenuSubButton asChild>
-                            <a href={subItem.url}>
+                            <Link href={subItem.url}>
                               <span>{subItem.title}</span>
-                            </a>
+                            </Link>
                           </SidebarMenuSubButton>
                         </SidebarMenuSubItem>
                       ))}
@@ -69,19 +70,19 @@ export function NavTeams({
             ) : (
               // Non-collapsible team - direct link
               <SidebarMenuButton asChild tooltip={team.name}>
-                <a href={team.url}>
+                <Link href={team.url}>
                   <team.icon />
                   <span>{team.name}</span>
-                </a>
+                </Link>
               </SidebarMenuButton>
             )}
           </SidebarMenuItem>
         ))}
         <SidebarMenuItem>
           <SidebarMenuButton asChild className="text-xs text-sidebar-foreground/70">
-            <a href="/teams/settings">
+            <Link href="/teams/settings">
               <span>Team settings</span>
-            </a>
+            </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu>

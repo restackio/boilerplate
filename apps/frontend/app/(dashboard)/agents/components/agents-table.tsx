@@ -171,7 +171,7 @@ export function AgentsTable({
       <EmptyState
         icon={<Bot className="h-12 w-12" />}
         title="No agents yet"
-        description="AI agents will appear here when you create them. Agents help automate your support workflow across different channels."
+        description="AI agents will appear here when created."
       />
     );
   }
@@ -230,15 +230,16 @@ export function AgentsTable({
                             <span className="flex items-center gap-1 min-w-0">
                               <GitBranch className="h-3 w-3 flex-shrink-0 text-yellow-600" />
                               {agent.latest_draft_version_short ? (
-                                <button
+                                <Button
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     router.push(`/agents/${agent.latest_draft_version_id}`);
                                   }}
-                                  className="truncate font-mono hover:underline text-yellow-700 bg-transparent border-none cursor-pointer p-0"
+                                  variant="link"
+                                  className="truncate font-mono text-yellow-700 h-auto p-0"
                                 >
                                   {agent.latest_draft_version_short}
-                                </button>
+                                </Button>
                               ) : (
                                 <span className="truncate">draft</span>
                               )}
@@ -248,15 +249,16 @@ export function AgentsTable({
                           {agent.published_version_short && (
                             <span className="flex items-center gap-1 min-w-0">
                               <span className="text-xs text-muted-foreground">Published:</span>
-                              <button
+                              <Button
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   router.push(`/agents/${agent.published_version_id}`);
                                 }}
-                                className="truncate font-mono hover:underline text-green-700 bg-transparent border-none cursor-pointer p-0"
+                                variant="link"
+                                className="truncate font-mono text-green-700 h-auto p-0"
                               >
                                 {agent.published_version_short}
-                              </button>
+                              </Button>
                             </span>
                           )}
                         </div>
@@ -272,15 +274,16 @@ export function AgentsTable({
                           {agent.latest_draft_version_short ? (
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <button
+                                <Button
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     router.push(`/agents/${agent.latest_draft_version_id}`);
                                   }}
-                                  className="text-sm font-mono hover:underline text-yellow-700 hover:text-yellow-800 bg-transparent border-none cursor-pointer p-0"
+                                  variant="link"
+                                  className="text-sm font-mono text-yellow-700 hover:text-yellow-800 h-auto p-0"
                                 >
                                   {agent.latest_draft_version_short}
-                                </button>
+                                </Button>
                               </TooltipTrigger>
                               <TooltipContent>
                                 <p>Latest draft version: {agent.latest_draft_version_short}</p>
@@ -303,15 +306,16 @@ export function AgentsTable({
                     {agent.published_version_short ? (
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <button
+                          <Button
                             onClick={(e) => {
                               e.stopPropagation();
                               router.push(`/agents/${agent.published_version_id}`);
                             }}
-                            className="text-sm font-mono hover:underline text-green-700 hover:text-green-800 bg-transparent border-none cursor-pointer p-0"
+                            variant="link"
+                            className="text-sm font-mono text-green-700 hover:text-green-800 h-auto p-0"
                           >
                             {agent.published_version_short}
-                          </button>
+                          </Button>
                         </TooltipTrigger>
                         <TooltipContent>
                           <p>Published version: {agent.published_version_short}</p>
@@ -326,16 +330,17 @@ export function AgentsTable({
                     {agent.version_count && agent.version_count > 0 ? (
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <button
+                          <Button
                             onClick={(e) => {
                               e.stopPropagation();
                               router.push(`/agents/${agent.id}?tab=versions`);
                             }}
-                            className="inline-flex items-center gap-1 px-2 py-1 text-sm font-medium rounded-md hover:bg-muted transition-colors bg-transparent border-none cursor-pointer"
+                            variant="ghost"
+                            className="inline-flex items-center gap-1 px-2 py-1 text-sm font-medium h-auto"
                           >
                             <GitBranch className="h-3.5 w-3.5 text-muted-foreground" />
                             <span>{agent.version_count}</span>
-                          </button>
+                          </Button>
                         </TooltipTrigger>
                         <TooltipContent>
                           <p>View all {agent.version_count} version{agent.version_count > 1 ? 's' : ''}</p>

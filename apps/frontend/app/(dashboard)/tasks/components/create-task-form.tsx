@@ -322,20 +322,22 @@ export function CreateTaskForm({
                 <DropdownMenuLabel className="flex items-center justify-between">
                   <span>Select versions</span>
                   <div className="flex space-x-2">
-                    <button
+                    <Button
                       type="button"
                       onClick={handleSelectAllVersions}
-                      className="text-xs text-foreground hover:underline"
+                      variant="link"
+                      className="text-xs text-foreground h-auto p-0"
                     >
                       All
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type="button"
                       onClick={handleClearAllVersions}
-                      className="text-xs text-neutral-500 hover:underline"
+                      variant="link"
+                      className="text-xs text-neutral-500 h-auto p-0"
                     >
                       Clear
-                    </button>
+                    </Button>
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />

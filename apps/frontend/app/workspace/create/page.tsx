@@ -211,7 +211,7 @@ export default function CreateWorkspacePage() {
 
         <div className="max-w-4xl mx-auto">
           {currentStep === 1 && (
-            <Card>
+            <Card className="space-y-4">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Building className="size-5" />
@@ -225,7 +225,7 @@ export default function CreateWorkspacePage() {
               <CardContent className="space-y-6">
                 <div className="grid md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <Label htmlFor="companyName">Company Name *</Label>
+                    <Label htmlFor="companyName">Company name *</Label>
                     <Input
                       id="companyName"
                       value={formData.companyName}
@@ -237,7 +237,7 @@ export default function CreateWorkspacePage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="companySize">Company Size *</Label>
+                    <Label htmlFor="companySize">Company size *</Label>
                     <Select
                       value={formData.companySize}
                       onValueChange={(value) =>
@@ -280,7 +280,7 @@ export default function CreateWorkspacePage() {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="contactRole">Your Role</Label>
+                    <Label htmlFor="contactRole">Your role</Label>
                     <Input
                       id="contactRole"
                       value={formData.contactRole}
@@ -293,7 +293,7 @@ export default function CreateWorkspacePage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="useCase">Primary Use Case</Label>
+                  <Label htmlFor="useCase">Primary use case</Label>
                   <Textarea
                     id="useCase"
                     value={formData.useCase}

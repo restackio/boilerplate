@@ -24,7 +24,6 @@ export function WorkspaceGuard({ children }: { children: React.ReactNode }) {
     // This prevents redirect loops after workspace creation
     if (!loading.isLoading && !loading.error && workspaces.length === 0 && !hasRedirectedRef.current) {
       hasRedirectedRef.current = true;
-      console.log("No workspaces found, redirecting to workspace creation");
       router.push("/workspace/create");
     }
   }, [loading.isLoading, loading.error, workspaces.length, router]);

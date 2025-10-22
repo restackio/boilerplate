@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { TasksTable, type Task as UITask } from "../tasks/components/tasks-table";
 import { ErrorNotification } from "@workspace/ui/components";
+import { Button } from "@workspace/ui/components/ui/button";
 import { useWorkspaceScopedActions, type Task as HookTask } from "@/hooks/use-workspace-scoped-actions";
 import { CreateTaskForm } from "../tasks/components/create-task-form";
 import { RefreshCw } from "lucide-react";
@@ -87,11 +88,12 @@ export default function DashboardPage() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold">My tasks</h2>
-            <button
-              className="text-sm text-primary hover:underline"
+            <Button
+              variant="link"
+              className="text-sm h-auto p-0"
             >
               View all tasks →
-            </button>
+            </Button>
           </div>
           <div className="rounded-lg border">
             {/* Table Header */}
@@ -117,12 +119,13 @@ export default function DashboardPage() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold">My tasks</h2>
-            <button
+            <Button
               onClick={() => router.push("/tasks")}
-              className="text-sm text-primary hover:underline"
+              variant="link"
+              className="text-sm h-auto p-0"
             >
               View all tasks →
-            </button>
+            </Button>
           </div>
           <TasksTable 
             data={tasksData} 
