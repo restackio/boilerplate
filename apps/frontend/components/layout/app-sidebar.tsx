@@ -110,9 +110,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     if (currentWorkspaceId && teams.length === 0) {
       fetchTeams();
     }
-    // Only refetch when workspace changes, not when fetch function changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentWorkspaceId, teams.length]);
+  }, [currentWorkspaceId, fetchTeams, teams.length]);
 
   if (loading.isLoading) {
     return <CenteredLoading message="Loading sidebar..." />;

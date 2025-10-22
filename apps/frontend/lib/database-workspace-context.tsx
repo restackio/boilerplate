@@ -28,6 +28,7 @@ export function DatabaseWorkspaceProvider({ children }: { children: React.ReactN
   const [error, setError] = useState<string | null>(null);
   
   // Track if we've already initialized to prevent duplicate API calls
+  // (important for React strict mode and race conditions)
   const hasInitialized = useRef(false);
   const hasFetchedWorkspaces = useRef(false);
 
