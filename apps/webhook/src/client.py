@@ -13,10 +13,8 @@ address = os.getenv("RESTACK_ENGINE_ADDRESS")
 api_key = os.getenv("RESTACK_ENGINE_API_KEY")
 api_address = os.getenv("RESTACK_ENGINE_API_ADDRESS")
 if api_address and should_use_https(api_address):
-    stream_address = f"https://{api_address}/stream"
     mcp_address = f"https://{api_address}/mcp"
 else:
-    stream_address = os.getenv("RESTACK_ENGINE_STREAM_ADDRESS")
     mcp_address = os.getenv("RESTACK_ENGINE_MCP_ADDRESS")
 
 connection_options = CloudConnectionOptions(

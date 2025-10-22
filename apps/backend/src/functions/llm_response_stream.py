@@ -23,7 +23,7 @@ from restack_ai.function import (
     stream_to_websocket,
 )
 
-from src.client import stream_address
+from src.client import api_address
 
 from .send_agent_event import (
     SendAgentEventInput,
@@ -570,7 +570,7 @@ async def llm_response_stream(
         # Process both streams in parallel
         websocket_task = asyncio.create_task(
             stream_to_websocket(
-                api_address=stream_address, data=websocket_stream
+                api_address=api_address, data=websocket_stream
             )
         )
 
