@@ -628,21 +628,15 @@ export function useWorkspaceScopedActions() {
   }, [currentWorkspaceId, isReady, fetchTasks]);
 
   const getTaskById = useCallback(async (taskId: string) => {
-    const startTime = Date.now();
-    
     if (!isReady || !currentWorkspaceId) {
-      console.error("Cannot get task: no valid workspace context");
       return { success: false, error: "No valid workspace context" };
     }
 
     try {
-
       const result = await executeWorkflow<Task>("TasksGetByIdWorkflow", {
         task_id: taskId,
         workspace_id: currentWorkspaceId
       });
-      
-
       
       return result;
     } catch (error) {

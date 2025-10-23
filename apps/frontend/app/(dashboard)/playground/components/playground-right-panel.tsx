@@ -106,6 +106,7 @@ export function PlaygroundRightPanel({
         {agent && (
           <div className={`flex-1 overflow-y-auto ${!taskId ? 'hidden' : ''}`}>
             <PlaygroundTaskExecution
+              key={taskId || 'no-task'}
               taskId={taskId}
               agentName={agent.name || "Comparison Agent"}
               className="h-full"

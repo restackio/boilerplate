@@ -217,46 +217,49 @@ export function PlaygroundTaskExecution({
   className = "" 
 }: PlaygroundTaskExecutionProps) {
   const [task, setTask] = useState<Task | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const { getTaskById } = useWorkspaceScopedActions();
 
+  // Simple effect: when taskId changes, fetch the task
   useEffect(() => {
+    // Reset state when taskId changes or is null
     if (!taskId) {
+      setTask(null);
       setIsLoading(false);
+      setError(null);
       return;
     }
 
-    // Only fetch if we don't already have the task
-    if (task && task.id === taskId) {
-      setIsLoading(false);
-      return;
-    }
-
+    // Fetch the task
     let isMounted = true;
+    setIsLoading(true);
+    setError(null);
+    setTask(null); // Clear previous task
 
     const fetchTask = async () => {
-      if (!isMounted) return;
-
       try {
-        const taskResult = await getTaskById(taskId);
+        const result = await getTaskById(taskId);
         
         if (!isMounted) return;
 
-        if (taskResult.success && taskResult.data) {
-          setTask(taskResult.data);
-          setIsLoading(false);
+        if (result.success && result.data) {
+          setTask(result.data);
+          setError(null);
         } else {
-          setError("Failed to load task");
-          setIsLoading(false);
+          setError(result.error || "Failed to load task");
+          setTask(null);
         }
       } catch (err) {
         if (!isMounted) return;
-        
         console.error("Error fetching task:", err);
         setError("Failed to load task");
-        setIsLoading(false);
+        setTask(null);
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
 
@@ -266,7 +269,7 @@ export function PlaygroundTaskExecution({
       isMounted = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [taskId]); // Only depend on taskId to prevent re-fetching
+  }, [taskId]); // Fetch whenever taskId changes
 
   if (!taskId) {
     return (

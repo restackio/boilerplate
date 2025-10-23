@@ -7,15 +7,15 @@ import { Agent } from "@/hooks/use-workspace-scoped-actions";
 interface PlaygroundHeaderProps {
   draftAgent: Agent;
   comparisonAgent: Agent | null;
-  leftTaskId?: string | null;
-  rightTaskId?: string | null;
+  draftTaskId?: string | null;
+  comparisonTaskId?: string | null;
 }
 
 export function PlaygroundHeader({ 
   draftAgent, 
   comparisonAgent, 
-  leftTaskId, 
-  rightTaskId 
+  draftTaskId, 
+  comparisonTaskId 
 }: PlaygroundHeaderProps) {
   const breadcrumbs = [
     { label: "Agents", href: "/agents" },
@@ -29,7 +29,7 @@ export function PlaygroundHeader({
         <span className="text-sm font-medium">Draft:</span>
         <AgentStatusBadge status={draftAgent.status as "draft" | "published" | "archived"} size="sm" />
         <span className="text-sm text-muted-foreground">
-          {leftTaskId ? `Task: ${leftTaskId.slice(-8)}` : draftAgent.id.slice(-8)}
+          {draftTaskId ? `Task: ${draftTaskId.slice(-8)}` : draftAgent.id.slice(-8)}
         </span>
       </div>
       
@@ -38,7 +38,7 @@ export function PlaygroundHeader({
           <span className="text-sm font-medium">vs</span>
           <AgentStatusBadge status={comparisonAgent.status as "draft" | "published" | "archived"} size="sm" />
           <span className="text-sm text-muted-foreground">
-            {rightTaskId ? `Task: ${rightTaskId.slice(-8)}` : comparisonAgent.id.slice(-8)}
+            {comparisonTaskId ? `Task: ${comparisonTaskId.slice(-8)}` : comparisonAgent.id.slice(-8)}
           </span>
         </div>
       )}

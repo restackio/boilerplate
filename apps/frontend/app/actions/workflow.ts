@@ -21,8 +21,7 @@ export async function runWorkflow({
     const runId = await client.scheduleWorkflow({
       workflowName,
       workflowId,
-      input,
-      taskQueue: "restack",
+      input
     });
 
     return {

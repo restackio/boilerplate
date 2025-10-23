@@ -216,10 +216,13 @@ export default function AnalyticsDashboard() {
               {analyticsData?.quality?.summary && analyticsData.quality.summary.length > 0 && 
                 analyticsData.quality.summary.map((metric) => {
                   // Find agent names and IDs for this metric
+                  // Match against parent_agent_id OR id (for root agents)
                   const metricAgents = metric.parentAgentIds && metric.parentAgentIds.length > 0
                     ? metric.parentAgentIds
-                        .map(agentId => {
-                          const agent = agents.find(a => a.id === agentId);
+                        .map(parentAgentId => {
+                          const agent = agents.find(a => 
+                            a.id === parentAgentId || a.parent_agent_id === parentAgentId
+                          );
                           return agent ? { id: agent.id, name: agent.name } : null;
                         })
                         .filter(Boolean) as { id: string; name: string }[]
