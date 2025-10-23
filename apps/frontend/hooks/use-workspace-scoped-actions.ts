@@ -633,18 +633,10 @@ export function useWorkspaceScopedActions() {
     }
 
     try {
-      const result = await executeWorkflow<{ task: Task }>("TasksGetByIdWorkflow", {
+      const result = await executeWorkflow<Task>("TasksGetByIdWorkflow", {
         task_id: taskId,
         workspace_id: currentWorkspaceId
       });
-      
-      // Unwrap the task from { task: {...} }
-      if (result.success && result.data && typeof result.data === 'object' && 'task' in result.data) {
-        return {
-          ...result,
-          data: result.data.task
-        };
-      }
       
       return result;
     } catch (error) {
