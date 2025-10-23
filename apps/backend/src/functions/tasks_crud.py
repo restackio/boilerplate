@@ -79,6 +79,7 @@ class TaskUpdateInput(BaseModel):
 
 class TaskGetByIdInput(BaseModel):
     task_id: str = Field(..., min_length=1)
+    workspace_id: str | None = None
 
 
 class TaskGetByStatusInput(BaseModel):
@@ -585,6 +586,12 @@ async def tasks_get_by_id(
                     Task.id == uuid.UUID(function_input.task_id)
                 )
             )
+
+            if function_input.workspace_id:
+                task_query = task_query.where(
+                    Task.workspace_id == uuid.UUID(function_input.workspace_id)
+                )
+
             result = await db.execute(task_query)
             task = result.scalar_one_or_none()
 

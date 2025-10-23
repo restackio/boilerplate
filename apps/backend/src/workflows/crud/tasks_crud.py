@@ -294,14 +294,12 @@ class TasksGetByIdWorkflow:
     async def run(
         self, workflow_input: TaskGetByIdInput
     ) -> TaskSingleOutput:
-        log.info("TasksGetByIdWorkflow started")
         try:
             return await workflow.step(
                 function=tasks_get_by_id,
                 function_input=workflow_input,
                 start_to_close_timeout=timedelta(seconds=30),
             )
-
         except Exception as e:
             error_message = f"Error during tasks_get_by_id: {e}"
             log.error(error_message)

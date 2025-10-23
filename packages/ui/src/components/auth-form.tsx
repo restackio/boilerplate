@@ -96,6 +96,7 @@ export function AuthForm({
               value={field.value}
               onChange={(e) => field.onChange(e.target.value)}
               required={field.required}
+              autoComplete={field.type}
             />
           </div>
         ))}

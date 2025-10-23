@@ -29,16 +29,16 @@ export default function PlaygroundPage() {
   // State for task creation
   const [taskDescription, setTaskDescription] = useState("");
   
-  // State for task executions
-  const [leftTaskId, setLeftTaskId] = useState<string | null>(null);
-  const [rightTaskId, setRightTaskId] = useState<string | null>(null);
-  
   // Loading states
   const [isLoading, setIsLoading] = useState(true);
   const [isCreatingTasks, setIsCreatingTasks] = useState(false);
   
   // UI states
   const [isLeftPanelCollapsed, setIsLeftPanelCollapsed] = useState(false);
+  
+  // Read task IDs directly from URL (single source of truth)
+  const draftTaskId = searchParams.get("draftTaskId");
+  const comparisonTaskId = searchParams.get("comparisonTaskId");
 
   // Load initial agent data
   useEffect(() => {
@@ -89,24 +89,14 @@ export default function PlaygroundPage() {
     loadAgentData();
   }, [isReady, agentId, getAgentById, getAgentVersions]);
 
-  // Load task IDs from URL on mount
+  // Auto-collapse left panel when tasks are loaded
   useEffect(() => {
-    const leftTaskIdParam = searchParams.get("leftTaskId");
-    const rightTaskIdParam = searchParams.get("rightTaskId");
-    
-    if (leftTaskIdParam) {
-      setLeftTaskId(leftTaskIdParam);
-    }
-    if (rightTaskIdParam) {
-      setRightTaskId(rightTaskIdParam);
-    }
-    
-    // If we have task IDs in the URL, auto-collapse the left panel
-    if (leftTaskIdParam && rightTaskIdParam) {
+    if (draftTaskId && comparisonTaskId) {
       setIsLeftPanelCollapsed(true);
+    } else {
+      setIsLeftPanelCollapsed(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run once on mount
+  }, [draftTaskId, comparisonTaskId]);
 
   const handleDraftAgentChange = useCallback((updates: Partial<Agent>) => {
     if (draftAgent) {
@@ -122,15 +112,12 @@ export default function PlaygroundPage() {
   }, [availableAgents]);
 
   const handleResetTasks = () => {
-    setLeftTaskId(null);
-    setRightTaskId(null);
     setTaskDescription("");
-    setIsLeftPanelCollapsed(false);
     
-    // Remove task IDs from URL
+    // Remove task IDs from URL - this will trigger re-render with null task IDs
     const params = new URLSearchParams(searchParams.toString());
-    params.delete("leftTaskId");
-    params.delete("rightTaskId");
+    params.delete("draftTaskId");
+    params.delete("comparisonTaskId");
     router.replace(`?${params.toString()}`, { scroll: false });
   };
 
@@ -138,27 +125,21 @@ export default function PlaygroundPage() {
     if (!draftAgent || !comparisonAgent || !taskDescription.trim() || !workspaceId) {
       return;
     }
-
-    // Auto-minimize left panel when creating tasks
-    setIsLeftPanelCollapsed(true);
     
     setIsCreatingTasks(true);
     try {
       // Save all draft agent changes before creating tasks
-      console.log("💾 Saving draft agent configuration...");
       const updateResult = await updateAgent(draftAgent.id, {
-        // Only update fields that can be edited in the playground
         instructions: draftAgent.instructions,
         model: draftAgent.model,
         reasoning_effort: draftAgent.reasoning_effort,
-        // Backend will filter out null values automatically
       });
 
       if (!updateResult.success) {
         throw new Error(`Failed to save draft agent changes: ${updateResult.error}`);
       }
       
-      // Call our Python backend workflow to create dual tasks
+      // Call workflow to create dual tasks
       const result = await executeWorkflow("PlaygroundCreateDualTasksWorkflow", {
         workspace_id: workspaceId,
         task_description: taskDescription,
@@ -167,23 +148,22 @@ export default function PlaygroundPage() {
       });
 
       if (result.success && result.data) {
-        setLeftTaskId(result.data.draft_task_id);
-        setRightTaskId(result.data.comparison_task_id);
+        const data = result.data as { 
+          draft_task_id: string; 
+          comparison_task_id: string;
+        };
         
-        // Add task IDs to URL for sharing
+        // Update URL with new task IDs - this will trigger component re-renders
         const params = new URLSearchParams(searchParams.toString());
-        params.set("leftTaskId", result.data.draft_task_id);
-        params.set("rightTaskId", result.data.comparison_task_id);
-        router.replace(`?${params.toString()}`, { scroll: false });
+        params.set("draftTaskId", data.draft_task_id);
+        params.set("comparisonTaskId", data.comparison_task_id);
+        router.push(`?${params.toString()}`, { scroll: false });
       } else {
         throw new Error(`Task creation failed: ${result.error || 'Unknown error'}`);
       }
       
     } catch (error) {
-      // Reset the left panel collapse state on error
-      setIsLeftPanelCollapsed(false);
-      
-      // Re-throw with more context for user feedback
+      console.error("Error creating tasks:", error);
       throw error;
     } finally {
       setIsCreatingTasks(false);
@@ -208,11 +188,11 @@ export default function PlaygroundPage() {
 
   return (
     <div className="h-screen flex flex-col">
-      <PlaygroundHeader 
+      <PlaygroundHeader
         draftAgent={draftAgent}
         comparisonAgent={comparisonAgent}
-        leftTaskId={leftTaskId}
-        rightTaskId={rightTaskId}
+        draftTaskId={draftTaskId}
+        comparisonTaskId={comparisonTaskId}
       />
       
       <div className="flex-1 flex overflow-hidden">
@@ -228,7 +208,7 @@ export default function PlaygroundPage() {
         {/* Middle Panel - Draft Agent Execution */}
         <PlaygroundMiddlePanel
           agent={draftAgent}
-          taskId={leftTaskId}
+          taskId={draftTaskId}
           title="Draft version"
           taskDescription={taskDescription}
           onTaskDescriptionChange={setTaskDescription}
@@ -242,7 +222,7 @@ export default function PlaygroundPage() {
         {/* Right Panel - Comparison Agent Execution */}
         <PlaygroundRightPanel
           agent={comparisonAgent}
-          taskId={rightTaskId}
+          taskId={comparisonTaskId}
           availableAgents={Array.isArray(availableAgents) ? availableAgents.filter(a => a.status === "published" || a.status === "draft") : []}
           onAgentChange={handleComparisonAgentChange}
           title="Compare to"
