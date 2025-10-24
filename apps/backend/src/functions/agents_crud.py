@@ -128,6 +128,10 @@ class AgentGetByWorkspaceInput(BaseModel):
         default=False,
         description="If true, return only published agents",
     )
+    parent_only: bool = Field(
+        default=False,
+        description="If true, return only parent agents",
+    )
 
 
 # Pydantic models for output serialization
@@ -550,6 +554,12 @@ async def agents_read_table(
             if function_input.published_only:
                 all_agents_query = all_agents_query.where(
                     Agent.status == "published"
+                )
+
+            # Apply parent_only filter if requested
+            if function_input.parent_only:
+                all_agents_query = all_agents_query.where(
+                    Agent.parent_agent_id.is_(None)
                 )
 
             all_agents_query = all_agents_query.order_by(

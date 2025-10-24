@@ -307,6 +307,9 @@ async def tasks_create(
                 agent_name=task.agent.name
                 if task.agent
                 else "N/A",
+                parent_agent_id=str(task.agent.parent_agent_id)
+                if task.agent and task.agent.parent_agent_id
+                else None,
                 assigned_to_id=str(task.assigned_to_id)
                 if task.assigned_to_id
                 else None,
@@ -424,6 +427,9 @@ async def tasks_update(
                 agent_name=task.agent.name
                 if task.agent
                 else "N/A",
+                parent_agent_id=str(task.agent.parent_agent_id)
+                if task.agent and task.agent.parent_agent_id
+                else None,
                 assigned_to_id=str(task.assigned_to_id)
                 if task.assigned_to_id
                 else None,
@@ -513,6 +519,9 @@ async def tasks_save_agent_state(
                 agent_name=task.agent.name
                 if task.agent
                 else "N/A",
+                parent_agent_id=str(task.agent.parent_agent_id)
+                if task.agent and task.agent.parent_agent_id
+                else None,
                 assigned_to_id=str(task.assigned_to_id)
                 if task.assigned_to_id
                 else None,
@@ -622,6 +631,9 @@ async def tasks_get_by_id(
                 agent_name=task.agent.name
                 if task.agent
                 else "N/A",
+                parent_agent_id=str(task.agent.parent_agent_id)
+                if task.agent and task.agent.parent_agent_id
+                else None,
                 assigned_to_id=str(task.assigned_to_id)
                 if task.assigned_to_id
                 else None,
@@ -865,6 +877,9 @@ async def tasks_update_agent_task_id(
                 agent_name=task.agent.name
                 if task.agent
                 else "N/A",
+                parent_agent_id=str(task.agent.parent_agent_id)
+                if task.agent and task.agent.parent_agent_id
+                else None,
                 assigned_to_id=str(task.assigned_to_id)
                 if task.assigned_to_id
                 else None,

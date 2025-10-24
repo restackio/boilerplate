@@ -51,7 +51,7 @@ export function CreateTaskForm({
 
   // Fetch agents on component mount (published only)
   useEffect(() => {
-    fetchAgents({ publishedOnly: true });
+    fetchAgents({ publishedOnly: true, parentOnly: true });
   }, [fetchAgents]);
 
   // Fetch all versions when an agent is selected

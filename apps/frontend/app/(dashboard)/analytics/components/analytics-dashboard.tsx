@@ -65,7 +65,7 @@ export default function AnalyticsDashboard() {
   // Fetch agents for filter dropdown (parent agents only)
   useEffect(() => {
     if (isReady && currentWorkspaceId) {
-      fetchAgents({ publishedOnly: true }); // Only fetch parent agents
+      fetchAgents({ publishedOnly: true, parentOnly: true }); // Only fetch published parent agents
     }
   }, [isReady, currentWorkspaceId, fetchAgents]);
 

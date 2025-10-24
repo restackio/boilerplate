@@ -44,7 +44,7 @@ export default function SchedulesPage() {
     if (isReady) {
       fetchTasks();
       fetchTeams();
-      fetchAgents({ publishedOnly: true });
+      fetchAgents({ publishedOnly: true, parentOnly: true });
     }
   }, [isReady, fetchTasks, fetchTeams, fetchAgents]);
 

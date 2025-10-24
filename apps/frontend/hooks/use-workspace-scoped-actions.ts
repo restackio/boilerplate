@@ -303,7 +303,7 @@ export function useWorkspaceScopedActions() {
   });
 
   // Agents actions
-  const fetchAgents = useCallback(async (options?: { publishedOnly?: boolean }) => {
+  const fetchAgents = useCallback(async (options?: { publishedOnly?: boolean; parentOnly?: boolean }) => {
     if (!isReady || !currentWorkspaceId) {
       console.error("Cannot fetch agents: no valid workspace context");
       return { success: false, error: "No valid workspace context" };
@@ -315,7 +315,8 @@ export function useWorkspaceScopedActions() {
       // Use the enhanced table workflow to get version information
       result = await executeWorkflow<Agent[]>("AgentsReadTableWorkflow", {
         workspace_id: currentWorkspaceId,
-        published_only: options?.publishedOnly || false
+        published_only: options?.publishedOnly || false,
+        parent_only: options?.parentOnly || false
       });
       
       if (result.success && result.data) {

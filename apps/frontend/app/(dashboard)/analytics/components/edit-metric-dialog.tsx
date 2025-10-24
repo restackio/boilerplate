@@ -94,7 +94,7 @@ export function EditMetricDialog({
   // Fetch agents when dialog opens (published only by default)
   useEffect(() => {
     if (open) {
-      fetchAgents({ publishedOnly: true });
+      fetchAgents({ publishedOnly: true, parentOnly: true });
     }
   }, [open, fetchAgents]);
 

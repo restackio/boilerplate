@@ -108,7 +108,7 @@ export function TaskAnalyticsTab({ taskId, agentId, parentAgentId }: TaskAnalyti
   }, [taskId]);
 
   // Use parent_agent_id if available (for child agents), otherwise use agentId (for parent agents)
-  const defaultParentAgentId = parentAgentId || agentId;
+  const defaultParentAgentId = parentAgentId ?? agentId;
 
   // Group metrics by response index for timeline view
   const groupedMetrics: ResponseMetrics[] = [];

@@ -80,10 +80,10 @@ export function CreateMetricDialog({
   const [retroactiveWeeks, setRetroactiveWeeks] = useState(2);
   const [samplePercentage, setSamplePercentage] = useState(10);
 
-  // Fetch agents when dialog opens (published only by default)
+  // Fetch agents when dialog opens (published parent agents only)
   useEffect(() => {
     if (open) {
-      fetchAgents({ publishedOnly: true });
+      fetchAgents({ publishedOnly: true, parentOnly: true });
     }
   }, [open, fetchAgents]);
 
@@ -274,7 +274,8 @@ export function CreateMetricDialog({
                 {selectedParentAgentIds.length > 0 && (
                   <div className="flex flex-wrap gap-2 mb-2">
                     {selectedParentAgentIds.map((agentId) => {
-                      const agent = agents.find((a) => a.id === agentId && !a.parent_agent_id);
+                      // Since we're fetching parent agents only, find the agent directly
+                      const agent = agents.find((a) => a.id === agentId);
                       if (!agent) return null;
                       return (
                         <Badge key={agentId} className="gap-1.5 pr-1">
@@ -310,8 +311,7 @@ export function CreateMetricDialog({
                       {agents
                         .filter(
                           (agent) =>
-                            // Only show parent agents (not versions)
-                            !agent.parent_agent_id &&
+                            // Since we're fetching parent agents only, no need to filter by parent_agent_id
                             !selectedParentAgentIds.includes(agent.id) &&
                             (agent.name.toLowerCase().includes(agentSearchQuery.toLowerCase()) ||
                               agent.description?.toLowerCase().includes(agentSearchQuery.toLowerCase()))
