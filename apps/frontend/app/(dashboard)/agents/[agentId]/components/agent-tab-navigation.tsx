@@ -30,8 +30,8 @@ interface AgentTabNavigationProps {
   agent: Agent;
   activeTab: string;
   onTabChange: (tab: string) => void;
-  onSave: (agentData: AgentConfigData) => Promise<void>;
-  onChange: (draft: AgentConfigData) => void;
+  onChange: (draft: Partial<AgentConfigData>) => void;
+  draft: AgentConfigData | null;
   isSaving: boolean;
   workspaceId: string;
   agentId: string;
@@ -69,8 +69,8 @@ export function AgentTabNavigation({
   agent,
   activeTab,
   onTabChange,
-  onSave,
   onChange,
+  draft,
   isSaving,
   workspaceId,
   agentId,
@@ -116,10 +116,10 @@ export function AgentTabNavigation({
           )}
           <AgentSetupTab
             agent={agent}
-            onSave={onSave}
+            draft={draft}
+            onChange={onChange}
             isSaving={isSaving}
             workspaceId={workspaceId}
-            onChange={onChange}
           />
         </TabsContent>
 

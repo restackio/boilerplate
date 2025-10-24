@@ -22,14 +22,10 @@ export interface AgentConfigData {
   reasoning_effort: string;
 }
 
-export interface AgentConfigurationFormRef {
-  getCurrentData: () => AgentConfigData;
-}
-
 interface AgentConfigurationFormProps {
   // Data
-  initialData?: Partial<AgentConfigData>;
-  onChange?: (data: AgentConfigData) => void; // Deprecated - kept for backward compatibility
+  data: AgentConfigData | null;
+  onChange: (data: Partial<AgentConfigData>) => void;
   
   // UI Configuration
   showNameField?: boolean;
@@ -92,8 +88,9 @@ function FieldWrapper({ children, title, variant }: { children: React.ReactNode;
   );
 };
 
-export const AgentConfigurationForm = forwardRef<AgentConfigurationFormRef, AgentConfigurationFormProps>(({
-  initialData,
+export function AgentConfigurationForm({
+  data,
+  onChange,
   showNameField = true,
   showDescriptionField = true,
   showModelSection = true,
@@ -104,22 +101,18 @@ export const AgentConfigurationForm = forwardRef<AgentConfigurationFormRef, Agen
   validateName = true,
   nameError: externalNameError,
   onNameValidation,
-}, ref) => {
-  // Form state
-  const [name, setName] = useState(initialData?.name || "");
-  const [description, setDescription] = useState(initialData?.description || "");
-  const [instructions, setInstructions] = useState(
-    initialData?.instructions || 
-    "You are a helpful support agent. Your role is to assist users with their technical questions and issues. Always be polite, professional, and thorough in your responses."
-  );
-  const [model, setModel] = useState(initialData?.model || "gpt-5");
-  const [reasoningEffort, setReasoningEffort] = useState(initialData?.reasoning_effort || "medium");
+}: AgentConfigurationFormProps) {
+  // Controlled component - use data from props
+  const name = data?.name || "";
+  const description = data?.description || "";
+  const instructions = data?.instructions || "You are a helpful support agent. Your role is to assist users with their technical questions and issues. Always be polite, professional, and thorough in your responses.";
+  const model = data?.model || "gpt-5";
+  const reasoningEffort = data?.reasoning_effort || "medium";
   
   // UI state
   const [internalNameError, setInternalNameError] = useState("");
   
   const nameError = externalNameError || internalNameError;
-
 
   // Validation
   const validateAgentName = useCallback((name: string): boolean => {
@@ -143,28 +136,6 @@ export const AgentConfigurationForm = forwardRef<AgentConfigurationFormRef, Agen
     return true;
   }, [validateName, onNameValidation]);
 
-  // Update form when initial data changes
-  useEffect(() => {
-    if (initialData) {
-      if (initialData.name !== undefined) setName(initialData.name);
-      if (initialData.description !== undefined) setDescription(initialData.description);
-      if (initialData.instructions !== undefined) setInstructions(initialData.instructions);
-      if (initialData.model !== undefined) setModel(initialData.model);
-      if (initialData.reasoning_effort !== undefined) setReasoningEffort(initialData.reasoning_effort);
-    }
-  }, [initialData]);
-
-  // Expose getCurrentData function via ref
-  useImperativeHandle(ref, () => ({
-    getCurrentData: () => ({
-      ...(showNameField && { name }),
-      ...(showDescriptionField && { description }),
-      instructions,
-      model,
-      reasoning_effort: reasoningEffort,
-    }),
-  }), [name, description, instructions, model, reasoningEffort, showNameField, showDescriptionField]);
-
   return (
     <div className="space-y-4">
       {/* Name Field */}
@@ -176,7 +147,7 @@ export const AgentConfigurationForm = forwardRef<AgentConfigurationFormRef, Agen
             value={name}
             onChange={(e) => {
               const v = e.target.value;
-              setName(v);
+              onChange({ name: v });
               validateAgentName(v);
             }}
             placeholder="e.g., github-pr-agent, zendesk-support"
@@ -201,7 +172,7 @@ export const AgentConfigurationForm = forwardRef<AgentConfigurationFormRef, Agen
             value={description}
             onChange={(e) => {
               const v = e.target.value;
-              setDescription(v);
+              onChange({ description: v });
             }}
             placeholder="Brief description of what this agent does..."
             disabled={isReadOnly}
@@ -218,7 +189,7 @@ export const AgentConfigurationForm = forwardRef<AgentConfigurationFormRef, Agen
               <Select
                 value={model}
                 onValueChange={(v) => {
-                  setModel(v);
+                  onChange({ model: v });
                 }}
                 disabled={isReadOnly}
               >
@@ -236,11 +207,11 @@ export const AgentConfigurationForm = forwardRef<AgentConfigurationFormRef, Agen
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="agent-reasoning-effort" className="text-xs">Reasoning Effort</Label>
+              <Label htmlFor="agent-reasoning-effort" className="text-xs">Reasoning effort</Label>
               <Select
                 value={reasoningEffort}
                 onValueChange={(v) => {
-                  setReasoningEffort(v);
+                  onChange({ reasoning_effort: v });
                 }}
                 disabled={isReadOnly}
               >
@@ -274,7 +245,7 @@ export const AgentConfigurationForm = forwardRef<AgentConfigurationFormRef, Agen
                     const newInstructions = instructions 
                       ? instructions + "\n\n" + template.content 
                       : template.content;
-                    setInstructions(newInstructions);
+                    onChange({ instructions: newInstructions });
                   }
                 }}>
                   <SelectTrigger className="h-8 w-full">
@@ -296,7 +267,7 @@ export const AgentConfigurationForm = forwardRef<AgentConfigurationFormRef, Agen
               value={instructions}
               onChange={(e) => {
                 const v = e.target.value;
-                setInstructions(v);
+                onChange({ instructions: v });
               }}
               placeholder="Enter detailed instructions for how this agent should behave..."
               className={`font-mono text-sm resize-none`}
@@ -311,6 +282,4 @@ export const AgentConfigurationForm = forwardRef<AgentConfigurationFormRef, Agen
       )}
     </div>
   );
-});
-
-AgentConfigurationForm.displayName = "AgentConfigurationForm";
+}

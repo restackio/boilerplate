@@ -6,7 +6,7 @@ import { PageHeader } from "@workspace/ui/components/page-header";
 import { 
   AgentActions,
   AgentNotFound,
-  AgentTabNavigation
+  AgentTabNavigation,
 } from "./components";
 import { useAgentPage } from "./hooks/use-agent-page";
 
@@ -20,6 +20,7 @@ export default function AgentEditPage() {
     isReady,
     workspaceId,
     activeTab,
+    draft,
     isSaving,
     isPublishing,
     isDeleting,
@@ -58,7 +59,7 @@ export default function AgentEditPage() {
           actions={
             <AgentActions
               agent={agent}
-              onSave={() => handleSave()}
+              onSave={handleSave}
               onPublish={handlePublish}
               onDelete={handleDelete}
               onArchive={handleArchive}
@@ -78,7 +79,7 @@ export default function AgentEditPage() {
               agent={agent}
               activeTab={activeTab}
               onTabChange={setActiveTab}
-              onSave={handleSave}
+              draft={draft}
               onChange={handleDraftChange}
               isSaving={isSaving}
               workspaceId={workspaceId}

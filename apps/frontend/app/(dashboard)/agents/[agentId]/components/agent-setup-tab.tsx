@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useCallback, useMemo, useRef, forwardRef, useImperativeHandle } from "react";
+import { useState, useCallback } from "react";
 import { Label } from "@workspace/ui/components/ui/label";
 import { AgentToolsManager } from "./agent-tools-manager";
-import { AgentConfigurationForm, type AgentConfigData, type AgentConfigurationFormRef } from "./agent-configuration-form";
+import { AgentConfigurationForm, type AgentConfigData } from "./agent-configuration-form";
 
 interface Agent {
   id?: string;
@@ -15,21 +15,16 @@ interface Agent {
   reasoning_effort?: string;
 }
 
-export interface AgentSetupTabRef {
-  getCurrentData: () => AgentConfigData | null;
-}
-
 interface AgentSetupTabProps {
   agent: Agent | null;
-  onSave: (agentData: AgentConfigData) => Promise<void>;
+  draft: AgentConfigData | null;
+  onChange: (draft: Partial<AgentConfigData>) => void;
   isSaving: boolean;
   workspaceId: string;
-  onChange?: (agentData: AgentConfigData) => void; // Deprecated - use ref instead
 }
 
-export const AgentSetupTab = forwardRef<AgentSetupTabRef, AgentSetupTabProps>(({ agent, workspaceId }, ref) => {
+export function AgentSetupTab({ agent, draft, onChange, workspaceId }: AgentSetupTabProps) {
   const [nameError, setNameError] = useState("");
-  const formRef = useRef<AgentConfigurationFormRef>(null);
   
   // Check if agent is published (read-only)
   const isReadOnly = agent?.status === "published";
@@ -39,28 +34,12 @@ export const AgentSetupTab = forwardRef<AgentSetupTabRef, AgentSetupTabProps>(({
     setNameError(error);
   }, []);
 
-  // Memoize initial data to prevent unnecessary re-renders
-  const initialData = useMemo(() => ({
-    name: agent?.name,
-    description: agent?.description,
-    instructions: agent?.instructions || "",
-    model: agent?.model || "gpt-5",
-    reasoning_effort: agent?.reasoning_effort || "medium",
-  }), [agent?.name, agent?.description, agent?.instructions, agent?.model, agent?.reasoning_effort]);
-
-  // Expose getCurrentData function via ref
-  useImperativeHandle(ref, () => ({
-    getCurrentData: () => {
-      return formRef.current?.getCurrentData() || null;
-    },
-  }), []);
-
   return (
     <div className="space-y-6">
       {/* Agent Configuration Form */}
       <AgentConfigurationForm
-        ref={formRef}
-        initialData={initialData}
+        data={draft}
+        onChange={onChange}
         showNameField={true}
         showDescriptionField={true}
         showInstructionsPreview={true}
@@ -82,6 +61,4 @@ export const AgentSetupTab = forwardRef<AgentSetupTabRef, AgentSetupTabProps>(({
 
     </div>
   );
-});
-
-AgentSetupTab.displayName = "AgentSetupTab"; 
+} 

@@ -187,6 +187,7 @@ export interface UpdateMetricInput {
   config?: Record<string, unknown>;
   is_active?: boolean;
   parent_agent_ids?: string[];
+  [key: string]: unknown;
 }
 
 export async function updateMetric(input: UpdateMetricInput): Promise<boolean> {
