@@ -56,7 +56,7 @@ export function useToast() {
     // Fallback for when used outside provider
     return {
       toast: (props: ToastProps) => {
-        console.log("Toast:", props);
+        // console.log("Toast:", props);
       },
     };
   }
