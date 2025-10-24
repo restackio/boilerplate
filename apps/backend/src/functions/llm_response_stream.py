@@ -1,12 +1,10 @@
 import asyncio
-import os
 import warnings
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from dotenv import load_dotenv
-from openai import AsyncOpenAI
 from openai._exceptions import (
     APIResponseValidationError,
 )
@@ -23,7 +21,11 @@ from restack_ai.function import (
     stream_to_websocket,
 )
 
+if TYPE_CHECKING:
+    from openai import AsyncOpenAI
+
 from src.client import api_address
+from src.utils.openai_client import get_openai_client
 
 from .send_agent_event import (
     SendAgentEventInput,
@@ -169,9 +171,9 @@ class AsyncTee:
         if self._task is None:
             self._task = asyncio.create_task(self._producer())
 
-        async def _consumer() -> (
-            AsyncIterator[ResponseStreamEvent]
-        ):
+        async def _consumer() -> AsyncIterator[
+            ResponseStreamEvent
+        ]:
             while True:
                 item = await self._queues[index].get()
                 if item is StopAsyncIteration:
@@ -429,7 +431,7 @@ def _initialize_tracing(
 
 
 async def _make_openai_request_with_tracing(
-    client: AsyncOpenAI,
+    client: "AsyncOpenAI",
     function_input: Any,
     *,
     has_tracing: bool,
@@ -502,13 +504,8 @@ async def llm_response_stream(
     trace_context = None
 
     try:
-        if not os.environ.get("OPENAI_API_KEY"):
-            error_msg = "OPENAI_API_KEY is not set"
-            raise NonRetryableError(error_msg)
-
-        client = AsyncOpenAI(
-            api_key=os.environ.get("OPENAI_API_KEY")
-        )
+        # Get singleton client to prevent file descriptor leaks
+        client = get_openai_client()
 
         # Check if tracing SDK is available
         try:

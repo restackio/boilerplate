@@ -4,15 +4,14 @@ Executes different types of metrics: LLM judges, Python code, and formulas.
 """
 
 import json
-import os
 import time
 from typing import Any
 
-from openai import AsyncOpenAI
 from pydantic import BaseModel
 from restack_ai.function import function, log
 
 from src.database.connection import get_clickhouse_async_client
+from src.utils.openai_client import get_openai_client
 
 # ===================================
 # Pydantic Models
@@ -110,10 +109,8 @@ async def evaluate_llm_judge_metric(
             log.error("No judge_prompt in config")
             return None
 
-        # Initialize OpenAI (async)
-        client = AsyncOpenAI(
-            api_key=os.environ.get("OPENAI_API_KEY")
-        )
+        # Get singleton OpenAI client to prevent file descriptor leaks
+        client = get_openai_client()
 
         # Construct evaluation prompt
         full_prompt = f"""{judge_prompt}

@@ -118,7 +118,9 @@ class TaskOutput(BaseModel):
     status: str
     agent_id: str
     agent_name: str
-    parent_agent_id: str | None = None  # Parent agent ID for metrics
+    parent_agent_id: str | None = (
+        None  # Parent agent ID for metrics
+    )
     assigned_to_id: str | None
     assigned_to_name: str | None
     temporal_agent_id: str | None
@@ -201,7 +203,9 @@ async def tasks_read(
                     agent_name=task.agent.name
                     if task.agent
                     else "N/A",
-                    parent_agent_id=str(task.agent.parent_agent_id)
+                    parent_agent_id=str(
+                        task.agent.parent_agent_id
+                    )
                     if task.agent and task.agent.parent_agent_id
                     else None,
                     assigned_to_id=str(task.assigned_to_id)
@@ -593,7 +597,8 @@ async def tasks_get_by_id(
 
             if function_input.workspace_id:
                 task_query = task_query.where(
-                    Task.workspace_id == uuid.UUID(function_input.workspace_id)
+                    Task.workspace_id
+                    == uuid.UUID(function_input.workspace_id)
                 )
 
             result = await db.execute(task_query)
@@ -694,7 +699,9 @@ async def tasks_get_by_parent_id(
                     agent_name=task.agent.name
                     if task.agent
                     else "N/A",
-                    parent_agent_id=str(task.agent.parent_agent_id)
+                    parent_agent_id=str(
+                        task.agent.parent_agent_id
+                    )
                     if task.agent and task.agent.parent_agent_id
                     else None,
                     assigned_to_id=str(task.assigned_to_id)
@@ -768,7 +775,9 @@ async def tasks_get_by_status(
                     agent_name=task.agent.name
                     if task.agent
                     else "N/A",
-                    parent_agent_id=str(task.agent.parent_agent_id)
+                    parent_agent_id=str(
+                        task.agent.parent_agent_id
+                    )
                     if task.agent and task.agent.parent_agent_id
                     else None,
                     assigned_to_id=str(task.assigned_to_id)
