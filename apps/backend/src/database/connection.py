@@ -114,7 +114,6 @@ async def get_clickhouse_async_client() -> (
         "http://clickhouse:clickhouse@localhost:8123/boilerplate_clickhouse",
     )
 
-    logger.info("Connecting to ClickHouse using CLICKHOUSE_URL")
     return await clickhouse_connect.get_async_client(
         dsn=clickhouse_url
     )

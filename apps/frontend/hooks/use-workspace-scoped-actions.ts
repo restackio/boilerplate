@@ -46,6 +46,7 @@ export interface Task {
   status: "in_progress" | "in_review" | "closed" | "completed" | "failed";
   agent_id: string;
   agent_name: string;
+  parent_agent_id?: string; // Parent agent ID for child agents (versions)
   type?: "interactive" | "pipeline";
   assigned_to_id: string;
   assigned_to_name: string;

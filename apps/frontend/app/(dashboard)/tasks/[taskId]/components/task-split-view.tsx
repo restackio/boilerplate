@@ -193,7 +193,7 @@ export function TaskSplitView({
     {
       id: "analytics",
       label: "Analytics",
-      content: <TaskAnalyticsTab taskId={task.id} agentId={task.agent_id} />,
+      content: <TaskAnalyticsTab taskId={task.id} agentId={task.agent_id} parentAgentId={task.parent_agent_id} />,
     },
     {
       id: "info",
