@@ -442,7 +442,7 @@ export function EditMetricDialog({
                     <Label htmlFor="judgePrompt">Prompt</Label>
                     <Textarea
                       id="judgePrompt"
-                      placeholder={'Example:\n"Evaluate if this response is helpful and answers the user\'s question clearly. Consider accuracy, completeness, and tone.\n\nReturn JSON: {"passed": true/false, "score": 0-100, "reasoning": "..."}'}
+                      placeholder={'Example:\n"Evaluate if this response is helpful and answers the user\'s question clearly. Consider accuracy, completeness, and tone.'}
                       value={judgePrompt}
                       onChange={(e) => setJudgePrompt(e.target.value)}
                       rows={6}

@@ -94,8 +94,8 @@ export function CreateMetricDialog({
       const feedbackText = feedbackContext.feedbackText;
       
       const suggestedPrompt = feedbackText
-        ? `Evaluate if the response addresses the following concern from user feedback: "${feedbackText}"\n\nThis feedback was marked as ${feedbackType}.\n\nReturn JSON: {"passed": true/false, "score": 0-100, "reasoning": "..."}`
-        : `Evaluate if the response would receive ${feedbackType} feedback from users.\n\nReturn JSON: {"passed": true/false, "score": 0-100, "reasoning": "..."}`;
+        ? `Evaluate if the response addresses the following concern from ${feedbackType} user feedback: "${feedbackText}".`
+        : `Evaluate if the response would receive ${feedbackType} feedback from users.`;
       
       setJudgePrompt(suggestedPrompt);
       setName(`feedback_${feedbackType}_check`);
@@ -388,7 +388,7 @@ export function CreateMetricDialog({
                 <Label htmlFor="judgePrompt">Prompt</Label>
                 <Textarea
                   id="judgePrompt"
-                  placeholder={'Example:\n"Evaluate if this response is helpful and answers the user\'s question clearly. Consider accuracy, completeness, and tone.\n\nReturn JSON: {"passed": true/false, "score": 0-100, "reasoning": "..."}'}
+                  placeholder={'Example:\n"Evaluate if this response is helpful and answers the user\'s question clearly. Consider accuracy, completeness, and tone.'}
                   value={judgePrompt}
                   onChange={(e) => setJudgePrompt(e.target.value)}
                   rows={6}
