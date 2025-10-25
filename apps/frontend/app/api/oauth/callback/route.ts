@@ -3,11 +3,9 @@ import { runWorkflow, getWorkflowResult } from '@/app/actions/workflow';
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('OAuth callback API called');
-    
+
     const body = await request.json();
-    console.log('Request body:', body);
-    
+
     const { workflow, input } = body;
 
     if (!workflow || !input) {
@@ -18,7 +16,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('Executing workflow:', workflow, 'with input:', input);
 
     // Execute the OAuth callback workflow
     const { workflowId, runId } = await runWorkflow({
@@ -26,15 +23,11 @@ export async function POST(request: NextRequest) {
       input,
     });
 
-    console.log('Workflow scheduled:', { workflowId, runId });
-
     // Get the workflow result
     const result = await getWorkflowResult({
       workflowId,
       runId,
     });
-
-    console.log('Workflow result:', result);
 
     return NextResponse.json({
       success: true,

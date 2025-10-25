@@ -53,6 +53,13 @@ export function useAgentPage(agentId: string) {
       const result = await getAgentById(agentId);
       if (result.success && result.data) {
         setAgent(result.data);
+        setDraft({
+          name: result.data.name,
+          description: result.data.description,
+          instructions: result.data.instructions,
+          model: result.data.model || "gpt-5",
+          reasoning_effort: result.data.reasoning_effort || "medium",
+        });
       } else {
         console.error("Failed to fetch agent:", result.error);
         setAgent(null);
@@ -70,41 +77,48 @@ export function useAgentPage(agentId: string) {
   }, [fetchAgent]);
 
   // Memoize the onChange callback to prevent infinite re-renders
-  const handleDraftChange = useCallback((d: AgentConfigData) => {
-    setDraft(d);
+  const handleDraftChange = useCallback((d: Partial<AgentConfigData>) => {
+    setDraft(prev => {
+      if (!prev) {
+        // If no previous draft, we shouldn't update until agent is loaded
+        return null;
+      }
+      return { ...prev, ...d };
+    });
   }, []);
 
-  const handleSave = useCallback(async (agentData?: AgentConfigData) => {
+  const handleSave = useCallback(async () => {
     if (!agent) return;
 
-    const dataToSave = agentData || {
-      name: draft?.name ?? agent.name,
-      description: draft?.description ?? agent.description,
-      instructions: draft?.instructions ?? agent.instructions,
-      model: draft?.model,
-      reasoning_effort: draft?.reasoning_effort,
+    // Use draft if available, otherwise fall back to agent's current values
+    const currentDraft = draft || {
+      name: agent.name,
+      description: agent.description,
+      instructions: agent.instructions,
+      model: agent.model || "gpt-5",
+      reasoning_effort: agent.reasoning_effort || "medium",
+    };
+
+    const dataToSave = {
+      name: currentDraft.name,
+      description: currentDraft.description,
+      instructions: currentDraft.instructions,
+      model: currentDraft.model,
+      reasoning_effort: currentDraft.reasoning_effort,
     };
 
     setIsSaving(true);
     try {
-      // Use latest draft data merged with current agent data
-      const latest = { ...(draft || {}), ...dataToSave };
-      
       // If this is a published agent, create a new version (draft)
       if (agent.status === "published") {
-        // Create a new draft version from published agent
-        
         const cloneData = {
-          name: latest.name,
-          description: latest.description,
-          instructions: latest.instructions,
-          model: latest.model,
-          reasoning_effort: latest.reasoning_effort,
+          ...dataToSave,
           type: agent.type, 
           status: "draft" as const,
         };
 
         const result = await cloneAgent(agentId, cloneData);
+        
         if (result.success) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const newAgent: any = result.data;
@@ -118,18 +132,18 @@ export function useAgentPage(agentId: string) {
           console.error("Failed to create new agent version:", result.error);
         }
       } else {
-        // This is a draft or archived agent, just update it
-        const updateData = {
-          name: latest.name,
-          description: latest.description,
-          instructions: latest.instructions,
-          model: latest.model,
-          reasoning_effort: latest.reasoning_effort,
-        };
-
-        const result = await updateAgent(agentId, updateData);
+        const result = await updateAgent(agentId, dataToSave);
+        
         if (result.success && result.data) {
           setAgent(result.data);
+          // Also update draft to reflect the saved state
+          setDraft({
+            name: result.data.name,
+            description: result.data.description,
+            instructions: result.data.instructions,
+            model: result.data.model || "gpt-5",
+            reasoning_effort: result.data.reasoning_effort || "medium",
+          });
         } else {
           console.error("Failed to update agent:", result.error);
         }

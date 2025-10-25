@@ -32,7 +32,7 @@
     "prod:reset": "docker-compose down -v && docker-compose up -d --build"
   },
   "dependencies": {
-    "@restackio/ai": "^0.0.147"
+    "@restackio/ai": "^0.0.149"
   },
   "devDependencies": {
     "@workspace/eslint-config": "workspace:*",

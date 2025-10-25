@@ -193,6 +193,7 @@ class TasksUpdateWorkflow:
             ) and workflow_input.status in [
                 "completed",
                 "closed",
+                "failed",
             ]:
                 try:
                     current_task_result = await workflow.step(
@@ -214,13 +215,13 @@ class TasksUpdateWorkflow:
                         f"Failed to get current task for agent stopping: {e}"
                     )
 
-            # If task is being completed/closed and has an active agent, stop the agent FIRST
+            # If task is being completed/closed/failed and has an active agent, stop the agent FIRST
             if (
                 current_task
                 and current_task.temporal_agent_id
                 and hasattr(workflow_input, "status")
                 and workflow_input.status
-                in ["completed", "closed"]
+                in ["completed", "closed", "failed"]
             ):
                 try:
                     log.info(

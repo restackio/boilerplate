@@ -46,6 +46,7 @@ export interface Task {
   status: "in_progress" | "in_review" | "closed" | "completed" | "failed";
   agent_id: string;
   agent_name: string;
+  parent_agent_id?: string; // Parent agent ID for child agents (versions)
   type?: "interactive" | "pipeline";
   assigned_to_id: string;
   assigned_to_name: string;
@@ -302,7 +303,7 @@ export function useWorkspaceScopedActions() {
   });
 
   // Agents actions
-  const fetchAgents = useCallback(async (options?: { publishedOnly?: boolean }) => {
+  const fetchAgents = useCallback(async (options?: { publishedOnly?: boolean; parentOnly?: boolean }) => {
     if (!isReady || !currentWorkspaceId) {
       console.error("Cannot fetch agents: no valid workspace context");
       return { success: false, error: "No valid workspace context" };
@@ -314,7 +315,8 @@ export function useWorkspaceScopedActions() {
       // Use the enhanced table workflow to get version information
       result = await executeWorkflow<Agent[]>("AgentsReadTableWorkflow", {
         workspace_id: currentWorkspaceId,
-        published_only: options?.publishedOnly || false
+        published_only: options?.publishedOnly || false,
+        parent_only: options?.parentOnly || false
       });
       
       if (result.success && result.data) {

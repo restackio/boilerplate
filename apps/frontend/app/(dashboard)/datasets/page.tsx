@@ -31,8 +31,7 @@ export default function DatasetsPage() {
         workspace_id: currentWorkspaceId,
       });
       
-      console.log("Datasets workflow result:", result);
-      
+ 
       if (result.success && result.data) {
         // Transform the data to match our interface
         const transformedDatasets: Dataset[] = (result.data as Dataset[])?.map((dataset: Dataset) => ({

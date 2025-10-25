@@ -179,6 +179,36 @@ export async function toggleMetricStatus(metricId: string, isActive: boolean): P
   }
 }
 
+// Update metric definition
+export interface UpdateMetricInput {
+  metric_id: string;
+  name?: string;
+  description?: string;
+  config?: Record<string, unknown>;
+  is_active?: boolean;
+  parent_agent_ids?: string[];
+  [key: string]: unknown;
+}
+
+export async function updateMetric(input: UpdateMetricInput): Promise<boolean> {
+  try {
+    const { workflowId, runId } = await runWorkflow({
+      workflowName: "UpdateMetricDefinitionWorkflow",
+      input,
+    });
+
+    const result = await getWorkflowResult({
+      workflowId,
+      runId,
+    });
+
+    return (result as { success?: boolean })?.success || false;
+  } catch (error) {
+    console.error("Error updating metric:", error);
+    return false;
+  }
+}
+
 // Delete metric (soft delete)
 export async function deleteMetric(metricId: string): Promise<boolean> {
   try {

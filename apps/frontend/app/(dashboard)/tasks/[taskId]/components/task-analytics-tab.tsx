@@ -53,9 +53,10 @@ interface ResponseMetrics {
 interface TaskAnalyticsTabProps {
   taskId: string;
   agentId?: string;
+  parentAgentId?: string; // Parent agent ID from backend
 }
 
-export function TaskAnalyticsTab({ taskId, agentId }: TaskAnalyticsTabProps) {
+export function TaskAnalyticsTab({ taskId, agentId, parentAgentId }: TaskAnalyticsTabProps) {
   const router = useRouter();
   const { currentWorkspaceId, currentUserId } = useDatabaseWorkspace();
   const [metrics, setMetrics] = useState<TaskQualityMetric[]>([]);
@@ -105,6 +106,9 @@ export function TaskAnalyticsTab({ taskId, agentId }: TaskAnalyticsTabProps) {
     fetchData();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [taskId]);
+
+  // Use parent_agent_id if available (for child agents), otherwise use agentId (for parent agents)
+  const defaultParentAgentId = parentAgentId ?? agentId;
 
   // Group metrics by response index for timeline view
   const groupedMetrics: ResponseMetrics[] = [];
@@ -404,7 +408,7 @@ export function TaskAnalyticsTab({ taskId, agentId }: TaskAnalyticsTabProps) {
                               isPositive: feedback.isPositive,
                               feedbackText: feedback.feedbackText,
                             }}
-                            defaultParentAgentIds={agentId ? [agentId] : undefined}
+                            defaultParentAgentIds={defaultParentAgentId ? [defaultParentAgentId] : undefined}
                             trigger={
                               <Button variant="outline" size="sm" className="h-7 px-2">
                                 <ClipboardCheck className="h-3.5 w-3.5" />

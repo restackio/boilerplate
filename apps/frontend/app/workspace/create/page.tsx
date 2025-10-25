@@ -109,21 +109,15 @@ export default function CreateWorkspacePage() {
         return;
       }
 
-      console.log("Workspace created successfully:", workspaceData.data);
-      console.log("Workspace ID:", workspaceData.data.id);
-
       // Store the new workspace ID in sessionStorage so we can navigate to it after reload
       if (workspaceData.data.id) {
         sessionStorage.setItem("newWorkspaceId", workspaceData.data.id);
-        console.log("Stored newWorkspaceId in sessionStorage:", workspaceData.data.id);
-        console.log("SessionStorage now contains:", sessionStorage.getItem("newWorkspaceId"));
       } else {
         console.error("No workspace ID found in response!");
       }
 
       // Force a page reload to refresh workspace data
       // The dashboard will check for newWorkspaceId and switch to it
-      console.log("Redirecting to dashboard...");
       window.location.href = "/dashboard";
     } catch (error) {
       void error; // Suppress unused warning

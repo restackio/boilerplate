@@ -6,12 +6,9 @@ import { PageHeader } from "@workspace/ui/components/page-header";
 import { Skeleton } from "@workspace/ui/components/ui/skeleton";
 import { Button } from "@workspace/ui/components/ui/button";
 import { RefreshCw } from "lucide-react";
-import { CreateMetricDialog } from "./components/create-metric-dialog";
-import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 
 export default function AnalyticsPage() {
   const breadcrumbs = [{ label: "Analytics" }];
-  const { currentWorkspaceId, currentUserId } = useDatabaseWorkspace();
   const [refreshKey, setRefreshKey] = useState(0);
 
   const handleRefresh = () => {
@@ -19,26 +16,11 @@ export default function AnalyticsPage() {
     window.location.reload();
   };
 
-  const handleMetricCreated = () => {
-    setRefreshKey(prev => prev + 1);
-    // Optionally reload to show new metric in dashboard
-    setTimeout(() => window.location.reload(), 1000);
-  };
-
   const actions = (
-    <div className="flex gap-2">
-      <Button variant="outline" size="sm" onClick={handleRefresh}>
-        <RefreshCw className="h-4 w-4 mr-2" />
-        Refresh
-      </Button>
-      {currentWorkspaceId && (
-        <CreateMetricDialog
-          workspaceId={currentWorkspaceId}
-          userId={currentUserId}
-          onMetricCreated={handleMetricCreated}
-        />
-      )}
-    </div>
+    <Button variant="outline" size="sm" onClick={handleRefresh}>
+      <RefreshCw className="h-4 w-4 mr-2" />
+      Refresh
+    </Button>
   );
 
   return (

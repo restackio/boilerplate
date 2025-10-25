@@ -99,7 +99,7 @@ def format_webhook_payload_as_task_description(
 {json.dumps(payload, indent=2)}
 ```
 
-**Received at:** {time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime())}
+**Received at:** {time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())}
 """
 
     return title, description

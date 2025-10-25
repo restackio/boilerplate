@@ -80,10 +80,10 @@ export function CreateMetricDialog({
   const [retroactiveWeeks, setRetroactiveWeeks] = useState(2);
   const [samplePercentage, setSamplePercentage] = useState(10);
 
-  // Fetch agents when dialog opens (published only by default)
+  // Fetch agents when dialog opens (published parent agents only)
   useEffect(() => {
     if (open) {
-      fetchAgents({ publishedOnly: true });
+      fetchAgents({ publishedOnly: true, parentOnly: true });
     }
   }, [open, fetchAgents]);
 
@@ -94,8 +94,8 @@ export function CreateMetricDialog({
       const feedbackText = feedbackContext.feedbackText;
       
       const suggestedPrompt = feedbackText
-        ? `Evaluate if the response addresses the following concern from user feedback: "${feedbackText}"\n\nThis feedback was marked as ${feedbackType}.\n\nReturn JSON: {"passed": true/false, "score": 0-100, "reasoning": "..."}`
-        : `Evaluate if the response would receive ${feedbackType} feedback from users.\n\nReturn JSON: {"passed": true/false, "score": 0-100, "reasoning": "..."}`;
+        ? `Evaluate if the response addresses the following concern from ${feedbackType} user feedback: "${feedbackText}".`
+        : `Evaluate if the response would receive ${feedbackType} feedback from users.`;
       
       setJudgePrompt(suggestedPrompt);
       setName(`feedback_${feedbackType}_check`);
@@ -263,87 +263,92 @@ export function CreateMetricDialog({
               />
             </div>
 
-            {/* Parent Agents Selection */}
-            <div className="space-y-2">
-              <Label>Associated agents</Label>
-              <p className="text-xs text-muted-foreground">
-                Select which agents should be evaluated. Leave empty to run for all agents.
-              </p>
-              
-              {/* Selected agents badges */}
-              {selectedParentAgentIds.length > 0 && (
-                <div className="flex flex-wrap gap-2 mb-2">
-                  {selectedParentAgentIds.map((agentId) => {
-                    const agent = agents.find((a) => a.id === agentId);
-                    return (
-                      <Badge key={agentId} className="gap-1.5 pr-1">
-                        <span className="max-w-[200px] truncate">{agent?.name || agentId}</span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-4 w-4 p-0 hover:bg-transparent"
-                          onClick={() => setSelectedParentAgentIds(selectedParentAgentIds.filter((id) => id !== agentId))}
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </Badge>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* Agent search and selection */}
+              {/* Parent Agents Selection */}
               <div className="space-y-2">
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    placeholder="Search agents to add..."
-                    value={agentSearchQuery}
-                    onChange={(e) => setAgentSearchQuery(e.target.value)}
-                    className="h-8 pl-8 text-sm"
-                  />
-                </div>
+                <Label>Associated agents</Label>
+                <p className="text-xs text-muted-foreground">
+                  Select parent agents to evaluate. The metric will run on all versions of these agents. Leave empty to run for all agents.
+                </p>
+                
+                {/* Selected agents badges */}
+                {selectedParentAgentIds.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {selectedParentAgentIds.map((agentId) => {
+                      // Since we're fetching parent agents only, find the agent directly
+                      const agent = agents.find((a) => a.id === agentId);
+                      if (!agent) return null;
+                      return (
+                        <Badge key={agentId} className="gap-1.5 pr-1">
+                          <span className="max-w-[200px] truncate">{agent.name}</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-4 w-4 p-0 hover:bg-transparent"
+                            onClick={() => setSelectedParentAgentIds(selectedParentAgentIds.filter((id) => id !== agentId))}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                )}
 
-                {agentSearchQuery && (
-                  <div className="max-h-40 overflow-y-auto rounded-md border">
-                    {agents
-                      .filter(
+                {/* Agent search and selection */}
+                <div className="space-y-2">
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      placeholder="Search agents to add..."
+                      value={agentSearchQuery}
+                      onChange={(e) => setAgentSearchQuery(e.target.value)}
+                      className="h-8 pl-8 text-sm"
+                    />
+                  </div>
+
+                  {agentSearchQuery && (
+                    <div className="max-h-40 overflow-y-auto rounded-md border">
+                      {agents
+                        .filter(
+                          (agent) =>
+                            // Since we're fetching parent agents only, no need to filter by parent_agent_id
+                            !selectedParentAgentIds.includes(agent.id) &&
+                            (agent.name.toLowerCase().includes(agentSearchQuery.toLowerCase()) ||
+                              agent.description?.toLowerCase().includes(agentSearchQuery.toLowerCase()))
+                        )
+                        .map((agent) => (
+                          <div
+                            key={agent.id}
+                            className="flex items-center justify-between p-2 hover:bg-muted cursor-pointer"
+                            onClick={() => {
+                              setSelectedParentAgentIds([...selectedParentAgentIds, agent.id]);
+                              setAgentSearchQuery("");
+                            }}
+                          >
+                            <div>
+                              <p className="text-sm font-medium">{agent.name}</p>
+                              {agent.description && (
+                                <p className="text-xs text-muted-foreground truncate max-w-xs">
+                                  {agent.description}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      {agents.filter(
                         (agent) =>
+                          // Only show parent agents (not versions)
+                          !agent.parent_agent_id &&
                           !selectedParentAgentIds.includes(agent.id) &&
                           (agent.name.toLowerCase().includes(agentSearchQuery.toLowerCase()) ||
                             agent.description?.toLowerCase().includes(agentSearchQuery.toLowerCase()))
-                      )
-                      .map((agent) => (
-                        <div
-                          key={agent.id}
-                          className="flex items-center justify-between p-2 hover:bg-muted cursor-pointer"
-                          onClick={() => {
-                            setSelectedParentAgentIds([...selectedParentAgentIds, agent.id]);
-                            setAgentSearchQuery("");
-                          }}
-                        >
-                          <div>
-                            <p className="text-sm font-medium">{agent.name}</p>
-                            {agent.description && (
-                              <p className="text-xs text-muted-foreground truncate max-w-xs">
-                                {agent.description}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    {agents.filter(
-                      (agent) =>
-                        !selectedParentAgentIds.includes(agent.id) &&
-                        (agent.name.toLowerCase().includes(agentSearchQuery.toLowerCase()) ||
-                          agent.description?.toLowerCase().includes(agentSearchQuery.toLowerCase()))
-                    ).length === 0 && (
-                      <p className="p-2 text-sm text-muted-foreground">No agents found</p>
-                    )}
-                  </div>
-                )}
+                      ).length === 0 && (
+                        <p className="p-2 text-sm text-muted-foreground">No agents found</p>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
 
             <div className="grid grid-cols-2 gap-4">
             {/* Metric Type */}
@@ -383,7 +388,7 @@ export function CreateMetricDialog({
                 <Label htmlFor="judgePrompt">Prompt</Label>
                 <Textarea
                   id="judgePrompt"
-                  placeholder={'Example:\n"Evaluate if this response is helpful and answers the user\'s question clearly. Consider accuracy, completeness, and tone.\n\nReturn JSON: {"passed": true/false, "score": 0-100, "reasoning": "..."}'}
+                  placeholder={'Example:\n"Evaluate if this response is helpful and answers the user\'s question clearly. Consider accuracy, completeness, and tone.'}
                   value={judgePrompt}
                   onChange={(e) => setJudgePrompt(e.target.value)}
                   rows={6}
