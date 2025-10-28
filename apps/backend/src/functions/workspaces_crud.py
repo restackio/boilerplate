@@ -5,7 +5,11 @@ from restack_ai.function import NonRetryableError, function
 from sqlalchemy import select
 
 from src.database.connection import get_async_db
-from src.database.models import McpServer, UserWorkspace, Workspace
+from src.database.models import (
+    McpServer,
+    UserWorkspace,
+    Workspace,
+)
 
 
 # Pydantic models for input validation
