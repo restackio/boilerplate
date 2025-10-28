@@ -5,7 +5,7 @@ from restack_ai.function import NonRetryableError, function
 from sqlalchemy import select
 
 from src.database.connection import get_async_db
-from src.database.models import UserWorkspace, Workspace
+from src.database.models import McpServer, UserWorkspace, Workspace
 
 
 # Pydantic models for input validation
@@ -115,13 +115,22 @@ async def workspaces_create(
                 user_workspace_id = uuid.uuid4()
                 user_workspace = UserWorkspace(
                     id=user_workspace_id,
-                    user_id=uuid.UUID(
-                        workspace_data.created_by_user_id
-                    ),
+                    user_id=uuid.UUID(workspace_data.created_by_user_id),
                     workspace_id=workspace.id,
                     role="owner",
                 )
                 db.add(user_workspace)
+
+            restack_core_server = McpServer(
+                id=uuid.uuid4(),
+                workspace_id=workspace.id,
+                server_label="restack-core",
+                server_url=None,
+                local=True,
+                server_description="Core Restack MCP server providing unified tools including mock generation, transform, load, and ClickHouse operations",
+                headers=None,
+            )
+            db.add(restack_core_server)
 
             await db.commit()
             await db.refresh(workspace)
