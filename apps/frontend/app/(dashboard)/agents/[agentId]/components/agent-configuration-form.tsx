@@ -105,7 +105,7 @@ export function AgentConfigurationForm({
   // Controlled component - use data from props
   const name = data?.name || "";
   const description = data?.description || "";
-  const instructions = data?.instructions || "You are a helpful support agent. Your role is to assist users with their technical questions and issues. Always be polite, professional, and thorough in your responses.";
+  const instructions = data?.instructions ?? "You are a helpful support agent. Your role is to assist users with their technical questions and issues. Always be polite, professional, and thorough in your responses.";
   const model = data?.model || "gpt-5";
   const reasoningEffort = data?.reasoning_effort || "medium";
   

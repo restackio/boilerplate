@@ -71,8 +71,8 @@ def create_webhook_app() -> FastAPI:
 
         Body should contain:
         {
-          "title": "optional custom title",
-          "description": "optional custom description"
+          "task": "optional custom title",
+          "context": {key: "context here"}
         }
         """
         try:
@@ -91,9 +91,9 @@ def create_webhook_app() -> FastAPI:
                 }
 
             # Use provided title/description or generate from webhook
-            if task_input.title and task_input.description:
-                title = task_input.title
-                description = task_input.description
+            if task_input.task and task_input.context:
+                title = task_input.task
+                description = json.dumps(task_input.context)
             else:
                 title, description = (
                     format_webhook_payload_as_task_description(
@@ -112,7 +112,7 @@ def create_webhook_app() -> FastAPI:
                     workspace_id=workspace_id,
                     title=title,
                     description=description,
-                    status="open",
+                    status="in_progress",
                     agent_name=agent_name,
                 ),
             )

@@ -1,13 +1,14 @@
 """Data models for webhook server."""
 
+from typing import Any, Dict
 from pydantic import BaseModel
 
 
 class WebhookTaskInput(BaseModel):
     """Simple webhook input that creates a task."""
 
-    title: str | None = None
-    description: str | None = None
+    task: str | None = None
+    context: Dict[str, Any] | None = None
 
 
 class TaskCreateInput(BaseModel):
