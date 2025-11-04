@@ -1,9 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-// MultiStepWizard component would need to be implemented for future wizard functionality
-// CenteredLoading available for enhanced loading states
-// NotificationBanner available for enhanced error handling
 import { Button } from "@workspace/ui/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/ui/card";
 import { Input } from "@workspace/ui/components/ui/input";
@@ -12,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@workspace/ui/components/ui/textarea";
 import { Building, CheckCircle, ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { executeWorkflow } from "@/app/actions/workflow";
+import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 
 interface FormData {
   companyName: string;
@@ -28,6 +25,8 @@ export default function CreateWorkspacePage() {
   const [error, setError] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [currentStep, setCurrentStep] = useState(1);
+  const { setCurrentWorkspaceId, createWorkspace } = useDatabaseWorkspace();
+
   const [formData, setFormData] = useState<FormData>({
     companyName: "",
     companySize: "",
@@ -98,23 +97,12 @@ export default function CreateWorkspacePage() {
       const userData = JSON.parse(storedUser);
 
       // Create the workspace and automatically add user as owner
-      const workspaceData = await executeWorkflow("WorkspacesCreateWorkflow", {
+      const createdWorkspace = await createWorkspace({
         name: formData.companyName,
         created_by_user_id: userData.id,
-      });
-
-      if (!workspaceData.success || !workspaceData.data) {
-        setError("Failed to create workspace");
-        setIsLoading(false);
-        return;
-      }
-
-      // Store the new workspace ID in sessionStorage so we can navigate to it after reload
-      if (workspaceData.data.id) {
-        sessionStorage.setItem("newWorkspaceId", workspaceData.data.id);
-      } else {
-        console.error("No workspace ID found in response!");
-      }
+      });     
+      
+      setCurrentWorkspaceId(createdWorkspace.id);
 
       // Force a page reload to refresh workspace data
       // The dashboard will check for newWorkspaceId and switch to it
