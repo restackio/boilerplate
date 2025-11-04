@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
-import { useWorkspaceActions } from "../hooks/use-workspace-actions";
+import { useWorkspaceActions, WorkspaceCreateInput } from "../hooks/use-workspace-actions";
 import { User } from "../types/user";
 import { Workspace } from "../hooks/use-workspace-actions";
 
@@ -17,6 +17,7 @@ interface DatabaseWorkspaceContextType {
   setCurrentUser: (user: User) => void;
   refreshData: () => void;
   initialize: () => Promise<void>;
+  createWorkspace: (workspaceData: WorkspaceCreateInput) => Promise<Workspace>;
 }
 
 const DatabaseWorkspaceContext = createContext<DatabaseWorkspaceContextType | undefined>(undefined);
@@ -33,7 +34,7 @@ export function DatabaseWorkspaceProvider({ children }: { children: React.ReactN
     localStorage.setItem("currentWorkspaceId", id);
   }, []);
 
-  const { workspaces, fetchWorkspaces } = useWorkspaceActions(currentUser, currentWorkspaceId);
+  const { workspaces, fetchWorkspaces, createWorkspace } = useWorkspaceActions(currentUser);
 
   // Initialize user and workspace from localStorage on mount
   useEffect(() => {
@@ -133,7 +134,6 @@ export function DatabaseWorkspaceProvider({ children }: { children: React.ReactN
 
     // Default to first workspace
     setCurrentWorkspaceId(workspaces[0].id);
-    // setCurrentWorkspaceId is stable (useCallback with empty deps), so it's safe to exclude
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspaces, currentWorkspaceId]);
 
@@ -162,8 +162,9 @@ export function DatabaseWorkspaceProvider({ children }: { children: React.ReactN
     setCurrentWorkspaceId,
     setCurrentUser,
     refreshData,
+    createWorkspace,
     initialize: async () => {}, // Simplified - no longer needed
-  }), [workspaces, currentWorkspaceId, currentUser, loading, isReady, setCurrentWorkspaceId, refreshData]);
+  }), [workspaces, currentWorkspaceId, currentUser, loading, isReady, setCurrentWorkspaceId, refreshData, createWorkspace]);
 
   return (
     <DatabaseWorkspaceContext.Provider value={value}>
