@@ -75,19 +75,19 @@ def format_webhook_payload_as_task_description(
     headers: dict[str, str], payload: dict[str, Any]
 ) -> tuple[str, str]:
     """Format webhook payload into task title and description."""
-    title = "Webhook Event"
+    task = "Webhook Event"
 
     if isinstance(payload, dict):
         # Try different title extraction strategies
-        title = (
+        task = (
             _extract_github_title(payload, headers)
             or _extract_service_title(payload, headers)
             or _extract_generic_title(payload)
-            or title
+            or task
         )
 
     # Create detailed description with the full payload
-    description = f"""**Webhook Event**
+    context = f"""**Webhook Event**
 
 **Headers:**
 ```json
@@ -102,4 +102,4 @@ def format_webhook_payload_as_task_description(
 **Received at:** {time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())}
 """
 
-    return title, description
+    return task, context

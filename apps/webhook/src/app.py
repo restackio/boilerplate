@@ -92,10 +92,10 @@ def create_webhook_app() -> FastAPI:
 
             # Use provided title/description or generate from webhook
             if task_input.task and task_input.context:
-                title = task_input.task
-                description = json.dumps(task_input.context)
+                task = task_input.task
+                context = json.dumps(task_input.context)
             else:
-                title, description = (
+                task, context = (
                     format_webhook_payload_as_task_description(
                         headers, webhook_payload
                     )
@@ -110,8 +110,8 @@ def create_webhook_app() -> FastAPI:
                 workflow_id=workflow_id,
                 workflow_input=TaskCreateInput(
                     workspace_id=workspace_id,
-                    title=title,
-                    description=description,
+                    title=task,
+                    description=context,
                     status="in_progress",
                     agent_name=agent_name,
                 ),
