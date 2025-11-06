@@ -34,6 +34,8 @@ export interface QualitySummary {
   isActive: boolean;
   config: Record<string, unknown>;
   parentAgentIds?: string[];
+  description?: string | null;
+  metricType?: string;
   failRate: number;
   avgScore?: number;
   evaluationCount: number;

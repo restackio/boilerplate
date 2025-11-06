@@ -46,9 +46,45 @@ else
   echo "⚠ Warning: $DEMO_DIR/postgres-demo.sql not found"
 fi
 
-# ClickHouse: Delete and re-insert using clickhouse-client via Docker
+# ClickHouse: Delete and re-insert
 echo "→ Deleting ClickHouse demo data..."
-docker compose exec -T clickhouse clickhouse-client --database=boilerplate_clickhouse --multiquery <<-EOSQL
+
+# Parse CLICKHOUSE_URL only
+CLICKHOUSE_URL_CLEAN="${CLICKHOUSE_URL#clickhouse://}"
+CLICKHOUSE_URL_CLEAN="${CLICKHOUSE_URL_CLEAN#http://}"
+CLICKHOUSE_URL_CLEAN="${CLICKHOUSE_URL_CLEAN#https://}"
+
+if [[ $CLICKHOUSE_URL_CLEAN =~ ^([^:]+):([^@]+)@(.+)$ ]]; then
+  CLICKHOUSE_USER="${BASH_REMATCH[1]}"
+  CLICKHOUSE_PASSWORD="${BASH_REMATCH[2]}"
+  CLICKHOUSE_URL_CLEAN="${BASH_REMATCH[3]}"
+fi
+
+if [[ $CLICKHOUSE_URL_CLEAN =~ ^([^:]+):([^/]+)/(.+)$ ]]; then
+  CLICKHOUSE_HOST="${BASH_REMATCH[1]}"
+  CLICKHOUSE_PORT="${BASH_REMATCH[2]}"
+  CLICKHOUSE_DB="${BASH_REMATCH[3]}"
+fi
+
+# Detect secure connection
+CLICKHOUSE_SECURE=false
+if [[ "$CLICKHOUSE_PORT" == "8443" ]] || [[ "$CLICKHOUSE_PORT" == "9440" ]] || [[ "$CLICKHOUSE_URL" == https://* ]]; then
+  CLICKHOUSE_SECURE=true
+  CLICKHOUSE_NATIVE_PORT=9440
+else
+  CLICKHOUSE_SECURE=false
+  CLICKHOUSE_NATIVE_PORT=9000
+fi
+
+# Build clickhouse-client command
+if [ "$CLICKHOUSE_SECURE" = true ]; then
+  CH_CMD="clickhouse-client --host $CLICKHOUSE_HOST --port $CLICKHOUSE_NATIVE_PORT --user $CLICKHOUSE_USER --password $CLICKHOUSE_PASSWORD --secure"
+else
+  CH_CMD="clickhouse-client --host $CLICKHOUSE_HOST --port $CLICKHOUSE_NATIVE_PORT --user $CLICKHOUSE_USER --password $CLICKHOUSE_PASSWORD"
+fi
+
+# Delete demo data
+$CH_CMD --database=$CLICKHOUSE_DB --multiquery <<-EOSQL
   DELETE FROM pipeline_events WHERE workspace_id = '$DEMO_WORKSPACE_ID';
   DELETE FROM task_metrics WHERE workspace_id = '$DEMO_WORKSPACE_ID';
 EOSQL
@@ -56,7 +92,7 @@ echo "✓ ClickHouse demo data deleted"
 
 echo "→ Inserting ClickHouse demo data..."
 if [ -f "$DEMO_DIR/clickhouse-demo.sql" ]; then
-  docker compose exec -T clickhouse clickhouse-client --database=boilerplate_clickhouse --multiquery < "$DEMO_DIR/clickhouse-demo.sql"
+  $CH_CMD --database=$CLICKHOUSE_DB --multiquery < "$DEMO_DIR/clickhouse-demo.sql"
   echo "✓ ClickHouse demo data inserted"
 else
   echo "⚠ Warning: $DEMO_DIR/clickhouse-demo.sql not found"

@@ -5,7 +5,7 @@ import { useAgentState } from "@/app/(dashboard)/agents/[agentId]/hooks/use-agen
 import { ConversationItem, OpenAIEvent } from "../types";
 import { useRxjsConversation } from "./use-rxjs-conversation";
 
-export function useTaskDetail(task: Task) {
+export function useTaskDetail(task: Task, onRefetch?: () => Promise<void>) {
   const params = useParams();
   const router = useRouter();
   const taskId = params?.taskId as string;
@@ -49,6 +49,11 @@ export function useTaskDetail(task: Task) {
       
       if (!result.success) {
         throw new Error(result.error || "Failed to update task");
+      }
+      
+      // Refetch task to get updated data
+      if (onRefetch) {
+        await onRefetch();
       }
     } catch (error) {
       console.error("Failed to update task:", error);

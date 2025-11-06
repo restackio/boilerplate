@@ -128,6 +128,10 @@ class AgentGetByWorkspaceInput(BaseModel):
         default=False,
         description="If true, return only published agents",
     )
+    parent_only: bool = Field(
+        default=False,
+        description="If true, return only parent agents",
+    )
 
 
 # Pydantic models for output serialization
@@ -188,14 +192,14 @@ def get_latest_agent_versions(
             agent_groups[group_key] = []
         agent_groups[group_key].append(agent)
 
-    # For each group, select the latest version (most recent created_at)
+    # For each group, select the latest version (most recent updated_at)
     result = []
     for group_agents in agent_groups.values():
         if group_agents:
-            # Sort by created_at descending and take the first (latest)
+            # Sort by updated_at descending and take the first (latest)
             latest_agent = max(
                 group_agents,
-                key=lambda x: x.created_at
+                key=lambda x: x.updated_at
                 or datetime.min.replace(tzinfo=UTC),
             )
 
@@ -240,7 +244,7 @@ async def agents_read(
     """Read all agents from database for a specific workspace, returning only the latest version of each agent."""
     async for db in get_async_db():
         try:
-            # Subquery to get the latest created_at for each agent group in the workspace
+            # Subquery to get the latest updated_at for each agent group in the workspace
             subquery_conditions = [
                 Agent.workspace_id
                 == uuid.UUID(function_input.workspace_id)
@@ -254,8 +258,8 @@ async def agents_read(
                     func.coalesce(
                         Agent.parent_agent_id, Agent.id
                     ).label("group_key"),
-                    func.max(Agent.created_at).label(
-                        "latest_created_at"
+                    func.max(Agent.updated_at).label(
+                        "latest_updated_at"
                     ),
                 )
                 .where(and_(*subquery_conditions))
@@ -276,8 +280,8 @@ async def agents_read(
                             Agent.parent_agent_id, Agent.id
                         )
                         == latest_versions_subquery.c.group_key,
-                        Agent.created_at
-                        == latest_versions_subquery.c.latest_created_at,
+                        Agent.updated_at
+                        == latest_versions_subquery.c.latest_updated_at,
                     ),
                 )
                 .where(
@@ -387,24 +391,33 @@ def _process_agent_group(
     group_agents: list[Agent],
 ) -> AgentTableOutput:
     """Process a group of agent versions into table output."""
-    # Find published version
-    published_agent = None
+    # Find all published and draft versions
+    published_agents = []
     draft_agents = []
 
     for agent in group_agents:
         if agent.status == "published":
-            published_agent = agent
+            published_agents.append(agent)
         elif agent.status == "draft":
             draft_agents.append(agent)
 
+    # Find the latest published version (most recent updated_at)
+    published_agent = None
+    if published_agents:
+        published_agent = max(
+            published_agents,
+            key=lambda x: x.updated_at
+            or datetime.min.replace(tzinfo=UTC),
+        )
+
     # Determine which agent to show in the table
-    # Priority: published version, fallback to latest if no published version
+    # Priority: latest published version, fallback to latest overall if no published version
     display_agent = (
         published_agent
         if published_agent
         else max(
             group_agents,
-            key=lambda x: x.created_at
+            key=lambda x: x.updated_at
             or datetime.min.replace(tzinfo=UTC),
         )
     )
@@ -420,7 +433,7 @@ def _process_agent_group(
     if draft_agents:
         latest_draft_agent = max(
             draft_agents,
-            key=lambda x: x.created_at
+            key=lambda x: x.updated_at
             or datetime.min.replace(tzinfo=UTC),
         )
         latest_draft_version_short = str(latest_draft_agent.id)[
@@ -543,8 +556,14 @@ async def agents_read_table(
                     Agent.status == "published"
                 )
 
+            # Apply parent_only filter if requested
+            if function_input.parent_only:
+                all_agents_query = all_agents_query.where(
+                    Agent.parent_agent_id.is_(None)
+                )
+
             all_agents_query = all_agents_query.order_by(
-                Agent.name.asc(), Agent.created_at.desc()
+                Agent.name.asc(), Agent.updated_at.desc()
             )
 
             result = await db.execute(all_agents_query)
@@ -858,14 +877,14 @@ async def agents_get_by_status(
         try:
             # Use a subquery to get the latest version of each agent group with the specified status
 
-            # Subquery to get the latest created_at for each agent group with the specified status
+            # Subquery to get the latest updated_at for each agent group with the specified status
             latest_versions_subquery = (
                 select(
                     func.coalesce(
                         Agent.parent_agent_id, Agent.id
                     ).label("group_key"),
-                    func.max(Agent.created_at).label(
-                        "latest_created_at"
+                    func.max(Agent.updated_at).label(
+                        "latest_updated_at"
                     ),
                 )
                 .where(Agent.status == function_input.status)
@@ -885,8 +904,8 @@ async def agents_get_by_status(
                             Agent.parent_agent_id, Agent.id
                         )
                         == latest_versions_subquery.c.group_key,
-                        Agent.created_at
-                        == latest_versions_subquery.c.latest_created_at,
+                        Agent.updated_at
+                        == latest_versions_subquery.c.latest_updated_at,
                     ),
                 )
                 .where(Agent.status == function_input.status)
@@ -989,7 +1008,7 @@ async def agents_get_versions(
                         Agent.parent_agent_id == root_parent_id,
                     )
                 )
-                .order_by(Agent.created_at.desc())
+                .order_by(Agent.updated_at.desc())
             )
 
             result = await db.execute(agents_query)
@@ -1189,14 +1208,14 @@ async def agents_resolve_by_name(
     async for db in get_async_db():
         try:
             # Find the latest published agent by name
-            # Subquery to get the latest created_at for each agent group in the workspace
+            # Subquery to get the latest updated_at for each agent group in the workspace
             latest_versions_subquery = (
                 select(
                     func.coalesce(
                         Agent.parent_agent_id, Agent.id
                     ).label("group_key"),
-                    func.max(Agent.created_at).label(
-                        "latest_created_at"
+                    func.max(Agent.updated_at).label(
+                        "latest_updated_at"
                     ),
                 )
                 .where(
@@ -1222,8 +1241,8 @@ async def agents_resolve_by_name(
                             Agent.parent_agent_id, Agent.id
                         )
                         == latest_versions_subquery.c.group_key,
-                        Agent.created_at
-                        == latest_versions_subquery.c.latest_created_at,
+                        Agent.updated_at
+                        == latest_versions_subquery.c.latest_updated_at,
                     ),
                 )
                 .where(

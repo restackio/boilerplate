@@ -1,4 +1,14 @@
 {
-  "extends": "@workspace/typescript-config/base.json"
+  "extends": "@workspace/typescript-config/base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["apps/frontend/*"],
+      "@workspace/ui/*": ["packages/ui/src/*"]
+    },
+    "module": "Preserve",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": false
+  }
 }
 

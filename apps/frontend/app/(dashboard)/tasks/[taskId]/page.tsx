@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useWorkspaceScopedActions, Task } from "@/hooks/use-workspace-scoped-actions";
 import { useTaskDetail } from "./hooks/use-task-detail";
@@ -21,7 +21,7 @@ import {
 } from "@workspace/ui/components";
 
 // Inner component that uses hooks requiring the provider
-function TaskDetailContentInner({ task }: { task: Task }) {
+function TaskDetailContentInner({ task, onRefetch }: { task: Task; onRefetch: () => Promise<void> }) {
   const { currentWorkspaceId } = useDatabaseWorkspace();
   const {
     showDeleteDialog,
@@ -44,7 +44,7 @@ function TaskDetailContentInner({ task }: { task: Task }) {
     handleCloseSplitView,
     handleOpenAnalytics,
     updateConversationItemStatus,
-  } = useTaskDetail(task);
+  } = useTaskDetail(task, onRefetch);
 
   const handleApproveRequest = async (itemId: string) => {
     try {
@@ -89,7 +89,7 @@ function TaskDetailContentInner({ task }: { task: Task }) {
         onOpenAnalytics={handleOpenAnalytics}
       />
       
-      <div className={`flex ${showSplitView ? 'h-[calc(100vh-120px)]' : ''}`}>
+      <div className={`flex ${showSplitView ? 'h-[calc(100vh-65px)]' : ''}`}>
         <TaskChatInterface
           conversation={conversation}
           chatMessage={chatMessage}
@@ -132,7 +132,7 @@ function TaskDetailContentInner({ task }: { task: Task }) {
 
 // Wrapper component that provides the AgentStreamProvider
 // The provider internally chooses between active (with subscriptions) or mock (without)
-function TaskDetailContent({ task }: { task: Task }) {
+function TaskDetailContent({ task, onRefetch }: { task: Task; onRefetch: () => Promise<void> }) {
   return (
     <AgentStreamProvider
       agentTaskId={task.temporal_agent_id || ''}
@@ -140,7 +140,7 @@ function TaskDetailContent({ task }: { task: Task }) {
       taskStatus={task.status}
       initialState={task.agent_state}
     >
-      <TaskDetailContentInner task={task} />
+      <TaskDetailContentInner task={task} onRefetch={onRefetch} />
     </AgentStreamProvider>
   );
 }
@@ -157,30 +157,30 @@ export default function TaskDetailPage() {
 
   const { getTaskById } = useWorkspaceScopedActions();
 
-  useEffect(() => {
-    const fetchTask = async () => {
-      if (!taskId) return;
-      
-      setIsLoading(true);
-      setError(null);
-      
-      try {
-        const result = await getTaskById(taskId);
-        if (result.success && result.data) {
-          setTask(result.data);
-        } else {
-          setError(result.error || "Failed to load task");
-        }
-      } catch (err) {
-        console.error("Error fetching task:", err);
-        setError("Failed to load task");
-      } finally {
-        setIsLoading(false);
+  const fetchTask = useCallback(async () => {
+    if (!taskId) return;
+    
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const result = await getTaskById(taskId);
+      if (result.success && result.data) {
+        setTask(result.data);
+      } else {
+        setError(result.error || "Failed to load task");
       }
-    };
-
-    fetchTask();
+    } catch (err) {
+      console.error("Error fetching task:", err);
+      setError("Failed to load task");
+    } finally {
+      setIsLoading(false);
+    }
   }, [taskId, getTaskById]);
+
+  useEffect(() => {
+    fetchTask();
+  }, [fetchTask]);
 
   if (isLoading) {
     return <TaskDetailSkeleton taskId={taskId} />;
@@ -199,6 +199,6 @@ export default function TaskDetailPage() {
     return <TaskDetailSkeleton taskId={taskId} />;
   }
 
-  return <TaskDetailContent task={task} />;
+  return <TaskDetailContent task={task} onRefetch={fetchTask} />;
 }
 

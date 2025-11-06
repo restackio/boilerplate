@@ -1,7 +1,7 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { useWorkspaceActions } from "../hooks/use-workspace-actions";
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
+import { useWorkspaceActions, WorkspaceCreateInput } from "../hooks/use-workspace-actions";
 import { User } from "../types/user";
 import { Workspace } from "../hooks/use-workspace-actions";
 
@@ -17,19 +17,26 @@ interface DatabaseWorkspaceContextType {
   setCurrentUser: (user: User) => void;
   refreshData: () => void;
   initialize: () => Promise<void>;
+  createWorkspace: (workspaceData: WorkspaceCreateInput) => Promise<Workspace>;
 }
 
 const DatabaseWorkspaceContext = createContext<DatabaseWorkspaceContextType | undefined>(undefined);
 
 export function DatabaseWorkspaceProvider({ children }: { children: React.ReactNode }) {
-  const [currentWorkspaceId, setCurrentWorkspaceId] = useState<string | null>(null);
+  const [currentWorkspaceId, setCurrentWorkspaceIdInternal] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const { workspaces, fetchWorkspaces } = useWorkspaceActions(currentUser, currentWorkspaceId);
+  // Wrap setCurrentWorkspaceId to persist to localStorage
+  const setCurrentWorkspaceId = useCallback((id: string) => {
+    setCurrentWorkspaceIdInternal(id);
+    localStorage.setItem("currentWorkspaceId", id);
+  }, []);
 
-  // Initialize user from localStorage on mount
+  const { workspaces, fetchWorkspaces, createWorkspace } = useWorkspaceActions(currentUser);
+
+  // Initialize user and workspace from localStorage on mount
   useEffect(() => {
     const initialize = () => {
       try {
@@ -51,6 +58,13 @@ export function DatabaseWorkspaceProvider({ children }: { children: React.ReactN
         }
 
         setCurrentUser(userData);
+        
+        // Restore workspace from localStorage if available
+        const storedWorkspaceId = localStorage.getItem("currentWorkspaceId");
+        if (storedWorkspaceId) {
+          setCurrentWorkspaceIdInternal(storedWorkspaceId);
+        }
+        
         // Note: fetchWorkspaces will be called in a separate useEffect when currentUser is set
       } catch (error) {
         console.error("Failed to initialize workspace", error);
@@ -81,15 +95,53 @@ export function DatabaseWorkspaceProvider({ children }: { children: React.ReactN
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser]); // Only depend on currentUser to avoid infinite loop
 
-  // Auto-select first workspace when available
+  // Auto-select workspace when available
   useEffect(() => {
-    if (workspaces.length > 0 && !currentWorkspaceId) {
-      setCurrentWorkspaceId(workspaces[0].id);
+    if (workspaces.length === 0) return;
+    
+    // If we have a current workspace ID, validate it exists in the workspace list
+    if (currentWorkspaceId) {
+      const workspaceExists = workspaces.find(w => w.id === currentWorkspaceId);
+      if (!workspaceExists) {
+        console.warn("Current workspace not found in workspace list, resetting...");
+        // Current workspace doesn't exist anymore, clear it and fall through to auto-select
+        setCurrentWorkspaceIdInternal(null);
+        localStorage.removeItem("currentWorkspaceId");
+      } else {
+        // Workspace is valid, nothing to do
+        return;
+      }
     }
+    
+    // No current workspace or it's invalid, auto-select one
+    // Check if there's a newly created workspace to navigate to
+    const newWorkspaceId = sessionStorage.getItem("newWorkspaceId");
+
+    if (newWorkspaceId) {
+      // Clear the session storage
+      sessionStorage.removeItem("newWorkspaceId");
+      
+      // Check if the new workspace exists in the list
+      const newWorkspace = workspaces.find(w => w.id === newWorkspaceId);
+      
+      if (newWorkspace) {
+        setCurrentWorkspaceId(newWorkspaceId);
+        return;
+      } else {
+        console.warn("New workspace ID not found in workspaces list!");
+      }
+    }
+
+    // Default to first workspace
+    setCurrentWorkspaceId(workspaces[0].id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspaces, currentWorkspaceId]);
 
   // Simple ready state: not loading, no error, and have a workspace
   const isReady = !isLoading && !error && currentWorkspaceId && workspaces.length > 0;
+  
+  // Memoize loading object to prevent unnecessary re-renders
+  const loading = useMemo(() => ({ isLoading, error }), [isLoading, error]);
   
   // Refresh function for manual data refresh
   const refreshData = useCallback(async () => {
@@ -98,19 +150,21 @@ export function DatabaseWorkspaceProvider({ children }: { children: React.ReactN
     }
   }, [fetchWorkspaces, currentUser]);
 
-  const value: DatabaseWorkspaceContextType = {
+  // Memoize the context value to prevent unnecessary re-renders
+  const value: DatabaseWorkspaceContextType = useMemo(() => ({
     workspaces,
     currentWorkspaceId,
     workspaceId: currentWorkspaceId, // Alias for currentWorkspaceId
     currentUser,
     currentUserId: currentUser?.id || null, // User ID for convenience
-    loading: { isLoading, error },
+    loading,
     isReady,
     setCurrentWorkspaceId,
     setCurrentUser,
     refreshData,
+    createWorkspace,
     initialize: async () => {}, // Simplified - no longer needed
-  };
+  }), [workspaces, currentWorkspaceId, currentUser, loading, isReady, setCurrentWorkspaceId, refreshData, createWorkspace]);
 
   return (
     <DatabaseWorkspaceContext.Provider value={value}>

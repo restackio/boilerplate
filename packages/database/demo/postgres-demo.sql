@@ -63,7 +63,7 @@ INSERT INTO mcp_servers (id, workspace_id, server_label, server_url, local, serv
   'restack-core',
   NULL,
   TRUE,
-  'Core Restack MCP server providing unified tools including mock generation, transform, load, and ClickHouse operations',
+  'Core Restack MCP server providing unified tools including mock generation, transform, load, and ClickHouse operations',                                      
   NULL
 ),
 (
@@ -72,8 +72,8 @@ INSERT INTO mcp_servers (id, workspace_id, server_label, server_url, local, serv
   'slack',
   'https://slack.com/api',
   FALSE,
-  'Slack integration for sending notifications, syncing todos, and managing approvals via Slack threads',
-  '{"oauth_authorize_url": "https://slack.com/oauth/v2/authorize", "oauth_token_url": "https://slack.com/api/oauth.v2.access", "scopes": "chat:write,channels:read,im:write,users:read", "client_id": "YOUR_SLACK_CLIENT_ID", "client_secret": "YOUR_SLACK_CLIENT_SECRET"}'::jsonb
+  'Slack integration for sending notifications, syncing todos, and managing approvals via Slack threads',                                                       
+  '{"oauth_authorize_url": "https://slack.com/oauth/v2/authorize", "oauth_token_url": "https://slack.com/api/oauth.v2.access", "scopes": "chat:write,channels:read,im:write,users:read", "client_id": "YOUR_SLACK_CLIENT_ID", "client_secret": "YOUR_SLACK_CLIENT_SECRET"}'::jsonb                                              
 )
 ON CONFLICT (id) DO NOTHING;
 

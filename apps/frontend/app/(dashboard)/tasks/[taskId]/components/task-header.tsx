@@ -2,6 +2,7 @@ import { Button } from "@workspace/ui/components/ui/button";
 import { PageHeader } from "@workspace/ui/components/page-header";
 import { Trash2, Archive, BarChart3, AlertCircle } from "lucide-react";
 import { Task } from "@/hooks/use-workspace-scoped-actions";
+import { getStatusBadge } from "../../utils/task-status-utils";
 
 interface TaskHeaderProps {
   task: Task;
@@ -17,7 +18,17 @@ export function TaskHeader({ task, onDelete, onUpdateTask, onOpenAnalytics }: Ta
   ];
 
   const actions = (
-    <div className="flex gap-2">
+    <div className="flex items-center gap-3">
+      {getStatusBadge(task.status, "outline", "sm")}
+      <div className="flex gap-2">
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={onOpenAnalytics}
+        title="View Analytics"
+      >
+        <BarChart3 className="h-4 w-4" />
+      </Button>
       <Button
         variant="ghost"
         size="sm"
@@ -58,6 +69,7 @@ export function TaskHeader({ task, onDelete, onUpdateTask, onOpenAnalytics }: Ta
           Mark as completed
         </Button>
       )}
+      </div>
     </div>
   );
 

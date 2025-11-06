@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 import { getAnalytics } from "@/app/actions/analytics";
 
@@ -49,17 +49,11 @@ interface AgentVersionsTabProps {
 }
 
 export function AgentVersionsTab({ agentId, getAgentVersions }: AgentVersionsTabProps) {
-  const router = useRouter();
   const { currentWorkspaceId } = useDatabaseWorkspace();
   
   // Agent versions state
   const [agentVersions, setAgentVersions] = useState<AgentVersion[]>([]);
   const [versionsLoading, setVersionsLoading] = useState(false);
-
-  // Handle version row click
-  const handleVersionClick = (versionId: string) => {
-    router.push(`/agents/${versionId}`);
-  };
 
   // Fetch metrics for a version
   const fetchVersionMetrics = useCallback(async (versionId: string) => {
@@ -214,16 +208,20 @@ export function AgentVersionsTab({ agentId, getAgentVersions }: AgentVersionsTab
                     return (
                       <tr 
                         key={version.id} 
-                        className="border-b hover:bg-muted/30 cursor-pointer transition-colors"
-                        onClick={() => handleVersionClick(version.id)}
+                        className="border-b hover:bg-muted/30 transition-colors"
                       >
                         <td className="p-3">
-                          <div className="font-mono text-sm font-medium">
-                            {version.id.slice(-12)}
-                          </div>
-                          <div className="text-xs text-muted-foreground truncate max-w-xs">
-                            {version.description}
-                          </div>
+                          <Link 
+                            href={`/agents/${version.id}`}
+                            className="block hover:underline"
+                          >
+                            <div className="font-mono text-sm font-medium">
+                              {version.id.slice(-12)}
+                            </div>
+                            <div className="text-xs text-muted-foreground truncate max-w-xs">
+                              {version.description}
+                            </div>
+                          </Link>
                         </td>
                         <td className="p-3">
                           <AgentStatusBadge status={version.status} size="sm" />

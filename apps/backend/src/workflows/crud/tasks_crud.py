@@ -193,6 +193,7 @@ class TasksUpdateWorkflow:
             ) and workflow_input.status in [
                 "completed",
                 "closed",
+                "failed",
             ]:
                 try:
                     current_task_result = await workflow.step(
@@ -214,13 +215,13 @@ class TasksUpdateWorkflow:
                         f"Failed to get current task for agent stopping: {e}"
                     )
 
-            # If task is being completed/closed and has an active agent, stop the agent FIRST
+            # If task is being completed/closed/failed and has an active agent, stop the agent FIRST
             if (
                 current_task
                 and current_task.temporal_agent_id
                 and hasattr(workflow_input, "status")
                 and workflow_input.status
-                in ["completed", "closed"]
+                in ["completed", "closed", "failed"]
             ):
                 try:
                     log.info(
@@ -294,14 +295,12 @@ class TasksGetByIdWorkflow:
     async def run(
         self, workflow_input: TaskGetByIdInput
     ) -> TaskSingleOutput:
-        log.info("TasksGetByIdWorkflow started")
         try:
             return await workflow.step(
                 function=tasks_get_by_id,
                 function_input=workflow_input,
                 start_to_close_timeout=timedelta(seconds=30),
             )
-
         except Exception as e:
             error_message = f"Error during tasks_get_by_id: {e}"
             log.error(error_message)

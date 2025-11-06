@@ -1,11 +1,10 @@
 import asyncio
-import os
 import warnings
 from collections.abc import AsyncIterator
-from typing import Any
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any
 
 from dotenv import load_dotenv
-from openai import AsyncOpenAI
 from openai._exceptions import (
     APIResponseValidationError,
 )
@@ -22,7 +21,11 @@ from restack_ai.function import (
     stream_to_websocket,
 )
 
-from src.client import stream_address
+if TYPE_CHECKING:
+    from openai import AsyncOpenAI
+
+from src.client import api_address
+from src.utils.openai_client import get_openai_client
 
 from .send_agent_event import (
     SendAgentEventInput,
@@ -168,9 +171,9 @@ class AsyncTee:
         if self._task is None:
             self._task = asyncio.create_task(self._producer())
 
-        async def _consumer() -> (
-            AsyncIterator[ResponseStreamEvent]
-        ):
+        async def _consumer() -> AsyncIterator[
+            ResponseStreamEvent
+        ]:
             while True:
                 item = await self._queues[index].get()
                 if item is StopAsyncIteration:
@@ -184,12 +187,13 @@ class AsyncTee:
 
 
 def _serialize_event(event: ResponseStreamEvent) -> dict | str:
-    """Serialize event to dict using OpenAI SDK patterns."""
+    """Serialize event to dict using OpenAI SDK patterns and add timestamp."""
+    event_data = None
     if hasattr(event, "model_dump"):
         try:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", UserWarning)
-                return event.model_dump()
+                event_data = event.model_dump()
         except (
             APIResponseValidationError,
             ValueError,
@@ -198,16 +202,23 @@ def _serialize_event(event: ResponseStreamEvent) -> dict | str:
             log.warning(
                 f"OpenAI model_dump failed for event {getattr(event, 'type', 'unknown')}: {e}"
             )
-            return (
+            event_data = (
                 event.__dict__
                 if hasattr(event, "__dict__")
                 else {"error": str(e)}
             )
-    return (
-        event.__dict__
-        if hasattr(event, "__dict__")
-        else str(event)
-    )
+    else:
+        event_data = (
+            event.__dict__
+            if hasattr(event, "__dict__")
+            else str(event)
+        )
+
+    # Add timestamp for accurate duration tracking
+    if isinstance(event_data, dict):
+        event_data["timestamp"] = datetime.now(tz=UTC).isoformat()
+
+    return event_data
 
 
 async def _send_event_to_agent(
@@ -420,7 +431,7 @@ def _initialize_tracing(
 
 
 async def _make_openai_request_with_tracing(
-    client: AsyncOpenAI,
+    client: "AsyncOpenAI",
     function_input: Any,
     *,
     has_tracing: bool,
@@ -493,13 +504,8 @@ async def llm_response_stream(
     trace_context = None
 
     try:
-        if not os.environ.get("OPENAI_API_KEY"):
-            error_msg = "OPENAI_API_KEY is not set"
-            raise NonRetryableError(error_msg)
-
-        client = AsyncOpenAI(
-            api_key=os.environ.get("OPENAI_API_KEY")
-        )
+        # Get singleton client to prevent file descriptor leaks
+        client = get_openai_client()
 
         # Check if tracing SDK is available
         try:
@@ -561,7 +567,7 @@ async def llm_response_stream(
         # Process both streams in parallel
         websocket_task = asyncio.create_task(
             stream_to_websocket(
-                api_address=stream_address, data=websocket_stream
+                api_address=api_address, data=websocket_stream
             )
         )
 

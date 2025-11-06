@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+.gitignore
+
+# Testing
+tests/
+test_*.py
+*_test.py
+
+# Environment
+.env
+.env.local
+*.log
+
+# Documentation
+*.md
+!README.md
+
+# Node modules (if any)
+node_modules/
+

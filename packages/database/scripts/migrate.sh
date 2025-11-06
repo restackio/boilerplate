@@ -64,8 +64,18 @@ parse_clickhouse_url() {
 parse_postgres_url "$DATABASE_URL"
 parse_clickhouse_url "$CLICKHOUSE_URL"
 
+# Detect if ClickHouse uses HTTPS (ClickHouse Cloud)
+CLICKHOUSE_SECURE=false
+if [[ "$CLICKHOUSE_URL" == https://* ]]; then
+  CLICKHOUSE_SECURE=true
+  # ClickHouse Cloud uses secure native protocol on port 9440
+  CLICKHOUSE_NATIVE_PORT=9440
+else
+  CLICKHOUSE_NATIVE_PORT=9000
+fi
+
 echo "PostgreSQL: $POSTGRES_USER@$POSTGRES_HOST:$POSTGRES_PORT/$POSTGRES_DB"
-echo "ClickHouse: $CLICKHOUSE_USER@$CLICKHOUSE_HOST:$CLICKHOUSE_PORT/$CLICKHOUSE_DB"
+echo "ClickHouse: $CLICKHOUSE_USER@$CLICKHOUSE_HOST:$CLICKHOUSE_PORT/$CLICKHOUSE_DB (secure: $CLICKHOUSE_SECURE)"
 echo ""
 
 # Determine migrations directory
@@ -92,13 +102,15 @@ echo ""
 
 # Wait for databases to be ready
 echo "Checking database connectivity..."
-until PGPASSWORD=$POSTGRES_PASSWORD psql -h $POSTGRES_HOST -p $POSTGRES_PORT -U $POSTGRES_USER -d $POSTGRES_DB -c '\q' 2>/dev/null; do
+until PGPASSWORD=$POSTGRES_PASSWORD psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c '\q' 2>/dev/null; do
   echo "  Waiting for PostgreSQL..."
   sleep 2
 done
 echo "✓ PostgreSQL is ready"
 
-until curl -sf "http://$CLICKHOUSE_HOST:$CLICKHOUSE_PORT/ping" > /dev/null 2>&1; do
+# Try HTTPS first (for ClickHouse Cloud), then HTTP
+until curl -sf "https://$CLICKHOUSE_HOST:$CLICKHOUSE_PORT/ping" > /dev/null 2>&1 || \
+      curl -sf "http://$CLICKHOUSE_HOST:$CLICKHOUSE_PORT/ping" > /dev/null 2>&1; do
   echo "  Waiting for ClickHouse..."
   sleep 2
 done
@@ -116,16 +128,16 @@ for migration_file in "$POSTGRES_MIGRATIONS_DIR"/*.sql; do
   migration_name=$(basename "$migration_file")
   
   # Check if migration has already been applied
-  already_applied=$(PGPASSWORD=$POSTGRES_PASSWORD psql -h $POSTGRES_HOST -p $POSTGRES_PORT -U $POSTGRES_USER -d $POSTGRES_DB -tAc \
+  already_applied=$(PGPASSWORD=$POSTGRES_PASSWORD psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc \
     "SELECT COUNT(*) FROM schema_migrations WHERE migration_name = '$migration_name'" 2>/dev/null || echo "0")
   
   if [ "$already_applied" = "0" ]; then
     echo "  Applying: $migration_name"
-    PGPASSWORD=$POSTGRES_PASSWORD psql -h $POSTGRES_HOST -p $POSTGRES_PORT -U $POSTGRES_USER -d $POSTGRES_DB \
+    PGPASSWORD=$POSTGRES_PASSWORD psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
       -f "$migration_file" > /dev/null
     
     # Record migration
-    PGPASSWORD=$POSTGRES_PASSWORD psql -h $POSTGRES_HOST -p $POSTGRES_PORT -U $POSTGRES_USER -d $POSTGRES_DB \
+    PGPASSWORD=$POSTGRES_PASSWORD psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
       -c "INSERT INTO schema_migrations (migration_name) VALUES ('$migration_name')" > /dev/null
     
     echo "  ✓ Applied: $migration_name"
@@ -140,16 +152,23 @@ echo ""
 # ClickHouse migrations
 echo "→ Running ClickHouse migrations..."
 
-# Determine if we should use docker exec or direct clickhouse-client
-USE_DOCKER=false
-if ! command -v clickhouse-client &> /dev/null; then
-  # Check if we're running locally and should use docker
-  if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "boilerplate_clickhouse"; then
-    USE_DOCKER=true
-    echo "  Using docker exec for ClickHouse (clickhouse-client not found locally)"
+# Auto-detect if we should use Docker
+# Try to use Docker if clickhouse-client is not available locally and container exists
+if [ -z "$USE_DOCKER" ]; then
+  if ! command -v clickhouse-client &> /dev/null; then
+    if docker ps --format '{{.Names}}' | grep -q '^boilerplate_clickhouse$'; then
+      USE_DOCKER=true
+      echo "  ℹ Using Docker container for ClickHouse migrations (clickhouse-client not found locally)"
+    else
+      echo "  ⚠ Warning: clickhouse-client not found and Docker container not running"
+      echo "  Please start the ClickHouse container with: docker compose -f docker-compose.dev.yml up -d clickhouse"
+      echo "  Skipping ClickHouse migrations..."
+      echo "✓ ClickHouse migrations skipped"
+      echo "========================================"
+      exit 0
+    fi
   else
-    echo "  Error: clickhouse-client not found and Docker container not running"
-    exit 1
+    USE_DOCKER=false
   fi
 fi
 
@@ -167,8 +186,14 @@ for migration_file in "$CLICKHOUSE_MIGRATIONS_DIR"/*.sql; do
     already_applied=$(docker exec boilerplate_clickhouse clickhouse-client \
       --query "SELECT count() FROM system.tables WHERE database = '$CLICKHOUSE_DB' AND name = 'schema_migrations'" 2>/dev/null || echo "0")
   else
-    already_applied=$(clickhouse-client --host $CLICKHOUSE_HOST --port 9000 --user $CLICKHOUSE_USER --password $CLICKHOUSE_PASSWORD \
-      --query "SELECT count() FROM system.tables WHERE database = '$CLICKHOUSE_DB' AND name = 'schema_migrations'" 2>/dev/null || echo "0")
+    # Use secure or regular connection based on CLICKHOUSE_SECURE flag
+    if [ "$CLICKHOUSE_SECURE" = true ]; then
+      already_applied=$(clickhouse-client --host $CLICKHOUSE_HOST --port $CLICKHOUSE_NATIVE_PORT --user $CLICKHOUSE_USER --password $CLICKHOUSE_PASSWORD --secure \
+        --query "SELECT count() FROM system.tables WHERE database = '$CLICKHOUSE_DB' AND name = 'schema_migrations'" 2>/dev/null || echo "0")
+    else
+      already_applied=$(clickhouse-client --host $CLICKHOUSE_HOST --port $CLICKHOUSE_NATIVE_PORT --user $CLICKHOUSE_USER --password $CLICKHOUSE_PASSWORD \
+        --query "SELECT count() FROM system.tables WHERE database = '$CLICKHOUSE_DB' AND name = 'schema_migrations'" 2>/dev/null || echo "0")
+    fi
   fi
   
   if [ "$already_applied" != "0" ]; then
@@ -176,8 +201,13 @@ for migration_file in "$CLICKHOUSE_MIGRATIONS_DIR"/*.sql; do
       already_applied=$(docker exec boilerplate_clickhouse clickhouse-client \
         --query "SELECT count() FROM $CLICKHOUSE_DB.schema_migrations WHERE migration_name = '$migration_name'" 2>/dev/null || echo "0")
     else
-      already_applied=$(clickhouse-client --host $CLICKHOUSE_HOST --port 9000 --user $CLICKHOUSE_USER --password $CLICKHOUSE_PASSWORD \
-        --query "SELECT count() FROM $CLICKHOUSE_DB.schema_migrations WHERE migration_name = '$migration_name'" 2>/dev/null || echo "0")
+      if [ "$CLICKHOUSE_SECURE" = true ]; then
+        already_applied=$(clickhouse-client --host $CLICKHOUSE_HOST --port $CLICKHOUSE_NATIVE_PORT --user $CLICKHOUSE_USER --password $CLICKHOUSE_PASSWORD --secure \
+          --query "SELECT count() FROM $CLICKHOUSE_DB.schema_migrations WHERE migration_name = '$migration_name'" 2>/dev/null || echo "0")
+      else
+        already_applied=$(clickhouse-client --host $CLICKHOUSE_HOST --port $CLICKHOUSE_NATIVE_PORT --user $CLICKHOUSE_USER --password $CLICKHOUSE_PASSWORD \
+          --query "SELECT count() FROM $CLICKHOUSE_DB.schema_migrations WHERE migration_name = '$migration_name'" 2>/dev/null || echo "0")
+      fi
     fi
   fi
   
@@ -193,12 +223,23 @@ for migration_file in "$CLICKHOUSE_MIGRATIONS_DIR"/*.sql; do
       docker exec boilerplate_clickhouse clickhouse-client \
         --query "INSERT INTO $CLICKHOUSE_DB.schema_migrations (migration_name) VALUES ('$migration_name')" > /dev/null
     else
-      clickhouse-client --host $CLICKHOUSE_HOST --port 9000 --user $CLICKHOUSE_USER --password $CLICKHOUSE_PASSWORD \
-        --allow_experimental_json_type 1 --multiquery < "$migration_file" > /dev/null
-      
-      # Record migration
-      clickhouse-client --host $CLICKHOUSE_HOST --port 9000 --user $CLICKHOUSE_USER --password $CLICKHOUSE_PASSWORD \
-        --query "INSERT INTO $CLICKHOUSE_DB.schema_migrations (migration_name) VALUES ('$migration_name')" > /dev/null
+      if [ "$CLICKHOUSE_SECURE" = true ]; then
+        # ClickHouse Cloud - secure connection
+        clickhouse-client --host $CLICKHOUSE_HOST --port $CLICKHOUSE_NATIVE_PORT --user $CLICKHOUSE_USER --password $CLICKHOUSE_PASSWORD --secure \
+          --allow_experimental_json_type 1 --multiquery < "$migration_file" > /dev/null
+        
+        # Record migration
+        clickhouse-client --host $CLICKHOUSE_HOST --port $CLICKHOUSE_NATIVE_PORT --user $CLICKHOUSE_USER --password $CLICKHOUSE_PASSWORD --secure \
+          --query "INSERT INTO $CLICKHOUSE_DB.schema_migrations (migration_name) VALUES ('$migration_name')" > /dev/null
+      else
+        # Local ClickHouse - regular connection
+        clickhouse-client --host $CLICKHOUSE_HOST --port $CLICKHOUSE_NATIVE_PORT --user $CLICKHOUSE_USER --password $CLICKHOUSE_PASSWORD \
+          --allow_experimental_json_type 1 --multiquery < "$migration_file" > /dev/null
+        
+        # Record migration
+        clickhouse-client --host $CLICKHOUSE_HOST --port $CLICKHOUSE_NATIVE_PORT --user $CLICKHOUSE_USER --password $CLICKHOUSE_PASSWORD \
+          --query "INSERT INTO $CLICKHOUSE_DB.schema_migrations (migration_name) VALUES ('$migration_name')" > /dev/null
+      fi
     fi
     
     echo "  ✓ Applied: $migration_name"

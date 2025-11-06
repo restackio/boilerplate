@@ -1,0 +1,88 @@
+# Node modules (largest impact on build context)
+**/node_modules/
+**/.pnp
+**/.pnp.js
+
+# Build outputs
+**/.next/
+**/out/
+**/dist/
+**/build/
+
+# Python
+**/__pycache__/
+**/*.py[cod]
+**/*$py.class
+**/*.so
+**/.Python
+**/*.egg-info/
+**/.venv/
+**/venv/
+**/.pytest_cache/
+**/.ruff_cache/
+
+# Database
+packages/database/database.db
+
+# Testing
+**/coverage/
+**/.nyc_output
+**/tests/
+**/test_*.py
+**/*_test.py
+
+# Misc
+**/.DS_Store
+**/*.pem
+
+# Debug logs
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
+**/pnpm-debug.log*
+**/lerna-debug.log*
+
+# Local env files
+**/.env*.local
+**/.env
+.env
+.env.local
+
+# Vercel
+**/.vercel
+
+# TypeScript
+**/*.tsbuildinfo
+**/tsconfig.tsbuildinfo
+
+# IDE
+**/.vscode/
+**/.idea/
+**/*.swp
+**/*.swo
+**/*~
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# CI/CD
+.github/
+
+# Documentation (keep only essential docs)
+*.md
+!README.md
+!apps/*/README.md
+!packages/*/README.md
+CODE_OF_CONDUCT.md
+CONTRIBUTING.md
+LICENSE
+
+# Scripts & Styles (not needed in builds)
+scripts/
+styles/
+
+# Turbo cache (should use Docker cache instead)
+**/.turbo/
+

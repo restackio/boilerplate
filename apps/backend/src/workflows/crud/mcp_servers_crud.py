@@ -237,7 +237,8 @@ class McpToolsListWorkflow:
                     f"Could not resolve MCP server {workflow_input.mcp_server_id}",
                 )
 
-        if not server_url:
+        # For local servers, server_url can be None
+        if not server_url and not is_local:
             return (
                 None,
                 False,

@@ -98,6 +98,8 @@ services:
       - RESTACK_ENGINE_ADDRESS=${RESTACK_ENGINE_ADDRESS:-restack:7233}
       - RESTACK_ENGINE_API_ADDRESS=${RESTACK_ENGINE_API_ADDRESS:-restack:6233}
       - RESTACK_ENGINE_STREAM_ADDRESS=${RESTACK_ENGINE_STREAM_ADDRESS:-restack:9233}
+      - NO_COLOR=1
+      - PYTHONUNBUFFERED=1
     depends_on:
       postgres:
         condition: service_healthy
@@ -123,6 +125,8 @@ services:
       - RESTACK_ENGINE_ADDRESS=${RESTACK_ENGINE_ADDRESS:-restack:7233}
       - RESTACK_ENGINE_API_ADDRESS=${RESTACK_ENGINE_API_ADDRESS:-restack:6233}
       - RESTACK_ENGINE_STREAM_ADDRESS=${RESTACK_ENGINE_STREAM_ADDRESS:-restack:9233}
+      - NO_COLOR=1
+      - PYTHONUNBUFFERED=1
     depends_on:
       backend:
         condition: service_started
@@ -170,6 +174,10 @@ services:
     build:
       context: .
       dockerfile: ./apps/frontend/Dockerfile
+      args:
+        RESTACK_ENGINE_STREAM_ADDRESS: ${NEXT_PUBLIC_RESTACK_ENGINE_API_ADDRESS:-${RESTACK_ENGINE_STREAM_ADDRESS:-http://localhost:9233}}
+        POSTHOG_KEY: ${NEXT_PUBLIC_POSTHOG_KEY:-${POSTHOG_KEY:-}}
+        POSTHOG_HOST: ${NEXT_PUBLIC_POSTHOG_HOST:-${POSTHOG_HOST:-}}
     container_name: boilerplate_frontend
     ports:
       - "3000:3000"

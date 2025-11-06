@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { cn } from "../lib/utils";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -95,6 +96,7 @@ export function AuthForm({
               value={field.value}
               onChange={(e) => field.onChange(e.target.value)}
               required={field.required}
+              autoComplete={field.type}
             />
           </div>
         ))}
@@ -109,12 +111,12 @@ export function AuthForm({
       {footerLink && (
         <div className="text-center text-sm">
           {footerLink.text}{" "}
-          <a
+          <Link
             href={footerLink.href}
             className="underline underline-offset-4 hover:text-primary"
           >
             {footerLink.linkText}
-          </a>
+          </Link>
         </div>
       )}
     </form>

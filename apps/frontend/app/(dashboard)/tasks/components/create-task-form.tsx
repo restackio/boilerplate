@@ -49,9 +49,9 @@ export function CreateTaskForm({
   const { currentUser } = useDatabaseWorkspace();
   const router = useRouter();
 
-  // Fetch agents on component mount
+  // Fetch agents on component mount (published only)
   useEffect(() => {
-    fetchAgents({ publishedOnly: true });
+    fetchAgents({ publishedOnly: true, parentOnly: true });
   }, [fetchAgents]);
 
   // Fetch all versions when an agent is selected
@@ -75,15 +75,18 @@ export function CreateTaskForm({
         // Fetch all versions for this agent group
         const result = await getAgentVersions(parentId);
         if (result.success && result.data) {
-          // Sort versions by created_at descending (latest first)
+          // Sort versions by updated_at descending (latest first)
           const sortedVersions = result.data.sort((a, b) => {
-            const dateA = new Date(a.created_at || '1970-01-01').getTime();
-            const dateB = new Date(b.created_at || '1970-01-01').getTime();
+            const dateA = new Date(a.updated_at || a.created_at || '1970-01-01').getTime();
+            const dateB = new Date(b.updated_at || b.created_at || '1970-01-01').getTime();
             return dateB - dateA;
           });
           setAllAgentVersions(sortedVersions);
-          // Auto-select the originally selected agent
-          setSelectedVersionIds([selectedAgentId]);
+          
+          // Auto-select the published version (default), or fall back to originally selected agent
+          const publishedVersion = sortedVersions.find(v => v.status === 'published');
+          const defaultVersionId = publishedVersion ? publishedVersion.id : selectedAgentId;
+          setSelectedVersionIds([defaultVersionId]);
           setShowVersionSelector(true);
         }
       } catch (error) {
@@ -322,20 +325,22 @@ export function CreateTaskForm({
                 <DropdownMenuLabel className="flex items-center justify-between">
                   <span>Select versions</span>
                   <div className="flex space-x-2">
-                    <button
+                    <Button
                       type="button"
                       onClick={handleSelectAllVersions}
-                      className="text-xs text-foreground hover:underline"
+                      variant="link"
+                      className="text-xs text-foreground h-auto p-0"
                     >
                       All
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type="button"
                       onClick={handleClearAllVersions}
-                      className="text-xs text-neutral-500 hover:underline"
+                      variant="link"
+                      className="text-xs text-neutral-500 h-auto p-0"
                     >
                       Clear
-                    </button>
+                    </Button>
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />

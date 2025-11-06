@@ -90,6 +90,7 @@ export function PlaygroundMiddlePanel({
         
         <div className={`flex-1 overflow-y-auto ${!taskId ? 'hidden' : ''}`}>
           <PlaygroundTaskExecution
+            key={taskId || 'no-task'}
             taskId={taskId}
             agentName={agent.name || "Draft Agent"}
             className="h-full"

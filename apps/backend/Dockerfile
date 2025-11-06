@@ -1,52 +1,68 @@
-# Build stage
-FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS base
 
 WORKDIR /app
 
-# Install postgresql-client, clickhouse-client, curl for database operations
-RUN apt-get update && apt-get install -y \
-    postgresql-client \
-    curl \
-    bash \
-    gnupg \
-    && curl -fsSL 'https://packages.clickhouse.com/rpm/lts/repodata/repomd.xml.key' | gpg --dearmor -o /usr/share/keyrings/clickhouse-keyring.gpg \
-    && echo "deb [signed-by=/usr/share/keyrings/clickhouse-keyring.gpg] https://packages.clickhouse.com/deb stable main" | tee /etc/apt/sources.list.d/clickhouse.list \
+# Install system dependencies (postgresql-client, clickhouse-client, curl)
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        postgresql-client \
+        curl \
+        bash \
+        gnupg \
+        ca-certificates \
+    && curl -fsSL 'https://packages.clickhouse.com/rpm/lts/repodata/repomd.xml.key' \
+        | gpg --dearmor -o /usr/share/keyrings/clickhouse-keyring.gpg \
+    && echo "deb [signed-by=/usr/share/keyrings/clickhouse-keyring.gpg] https://packages.clickhouse.com/deb stable main" \
+        | tee /etc/apt/sources.list.d/clickhouse.list \
     && apt-get update \
-    && apt-get install -y clickhouse-client \
+    && apt-get install -y --no-install-recommends clickhouse-client \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy dependency files
-COPY pyproject.toml ./
-COPY uv.lock ./
-COPY README.md ./
+# ============
+# Dependencies stage
+# ============
+FROM base AS dependencies
 
-# Install dependencies first (better layer caching)
-RUN uv sync --no-dev
+WORKDIR /app
 
-# Copy source code
-COPY src ./src
+# Copy only dependency files for better caching
+# README.md is required by uv for package metadata
 
-# Copy database package (migrations, demo, scripts)
-COPY ../../packages/database/ /app/packages/database/
+# Paths are relative to build context (project root)
+COPY apps/backend/pyproject.toml apps/backend/uv.lock apps/backend/README.md ./
+
+# Install Python dependencies
+RUN uv sync --no-dev --frozen
+
+# ============
+# Runtime stage
+# ============
+FROM base AS runtime
+
+WORKDIR /app
+
+# Copy installed dependencies from dependencies stage
+COPY --from=dependencies /app/.venv ./.venv
+
+# Copy project files (needed for uv run to work)
+COPY apps/backend/pyproject.toml apps/backend/uv.lock apps/backend/README.md ./
+
+# Paths are relative to build context (project root)
+COPY packages/database/ /app/packages/database/
 RUN chmod +x /app/packages/database/scripts/*.sh
+
+# Copy application source (changes most frequently, copy last)
+COPY apps/backend/src ./src
+
+# Set Python path to use installed dependencies
+ENV PATH="/app/.venv/bin:$PATH"
+
+# Disable colorama to prevent recursion errors in Docker
+ENV NO_COLOR=1
+ENV PYTHONUNBUFFERED=1
 
 # Expose port 80
 EXPOSE 80
 
-# Run migrations, handle demo data, then start backend
-CMD ["/bin/bash", "-c", "\
-  set -e && \
-  echo 'Running database migrations...' && \
-  /app/packages/database/scripts/migrate.sh && \
-  if [ \"$DEMO_MODE\" = \"true\" ]; then \
-    if [ \"$RESET_DEMO\" = \"true\" ]; then \
-      echo 'Resetting demo data...' && \
-      /app/packages/database/scripts/reset-demo.sh; \
-    else \
-      echo 'Inserting demo data...' && \
-      /app/packages/database/scripts/insert-demo.sh; \
-    fi; \
-  fi && \
-  echo 'Starting backend service...' && \
-  exec uv run start \
-"]
+# Start backend service
+CMD ["uv", "run", "start"]

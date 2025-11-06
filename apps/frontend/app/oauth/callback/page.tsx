@@ -54,13 +54,6 @@ function OAuthCallbackContent() {
         const storedProvider = sessionStorage.getItem('oauth_provider_name') || 'service';
         setProvider(storedProvider);
 
-        console.log('OAuth callback received:', {
-          provider: storedProvider,
-          mcpServerId,
-          code: code.substring(0, 10) + '...', // Log partial code for debugging
-          state,
-        });
-
         // Call backend to handle OAuth callback
         const response = await fetch('/api/oauth/callback', {
           method: 'POST',

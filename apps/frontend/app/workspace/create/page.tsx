@@ -1,9 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-// MultiStepWizard component would need to be implemented for future wizard functionality
-// CenteredLoading available for enhanced loading states
-// NotificationBanner available for enhanced error handling
 import { Button } from "@workspace/ui/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/ui/card";
 import { Input } from "@workspace/ui/components/ui/input";
@@ -12,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@workspace/ui/components/ui/textarea";
 import { Building, CheckCircle, ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { executeWorkflow } from "@/app/actions/workflow";
+import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 
 interface FormData {
   companyName: string;
@@ -28,6 +25,8 @@ export default function CreateWorkspacePage() {
   const [error, setError] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [currentStep, setCurrentStep] = useState(1);
+  const { setCurrentWorkspaceId, createWorkspace } = useDatabaseWorkspace();
+
   const [formData, setFormData] = useState<FormData>({
     companyName: "",
     companySize: "",
@@ -87,17 +86,6 @@ export default function CreateWorkspacePage() {
     setError("");
 
     try {
-      // Create the workspace
-      const workspaceData = await executeWorkflow("WorkspacesCreateWorkflow", {
-        name: formData.companyName,
-      });
-
-      if (!workspaceData.success || !workspaceData.data) {
-        setError("Failed to create workspace");
-        setIsLoading(false);
-        return;
-      }
-
       // Get current user from localStorage
       const storedUser = localStorage.getItem("currentUser");
       if (!storedUser) {
@@ -108,27 +96,16 @@ export default function CreateWorkspacePage() {
 
       const userData = JSON.parse(storedUser);
 
-      // Add user to the new workspace
-      const userWorkspaceData = await executeWorkflow("UserWorkspacesCreateWorkflow", {
-        user_id: userData.id,
-        workspace_id: workspaceData.data.id,
-        role: "owner",
-      });
-
-      if (!userWorkspaceData.success) {
-        setError("Failed to add user to workspace");
-        setIsLoading(false);
-        return;
-      }
-
-      // Update user data with new workspace
-      const updatedUser = {
-        ...userData,
-        workspace_ids: [...(userData.workspace_ids || []), workspaceData.data.id],
-      };
-      localStorage.setItem("currentUser", JSON.stringify(updatedUser));
+      // Create the workspace and automatically add user as owner
+      const createdWorkspace = await createWorkspace({
+        name: formData.companyName,
+        created_by_user_id: userData.id,
+      });     
+      
+      setCurrentWorkspaceId(createdWorkspace.id);
 
       // Force a page reload to refresh workspace data
+      // The dashboard will check for newWorkspaceId and switch to it
       window.location.href = "/dashboard";
     } catch (error) {
       void error; // Suppress unused warning
@@ -216,7 +193,7 @@ export default function CreateWorkspacePage() {
 
         <div className="max-w-4xl mx-auto">
           {currentStep === 1 && (
-            <Card>
+            <Card className="space-y-4">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Building className="size-5" />
@@ -230,7 +207,7 @@ export default function CreateWorkspacePage() {
               <CardContent className="space-y-6">
                 <div className="grid md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <Label htmlFor="companyName">Company Name *</Label>
+                    <Label htmlFor="companyName">Company name *</Label>
                     <Input
                       id="companyName"
                       value={formData.companyName}
@@ -242,7 +219,7 @@ export default function CreateWorkspacePage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="companySize">Company Size *</Label>
+                    <Label htmlFor="companySize">Company size *</Label>
                     <Select
                       value={formData.companySize}
                       onValueChange={(value) =>
@@ -285,7 +262,7 @@ export default function CreateWorkspacePage() {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="contactRole">Your Role</Label>
+                    <Label htmlFor="contactRole">Your role</Label>
                     <Input
                       id="contactRole"
                       value={formData.contactRole}
@@ -298,7 +275,7 @@ export default function CreateWorkspacePage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="useCase">Primary Use Case</Label>
+                  <Label htmlFor="useCase">Primary use case</Label>
                   <Textarea
                     id="useCase"
                     value={formData.useCase}
@@ -326,7 +303,7 @@ export default function CreateWorkspacePage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <CheckCircle className="size-5" />
-                  Review and Create Workspace
+                  Review and create workspace
                 </CardTitle>
                 <CardDescription>
                   Review your workspace details and create your workspace
@@ -360,7 +337,7 @@ export default function CreateWorkspacePage() {
                     disabled={isLoading}
                     size="lg"
                   >
-                    {isLoading ? "Creating Workspace..." : "Create Workspace"}
+                    {isLoading ? "Creating..." : "Create"}
                   </Button>
                 </div>
               </CardContent>

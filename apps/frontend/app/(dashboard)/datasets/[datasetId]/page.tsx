@@ -42,8 +42,6 @@ export default function DatasetDetailPage() {
         workspace_id: currentWorkspaceId,
       });
       
-      console.log("DatasetsGetByIdWorkflow result:", result);
-      
       if (result.success && result.data) {
         setDataset(result.data as Dataset);
       } else {
@@ -58,9 +56,7 @@ export default function DatasetDetailPage() {
 
   // Fetch events
   const fetchEvents = useCallback(async () => {
-    console.log("fetchEvents called with:", { currentWorkspaceId, isReady, datasetId });
     if (!currentWorkspaceId || !isReady) {
-      console.log("fetchEvents early return - missing workspace or not ready");
       return;
     }
     
@@ -78,13 +74,10 @@ export default function DatasetDetailPage() {
         offset: 0,
       });
       
-      console.log("QueryDatasetEventsWorkflow result:", result);
-      
+
       // Extract events from consistent payload structure
       const responseData = result.data as { success?: boolean; events?: PipelineEvent[] };
       const events = responseData?.events || [];
-      
-      console.log("Extracted events:", events);
       
       if (result.success && responseData?.success && Array.isArray(events)) {
         // Sort events by timestamp (latest first)
@@ -92,10 +85,8 @@ export default function DatasetDetailPage() {
           new Date(b.event_timestamp).getTime() - new Date(a.event_timestamp).getTime()
         );
         
-        console.log("Setting events:", sortedEvents);
         setEvents(sortedEvents);
       } else {
-        console.log("No events found in result:", result);
         setEvents([]);
       }
     } catch (err) {

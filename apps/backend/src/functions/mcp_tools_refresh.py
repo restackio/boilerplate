@@ -1,5 +1,4 @@
 import json
-import os
 
 import aiohttp
 from pydantic import (
@@ -9,6 +8,8 @@ from pydantic import (
     field_validator,
 )
 from restack_ai.function import function
+
+from src.client import mcp_address
 
 
 def _extract_tools_from_result(result: dict) -> list[dict]:
@@ -249,9 +250,9 @@ async def mcp_session_init(
 def _get_effective_server_url(
     *, local: bool, server_url: str | None = None
 ) -> str:
-    """Get the effective server URL, using RESTACK_ENGINE_MCP_ADDRESS environment variable for local servers."""
+    """Get the effective server URL, using mcp_address from client for local servers."""
     if local:
-        return os.getenv("RESTACK_ENGINE_MCP_ADDRESS", server_url)
+        return mcp_address or server_url
     return server_url
 
 

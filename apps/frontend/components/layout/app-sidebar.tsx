@@ -96,6 +96,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { workspaces, currentWorkspaceId, currentUser, loading, setCurrentWorkspaceId } = useDatabaseWorkspace();
   const { teams, fetchTeams } = useWorkspaceScopedActions();
 
+  // Log workspace changes
+  React.useEffect(() => {
+  }, [currentWorkspaceId, workspaces]);
+
   // Format workspaces for UI
   const formattedWorkspaces = workspaces.map(formatWorkspaceForUI);
   const formattedUser = currentUser ? formatUserForUI(currentUser) : null;
@@ -177,10 +181,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       setCurrentWorkspaceId(workspace.id);
     }
   };
-  void handleWorkspaceChange; // Suppress unused warning
 
   const handleLogout = () => {
     localStorage.removeItem("currentUser");
+    localStorage.removeItem("currentWorkspaceId");
     window.location.href = "/login";
   };
 
@@ -190,6 +194,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <WorkspaceSwitcher
           workspaces={data.workspaces}
           activeWorkspace={currentWorkspace ? formatWorkspaceForUI(currentWorkspace) : undefined}
+          onWorkspaceChange={handleWorkspaceChange}
         />
       </SidebarHeader>
       <SidebarContent>

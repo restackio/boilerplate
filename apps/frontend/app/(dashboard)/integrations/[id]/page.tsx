@@ -158,7 +158,6 @@ export default function IntegrationDetailPage() {
         if (updatedResult.success && updatedResult.data) {
           setServer(updatedResult.data);
         }
-        console.log("Integration saved successfully");
       } else {
         console.error("Failed to save integration:", result?.error);
         alert(result?.error || "Failed to save integration");
@@ -185,7 +184,6 @@ export default function IntegrationDetailPage() {
     try {
       const result = await deleteMcpServer(server.id);
       if (result?.success) {
-        console.log("Integration deleted successfully");
         router.push("/integrations");
       } else {
         console.error("Failed to delete integration:", result?.error);

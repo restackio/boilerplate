@@ -1,64 +1,78 @@
-"""Format webhook payloads into task descriptions."""
+"""Webhook payload formatters for different services."""
+
 import json
 import time
 from typing import Any
 
 
-def _extract_github_title(payload: dict[str, Any], headers: dict[str, str]) -> str | None:
-    """Extract title from GitHub webhook."""
-    event = headers.get("x-github-event", "").lower()
-
-    if event == "pull_request" and "pull_request" in payload:
-        pr = payload["pull_request"]
-        action = payload.get("action", "")
-        return f"GitHub PR {action}: {pr.get('title', 'Untitled')}"
-
-    if event == "issues" and "issue" in payload:
-        issue = payload["issue"]
-        action = payload.get("action", "")
-        return f"GitHub Issue {action}: {issue.get('title', 'Untitled')}"
-
-    if event == "push" and "commits" in payload:
-        branch = payload.get("ref", "").split("/")[-1]
-        commit_count = len(payload["commits"])
-        return f"GitHub Push: {commit_count} commit(s) to {branch}"
-
+def _extract_github_title(
+    payload: dict[str, Any], headers: dict[str, str]
+) -> str | None:
+    """Extract GitHub-specific title."""
+    if "pull_request" in payload:
+        action = payload.get("action", "unknown")
+        pr_number = payload.get("number", "unknown")
+        return f"GitHub PR #{pr_number} {action}"
+    if "commits" in payload and "ref" in payload:
+        ref = payload.get("ref", "unknown").replace(
+            "refs/heads/", ""
+        )
+        return f"GitHub push to {ref}"
+    if headers.get("x-github-event"):
+        event_type = headers.get("x-github-event")
+        return f"GitHub {event_type}"
     return None
 
 
-def _extract_service_title(payload: dict[str, Any], headers: dict[str, str]) -> str | None:
-    """Extract title from various service webhooks."""
-    # Linear
-    if payload.get("type") == "Issue" and "data" in payload:
-        return f"Linear Issue: {payload['data'].get('title', 'Untitled')}"
+def _extract_service_title(
+    payload: dict[str, Any], headers: dict[str, str]
+) -> str | None:
+    """Extract title from various service payloads."""
+    # Linear patterns
+    if payload.get("type") and "issue" in payload.get("type", ""):
+        issue_data = payload.get("data", {})
+        issue_title = issue_data.get("title", "Unknown Issue")
+        return f"Linear: {issue_title}"
 
-    # Zendesk
+    # Zendesk patterns
     if "ticket" in payload:
-        return f"Zendesk: {payload['ticket'].get('subject', 'New ticket')}"
+        ticket_data = payload.get("ticket", {})
+        ticket_id = ticket_data.get("id", "unknown")
+        ticket_subject = ticket_data.get(
+            "subject", "Unknown Subject"
+        )
+        return f"Zendesk Ticket #{ticket_id}: {ticket_subject}"
 
-    # PagerDuty
+    # Datadog patterns
+    if "alert" in payload or headers.get(
+        "user-agent", ""
+    ).lower().startswith("datadog"):
+        alert_title = payload.get(
+            "title", payload.get("alert_title", "Unknown Alert")
+        )
+        return f"Datadog: {alert_title}"
+
+    # PagerDuty patterns
     if "incident" in payload:
-        return f"PagerDuty: {payload['incident'].get('title', 'New incident')}"
-
-    # Datadog
-    if "alert_type" in payload:
-        return f"Datadog Alert: {payload.get('title', 'Alert')}"
+        incident_data = payload.get("incident", {})
+        incident_title = incident_data.get(
+            "title", "Unknown Incident"
+        )
+        return f"PagerDuty: {incident_title}"
 
     return None
 
 
 def _extract_generic_title(payload: dict[str, Any]) -> str | None:
-    """Try to extract a generic title from common fields."""
+    """Extract generic title from common fields."""
     for field in ["title", "subject", "name", "summary"]:
-        if field in payload and payload[field]:
-            return str(payload[field])
-
+        if payload.get(field):
+            return f"Webhook: {payload[field]}"
     return None
 
 
 def format_webhook_payload_as_task_description(
-    headers: dict[str, str],
-    payload: dict[str, Any]
+    headers: dict[str, str], payload: dict[str, Any]
 ) -> tuple[str, str]:
     """Format webhook payload into task title and description."""
     title = "Webhook Event"
@@ -66,10 +80,10 @@ def format_webhook_payload_as_task_description(
     if isinstance(payload, dict):
         # Try different title extraction strategies
         title = (
-            _extract_github_title(payload, headers) or
-            _extract_service_title(payload, headers) or
-            _extract_generic_title(payload) or
-            title
+            _extract_github_title(payload, headers)
+            or _extract_service_title(payload, headers)
+            or _extract_generic_title(payload)
+            or title
         )
 
     # Create detailed description with the full payload
@@ -85,7 +99,7 @@ def format_webhook_payload_as_task_description(
 {json.dumps(payload, indent=2)}
 ```
 
-**Received at:** {time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime())}
+**Received at:** {time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())}
 """
 
     return title, description

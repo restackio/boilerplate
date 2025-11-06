@@ -43,18 +43,47 @@ if [ "$workspace_exists" = "0" ]; then
     echo "⚠ Warning: $DEMO_DIR/postgres-demo.sql not found"
   fi
   
-  # ClickHouse (if CLICKHOUSE_URL is set)
-  if [ -n "$CLICKHOUSE_URL" ]; then
-    if [ -f "$DEMO_DIR/clickhouse-demo.sql" ]; then
-      CLICKHOUSE_CREDENTIALS=$(echo "$CLICKHOUSE_URL" | sed -E 's|^https?://([^@]+)@.*|\1|')
-      CLICKHOUSE_ENDPOINT=$(echo "$CLICKHOUSE_URL" | sed -E 's|^https?://[^@]+@(.*)|\1|')
-      
-      curl -u "$CLICKHOUSE_CREDENTIALS" "http://$CLICKHOUSE_ENDPOINT" \
-        --data-binary @"$DEMO_DIR/clickhouse-demo.sql" > /dev/null 2>&1
-      echo "✓ ClickHouse demo data inserted"
-    else
-      echo "⚠ Warning: $DEMO_DIR/clickhouse-demo.sql not found"
+  # ClickHouse
+  if [ -f "$DEMO_DIR/clickhouse-demo.sql" ]; then
+    # Parse CLICKHOUSE_URL only
+    CLICKHOUSE_URL_CLEAN="${CLICKHOUSE_URL#clickhouse://}"
+    CLICKHOUSE_URL_CLEAN="${CLICKHOUSE_URL_CLEAN#http://}"
+    CLICKHOUSE_URL_CLEAN="${CLICKHOUSE_URL_CLEAN#https://}"
+    
+    if [[ $CLICKHOUSE_URL_CLEAN =~ ^([^:]+):([^@]+)@(.+)$ ]]; then
+      CLICKHOUSE_USER="${BASH_REMATCH[1]}"
+      CLICKHOUSE_PASSWORD="${BASH_REMATCH[2]}"
+      CLICKHOUSE_URL_CLEAN="${BASH_REMATCH[3]}"
     fi
+    
+    if [[ $CLICKHOUSE_URL_CLEAN =~ ^([^:]+):([^/]+)/(.+)$ ]]; then
+      CLICKHOUSE_HOST="${BASH_REMATCH[1]}"
+      CLICKHOUSE_PORT="${BASH_REMATCH[2]}"
+      CLICKHOUSE_DB="${BASH_REMATCH[3]}"
+    fi
+    
+    # Detect secure connection
+    if [[ "$CLICKHOUSE_PORT" == "8443" ]] || [[ "$CLICKHOUSE_PORT" == "9440" ]] || [[ "$CLICKHOUSE_URL" == https://* ]]; then
+      CLICKHOUSE_SECURE=true
+      CLICKHOUSE_NATIVE_PORT=9440
+    else
+      CLICKHOUSE_SECURE=false
+      CLICKHOUSE_NATIVE_PORT=9000
+    fi
+    
+    # Execute clickhouse-client command
+    if [ "$CLICKHOUSE_SECURE" = true ]; then
+      clickhouse-client --host $CLICKHOUSE_HOST --port $CLICKHOUSE_NATIVE_PORT \
+        --user $CLICKHOUSE_USER --password $CLICKHOUSE_PASSWORD --secure \
+        --database=$CLICKHOUSE_DB --multiquery < "$DEMO_DIR/clickhouse-demo.sql" > /dev/null
+    else
+      clickhouse-client --host $CLICKHOUSE_HOST --port $CLICKHOUSE_NATIVE_PORT \
+        --user $CLICKHOUSE_USER --password $CLICKHOUSE_PASSWORD \
+        --database=$CLICKHOUSE_DB --multiquery < "$DEMO_DIR/clickhouse-demo.sql" > /dev/null
+    fi
+    echo "✓ ClickHouse demo data inserted"
+  else
+    echo "⚠ Warning: $DEMO_DIR/clickhouse-demo.sql not found"
   fi
   
   echo ""

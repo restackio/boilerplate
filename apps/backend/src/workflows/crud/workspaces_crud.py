@@ -49,7 +49,11 @@ class WorkspacesReadWorkflow:
 
 @workflow.defn()
 class WorkspacesCreateWorkflow:
-    """Workflow to create a new workspace."""
+    """Workflow to create a new workspace.
+
+    If created_by_user_id is provided, the user will automatically be added as an owner.
+    This is the recommended way to create workspaces with an initial owner.
+    """
 
     @workflow.run
     async def run(

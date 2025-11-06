@@ -1,14 +1,14 @@
-import os
 from typing import TYPE_CHECKING, Any
 
 from dotenv import load_dotenv
-from openai import AsyncOpenAI
 from pydantic import BaseModel
 from restack_ai.function import (
     NonRetryableError,
     function,
     log,
 )
+
+from src.utils.openai_client import get_openai_client
 
 if TYPE_CHECKING:
     from openai.types.chat import ChatCompletion
@@ -63,12 +63,8 @@ async def llm_response(  # noqa: C901
 
         log.info("llm_response started", **log_data)
 
-        api_key = os.environ.get("OPENAI_API_KEY")
-        if not api_key:
-            msg = "OPENAI_API_KEY is not set"
-            raise NonRetryableError(msg)  # noqa: TRY301
-
-        client = AsyncOpenAI(api_key=api_key)
+        # Get singleton OpenAI client to prevent file descriptor leaks
+        client = get_openai_client()
 
         response: ChatCompletion = (
             await client.chat.completions.create(

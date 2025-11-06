@@ -287,12 +287,13 @@ export default function TasksPage() {
                   The tasks below are filtered to show only newly created tasks. Clear filters to see all tasks.
                 </p>
               </div>
-              <button
+              <Button
                 onClick={() => router.push('/tasks')}
-                className="text-green-600 hover:text-green-800 text-xs underline"
+                variant="link"
+                className="text-green-600 hover:text-green-800 text-xs h-auto p-0"
               >
                 Clear filter
-              </button>
+              </Button>
             </div>
           </div>
         )}
@@ -311,12 +312,13 @@ export default function TasksPage() {
                   <p className="text-red-800 text-sm font-medium">Error loading filtered tasks</p>
                   <p className="text-red-700 text-xs mt-1">{filterError}</p>
                 </div>
-                <button
+                <Button
                   onClick={() => router.push('/tasks')}
-                  className="text-red-600 hover:text-red-800 text-xs underline"
+                  variant="link"
+                  className="text-red-600 hover:text-red-800 text-xs h-auto p-0"
                 >
                   Clear filter
-                </button>
+                </Button>
               </div>
             ) : (
               <div className="flex items-center justify-between">
@@ -330,12 +332,13 @@ export default function TasksPage() {
                     Found {filteredTaskIds?.length || 0} tasks matching the criteria. Clear filters to see all tasks.
                   </p>
                 </div>
-                <button
+                <Button
                   onClick={() => router.push('/tasks')}
-                  className="text-blue-600 hover:text-blue-800 text-xs underline"
+                  variant="link"
+                  className="text-blue-600 hover:text-blue-800 text-xs h-auto p-0"
                 >
                   Clear filter
-                </button>
+                </Button>
               </div>
             )}
           </div>

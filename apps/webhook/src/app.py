@@ -1,4 +1,5 @@
 """FastAPI webhook application."""
+
 import json
 import logging
 import time
@@ -37,7 +38,9 @@ def create_webhook_app() -> FastAPI:
     # CORS for webhook sources
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],  # Configure based on your webhook sources
+        allow_origins=[
+            "*"
+        ],  # Configure based on your webhook sources
         allow_credentials=False,
         allow_methods=["POST", "GET"],
         allow_headers=["*"],
@@ -48,12 +51,14 @@ def create_webhook_app() -> FastAPI:
         """Health check endpoint."""
         return {"status": "healthy", "service": "webhook-server"}
 
-    @app.post("/webhook/workspace/{workspace_id}/agent/{agent_name}")
+    @app.post(
+        "/webhook/workspace/{workspace_id}/agent/{agent_name}"
+    )
     async def create_task_from_webhook(
         workspace_id: str,
         agent_name: str,
         request: Request,
-        task_input: WebhookTaskInput
+        task_input: WebhookTaskInput,
     ) -> dict[str, Any]:
         """Create a task from a webhook event for a specific agent in a workspace.
 
@@ -78,20 +83,28 @@ def create_webhook_app() -> FastAPI:
 
             # Parse JSON payload from the original webhook
             try:
-                webhook_payload = json.loads(body.decode()) if body else {}
+                webhook_payload = (
+                    json.loads(body.decode()) if body else {}
+                )
             except json.JSONDecodeError:
-                webhook_payload = {"raw_body": body.decode() if body else ""}
+                webhook_payload = {
+                    "raw_body": body.decode() if body else ""
+                }
 
             # Use provided title/description or generate from webhook
             if task_input.title and task_input.description:
                 title = task_input.title
                 description = task_input.description
             else:
-                title, description = format_webhook_payload_as_task_description(
-                    headers, webhook_payload
+                title, description = (
+                    format_webhook_payload_as_task_description(
+                        headers, webhook_payload
+                    )
                 )
 
-            workflow_id = f"webhook_task_{agent_name}_{int(time.time())}"
+            workflow_id = (
+                f"webhook_task_{agent_name}_{int(time.time())}"
+            )
 
             result = await client.schedule_workflow(
                 workflow_name="TasksCreateWorkflow",
@@ -102,10 +115,14 @@ def create_webhook_app() -> FastAPI:
                     description=description,
                     status="open",
                     agent_name=agent_name,
-                )
+                ),
             )
 
-            logger.info("Created task from webhook for agent %s in workspace %s", agent_name, workspace_id)
+            logger.info(
+                "Created task from webhook for agent %s in workspace %s",
+                agent_name,
+                workspace_id,
+            )
 
             return {
                 "status": "success",
@@ -114,7 +131,12 @@ def create_webhook_app() -> FastAPI:
                 "task_url": f"http://localhost:3000/tasks/{result}",
             }
         except Exception as e:
-            logger.exception("Error creating task from webhook for agent %s", agent_name)
-            raise HTTPException(status_code=500, detail=str(e)) from e
+            logger.exception(
+                "Error creating task from webhook for agent %s",
+                agent_name,
+            )
+            raise HTTPException(
+                status_code=500, detail=str(e)
+            ) from e
 
     return app

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Subscription } from 'rxjs';
 import { ConversationItem, OpenAIEvent } from '../types';
-import { ConversationStore, StreamEvent } from '../stores/conversation-store';
+import { ConversationStore, StateEvent } from '../stores/conversation-store';
 
 interface UseRxjsConversationProps {
   responseState?: { events: OpenAIEvent[]; [key: string]: unknown } | false;
@@ -47,18 +47,39 @@ export function useRxjsConversation({
     const hasPersistedEvents = persistedState?.events?.length;
     
     if (hasPersistedEvents && !hasResponseEvents) {
+      // Process persisted events (with backend timestamps) to calculate durations
+      const stateEvents: StateEvent[] = persistedState.events.map(event => ({
+        type: event.type,
+        item: event.item,
+        item_id: event.item_id || event.item?.id,
+        sequence_number: event.sequence_number || 0,
+        timestamp: event.timestamp,
+        summary_index: typeof event.summary_index === 'number' ? event.summary_index : undefined,
+        part: event.part && typeof event.part === 'object' && 'type' in event.part && 'text' in event.part 
+          ? event.part as { type: string; text: string } 
+          : undefined,
+        text: event.text,
+        delta: event.delta,
+      }));
+      
+      // Extract items from output_item.done events since they have complete data
       const items: ConversationItem[] = persistedState.events
-        .filter(event => event.id && event.type)
+        .filter(event => 
+          event.type === 'response.output_item.done' && 
+          event.item?.id && 
+          event.item?.type
+        )
         .map(event => ({
-          id: event.id as string,
-          type: event.type,
+          id: event.item.id as string,
+          type: event.item.type,
           timestamp: event.timestamp || new Date().toISOString(),
           openai_output: event.item || null,
           openai_event: event,
           isStreaming: false,
         }));
       
-      conversationStore.updateStateItems(items);
+      // Process events through the store to calculate durations
+      conversationStore.updateConversation(items, stateEvents);
       return;
     }
 
@@ -213,18 +234,33 @@ export function useRxjsConversation({
       });
     });
     
-    conversationStore.updateStateItems(items);
+    // Extract state events (with backend timestamps) to calculate durations
+    const stateEvents: StateEvent[] = (responseState.events || []).map((event: OpenAIEvent) => ({
+      type: event.type,
+      item: event.item,
+      item_id: event.item_id || event.item?.id,
+      sequence_number: event.sequence_number || 0,
+      timestamp: event.timestamp, // Backend timestamp for accurate duration calculation
+      summary_index: typeof event.summary_index === 'number' ? event.summary_index : undefined,
+      part: event.part && typeof event.part === 'object' && 'type' in event.part && 'text' in event.part 
+        ? event.part as { type: string; text: string } 
+        : undefined,
+      text: event.text,
+      delta: event.delta,
+    }));
+    
+    conversationStore.updateConversation(items, stateEvents);
   }, [responseState, persistedState, conversationStore]);
 
   useEffect(() => {
     if (!agentResponses || !Array.isArray(agentResponses) || agentResponses.length === 0) {
-      conversationStore.updateStreamEvents([]);
+      conversationStore.updateStateEvents([]);
       return;
     }
 
     try {
       // @ts-expect-error - agentResponses has unknown properties
-      const streamEvents: StreamEvent[] = agentResponses
+      const streamEvents: StateEvent[] = agentResponses
         .filter(response => response && typeof response === 'object')
         .map(response => ({
           type: response.type,
@@ -234,13 +270,18 @@ export function useRxjsConversation({
           text: response.text,
           item: response.item,
           error: response.error,
+          timestamp: response.timestamp, // Backend timestamp for duration calculation
+          summary_index: typeof response.summary_index === 'number' ? response.summary_index : undefined,
+          part: response.part && typeof response.part === 'object' && 'type' in response.part && 'text' in response.part 
+            ? response.part as { type: string; text: string } 
+            : undefined,
         }));
 
       if (streamEvents.length > 0) {
-        conversationStore.updateStreamEvents(streamEvents);
+        conversationStore.updateStateEvents(streamEvents);
       }
     } catch {
-      conversationStore.updateStreamEvents([]);
+      conversationStore.updateStateEvents([]);
     }
   }, [agentResponses, conversationStore]);
 

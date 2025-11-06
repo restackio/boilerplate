@@ -106,12 +106,13 @@ export function NotificationBanner({
             {/* Action and Close */}
             <div className="ml-4 flex items-center space-x-2">
               {action && (
-                <button
+                <Button
                   onClick={action.onClick}
-                  className={`text-xs underline ${config.actionColor}`}
+                  variant="link"
+                  className={`text-xs h-auto p-0 ${config.actionColor}`}
                 >
                   {action.label}
-                </button>
+                </Button>
               )}
               
               {dismissible && onClose && (

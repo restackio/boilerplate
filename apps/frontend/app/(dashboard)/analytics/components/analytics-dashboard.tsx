@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/ui/card";
 import { Button } from "@workspace/ui/components/ui/button";
-import { AlertCircle, Ellipsis } from "lucide-react";
+import { AlertCircle, Ellipsis, Plus } from "lucide-react";
 import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
 import { getAnalytics, type AnalyticsData, type AnalyticsFilters } from "@/app/actions/analytics";
@@ -14,10 +14,11 @@ import TasksOverviewChart from "./tasks-overview-chart";
 import PerformanceMetricChart from "./performance-metric-chart";
 import QualityMetricChart from "./quality-metric-chart";
 import { EditMetricDialog } from "./edit-metric-dialog";
+import { CreateMetricDialog } from "./create-metric-dialog";
 import { AnalyticsDashboardSkeleton } from "./analytics-dashboard-skeleton";
 
 export default function AnalyticsDashboard() {
-  const { currentWorkspaceId, isReady, loading } = useDatabaseWorkspace();
+  const { currentWorkspaceId, currentUserId, isReady, loading } = useDatabaseWorkspace();
   const { agents, fetchAgents } = useWorkspaceScopedActions();
   const [filters, setFilters] = useState<AnalyticsFilters>({
     agentId: null,
@@ -35,22 +36,36 @@ export default function AnalyticsDashboard() {
     name: string;
     isActive: boolean;
     config: Record<string, unknown>;
+    parentAgentIds?: string[];
+    description?: string | null;
+    metricType?: string;
   } | null>(null);
 
-  const handleEditMetric = (metric: { metricId: string; metricName: string; isActive: boolean; config: Record<string, unknown> }) => {
+  const handleEditMetric = (metric: { 
+    metricId: string; 
+    metricName: string; 
+    isActive: boolean; 
+    config: Record<string, unknown>;
+    parentAgentIds?: string[];
+    description?: string | null;
+    metricType?: string;
+  }) => {
     setSelectedMetric({
       id: metric.metricId,
       name: metric.metricName,
       isActive: metric.isActive,
       config: metric.config,
+      parentAgentIds: metric.parentAgentIds,
+      description: metric.description,
+      metricType: metric.metricType,
     });
     setEditDialogOpen(true);
   };
 
-  // Fetch agents for filter dropdown
+  // Fetch agents for filter dropdown (parent agents only)
   useEffect(() => {
     if (isReady && currentWorkspaceId) {
-      fetchAgents({ publishedOnly: true });
+      fetchAgents({ publishedOnly: true, parentOnly: true }); // Only fetch published parent agents
     }
   }, [isReady, currentWorkspaceId, fetchAgents]);
 
@@ -101,10 +116,37 @@ export default function AnalyticsDashboard() {
     return <AnalyticsDashboardSkeleton />;
   }
 
+  // Get the parent agent ID from the filtered agent
+  const defaultParentAgentId = filters.agentId 
+    ? (() => {
+        const agent = agents.find(a => a.id === filters.agentId);
+        // If it's a child agent, use its parent_agent_id, otherwise use its own id
+        return agent?.parent_agent_id || agent?.id;
+      })()
+    : undefined;
+
   return (
     <div className="space-y-6">
       {/* Filters */}
-      <MetricsFilters filters={filters} onFiltersChange={setFilters} agents={agents} />
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex-1">
+          <MetricsFilters filters={filters} onFiltersChange={setFilters} agents={agents} />
+        </div>
+        {currentWorkspaceId && (
+          <CreateMetricDialog
+            workspaceId={currentWorkspaceId}
+            userId={currentUserId}
+            onMetricCreated={fetchAnalytics}
+            defaultParentAgentIds={defaultParentAgentId ? [defaultParentAgentId] : undefined}
+            trigger={
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Create metric
+              </Button>
+            }
+          />
+        )}
+      </div>
 
       {isLoading ? (
         <AnalyticsDashboardSkeleton />
@@ -216,10 +258,13 @@ export default function AnalyticsDashboard() {
               {analyticsData?.quality?.summary && analyticsData.quality.summary.length > 0 && 
                 analyticsData.quality.summary.map((metric) => {
                   // Find agent names and IDs for this metric
+                  // Match against parent_agent_id OR id (for root agents)
                   const metricAgents = metric.parentAgentIds && metric.parentAgentIds.length > 0
                     ? metric.parentAgentIds
-                        .map(agentId => {
-                          const agent = agents.find(a => a.id === agentId);
+                        .map(parentAgentId => {
+                          const agent = agents.find(a => 
+                            a.id === parentAgentId || a.parent_agent_id === parentAgentId
+                          );
                           return agent ? { id: agent.id, name: agent.name } : null;
                         })
                         .filter(Boolean) as { id: string; name: string }[]
@@ -300,8 +345,11 @@ export default function AnalyticsDashboard() {
         <EditMetricDialog
           metricId={selectedMetric.id}
           metricName={selectedMetric.name}
+          description={selectedMetric.description}
+          metricType={selectedMetric.metricType}
           isActive={selectedMetric.isActive}
           config={selectedMetric.config}
+          parentAgentIds={selectedMetric.parentAgentIds}
           workspaceId={currentWorkspaceId}
           open={editDialogOpen}
           onOpenChange={setEditDialogOpen}
