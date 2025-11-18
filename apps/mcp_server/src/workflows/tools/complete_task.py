@@ -1,11 +1,14 @@
 """Complete task workflow for MCP tool."""
 
-from datetime import timedelta
 from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
-from restack_ai.workflow import NonRetryableError, log, workflow
-from restack_ai.workflow import workflow_info
+from restack_ai.workflow import (
+    NonRetryableError,
+    log,
+    workflow,
+    workflow_info,
+)
 
 
 class SendAgentEventInput(BaseModel):
@@ -14,7 +17,7 @@ class SendAgentEventInput(BaseModel):
     temporal_run_id: str | None = None
     event_input: dict[str, Any] | None = None
 
-  
+
 class TaskUpdateInput(BaseModel):
     task_id: str = Field(..., min_length=1)
     title: str | None = Field(None, min_length=1, max_length=255)
@@ -128,7 +131,7 @@ class CompleteTask:
 
             return CompleteTaskOutput(
                 status="completed",
-                message=f"Task completion signal sent. Agent will stop running.",
+                message="Task completion signal sent. Agent will stop running.",
             )
 
         except Exception as e:
