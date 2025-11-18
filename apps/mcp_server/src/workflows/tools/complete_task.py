@@ -126,23 +126,6 @@ class CompleteTask:
               ),
             )
 
-            # Send end event to agent using temporal_agent_id from meta_info
-            # await workflow.step(
-            #     function="send_agent_event",
-            #     function_input=SendAgentEventInput(
-            #         event_name="end",
-            #         temporal_agent_id=workflow_input.temporal_agent_id,
-            #         temporal_run_id=workflow_input.temporal_run_id,
-            #         event_input=event_input if event_input else None,
-            #         wait_for_completion=False,
-            #     ),
-            #     start_to_close_timeout=timedelta(seconds=30),
-            # )
-
-            # log.info(
-            #     f"End event sent to agent {workflow_input.temporal_agent_id}"
-            # )
-
             return CompleteTaskOutput(
                 status="completed",
                 message=f"Task completion signal sent. Agent will stop running.",
