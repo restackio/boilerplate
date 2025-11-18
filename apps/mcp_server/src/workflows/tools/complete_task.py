@@ -3,8 +3,9 @@
 from datetime import timedelta
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from restack_ai.workflow import NonRetryableError, log, workflow
+from restack_ai.workflow import workflow_info
 
 
 class SendAgentEventInput(BaseModel):
@@ -12,6 +13,49 @@ class SendAgentEventInput(BaseModel):
     temporal_agent_id: str
     temporal_run_id: str | None = None
     event_input: dict[str, Any] | None = None
+
+  
+class TaskUpdateInput(BaseModel):
+    task_id: str = Field(..., min_length=1)
+    title: str | None = Field(None, min_length=1, max_length=255)
+    description: str | None = None
+    status: str | None = Field(
+        None,
+        pattern="^(in_progress|in_review|closed|completed|failed)$",
+    )
+    agent_id: str | None = None
+    assigned_to_id: str | None = None
+    temporal_agent_id: str | None = None
+    agent_state: dict | None = None
+    # Subtask-related fields
+    parent_task_id: str | None = None
+    temporal_parent_agent_id: str | None = None
+    # Schedule-related fields
+    schedule_spec: dict | None = None
+    schedule_task_id: str | None = None
+    is_scheduled: bool | None = None
+    schedule_status: str | None = Field(
+        None, pattern="^(active|inactive|paused)$"
+    )
+    temporal_schedule_id: str | None = None
+
+    @field_validator(
+        "assigned_to_id",
+        "agent_id",
+        "schedule_task_id",
+        "parent_task_id",
+        "temporal_parent_agent_id",
+        mode="before",
+    )
+    @classmethod
+    def validate_optional_string_fields(
+        cls, v: str | None
+    ) -> str | None:
+        """Convert empty strings to None for optional UUID fields."""
+        if v == "":
+            return None
+        return v
+
 
 
 class CompleteTaskInput(BaseModel):
@@ -43,13 +87,14 @@ class CompleteTaskOutput(BaseModel):
     description="""Complete the current task and stop the agent.
 
     Use this when you have finished your work and want to mark the task as complete.
+    If you are not sure if the task is complete, ask the user for confirmation.
 
     IMPORTANT: You must pass your temporal_agent_id, temporal_run_id and task_id from meta_info.
 
     Example: After completing a research task, call this to signal completion and mark task as completed.
     Example: When all subtasks are done and you're ready to finish.
 
-    The agent will stop running after this event is sent."""
+    """
 )
 class CompleteTask:
     """MCP workflow to complete a task via agent event."""
@@ -72,22 +117,31 @@ class CompleteTask:
             if workflow_input.result:
                 event_input["result"] = workflow_input.result
 
-            # Send end event to agent using temporal_agent_id from meta_info
-            await workflow.step(
-                function="send_agent_event",
-                function_input=SendAgentEventInput(
-                    event_name="end",
-                    temporal_agent_id=workflow_input.temporal_agent_id,
-                    temporal_run_id=workflow_input.temporal_run_id,
-                    event_input=event_input if event_input else None,
-                    wait_for_completion=False,
-                ),
-                start_to_close_timeout=timedelta(seconds=30),
+            await workflow.child_execute(
+              workflow="TasksUpdateWorkflow",
+              workflow_id=f"task_update_{workflow_info().workflow_id}",
+              workflow_input=TaskUpdateInput(
+                task_id=workflow_input.task_id,
+                status="completed",
+              ),
             )
 
-            log.info(
-                f"End event sent to agent {workflow_input.temporal_agent_id}"
-            )
+            # Send end event to agent using temporal_agent_id from meta_info
+            # await workflow.step(
+            #     function="send_agent_event",
+            #     function_input=SendAgentEventInput(
+            #         event_name="end",
+            #         temporal_agent_id=workflow_input.temporal_agent_id,
+            #         temporal_run_id=workflow_input.temporal_run_id,
+            #         event_input=event_input if event_input else None,
+            #         wait_for_completion=False,
+            #     ),
+            #     start_to_close_timeout=timedelta(seconds=30),
+            # )
+
+            # log.info(
+            #     f"End event sent to agent {workflow_input.temporal_agent_id}"
+            # )
 
             return CompleteTaskOutput(
                 status="completed",
