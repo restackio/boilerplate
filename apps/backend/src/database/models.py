@@ -563,6 +563,8 @@ class UserOAuthConnection(Base):
     )
     expires_at = Column(DateTime)
     scope = Column(ARRAY(String))
+    # Provider-specific metadata (e.g., Slack team_id for multi-tenancy)
+    provider_metadata = Column(JSONB, default=dict)
     # Default token flag for workspace
     is_default = Column(Boolean, nullable=False, default=False)
     last_refreshed_at = Column(DateTime)

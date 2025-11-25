@@ -1,0 +1,74 @@
+{
+  "display_information": {
+      "name": "Restack",
+      "description": "Slack notifications for Restack",
+      "background_color": "#6c48fa"
+  },
+    "features": {
+        "app_home": {
+            "home_tab_enabled": true,
+            "messages_tab_enabled": true,
+            "messages_tab_read_only_enabled": false
+        },
+        "bot_user": {
+            "display_name": "Restack",
+            "always_online": true
+        },
+        "assistant_view": {
+            "assistant_description": "An AI assistant to help you manage tasks, interact with agents, and stay updated on your work.",
+            "suggested_prompts": []
+        },
+        "slash_commands": [
+            {
+                "command": "/restack-list",
+                "description": "Show your open tasks",
+                "usage_hint": "View all your tasks and their status",
+                "should_escape": false
+            },
+            {
+                "command": "/restack-new",
+                "description": "Create a new task",
+                "usage_hint": "Opens a form to create a new task with agent selection",
+                "should_escape": false
+            }
+        ]
+  },
+  "oauth_config": {
+      "redirect_urls": [
+          "http://localhost:3000/oauth/callback"
+      ],
+      "scopes": {
+          "bot": [
+              "app_mentions:read",
+              "assistant:write",
+              "channels:history",
+              "channels:read",
+              "chat:write",
+              "chat:write.public",
+              "commands",
+              "im:history",
+              "im:read",
+              "im:write",
+              "incoming-webhook",
+              "reactions:write",
+              "users:read"
+          ]
+      }
+  },
+  "settings": {
+      "event_subscriptions": {
+          "bot_events": [
+              "app_mention",
+              "assistant_thread_context_changed",
+              "assistant_thread_started",
+              "message.im"
+          ]
+      },
+      "interactivity": {
+          "is_enabled": true
+      },
+      "org_deploy_enabled": false,
+      "socket_mode_enabled": true,
+      "token_rotation_enabled": false
+  }
+}
