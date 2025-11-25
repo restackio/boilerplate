@@ -112,7 +112,7 @@ def create_webhook_app() -> FastAPI:
                     workspace_id=workspace_id,
                     title=title,
                     description=description,
-                    status="open",
+                    status="in_progress",
                     agent_name=agent_name,
                 ),
             )
