@@ -9,6 +9,8 @@ from restack_ai.workflow import (
     workflow,
 )
 
+from src.constants import TASK_QUEUE
+
 with import_functions():
     from src.functions.restack_engine import (
         RestackEngineApiInput,
@@ -86,6 +88,7 @@ class ScheduleCreateWorkflow:
                 function=schedule_create_workflow,
                 function_input=backend_input,
                 start_to_close_timeout=timedelta(seconds=30),
+                task_queue=TASK_QUEUE,
             )
         except Exception as e:
             error_message = f"Error during schedule creation: {e}"
@@ -123,6 +126,7 @@ class ScheduleUpdateWorkflow:
                 function=schedule_update_workflow,
                 function_input=backend_input,
                 start_to_close_timeout=timedelta(seconds=30),
+                task_queue=TASK_QUEUE,
             )
         except Exception as e:
             error_message = f"Error during schedule update: {e}"
@@ -231,6 +235,7 @@ class ScheduleEditWorkflow:
                     task_id=workflow_input.task_id
                 ),
                 start_to_close_timeout=timedelta(seconds=30),
+                task_queue=TASK_QUEUE,
             )
             log.info(f"Task info retrieved: {task_info}")
             schedule_id = task_info["restack_schedule_id"]
@@ -257,6 +262,7 @@ class ScheduleEditWorkflow:
                     schedule_spec=spec_dict,
                 ),
                 start_to_close_timeout=timedelta(seconds=30),
+                task_queue=TASK_QUEUE,
             )
             log.info(f"Restack API call completed: {api_result}")
 
@@ -270,6 +276,7 @@ class ScheduleEditWorkflow:
                 function=schedule_update_workflow,
                 function_input=backend_input,
                 start_to_close_timeout=timedelta(seconds=30),
+                task_queue=TASK_QUEUE,
             )
             log.info(f"Database update completed: {db_result}")
 
@@ -316,6 +323,7 @@ class ScheduleControlWorkflow:
                         task_id=workflow_input.task_id
                     ),
                     start_to_close_timeout=timedelta(seconds=30),
+                    task_queue=TASK_QUEUE,
                 )
                 log.info(f"Task info retrieved: {task_info}")
                 schedule_id = task_info["restack_schedule_id"]
@@ -337,6 +345,7 @@ class ScheduleControlWorkflow:
                     reason=reason,
                 ),
                 start_to_close_timeout=timedelta(seconds=30),
+                task_queue=TASK_QUEUE,
             )
             log.info(f"Restack API call completed: {api_result}")
 
@@ -349,6 +358,7 @@ class ScheduleControlWorkflow:
                         task_id=task_id, action=action
                     ),
                     start_to_close_timeout=timedelta(seconds=30),
+                    task_queue=TASK_QUEUE,
                 )
             else:
                 # Find task by schedule_id and update

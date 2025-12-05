@@ -7,6 +7,8 @@ from restack_ai.workflow import (
     workflow,
 )
 
+from src.constants import TASK_QUEUE
+
 with import_functions():
     from src.functions.datasets_crud import (
         DatasetCreateInput,
@@ -36,6 +38,7 @@ class DatasetsReadWorkflow:
                 function=datasets_read,
                 function_input=function_input,
                 start_to_close_timeout=timedelta(seconds=30),
+                task_queue=TASK_QUEUE,
             )
             log.info(f"DatasetsReadWorkflow result: {result}")
         except Exception as e:
@@ -61,6 +64,7 @@ class DatasetsGetByIdWorkflow:
                 function=datasets_get_by_id,
                 function_input=function_input,
                 start_to_close_timeout=timedelta(seconds=30),
+                task_queue=TASK_QUEUE,
             )
             log.info(f"DatasetsGetByIdWorkflow result: {result}")
         except Exception as e:
@@ -88,6 +92,7 @@ class DatasetsCreateWorkflow:
                 function=datasets_create,
                 function_input=function_input,
                 start_to_close_timeout=timedelta(seconds=30),
+                task_queue=TASK_QUEUE,
             )
             log.info(f"DatasetsCreateWorkflow result: {result}")
         except Exception as e:
@@ -114,6 +119,7 @@ class QueryDatasetEventsWorkflow:
                 function=query_dataset_events,
                 function_input=function_input,
                 start_to_close_timeout=timedelta(seconds=60),
+                task_queue=TASK_QUEUE,
             )
 
             log.info(

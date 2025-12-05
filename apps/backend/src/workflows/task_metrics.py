@@ -8,6 +8,8 @@ from dataclasses import dataclass
 
 from restack_ai.workflow import import_functions, log, workflow
 
+from src.constants import TASK_QUEUE
+
 with import_functions():
     from src.functions.metrics_crud import list_metric_definitions
     from src.functions.metrics_evaluation import (
@@ -114,6 +116,7 @@ class TaskMetricsWorkflow:
                     "task_id": workflow_input.task_id,
                     "response_id": workflow_input.response_id,
                 },
+                task_queue=TASK_QUEUE,
             )
 
             if not trace_result["found"]:
@@ -173,6 +176,7 @@ class TaskMetricsWorkflow:
                         "span_id": trace_result["span_id"],
                         "model": model_name,
                     },
+                    task_queue=TASK_QUEUE,
                 )
                 log.info("Performance metrics saved from traces")
             else:
@@ -204,6 +208,7 @@ class TaskMetricsWorkflow:
                         "task_input": workflow_input.task_input,
                         "task_output": workflow_input.task_output,
                     },
+                    task_queue=TASK_QUEUE,
                 )
                 log.info(
                     "Performance metrics saved from workflow input (legacy)"
@@ -322,6 +327,7 @@ class TaskMetricsWorkflow:
                     "metric_type": None,
                     "is_active": True,
                 },
+                task_queue=TASK_QUEUE,
             )
 
             if not metrics:
@@ -381,6 +387,7 @@ class TaskMetricsWorkflow:
                         "response_index": workflow_input.response_index,
                         "message_count": workflow_input.message_count,
                     },
+                    task_queue=TASK_QUEUE,
                 )
                 log.info(
                     f"Quality metrics saved: {len(quality_results)} results"

@@ -7,6 +7,8 @@ from restack_ai.workflow import (
     workflow,
 )
 
+from src.constants import TASK_QUEUE
+
 with import_functions():
     from src.functions.users_crud import (
         UserCreateInput,
@@ -38,6 +40,7 @@ class UsersReadWorkflow:
         try:
             return await workflow.step(
                 function=users_read,
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=30),
             )
 
@@ -60,6 +63,7 @@ class UsersCreateWorkflow:
             return await workflow.step(
                 function=users_create,
                 function_input=workflow_input,
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=30),
             )
 
@@ -82,6 +86,7 @@ class UsersUpdateWorkflow:
             return await workflow.step(
                 function=users_update,
                 function_input=workflow_input,
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=30),
             )
 
@@ -104,6 +109,7 @@ class UsersDeleteWorkflow:
             return await workflow.step(
                 function=users_delete,
                 function_input=workflow_input,
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=30),
             )
 
@@ -126,6 +132,7 @@ class UsersGetByIdWorkflow:
             return await workflow.step(
                 function=users_get_by_id,
                 function_input=workflow_input,
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=30),
             )
 
@@ -148,6 +155,7 @@ class UsersGetByEmailWorkflow:
             return await workflow.step(
                 function=users_get_by_email,
                 function_input=workflow_input,
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=30),
             )
 
@@ -172,6 +180,7 @@ class UsersGetByWorkspaceWorkflow:
             return await workflow.step(
                 function=users_get_by_workspace,
                 function_input=workflow_input,
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=30),
             )
 

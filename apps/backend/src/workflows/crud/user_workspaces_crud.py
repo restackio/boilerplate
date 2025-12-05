@@ -7,6 +7,8 @@ from restack_ai.workflow import (
     workflow,
 )
 
+from src.constants import TASK_QUEUE
+
 with import_functions():
     from src.functions.user_workspaces_crud import (
         UserWorkspaceCreateInput,
@@ -39,6 +41,7 @@ class UserWorkspacesGetByUserWorkflow:
             return await workflow.step(
                 function=user_workspaces_get_by_user,
                 function_input=workflow_input,
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=30),
             )
 
@@ -63,6 +66,7 @@ class UserWorkspacesGetByWorkspaceWorkflow:
             return await workflow.step(
                 function=user_workspaces_get_by_workspace,
                 function_input=workflow_input,
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=30),
             )
 
@@ -89,6 +93,7 @@ class UserWorkspacesCreateWorkflow:
             return await workflow.step(
                 function=user_workspaces_create,
                 function_input=workflow_input,
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=30),
             )
 
@@ -113,6 +118,7 @@ class UserWorkspacesUpdateWorkflow:
             return await workflow.step(
                 function=user_workspaces_update,
                 function_input=workflow_input,
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=30),
             )
 
@@ -137,6 +143,7 @@ class UserWorkspacesDeleteWorkflow:
             return await workflow.step(
                 function=user_workspaces_delete,
                 function_input=workflow_input,
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=30),
             )
 

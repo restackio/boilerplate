@@ -7,6 +7,8 @@ from restack_ai.workflow import (
     workflow,
 )
 
+from src.constants import TASK_QUEUE
+
 with import_functions():
     from src.functions.agent_tools_crud import (
         AgentToolCreateInput,
@@ -39,6 +41,7 @@ class AgentToolsReadByAgentWorkflow:
                 function=agent_tools_read_by_agent,
                 function_input=workflow_input,
                 start_to_close_timeout=timedelta(seconds=30),
+                task_queue=TASK_QUEUE,
             )
         except Exception as e:
             error_message = (
@@ -62,6 +65,7 @@ class AgentToolsReadRecordsByAgentWorkflow:
                 function=agent_tools_read_records_by_agent,
                 function_input=workflow_input,
                 start_to_close_timeout=timedelta(seconds=30),
+                task_queue=TASK_QUEUE,
             )
         except Exception as e:
             error_message = f"Error during agent_tools_read_records_by_agent: {e}"
@@ -83,6 +87,7 @@ class AgentToolsCreateWorkflow:
                 function=agent_tools_create,
                 function_input=workflow_input,
                 start_to_close_timeout=timedelta(seconds=30),
+                task_queue=TASK_QUEUE,
             )
         except Exception as e:
             error_message = (
@@ -106,6 +111,7 @@ class AgentToolsUpdateWorkflow:
                 function=agent_tools_update,
                 function_input=workflow_input,
                 start_to_close_timeout=timedelta(seconds=30),
+                task_queue=TASK_QUEUE,
             )
         except Exception as e:
             error_message = (
@@ -129,6 +135,7 @@ class AgentToolsDeleteWorkflow:
                 function=agent_tools_delete,
                 function_input=workflow_input,
                 start_to_close_timeout=timedelta(seconds=30),
+                task_queue=TASK_QUEUE,
             )
         except Exception as e:
             error_message = (

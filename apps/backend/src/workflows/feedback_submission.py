@@ -5,6 +5,8 @@ Workflow for submitting and retrieving user feedback on agent responses.
 
 from restack_ai.workflow import import_functions, workflow
 
+from src.constants import TASK_QUEUE
+
 with import_functions():
     from src.functions.feedback_metrics import (
         GetFeedbackAnalyticsInput,
@@ -46,6 +48,7 @@ class FeedbackSubmissionWorkflow:
         success = await workflow.step(
             function=ingest_feedback_metric,
             function_input=input_data,
+            task_queue=TASK_QUEUE,
         )
 
         return {
@@ -72,6 +75,7 @@ class GetTaskFeedbackWorkflow:
         feedbacks = await workflow.step(
             function=get_task_feedback,
             function_input=input_data,
+            task_queue=TASK_QUEUE,
         )
 
         return {
@@ -101,6 +105,7 @@ class GetFeedbackAnalyticsWorkflow:
         return await workflow.step(
             function=get_feedback_analytics,
             function_input=input_data,
+            task_queue=TASK_QUEUE,
         )
 
 
@@ -124,6 +129,7 @@ class GetDetailedFeedbacksWorkflow:
         feedbacks = await workflow.step(
             function=get_detailed_feedbacks,
             function_input=input_data,
+            task_queue=TASK_QUEUE,
         )
 
         return {
