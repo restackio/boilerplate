@@ -9,6 +9,8 @@ from restack_ai.workflow import (
     workflow,
 )
 
+from src.constants import TASK_QUEUE
+
 with import_functions():
     from src.functions.mcp_oauth_crud import (
         GetOAuthTokenForMcpServerInput,
@@ -54,6 +56,7 @@ class McpServersReadWorkflow:
             return await workflow.step(
                 function=mcp_servers_read,
                 function_input=workflow_input,
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=30),
             )
 
@@ -83,6 +86,7 @@ class McpServersCreateWorkflow:
             return await workflow.step(
                 function=mcp_servers_create,
                 function_input=workflow_input,
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=30),
             )
 
@@ -114,6 +118,7 @@ class McpServersUpdateWorkflow:
             return await workflow.step(
                 function=mcp_servers_update,
                 function_input=workflow_input,
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=30),
             )
 
@@ -145,6 +150,7 @@ class McpServersDeleteWorkflow:
             return await workflow.step(
                 function=mcp_servers_delete,
                 function_input=workflow_input,
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=30),
             )
 
@@ -176,6 +182,7 @@ class McpServersGetByIdWorkflow:
             return await workflow.step(
                 function=mcp_servers_get_by_id,
                 function_input=workflow_input,
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=30),
             )
 
@@ -223,6 +230,7 @@ class McpToolsListWorkflow:
                 function_input=McpServerIdInput(
                     mcp_server_id=workflow_input.mcp_server_id
                 ),
+                task_queue=TASK_QUEUE,
             )
             if server_result and server_result.mcp_server:
                 is_local = server_result.mcp_server.local
@@ -264,6 +272,7 @@ class McpToolsListWorkflow:
                         mcp_server_id=workflow_input.mcp_server_id,
                         workspace_id=workflow_input.workspace_id,
                     ),
+                    task_queue=TASK_QUEUE,
                 )
                 if token:
                     headers["Authorization"] = f"Bearer {token}"
@@ -325,6 +334,7 @@ class McpToolsListWorkflow:
                 session_id=session_init_result.session_id,
                 headers=headers,
             ),
+            task_queue=TASK_QUEUE,
             start_to_close_timeout=timedelta(seconds=30),
         )
 
@@ -366,6 +376,7 @@ class McpToolsListWorkflow:
                 headers=headers,
                 local=is_local,
             ),
+            task_queue=TASK_QUEUE,
             start_to_close_timeout=timedelta(seconds=30),
         )
 
@@ -426,6 +437,7 @@ class McpToolsListWorkflow:
                     headers=headers,
                     local=is_local,
                 ),
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=30),
                 retry_policy=RetryPolicy(maximum_attempts=1),
             )

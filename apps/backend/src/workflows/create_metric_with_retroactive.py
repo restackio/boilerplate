@@ -14,6 +14,7 @@ from restack_ai.workflow import (
     workflow,
 )
 
+from src.constants import TASK_QUEUE
 from src.workflows.retroactive_metrics import (
     RetroactiveMetrics,
     RetroactiveMetricsInput,
@@ -121,6 +122,7 @@ class CreateMetricWithRetroactiveWorkflow:
                     "created_by": workflow_input.created_by,
                     "parent_agent_ids": workflow_input.parent_agent_ids,
                 },
+                task_queue=TASK_QUEUE,
             )
 
             if not metric_result or not metric_result.get("id"):
@@ -191,6 +193,7 @@ class CreateMetricWithRetroactiveWorkflow:
                         "workspace_id": workflow_input.workspace_id,
                         "filters": filters,
                     },
+                    task_queue=TASK_QUEUE,
                 )
 
                 total_traces = count_result.get("total_count", 0)

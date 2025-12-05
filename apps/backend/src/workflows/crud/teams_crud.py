@@ -7,6 +7,8 @@ from restack_ai.workflow import (
     workflow,
 )
 
+from src.constants import TASK_QUEUE
+
 with import_functions():
     from src.functions.teams_crud import (
         TeamCreateInput,
@@ -38,6 +40,7 @@ class TeamsReadWorkflow:
             return await workflow.step(
                 function=teams_read,
                 function_input=workflow_input,
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=30),
             )
 
@@ -60,6 +63,7 @@ class TeamsCreateWorkflow:
             return await workflow.step(
                 function=teams_create,
                 function_input=workflow_input,
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=30),
             )
 
@@ -82,6 +86,7 @@ class TeamsUpdateWorkflow:
             return await workflow.step(
                 function=teams_update,
                 function_input=workflow_input,
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=30),
             )
 
@@ -104,6 +109,7 @@ class TeamsDeleteWorkflow:
             return await workflow.step(
                 function=teams_delete,
                 function_input=workflow_input,
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=30),
             )
 
@@ -126,6 +132,7 @@ class TeamsGetByIdWorkflow:
             return await workflow.step(
                 function=teams_get_by_id,
                 function_input=workflow_input,
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=30),
             )
 

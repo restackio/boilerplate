@@ -7,6 +7,8 @@ from dataclasses import dataclass
 
 from restack_ai.workflow import import_functions, log, workflow
 
+from src.constants import TASK_QUEUE
+
 with import_functions():
     from src.functions.traces_crud import (
         get_task_traces_from_clickhouse,
@@ -38,6 +40,7 @@ class GetTaskTracesWorkflow:
                 function_input={
                     "task_id": workflow_input.task_id
                 },
+                task_queue=TASK_QUEUE,
             )
 
         except (

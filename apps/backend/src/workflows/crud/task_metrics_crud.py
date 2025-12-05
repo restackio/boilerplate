@@ -12,6 +12,8 @@ from restack_ai.workflow import (
     workflow,
 )
 
+from src.constants import TASK_QUEUE
+
 with import_functions():
     from src.functions.task_metrics_crud import (
         get_task_metrics_clickhouse,
@@ -40,6 +42,7 @@ class GetTaskMetricsWorkflow:
                     "task_id": workflow_input.task_id
                 },
                 start_to_close_timeout=timedelta(seconds=10),
+                task_queue=TASK_QUEUE,
             )
 
         except (

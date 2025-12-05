@@ -12,6 +12,7 @@ from restack_ai.workflow import (
 )
 
 from src.agents.agent_task import AgentTask, AgentTaskInput
+from src.constants import TASK_QUEUE
 
 with import_functions():
     from src.functions.agents_crud import (
@@ -67,6 +68,7 @@ class TasksReadWorkflow:
             return await workflow.step(
                 function=tasks_read,
                 function_input=workflow_input,
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=30),
             )
 
@@ -100,6 +102,7 @@ class TasksCreateWorkflow:
                         workspace_id=workflow_input.workspace_id,
                         agent_name=workflow_input.agent_name,
                     ),
+                    task_queue=TASK_QUEUE,
                     start_to_close_timeout=timedelta(seconds=10),
                 )
                 # Update workflow_input to use the resolved agent_id
@@ -113,6 +116,7 @@ class TasksCreateWorkflow:
             result = await workflow.step(
                 function=tasks_create,
                 function_input=workflow_input,
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=2),
             )
 
@@ -150,6 +154,7 @@ class TasksCreateWorkflow:
                     task_id=result.task.id,
                     temporal_agent_id=agent_task.id,
                 ),
+                task_queue=TASK_QUEUE,
             )
 
             await workflow.step(
@@ -166,6 +171,7 @@ class TasksCreateWorkflow:
                         ]
                     },
                 ),
+                task_queue=TASK_QUEUE,
             )
         except Exception as e:
             error_message = f"Error during tasks_create: {e}"
@@ -201,6 +207,7 @@ class TasksUpdateWorkflow:
                         function_input=TaskGetByIdInput(
                             task_id=workflow_input.task_id
                         ),
+                        task_queue=TASK_QUEUE,
                         start_to_close_timeout=timedelta(
                             seconds=30
                         ),
@@ -233,6 +240,7 @@ class TasksUpdateWorkflow:
                             event_name="end",
                             temporal_agent_id=current_task.temporal_agent_id,
                         ),
+                        task_queue=TASK_QUEUE,
                         start_to_close_timeout=timedelta(
                             seconds=30
                         ),
@@ -256,6 +264,7 @@ class TasksUpdateWorkflow:
             return await workflow.step(
                 function=tasks_update,
                 function_input=workflow_input,
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=30),
             )
 
@@ -278,6 +287,7 @@ class TasksDeleteWorkflow:
             return await workflow.step(
                 function=tasks_delete,
                 function_input=workflow_input,
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=30),
             )
 
@@ -299,6 +309,7 @@ class TasksGetByIdWorkflow:
             return await workflow.step(
                 function=tasks_get_by_id,
                 function_input=workflow_input,
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=30),
             )
         except Exception as e:
@@ -320,6 +331,7 @@ class TasksGetByStatusWorkflow:
             return await workflow.step(
                 function=tasks_get_by_status,
                 function_input=workflow_input,
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=30),
             )
 
@@ -344,6 +356,7 @@ class TasksUpdateAgentTaskIdWorkflow:
             return await workflow.step(
                 function=tasks_update_agent_task_id,
                 function_input=workflow_input,
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=30),
             )
 
@@ -424,6 +437,7 @@ class PlaygroundCreateDualTasksWorkflow:
                     function_input=TaskGetByIdInput(
                         task_id=draft_task_id
                     ),
+                    task_queue=TASK_QUEUE,
                     start_to_close_timeout=timedelta(seconds=10),
                 ),
                 workflow.step(
@@ -431,6 +445,7 @@ class PlaygroundCreateDualTasksWorkflow:
                     function_input=TaskGetByIdInput(
                         task_id=comparison_task_id
                     ),
+                    task_queue=TASK_QUEUE,
                     start_to_close_timeout=timedelta(seconds=10),
                 ),
             )
@@ -467,6 +482,7 @@ class TasksGetStatsWorkflow:
             return await workflow.step(
                 function=tasks_get_stats,
                 function_input=workflow_input,
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=30),
             )
 

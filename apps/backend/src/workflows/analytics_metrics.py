@@ -8,6 +8,8 @@ from datetime import timedelta
 
 from restack_ai.workflow import import_functions, log, workflow
 
+from src.constants import TASK_QUEUE
+
 with import_functions():
     from src.functions.analytics_metrics import (
         get_analytics_metrics,
@@ -52,6 +54,7 @@ class GetAnalyticsMetrics:
                     category="quality",  # Only quality metrics for now
                 ),
                 start_to_close_timeout=timedelta(seconds=10),
+                task_queue=TASK_QUEUE,
             )
 
             # Step 2: Fetch actual metric results from ClickHouse
@@ -65,6 +68,7 @@ class GetAnalyticsMetrics:
                     "metric_types": workflow_input.metric_types,
                 },
                 start_to_close_timeout=timedelta(seconds=15),
+                task_queue=TASK_QUEUE,
             )
 
             # Step 3: Merge metric definitions with results

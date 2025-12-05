@@ -4,6 +4,8 @@ from datetime import timedelta
 
 from restack_ai.workflow import import_functions, log, workflow
 
+from src.constants import TASK_QUEUE
+
 with import_functions():
     from src.functions.agent_subagents_crud import (
         AgentSubagentsCreateInput,
@@ -42,6 +44,7 @@ class AgentSubagentsReadWorkflow:
             function=agent_subagents_read,
             function_input=workflow_input,
             start_to_close_timeout=timedelta(seconds=30),
+            task_queue=TASK_QUEUE,
         )
 
         log.debug("AgentSubagentsReadWorkflow completed")
@@ -66,6 +69,7 @@ class AgentSubagentsGetAvailableWorkflow:
             function=agent_subagents_get_available,
             function_input=workflow_input,
             start_to_close_timeout=timedelta(seconds=30),
+            task_queue=TASK_QUEUE,
         )
 
         log.debug("AgentSubagentsGetAvailableWorkflow completed")
@@ -91,6 +95,7 @@ class AgentSubagentsCreateWorkflow:
             function=agent_subagents_create,
             function_input=workflow_input,
             start_to_close_timeout=timedelta(seconds=30),
+            task_queue=TASK_QUEUE,
         )
 
         log.debug("AgentSubagentsCreateWorkflow completed")
@@ -116,6 +121,7 @@ class AgentSubagentsDeleteWorkflow:
             function=agent_subagents_delete,
             function_input=workflow_input,
             start_to_close_timeout=timedelta(seconds=30),
+            task_queue=TASK_QUEUE,
         )
 
         log.info("AgentSubagentsDeleteWorkflow completed")
@@ -142,6 +148,7 @@ class AgentSubagentsToggleWorkflow:
             function=agent_subagents_toggle,
             function_input=workflow_input,
             start_to_close_timeout=timedelta(seconds=30),
+            task_queue=TASK_QUEUE,
         )
 
         log.info("AgentSubagentsToggleWorkflow completed")

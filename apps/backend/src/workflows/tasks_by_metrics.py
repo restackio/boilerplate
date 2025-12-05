@@ -5,6 +5,8 @@ from datetime import timedelta
 
 from restack_ai.workflow import import_functions, log, workflow
 
+from src.constants import TASK_QUEUE
+
 with import_functions():
     from src.functions.tasks_by_metrics import (
         TasksByFeedbackInput,
@@ -62,6 +64,7 @@ class GetTasksByMetricWorkflow:
                     date_range=workflow_input.date_range,
                 ),
                 start_to_close_timeout=timedelta(seconds=10),
+                task_queue=TASK_QUEUE,
             )
 
         except (
@@ -112,6 +115,7 @@ class GetTasksByFeedbackWorkflow:
                     date_range=workflow_input.date_range,
                 ),
                 start_to_close_timeout=timedelta(seconds=10),
+                task_queue=TASK_QUEUE,
             )
 
         except (

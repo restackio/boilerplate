@@ -340,11 +340,14 @@ async def schedule_create_workflow(
             )
 
             # Schedule the workflow with Restack
+            from src.constants import TASK_QUEUE
+
             run_id = await client.schedule_workflow(
                 workflow_name="TasksCreateWorkflow",
                 workflow_id=f"scheduled_task_{task.id}_{uuid.uuid4()}",
                 workflow_input=workflow_input,
                 schedule=schedule_config,
+                task_queue=TASK_QUEUE,
             )
 
             # Update the original task to mark it as a schedule

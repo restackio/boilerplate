@@ -307,7 +307,10 @@ logger = logging.getLogger(__name__)
 
 async def run_restack_service() -> None:
     """Run the Restack service."""
+    from src.constants import TASK_QUEUE
+
     await client.start_service(
+        task_queue=TASK_QUEUE,
         agents=[AgentTask],
         workflows=[
             AgentsReadWorkflow,
