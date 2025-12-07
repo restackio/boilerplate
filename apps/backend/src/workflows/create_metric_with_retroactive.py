@@ -217,6 +217,7 @@ class CreateMetricWithRetroactiveWorkflow:
                         sample_percentage=workflow_input.retroactive_sample_percentage,
                     ),
                     workflow_id=retroactive_workflow_id,
+                    task_queue=TASK_QUEUE,
                     parent_close_policy=ParentClosePolicy.ABANDON,
                 )
 
