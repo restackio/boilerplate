@@ -141,6 +141,7 @@ class TasksCreateWorkflow:
                     parent_task_id=result.task.parent_task_id,
                     temporal_parent_agent_id=temporal_parent_agent_id,
                 ),
+                task_queue=TASK_QUEUE,
                 parent_close_policy=ParentClosePolicy.ABANDON,
             )
 
@@ -412,11 +413,13 @@ class PlaygroundCreateDualTasksWorkflow:
                     workflow=TasksCreateWorkflow,
                     workflow_input=draft_task_input,
                     workflow_id=f"playground_draft_task_{workflow_info().workflow_id}",
+                    task_queue=TASK_QUEUE,
                 ),
                 workflow.child_execute(
                     workflow=TasksCreateWorkflow,
                     workflow_input=comparison_task_input,
                     workflow_id=f"playground_comparison_task_{workflow_info().workflow_id}",
+                    task_queue=TASK_QUEUE,
                 ),
             )
 
