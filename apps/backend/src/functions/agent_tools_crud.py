@@ -351,10 +351,26 @@ async def _create_mcp_tool_configs(
             )
         )
 
+        server_url = server_config["server_url"]
+        
+        # Log MCP server configuration for debugging
+        log.info(
+            f"MCP server '{server_config['server_label']}': "
+            f"url={server_url}, local={getattr(ms, 'local', False)}, "
+            f"allowed_tools={server_config['allowed_tools']}"
+        )
+        
+        # Warn if server_url is empty - OpenAI will fail to connect
+        if not server_url:
+            log.warning(
+                f"MCP server '{server_config['server_label']}' has no server_url! "
+                f"OpenAI will fail to connect. Check RESTACK_ENGINE_MCP_ADDRESS or RESTACK_ENGINE_API_ADDRESS env vars for local servers."
+            )
+        
         tool_obj = {
             "type": server_config["type"],
             "server_label": server_config["server_label"],
-            "server_url": server_config["server_url"],
+            "server_url": server_url,
             "server_description": server_config[
                 "server_description"
             ],
