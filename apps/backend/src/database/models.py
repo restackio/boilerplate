@@ -270,6 +270,28 @@ class Agent(Base):
     parent_agent = relationship(
         "Agent", remote_side=[id], backref="child_agents"
     )
+    agent_tools = relationship(
+        "AgentTool",
+        back_populates="agent",
+        cascade="all, delete-orphan",
+    )
+    configured_subagents = relationship(
+        "AgentSubagent",
+        foreign_keys="AgentSubagent.parent_agent_id",
+        back_populates="parent_agent",
+        cascade="all, delete-orphan",
+    )
+    parent_agents = relationship(
+        "AgentSubagent",
+        foreign_keys="AgentSubagent.subagent_id",
+        back_populates="subagent",
+        cascade="all, delete-orphan",
+    )
+    metric_agents = relationship(
+        "MetricAgent",
+        back_populates="parent_agent",
+        cascade="all, delete-orphan",
+    )
 
 
 class AgentTool(Base):
@@ -354,7 +376,7 @@ class AgentTool(Base):
     )
 
     # Relationships
-    agent = relationship("Agent", backref="agent_tools")
+    agent = relationship("Agent", back_populates="agent_tools")
     mcp_server = relationship("McpServer", backref="agent_tools")
 
 
@@ -403,12 +425,12 @@ class AgentSubagent(Base):
     parent_agent = relationship(
         "Agent",
         foreign_keys=[parent_agent_id],
-        backref="configured_subagents",
+        back_populates="configured_subagents",
     )
     subagent = relationship(
         "Agent",
         foreign_keys=[subagent_id],
-        backref="parent_agents",
+        back_populates="parent_agents",
     )
 
 
@@ -742,4 +764,4 @@ class MetricAgent(Base):
     metric_definition = relationship(
         "MetricDefinition", back_populates="metric_agents"
     )
-    parent_agent = relationship("Agent")
+    parent_agent = relationship("Agent", back_populates="metric_agents")
