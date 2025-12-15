@@ -132,6 +132,7 @@ class AgentGetByWorkspaceInput(BaseModel):
         default=False,
         description="If true, return only parent agents",
     )
+    team_id: str | None = Field(default=None, description="If provided, return only agents in the specified team")
 
 
 # Pydantic models for output serialization
@@ -560,6 +561,12 @@ async def agents_read_table(
             if function_input.parent_only:
                 all_agents_query = all_agents_query.where(
                     Agent.parent_agent_id.is_(None)
+                )
+
+            # Apply team_id filter if requested
+            if function_input.team_id:
+                all_agents_query = all_agents_query.where(
+                    Agent.team_id == uuid.UUID(function_input.team_id)
                 )
 
             all_agents_query = all_agents_query.order_by(
