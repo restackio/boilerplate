@@ -11,9 +11,10 @@ import { Plus, MessageSquare, Workflow } from "lucide-react";
 
 interface CreateAgentDialogProps {
   onAgentCreated?: () => void;
+  teamId?: string;
 }
 
-export function CreateAgentDialog({ onAgentCreated }: CreateAgentDialogProps) {
+export function CreateAgentDialog({ onAgentCreated, teamId }: CreateAgentDialogProps) {
   const { createAgent } = useWorkspaceScopedActions();
   const { isOpen, open, close, isLoading, handleError, handleSuccess } = useQuickActionDialog();
   
@@ -58,6 +59,7 @@ export function CreateAgentDialog({ onAgentCreated }: CreateAgentDialogProps) {
       reasoning_effort: "medium",
       type: selectedAgentType,
       status: "draft" as const,
+      ...(teamId && { team_id: teamId }),
     };
 
     const result = await createAgent(agentData);

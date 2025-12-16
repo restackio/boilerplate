@@ -46,7 +46,7 @@ class AgentCreateInput(BaseModel):
     reasoning_effort: str = Field(
         default="medium", pattern="^(minimal|low|medium|high)$"
     )
-
+    team_id: str | None = Field(default=None, description="If provided, create the agent in the specified team")
     # Note: MCP relationships are now created through the agent tools workflow
     # which requires specific tool names, not through agent creation
 
@@ -638,6 +638,7 @@ async def agents_create(
                 # New GPT-5 model configuration fields
                 model=agent_data.model,
                 reasoning_effort=agent_data.reasoning_effort,
+                team_id=uuid.UUID(agent_data.team_id) if agent_data.team_id else None,
             )
             db.add(agent)
             await db.commit()
@@ -668,6 +669,9 @@ async def agents_create(
                 else None,
                 updated_at=agent.updated_at.isoformat()
                 if agent.updated_at
+                else None,
+                team_id=str(agent.team_id)
+                if agent.team_id
                 else None,
             )
             return AgentSingleOutput(agent=result)

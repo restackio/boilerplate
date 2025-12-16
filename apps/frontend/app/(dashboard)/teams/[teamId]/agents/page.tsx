@@ -50,7 +50,7 @@ export default function TeamAgentsPage() {
         <RefreshCw className={`h-4 w-4 mr-1 ${agentsLoading.isLoading ? 'animate-spin' : ''}`} />
         Refresh
       </Button>
-      <CreateAgentDialog onAgentCreated={() => fetchAgents()} />
+      <CreateAgentDialog onAgentCreated={() => fetchAgents()} teamId={teamId} />
     </div>
   );
 
