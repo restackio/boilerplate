@@ -32,6 +32,7 @@ from src.workflows.tools.test_failures import (
 from src.workflows.tools.transform_data import (
     TransformData,
 )
+from src.workflows.tools.update_dataset import UpdateDataset
 from src.workflows.tools.update_todos import UpdateTodos
 
 # Create logger for this module
@@ -47,6 +48,7 @@ async def run_restack_service() -> None:
             TestFailures,
             TransformData,
             LoadIntoDataset,
+            UpdateDataset,
             ClickHouseListDatabases,
             ClickHouseListTables,
             ClickHouseRunSelectQuery,

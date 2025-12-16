@@ -113,7 +113,8 @@ export interface McpServer {
 
 async function executeWorkflow<T>(
   workflowName: string,
-  input: any = {}
+  input: any = {},
+  options?: { timeout?: number }
 ): Promise<ApiResponse<T>> {
 
   try {
@@ -127,6 +128,7 @@ async function executeWorkflow<T>(
     const result = await getWorkflowResult({
       workflowId,
       runId,
+      timeout: options?.timeout,
     });
 
     

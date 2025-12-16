@@ -44,6 +44,22 @@ class QueryDatasetEventsInput(BaseModel):
     offset: int = 0
 
 
+class DatasetViewInput(BaseModel):
+    """Input for a dataset view."""
+    id: str = Field(..., min_length=1)
+    name: str = Field(..., min_length=1, max_length=255)
+    columns: list[str] = Field(default_factory=list)
+    is_default: bool = Field(default=False)
+
+
+class DatasetUpdateViewsInput(BaseModel):
+    """Input for updating dataset views."""
+    workspace_id: str = Field(..., min_length=1)
+    dataset_id: str = Field(..., min_length=1)
+    views: list[DatasetViewInput] = Field(default_factory=list)
+    default_view_id: str | None = None
+
+
 # Output models
 class DatasetOutput(BaseModel):
     id: str
@@ -73,6 +89,14 @@ class QueryDatasetEventsOutput(BaseModel):
     total_count: int
     limit: int
     offset: int
+    error: str | None = None
+
+
+class DatasetViewsOutput(BaseModel):
+    """Output for dataset views."""
+    success: bool
+    views: list[dict]
+    default_view_id: str | None = None
     error: str | None = None
 
 
@@ -429,6 +453,87 @@ async def datasets_create(
     except (ValueError, TypeError, ConnectionError) as e:
         msg = f"Failed to create dataset '{function_input.name}': {e!s}"
         raise NonRetryableError(msg) from e
+
+
+@function.defn()
+async def datasets_update_views(
+    function_input: DatasetUpdateViewsInput,
+) -> DatasetViewsOutput:
+    """Update dataset views in storage_config."""
+    try:
+        import json
+        
+        # Get the current dataset
+        dataset_result = await datasets_get_by_id(
+            DatasetGetByIdInput(
+                dataset_id=function_input.dataset_id,
+                workspace_id=function_input.workspace_id,
+            )
+        )
+        
+        if not dataset_result.dataset:
+            return DatasetViewsOutput(
+                success=False,
+                views=[],
+                error=f"Dataset {function_input.dataset_id} not found",
+            )
+        
+        dataset = dataset_result.dataset
+        storage_config = dataset.storage_config.copy()
+        
+        # Update views in storage_config
+        views_data = [
+            {
+                "id": view.id,
+                "name": view.name,
+                "columns": view.columns,
+                "is_default": view.is_default,
+            }
+            for view in function_input.views
+        ]
+        
+        storage_config["views"] = views_data
+        
+        # Set default view ID if provided
+        if function_input.default_view_id:
+            storage_config["default_view_id"] = function_input.default_view_id
+        elif views_data and any(v.get("is_default") for v in views_data):
+            # Find the default view ID
+            default_view = next(
+                (v for v in views_data if v.get("is_default")), None
+            )
+            if default_view:
+                storage_config["default_view_id"] = default_view["id"]
+        
+        # Update the dataset in PostgreSQL
+        async for db in get_async_db():
+            await db.execute(
+                text("""
+                    UPDATE datasets
+                    SET storage_config = :storage_config,
+                        updated_at = NOW()
+                    WHERE id = :dataset_id AND workspace_id = :workspace_id
+                """),
+                {
+                    "dataset_id": function_input.dataset_id,
+                    "workspace_id": function_input.workspace_id,
+                    "storage_config": json.dumps(storage_config),
+                },
+            )
+            await db.commit()
+        
+        return DatasetViewsOutput(
+            success=True,
+            views=views_data,
+            default_view_id=storage_config.get("default_view_id"),
+        )
+        
+    except (ValueError, TypeError, ConnectionError) as e:
+        return DatasetViewsOutput(
+            success=False,
+            views=[],
+            error=str(e),
+        )
 
 
 @function.defn()

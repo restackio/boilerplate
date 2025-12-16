@@ -16,11 +16,14 @@ with import_functions():
         DatasetGetByWorkspaceInput,
         DatasetListOutput,
         DatasetSingleOutput,
+        DatasetUpdateViewsInput,
+        DatasetViewsOutput,
         QueryDatasetEventsInput,
         QueryDatasetEventsOutput,
         datasets_create,
         datasets_get_by_id,
         datasets_read,
+        datasets_update_views,
         query_dataset_events,
     )
 
@@ -134,3 +137,29 @@ class QueryDatasetEventsWorkflow:
             raise NonRetryableError(message=error_message) from e
         else:
             return step_result
+
+
+@workflow.defn()
+class DatasetsUpdateViewsWorkflow:
+    @workflow.run
+    async def run(
+        self, function_input: DatasetUpdateViewsInput
+    ) -> DatasetViewsOutput:
+        log.info("DatasetsUpdateViewsWorkflow started")
+        log.info(
+            f"DatasetsUpdateViewsWorkflow input: {function_input}"
+        )
+        try:
+            result = await workflow.step(
+                function=datasets_update_views,
+                function_input=function_input,
+                start_to_close_timeout=timedelta(seconds=30),
+                task_queue=TASK_QUEUE,
+            )
+            log.info(f"DatasetsUpdateViewsWorkflow result: {result}")
+        except Exception as e:
+            error_message = f"Error during datasets_update_views: {e}"
+            log.error(error_message)
+            raise NonRetryableError(message=error_message) from e
+        else:
+            return result
