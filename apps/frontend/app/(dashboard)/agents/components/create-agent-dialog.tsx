@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@workspace/ui/components/ui/button";
 import { Input } from "@workspace/ui/components/ui/input";
 import { Label } from "@workspace/ui/components/ui/label";
@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@work
 import { QuickActionDialog, useQuickActionDialog } from "@workspace/ui/components/quick-action-dialog";
 import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
 import { Plus, MessageSquare, Workflow } from "lucide-react";
+import { Select, SelectItem, SelectTrigger, SelectContent, SelectValue } from "@workspace/ui/components/ui/select";
 
 interface CreateAgentDialogProps {
   onAgentCreated?: () => void;
@@ -15,9 +16,14 @@ interface CreateAgentDialogProps {
 }
 
 export function CreateAgentDialog({ onAgentCreated, teamId }: CreateAgentDialogProps) {
-  const { createAgent } = useWorkspaceScopedActions();
+  const { createAgent, fetchTeams, teams } = useWorkspaceScopedActions();
   const { isOpen, open, close, isLoading, handleError, handleSuccess } = useQuickActionDialog();
-  
+  const [selectedTeamId, setSelectedTeamId] = useState(teamId || "");
+
+  useEffect(() => {
+    fetchTeams();
+  }, [fetchTeams]);
+
   const [agentName, setAgentName] = useState("");
   const [selectedAgentType, setSelectedAgentType] = useState<"interactive" | "pipeline" | null>(null);
   const [nameError, setNameError] = useState("");
@@ -59,7 +65,7 @@ export function CreateAgentDialog({ onAgentCreated, teamId }: CreateAgentDialogP
       reasoning_effort: "medium",
       type: selectedAgentType,
       status: "draft" as const,
-      ...(teamId && { team_id: teamId }),
+      ...(selectedTeamId && { team_id: selectedTeamId }),
     };
 
     const result = await createAgent(agentData);
@@ -122,6 +128,19 @@ export function CreateAgentDialog({ onAgentCreated, teamId }: CreateAgentDialogP
               Use lowercase letters, numbers, hyphens, and underscores only
             </p>
           </div>
+          <Label htmlFor="team-id">Assign to team</Label>
+          <Select value={selectedTeamId} onValueChange={setSelectedTeamId}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select a team" />
+            </SelectTrigger>
+            <SelectContent>
+              {teams.map((team) => (
+                <SelectItem key={team.id} value={team.id}>
+                  {team.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
           {/* Agent Type Selection */}
           <div className="space-y-3">

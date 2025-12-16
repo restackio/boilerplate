@@ -318,7 +318,7 @@ export function CreateTaskForm({
                     </SelectItem>
                   ))}
                 </SelectContent>
-            </Select>
+              </Select>
           </div>
         
 
