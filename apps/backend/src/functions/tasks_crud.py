@@ -946,6 +946,12 @@ async def tasks_get_stats(
                 )
                 .group_by(Task.status)
             )
+
+            if function_input.team_id:
+                stats_query = stats_query.where(
+                    Task.team_id == uuid.UUID(function_input.team_id)
+                )
+
             result = await db.execute(stats_query)
             status_counts = result.all()
 
