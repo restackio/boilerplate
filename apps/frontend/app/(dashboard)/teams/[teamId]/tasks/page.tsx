@@ -128,6 +128,7 @@ export default function TasksPage() {
     schedule_spec?: any;
     is_scheduled?: boolean;
     schedule_status?: string;
+    team_id?: string;
   }) => {
     const result = await createTask(taskData);
     return result;
@@ -325,6 +326,7 @@ export default function TasksPage() {
               onTaskCreated={handleTaskCreated}
               placeholder="Describe a task..."
               buttonText="Create task"
+              teamId={teamId}
             />
           </div>
         )}

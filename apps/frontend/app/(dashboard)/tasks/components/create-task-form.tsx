@@ -32,6 +32,7 @@ interface CreateTaskFormProps {
   onTaskCreated?: (taskData: { id: string; title: string; description: string }) => void;
   placeholder?: string;
   buttonText?: string;
+  teamId?: string
 }
 
 export function CreateTaskForm({
@@ -39,6 +40,7 @@ export function CreateTaskForm({
   onTaskCreated,
   placeholder = "Describe a task",
   buttonText = "Create task",
+  teamId,
 }: CreateTaskFormProps) {
   const [taskDescription, setTaskDescription] = useState("");
   const [selectedAgentId, setSelectedAgentId] = useState("");
@@ -51,8 +53,8 @@ export function CreateTaskForm({
 
   // Fetch agents on component mount (published only)
   useEffect(() => {
-    fetchAgents({ publishedOnly: true, parentOnly: true });
-  }, [fetchAgents]);
+    fetchAgents({ publishedOnly: true, parentOnly: true, teamId });
+  }, [fetchAgents, teamId]);
 
   // Fetch all versions when an agent is selected
   useEffect(() => {
@@ -156,6 +158,7 @@ export function CreateTaskForm({
           title: agentIdsToUse.length > 1
             ? `${baseTaskData.title} (${agent?.name || 'Unknown'})`
             : baseTaskData.title,
+          ...(teamId && { team_id: teamId }),
         };
         
         const result = await onSubmit(taskData);
