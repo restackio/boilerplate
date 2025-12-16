@@ -33,6 +33,7 @@ class TaskCreateInput(BaseModel):
         None, pattern="^(active|inactive|paused)$"
     )
     temporal_schedule_id: str | None = None
+    team_id: str | None = None
 
 
 class TaskUpdateInput(BaseModel):
@@ -289,6 +290,9 @@ async def tasks_create(
                 is_scheduled=task_data.is_scheduled,
                 schedule_status=task_data.schedule_status,
                 temporal_schedule_id=task_data.temporal_schedule_id,
+                team_id=uuid.UUID(task_data.team_id)
+                if task_data.team_id
+                else None,
             )
 
             db.add(task)
@@ -343,7 +347,7 @@ async def tasks_create(
                 else None,
                 updated_at=task.updated_at.isoformat()
                 if task.updated_at
-                else None,
+                else None
             )
 
             return TaskSingleOutput(task=result)
