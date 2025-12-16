@@ -11,9 +11,12 @@ from restack_ai.workflow import (
     workflow_info,
 )
 
-from src.functions.agents_crud import AgentIdInput, agents_get_by_id
 from src.agents.agent_task import AgentTask, AgentTaskInput
 from src.constants import TASK_QUEUE
+from src.functions.agents_crud import (
+    AgentIdInput,
+    agents_get_by_id,
+)
 
 with import_functions():
     from src.functions.agents_crud import (
@@ -126,7 +129,7 @@ class TasksCreateWorkflow:
                     workflow_input.team_id = agent_by_id_result.agent.team_id
                 else:
                     workflow_input.team_id = None
-     
+
             result = await workflow.step(
                 function=tasks_create,
                 function_input=workflow_input,
