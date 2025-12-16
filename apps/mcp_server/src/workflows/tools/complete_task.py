@@ -127,6 +127,7 @@ class CompleteTask:
                 task_id=workflow_input.task_id,
                 status="completed",
               ),
+              task_queue="backend",
             )
 
             return CompleteTaskOutput(

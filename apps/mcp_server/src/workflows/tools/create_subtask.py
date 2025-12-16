@@ -88,6 +88,7 @@ class CreateSubtask:
                     },
                     wait_for_completion=False,
                 ),
+                task_queue="backend",
                 start_to_close_timeout=timedelta(seconds=30),
             )
 

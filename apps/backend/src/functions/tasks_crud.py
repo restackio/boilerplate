@@ -33,6 +33,7 @@ class TaskCreateInput(BaseModel):
         None, pattern="^(active|inactive|paused)$"
     )
     temporal_schedule_id: str | None = None
+    team_id: str | None = None
 
 
 class TaskUpdateInput(BaseModel):
@@ -105,6 +106,7 @@ class TaskSaveAgentStateInput(BaseModel):
 
 class TaskGetByWorkspaceInput(BaseModel):
     workspace_id: str = Field(..., min_length=1)
+    team_id: str | None = None
 
 
 # Pydantic models for output serialization
@@ -183,6 +185,12 @@ async def tasks_read(
                 )
                 .order_by(Task.updated_at.desc())
             )
+
+            if function_input.team_id:
+                tasks_query = tasks_query.where(
+                    Task.team_id == uuid.UUID(function_input.team_id)
+                )
+
             result = await db.execute(tasks_query)
             tasks = result.scalars().all()
 
@@ -282,6 +290,9 @@ async def tasks_create(
                 is_scheduled=task_data.is_scheduled,
                 schedule_status=task_data.schedule_status,
                 temporal_schedule_id=task_data.temporal_schedule_id,
+                team_id=uuid.UUID(task_data.team_id)
+                if task_data.team_id
+                else None,
             )
 
             db.add(task)
@@ -336,7 +347,7 @@ async def tasks_create(
                 else None,
                 updated_at=task.updated_at.isoformat()
                 if task.updated_at
-                else None,
+                else None
             )
 
             return TaskSingleOutput(task=result)
@@ -939,6 +950,12 @@ async def tasks_get_stats(
                 )
                 .group_by(Task.status)
             )
+
+            if function_input.team_id:
+                stats_query = stats_query.where(
+                    Task.team_id == uuid.UUID(function_input.team_id)
+                )
+
             result = await db.execute(stats_query)
             status_counts = result.all()
 

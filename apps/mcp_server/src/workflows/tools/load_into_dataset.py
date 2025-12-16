@@ -198,6 +198,7 @@ class LoadIntoDataset:
                 function_input={
                     "workspace_id": workflow_input.workspace_id
                 },
+                task_queue="backend",
             )
 
             # Resolve dataset name to dataset ID
@@ -253,6 +254,7 @@ class LoadIntoDataset:
                 ingest_result = await workflow.step(
                     function="ingest_pipeline_events",
                     function_input=events,
+                    task_queue="backend",
                 )
             except Exception as step_error:
                 error_message = f"Workflow step failed: {type(step_error).__name__}: {step_error}"
