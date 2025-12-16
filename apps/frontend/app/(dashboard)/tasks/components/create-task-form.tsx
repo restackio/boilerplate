@@ -32,7 +32,6 @@ interface CreateTaskFormProps {
   onTaskCreated?: (taskData: { id: string; title: string; description: string }) => void;
   placeholder?: string;
   buttonText?: string;
-  teamId?: string
 }
 
 export function CreateTaskForm({
@@ -40,21 +39,24 @@ export function CreateTaskForm({
   onTaskCreated,
   placeholder = "Describe a task",
   buttonText = "Create task",
-  teamId,
 }: CreateTaskFormProps) {
   const [taskDescription, setTaskDescription] = useState("");
   const [selectedAgentId, setSelectedAgentId] = useState("");
+  const [selectedTeamId, setSelectedTeamId] = useState("");
   const [selectedVersionIds, setSelectedVersionIds] = useState<string[]>([]);
   const [allAgentVersions, setAllAgentVersions] = useState<Agent[]>([]);
   const [showVersionSelector, setShowVersionSelector] = useState(false);
-  const { agents, fetchAgents, getAgentVersions } = useWorkspaceScopedActions();
+  const { agents, fetchAgents, getAgentVersions, fetchTeams, teams } = useWorkspaceScopedActions();
   const { currentUser } = useDatabaseWorkspace();
   const router = useRouter();
-
   // Fetch agents on component mount (published only)
   useEffect(() => {
-    fetchAgents({ publishedOnly: true, parentOnly: true, teamId });
-  }, [fetchAgents, teamId]);
+    fetchAgents({ publishedOnly: true, parentOnly: true });
+  }, [fetchAgents]);
+
+  useEffect(() => {
+    fetchTeams();
+  }, [fetchTeams]);
 
   // Fetch all versions when an agent is selected
   useEffect(() => {
@@ -141,6 +143,7 @@ export function CreateTaskForm({
         description: taskDescription,
         status: "in_progress" as const,
         assigned_to_id: currentUser?.id || "",
+        team_id: selectedTeamId,
       };
 
       const results = [];
@@ -158,7 +161,7 @@ export function CreateTaskForm({
           title: agentIdsToUse.length > 1
             ? `${baseTaskData.title} (${agent?.name || 'Unknown'})`
             : baseTaskData.title,
-          ...(teamId && { team_id: teamId }),
+          team_id: selectedTeamId,
         };
         
         const result = await onSubmit(taskData);
@@ -279,33 +282,45 @@ export function CreateTaskForm({
       </div>
 
       <div className="flex items-center space-x-3">
-        {/* Agent Selection */}
-        <div className="flex-1">
-          <Select value={selectedAgentId} onValueChange={setSelectedAgentId}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select an agent" />
-            </SelectTrigger>
-            <SelectContent>
-              {agents.map((agent) => (
-                <SelectItem key={agent.id} value={agent.id}>
-                  {agent.name}
-                </SelectItem>
-              ))}
-              {agents.length > 0 && (
-                <>
-                  <div className="border-t my-1"></div>
-                  <div 
-                    className="flex items-center px-2 py-1.5 text-sm cursor-pointer hover:bg-neutral-100 rounded-sm"
-                    onClick={() => router.push('/agents')}
-                  >
-                    <Settings className="h-4 w-4 mr-2" />
-                    Manage agents
-                  </div>
-                </>
-              )}
-            </SelectContent>
-          </Select>
-        </div>
+          <div className="flex-1 flex flex-row space-x-2">
+              <Select value={selectedAgentId} onValueChange={setSelectedAgentId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select an agent" />
+                </SelectTrigger>
+                <SelectContent>
+                  {agents.map((agent) => (
+                    <SelectItem key={agent.id} value={agent.id}>
+                      {agent.name}
+                    </SelectItem>
+                  ))}
+                  {agents.length > 0 && (
+                    <>
+                      <div className="border-t my-1"></div>
+                      <div 
+                        className="flex items-center px-2 py-1.5 text-sm cursor-pointer hover:bg-neutral-100 rounded-sm"
+                        onClick={() => router.push('/agents')}
+                      >
+                        <Settings className="h-4 w-4 mr-2" />
+                        Manage agents
+                      </div>
+                    </>
+                  )}
+                </SelectContent>
+              </Select>
+              <Select value={selectedTeamId} onValueChange={setSelectedTeamId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a team" />
+                </SelectTrigger>
+                <SelectContent>
+                  {teams.map((team) => (
+                    <SelectItem key={team.id} value={team.id}>
+                      {team.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+            </Select>
+          </div>
+        
 
         {/* Version Selection Dropdown */}
         {showVersionSelector && allAgentVersions.length > 1 && (

@@ -326,7 +326,6 @@ export default function TasksPage() {
               onTaskCreated={handleTaskCreated}
               placeholder="Describe a task..."
               buttonText="Create task"
-              teamId={teamId}
             />
           </div>
         )}

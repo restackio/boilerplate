@@ -13,10 +13,6 @@ from restack_ai.workflow import (
 
 from src.agents.agent_task import AgentTask, AgentTaskInput
 from src.constants import TASK_QUEUE
-from src.functions.agents_crud import (
-    AgentIdInput,
-    agents_get_by_id,
-)
 
 with import_functions():
     from src.functions.agents_crud import (
@@ -116,19 +112,6 @@ class TasksCreateWorkflow:
                 log.info(
                     f"Resolved agent name to ID: {agent_resolve_result.agent_id}"
                 )
-
-            agent_by_id_result = await workflow.step(
-                function=agents_get_by_id,
-                function_input=AgentIdInput(agent_id=workflow_input.agent_id),
-                task_queue=TASK_QUEUE,
-                start_to_close_timeout=timedelta(seconds=10),
-            )
-
-            if not workflow_input.team_id:
-                if agent_by_id_result.agent and agent_by_id_result.agent.team_id:
-                    workflow_input.team_id = agent_by_id_result.agent.team_id
-                else:
-                    workflow_input.team_id = None
 
             result = await workflow.step(
                 function=tasks_create,
