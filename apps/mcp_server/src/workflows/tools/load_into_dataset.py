@@ -200,15 +200,15 @@ class LoadIntoDataset:
                 },
             )
 
-            # Check if dataset exists
-            dataset_exists = False
+            # Resolve dataset name to dataset ID
+            dataset_id = None
             for dataset in datasets_result["datasets"]:
                 if dataset["name"] == workflow_input.dataset_name:
-                    dataset_exists = True
+                    dataset_id = dataset["id"]
                     break
 
             # Fail if dataset doesn't exist - datasets should be created separately
-            if not dataset_exists:
+            if not dataset_id:
                 self._raise_dataset_not_found(
                     workflow_input.dataset_name,
                     workflow_input.workspace_id,
@@ -222,7 +222,7 @@ class LoadIntoDataset:
                     agent_id=workflow_input.agent_id,
                     task_id=workflow_input.task_id,
                     workspace_id=workflow_input.workspace_id,
-                    dataset_id=workflow_input.dataset_name,  # Use dataset name as dataset_id
+                    dataset_id=dataset_id,  # Use resolved dataset ID (UUID) instead of name
                     event_name=workflow_input.event_name,
                     raw_data=record,  # Store the entire record as raw_data
                     transformed_data=None,  # Optional processed data

@@ -46,6 +46,11 @@ class AgentCreateInput(BaseModel):
     reasoning_effort: str = Field(
         default="medium", pattern="^(minimal|low|medium|high)$"
     )
+    
+    # Optional: For pipeline agents, specify extraction tool (MCP server + tool name)
+    # If not provided, defaults to generatemock for backward compatibility
+    extraction_mcp_server_id: str | None = None
+    extraction_tool_name: str | None = None
 
     # Note: MCP relationships are now created through the agent tools workflow
     # which requires specific tool names, not through agent creation

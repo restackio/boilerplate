@@ -45,10 +45,15 @@ from src.functions.data_ingestion import (
     ingest_pipeline_events,
     query_clickhouse_data,
 )
+from src.functions.context_rows_crud import (
+    context_rows_read,
+    context_rows_upload_csv,
+)
 from src.functions.datasets_crud import (
     datasets_create,
     datasets_get_by_id,
     datasets_read,
+    datasets_update_views,
     query_dataset_events,
 )
 from src.functions.feedback_metrics import (
@@ -207,10 +212,19 @@ from src.workflows.crud.auth_crud import (
     UserLoginWorkflow,
     UserSignupWorkflow,
 )
+from src.workflows.crud.context_rows_crud import (
+    ContextRowsReadWorkflow,
+    ContextRowsUploadCSVWorkflow,
+)
 from src.workflows.crud.datasets_crud import (
+    DatasetsCreateWorkflow,
     DatasetsGetByIdWorkflow,
     DatasetsReadWorkflow,
+    DatasetsUpdateViewsWorkflow,
     QueryDatasetEventsWorkflow,
+)
+from src.workflows.enrichment.enrichment_execution import (
+    EnrichContextSpecWorkflow,
 )
 from src.workflows.crud.mcp_oauth_sdk import (
     BearerTokenCreateWorkflow,
@@ -358,9 +372,16 @@ async def run_restack_service() -> None:
             UserSignupWorkflow,
             UserLoginWorkflow,
             # Datasets workflows
+            DatasetsCreateWorkflow,
             DatasetsReadWorkflow,
             DatasetsGetByIdWorkflow,
+            DatasetsUpdateViewsWorkflow,
             QueryDatasetEventsWorkflow,
+            # Context rows workflows
+            ContextRowsUploadCSVWorkflow,
+            ContextRowsReadWorkflow,
+            # Enrichment workflows
+            EnrichContextSpecWorkflow,
             McpServersReadWorkflow,
             McpServersCreateWorkflow,
             McpServersUpdateWorkflow,
@@ -472,8 +493,12 @@ async def run_restack_service() -> None:
             # Datasets functions
             datasets_read,
             datasets_get_by_id,
+            datasets_update_views,
             query_dataset_events,
             datasets_create,
+            # Context rows functions
+            context_rows_upload_csv,
+            context_rows_read,
             # Data ingestion functions
             ingest_pipeline_events,
             query_clickhouse_data,
