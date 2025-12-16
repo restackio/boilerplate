@@ -125,9 +125,6 @@ export function CreateTaskForm({
     if (!selectedAgentId) {
       return;
     }
-    if (!selectedTeamId) {
-      return;
-    }
 
     // Determine which agent IDs to use
     const agentIdsToUse = showVersionSelector && selectedVersionIds.length > 0 
