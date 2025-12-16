@@ -20,14 +20,13 @@ export default function TeamAgentsPage() {
   const params = useParams();
   const teamId = params.teamId as string;
   const { currentWorkspaceId, isReady } = useDatabaseWorkspace();
-  const { agents, agentsLoading, fetchAgents, fetchTeams } = useWorkspaceScopedActions();
+  const { agents, agentsLoading, fetchAgents } = useWorkspaceScopedActions();
 
   useEffect(() => {
     if (isReady && currentWorkspaceId) {
       fetchAgents({ teamId });
-      fetchTeams();
     }
-  }, [isReady, currentWorkspaceId, fetchAgents, fetchTeams, teamId]);
+  }, [isReady, currentWorkspaceId, fetchAgents, teamId]);
 
   const handleAgentClick = (agentId: string) => {
     router.push(`/agents/${agentId}`);
@@ -50,7 +49,7 @@ export default function TeamAgentsPage() {
         <RefreshCw className={`h-4 w-4 mr-1 ${agentsLoading.isLoading ? 'animate-spin' : ''}`} />
         Refresh
       </Button>
-      <CreateAgentDialog onAgentCreated={() => fetchAgents()} teamId={teamId} />
+      <CreateAgentDialog onAgentCreated={() => fetchAgents({ teamId })} teamId={teamId} />
     </div>
   );
 
