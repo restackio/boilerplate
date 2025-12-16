@@ -542,7 +542,7 @@ export function useWorkspaceScopedActions() {
   }, [currentWorkspaceId, isReady, fetchAgents]);
 
   // Tasks actions
-  const fetchTasks = useCallback(async () => {
+  const fetchTasks = useCallback(async (options?: { teamId?: string }) => {
     if (!isReady || !currentWorkspaceId) {
       console.error("Cannot fetch tasks: no valid workspace context");
       return { success: false, error: "No valid workspace context" };
@@ -552,7 +552,8 @@ export function useWorkspaceScopedActions() {
     let result;
     try {
       result = await executeWorkflow<Task[]>("TasksReadWorkflow", {
-        workspace_id: currentWorkspaceId
+        workspace_id: currentWorkspaceId,
+        ...(options?.teamId && { team_id: options.teamId })
       });
       
       if (result.success && result.data) {

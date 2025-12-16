@@ -81,7 +81,7 @@ function formatTeamForUI(team: Team) {
     items: [
       {
         title: "Tasks",
-        url: `/tasks?team=${encodeURIComponent(team.name)}`,
+        url: `/teams/${team.id}/tasks`,
       },
       {
         title: "Agents",
