@@ -105,6 +105,7 @@ class TaskSaveAgentStateInput(BaseModel):
 
 class TaskGetByWorkspaceInput(BaseModel):
     workspace_id: str = Field(..., min_length=1)
+    team_id: str | None = None
 
 
 # Pydantic models for output serialization
@@ -183,6 +184,12 @@ async def tasks_read(
                 )
                 .order_by(Task.updated_at.desc())
             )
+
+            if function_input.team_id:
+                tasks_query = tasks_query.where(
+                    Task.team_id == uuid.UUID(function_input.team_id)
+                )
+
             result = await db.execute(tasks_query)
             tasks = result.scalars().all()
 
