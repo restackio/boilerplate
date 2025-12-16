@@ -65,7 +65,7 @@ export function CreateAgentDialog({ onAgentCreated, teamId }: CreateAgentDialogP
       reasoning_effort: "medium",
       type: selectedAgentType,
       status: "draft" as const,
-      team_id: selectedTeamId,
+      ...(selectedTeamId && { team_id: selectedTeamId }),
     };
 
     const result = await createAgent(agentData);
