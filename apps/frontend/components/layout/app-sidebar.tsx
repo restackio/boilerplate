@@ -85,7 +85,7 @@ function formatTeamForUI(team: Team) {
       },
       {
         title: "Agents",
-        url: `/agents?team=${encodeURIComponent(team.name)}`,
+        url: `/teams/${team.id}/agents`,
       },
     ],
   };

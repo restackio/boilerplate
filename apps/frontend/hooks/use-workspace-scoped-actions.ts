@@ -303,7 +303,7 @@ export function useWorkspaceScopedActions() {
   });
 
   // Agents actions
-  const fetchAgents = useCallback(async (options?: { publishedOnly?: boolean; parentOnly?: boolean }) => {
+  const fetchAgents = useCallback(async (options?: { publishedOnly?: boolean; parentOnly?: boolean, teamId?: string }) => {
     if (!isReady || !currentWorkspaceId) {
       console.error("Cannot fetch agents: no valid workspace context");
       return { success: false, error: "No valid workspace context" };
@@ -316,7 +316,8 @@ export function useWorkspaceScopedActions() {
       result = await executeWorkflow<Agent[]>("AgentsReadTableWorkflow", {
         workspace_id: currentWorkspaceId,
         published_only: options?.publishedOnly || false,
-        parent_only: options?.parentOnly || false
+        parent_only: options?.parentOnly || false,
+        ...(options?.teamId && { team_id: options.teamId })
       });
       
       if (result.success && result.data) {
@@ -332,7 +333,6 @@ export function useWorkspaceScopedActions() {
   }, [currentWorkspaceId, isReady]);
 
   const createAgent = useCallback(async (agentData: any) => {
-    const startTime = Date.now();
     
     if (!isReady || !currentWorkspaceId) {
       console.error("Cannot create agent: no valid workspace context");
@@ -450,8 +450,6 @@ export function useWorkspaceScopedActions() {
   }, [currentWorkspaceId, isReady, fetchAgents]);
 
   const getAgentById = useCallback(async (agentId: string) => {
-    const startTime = Date.now();
-    
     if (!isReady || !currentWorkspaceId) {
       console.error("Cannot get agent: no valid workspace context");
       return { success: false, error: "No valid workspace context" };
@@ -570,8 +568,6 @@ export function useWorkspaceScopedActions() {
   }, [currentWorkspaceId, isReady]);
 
   const createTask = useCallback(async (taskData: any) => {
-    const startTime = Date.now();
-    
     if (!isReady || !currentWorkspaceId) {
       console.error("Cannot create task: no valid workspace context");
       return { success: false, error: "No valid workspace context" };

@@ -35,6 +35,7 @@ import {
 } from "@workspace/ui/components/ui/table";
 import { EmptyState } from "@workspace/ui/components/ui/empty-state";
 import Link from "next/link";
+import { useMemo } from "react";
 
 export interface Agent {
   id: string;
@@ -91,6 +92,25 @@ export const agentColumnsConfig = [
     .build(),
 ] as const;
 
+export function createAgentColumnsConfig(options: { includeTeam?: boolean } = {}) {
+  const { includeTeam = true } = options;
+  
+  return [
+    dtf.text().id("name").accessor((row: Agent) => row.name).displayName("Name").icon(Bot).build(),
+    dtf.option().id("type").accessor((row: Agent) => row.type).displayName("Type").icon(Workflow).build(),
+    dtf.option().id("status").accessor((row: Agent) => row.status).displayName("Status").icon(Tag).build(),
+    ...(includeTeam ? [
+      dtf
+        .option()
+        .id("team")
+        .accessor((row: Agent) => row.team_name || "No Team")
+        .displayName("Team")
+        .icon(Users)
+        .build()
+    ] : []),
+  ];
+}
+
 // Status options
 export const statusOptions: Array<{ label: string; value: string; icon: React.ComponentType<{ className?: string }> }> =
   [
@@ -112,6 +132,7 @@ interface AgentsTableProps {
   onViewAgent?: (agentId: string) => void;
   teams?: Array<{ label: string; value: string; icon: React.ComponentType<{ className?: string }> }>;
   defaultFilters?: FiltersState;
+  showTeamFilter?: boolean;
 }
 
 // Helper function to get the correct agent ID for navigation
@@ -147,16 +168,21 @@ export function AgentsTable({
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onViewAgent: _onViewAgent, 
   teams = [], 
-  defaultFilters = [] 
+  defaultFilters = [],
+  showTeamFilter = true,
 }: AgentsTableProps) {
   const router = useRouter();
 
-  // Create data table filters instance
+  const columnsConfig = useMemo(
+    () => createAgentColumnsConfig({ includeTeam: showTeamFilter }),
+    [showTeamFilter]
+  );
+
   const { columns, filters, actions, strategy, filteredData } =
     useDataTableFilters({
       strategy: "client",
       data,
-      columnsConfig: agentColumnsConfig,
+      columnsConfig,
       defaultFilters,
       options: {
         status: statusOptions,
