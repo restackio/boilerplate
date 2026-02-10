@@ -55,8 +55,9 @@ export function useToast() {
   if (!context) {
     // Fallback for when used outside provider
     return {
-      toast: (props: ToastProps) => {
-        // console.log("Toast:", props);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars -- fallback no-op signature
+      toast: (_props: ToastProps) => {
+        // no-op when used outside provider
       },
     };
   }
