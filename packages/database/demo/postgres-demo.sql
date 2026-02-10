@@ -469,6 +469,114 @@ Your role is to craft technically-informed, opinionated content that showcases o
 )
 ON CONFLICT (id) DO NOTHING;
 
+-- ==========================================
+-- Office Technology / CRM-ERP Sync Agents (AgentDealer, e-automate)
+-- ==========================================
+
+-- contact-context: Reconcile all activities for one contact across CRM (Salesforce) and ERP (ECI)
+INSERT INTO agents (id, workspace_id, team_id, name, description, instructions, type, status, model, reasoning_effort)
+VALUES (
+    '50000000-0000-0000-0000-000000000005',
+    'c926e979-1f16-46bf-a7cc-8aab70162d65',
+    '33333333-3333-3333-3333-333333333333',
+    'contact-context',
+    'Pipeline agent that reconciles all activities for a particular contact across CRM (Salesforce) and ERP (ECI e-automate)',
+    $$You are a contact-context pipeline that reconciles activities for one contact across CRM and ERP.
+
+## Objective
+For a given contact (contact_id), fetch CRM activities from Salesforce and ERP activities from ECI e-automate, then load a unified contact context into the context store.
+
+## Available Tools
+- **generatemock**: Fetch CRM data (use template "crm_salesforce_contact_activities") or ERP data (use template "erp_eci_contact_activities") for the contact
+- **loadintodataset**: Save reconciled contact context to ClickHouse with tags such as "contact_context" and the contact_id
+- **updatetodos**: Track your pipeline steps (fetch CRM, fetch ERP, reconcile, load)
+
+## Workflow
+1. **Create Todo Checklist** using updatetodos: Fetch CRM activities, Fetch ERP activities, Reconcile and load to context store
+2. **Fetch CRM Activities**: Use generatemock with integration_template "crm_salesforce_contact_activities" and parameters including the contact_id
+3. **Fetch ERP Activities**: Use generatemock with integration_template "erp_eci_contact_activities" and parameters including the contact_id
+4. **Reconcile**: Combine CRM and ERP activity data into a single contact context (contacts, quotes, contracts, meters, service, supplies)
+5. **Load to Context Store**: Use loadintodataset to save the reconciled context to "pipeline_events" with tags like "contact_context", contact_id
+6. **Update Todos**: Mark each step complete as you go
+
+Your goal is to produce a single, reconciled view of that contact across CRM and ERP.$$,
+    'pipeline',
+    'published',
+    'gpt-5-mini',
+    'low'
+)
+ON CONFLICT (id) DO NOTHING;
+
+-- customer-sync: Get all contacts from Salesforce, then trigger contact-context for each
+INSERT INTO agents (id, workspace_id, team_id, name, description, instructions, type, status, model, reasoning_effort)
+VALUES (
+    '60000000-0000-0000-0000-000000000006',
+    'c926e979-1f16-46bf-a7cc-8aab70162d65',
+    '33333333-3333-3333-3333-333333333333',
+    'customer-sync',
+    'Pipeline agent that fetches all Salesforce contacts and triggers contact-context for each to reconcile CRM and ERP data',
+    $$You are a customer-sync orchestration pipeline for office technology sales.
+
+## Objective
+Fetch all contacts from Salesforce (CRM), then for each contact create a subtask to the "contact-context" agent to reconcile that contact's activities across CRM and ERP. Track progress with todos.
+
+## Available Tools
+- **generatemock**: Get all contacts using integration_template "crm_salesforce_contacts"
+- **createsubtask**: Create a subtask to the "contact-context" agent for each contact (pass contact_id and any context)
+- **updatetodos**: Track workflow: fetch contacts, create subtasks per contact, completion
+
+## Workflow
+1. **Create Todo Checklist** using updatetodos: Fetch all Salesforce contacts, Create contact-context subtask for each contact, Mark complete when all subtasks created
+2. **Fetch All Contacts**: Use generatemock with "crm_salesforce_contacts" to get the list of contacts (records[].Id, FirstName, LastName, etc.)
+3. **For Each Contact**: Use createsubtask to launch the "contact-context" agent with that contact's Id (and optionally account name)
+4. **Track Progress**: Update todos as you create each subtask; mark final todo complete when all contact-context subtasks are created
+
+Your role is to sync customer data from CRM to reconciled contact context in the context store.$$,
+    'pipeline',
+    'published',
+    'gpt-5',
+    'medium'
+)
+ON CONFLICT (id) DO NOTHING;
+
+-- contact-quote: Interactive sales assistant that drafts quotes using contact context from CRM and ERP
+INSERT INTO agents (id, workspace_id, team_id, name, description, instructions, type, status, model, reasoning_effort)
+VALUES (
+    '70000000-0000-0000-0000-000000000007',
+    'c926e979-1f16-46bf-a7cc-8aab70162d65',
+    '33333333-3333-3333-3333-333333333333',
+    'contact-quote',
+    'Interactive sales assistant that drafts quotes based on customer context from CRM and ERP (context store)',
+    $$You are a sales assistant for office technology (AgentDealer-style) that drafts quotes using full customer context from CRM and ERP.
+
+## Objective
+When the user provides a contact-id, retrieve that contact's reconciled context from the context store (CRM + ERP activities) and company context, then draft a personalized quote (e.g. MPS, equipment, TCO).
+
+## Available Tools
+- **clickhouserunselectquery**: Query the context store (pipeline_events) to retrieve contact context for the given contact_id. Use tags like "contact_context" and filter by contact_id in raw_data or transformed_data.
+
+## Workflow
+1. **Ask for contact-id**: If the user has not provided a contact ID, ask for it so you can load their context.
+2. **Retrieve Contact Context**: Use clickhouserunselectquery to run a SELECT against the pipeline_events (or equivalent) dataset filtering by contact_id / tags so you get:
+   - Contact and account info (from CRM)
+   - Recent activities, quotes, account reviews (from CRM)
+   - Contracts, meter reads, service tickets, supply orders (from ERP)
+   - Any company/territory context if stored
+3. **Draft Quote**: Using the retrieved context, draft a clear quote that reflects:
+   - Customer and account details
+   - Current contract and device footprint if any
+   - Proposed equipment or MPS terms, pricing, TCO as appropriate
+   - Next steps (e.g. account review, follow-up)
+4. **Present and Refine**: Share the draft with the user and refine based on feedback.
+
+Your goal is to produce accurate, context-aware quotes that leverage both CRM and ERP data from the context store.$$,
+    'interactive',
+    'published',
+    'gpt-5',
+    'medium'
+)
+ON CONFLICT (id) DO NOTHING;
+
 -- Insert sample agent MCP tools using the unified agent_tools table (after all agents are created)
 INSERT INTO agent_tools (id, agent_id, tool_type, mcp_server_id, tool_name, custom_description, require_approval, enabled) VALUES
 -- Healthcare Insurance Support Agent tools
@@ -504,7 +612,20 @@ INSERT INTO agent_tools (id, agent_id, tool_type, mcp_server_id, tool_name, cust
 -- Social Post Creator tools (opinionated product content)
 ('a0000034-0034-0034-0034-000000000034', '30000000-0000-0000-0000-000000000003', 'mcp', 'c0000000-0000-0000-0000-000000000001', 'createsubtask', 'Create subtasks for web research and technical documentation research', FALSE, TRUE),
 ('a0000035-0035-0035-0035-000000000035', '30000000-0000-0000-0000-000000000003', 'mcp', 'a0123456-789a-123e-f012-456789012349', 'search', 'Search Notion for product opinions, technical perspectives, and positioning', FALSE, TRUE),
-('a0000036-0036-0036-0036-000000000036', '30000000-0000-0000-0000-000000000003', 'mcp', 'c0000000-0000-0000-0000-000000000001', 'updatetodos', 'Track opinionated post creation workflow: research, synthesis, and refinement', FALSE, TRUE)
+('a0000036-0036-0036-0036-000000000036', '30000000-0000-0000-0000-000000000003', 'mcp', 'c0000000-0000-0000-0000-000000000001', 'updatetodos', 'Track opinionated post creation workflow: research, synthesis, and refinement', FALSE, TRUE),
+
+-- Contact-context tools (CRM + ERP reconciliation pipeline)
+('a0000050-0050-0050-0050-000000000050', '50000000-0000-0000-0000-000000000005', 'mcp', 'c0000000-0000-0000-0000-000000000001', 'generatemock', 'Generate mock CRM (crm_salesforce_contact_activities) or ERP (erp_eci_contact_activities) data for the contact', FALSE, TRUE),
+('a0000051-0051-0051-0051-000000000051', '50000000-0000-0000-0000-000000000005', 'mcp', 'c0000000-0000-0000-0000-000000000001', 'loadintodataset', 'Save reconciled contact context to ClickHouse context store with contact_context tag', FALSE, TRUE),
+('a0000052-0052-0052-0052-000000000052', '50000000-0000-0000-0000-000000000005', 'mcp', 'c0000000-0000-0000-0000-000000000001', 'updatetodos', 'Track contact reconciliation steps: fetch CRM, fetch ERP, load to dataset', FALSE, TRUE),
+
+-- Customer-sync tools (orchestrator)
+('a0000053-0053-0053-0053-000000000053', '60000000-0000-0000-0000-000000000006', 'mcp', 'c0000000-0000-0000-0000-000000000001', 'generatemock', 'Get all contacts from Salesforce using crm_salesforce_contacts template', FALSE, TRUE),
+('a0000054-0054-0054-0054-000000000054', '60000000-0000-0000-0000-000000000006', 'mcp', 'c0000000-0000-0000-0000-000000000001', 'createsubtask', 'Create subtask to contact-context agent for each contact', FALSE, TRUE),
+('a0000055-0055-0055-0055-000000000055', '60000000-0000-0000-0000-000000000006', 'mcp', 'c0000000-0000-0000-0000-000000000001', 'updatetodos', 'Track customer-sync workflow: fetch contacts, create contact-context subtasks', FALSE, TRUE),
+
+-- Contact-quote tools (interactive sales assistant)
+('a0000056-0056-0056-0056-000000000056', '70000000-0000-0000-0000-000000000007', 'mcp', 'c0000000-0000-0000-0000-000000000001', 'clickhouserunselectquery', 'Query context store for contact context (CRM + ERP) needed to draft quote', FALSE, TRUE)
 ON CONFLICT (id) DO NOTHING;
 
 -- Insert agent subagent relationships (agents that can be delegated to via createsubtask)
@@ -518,7 +639,10 @@ INSERT INTO agent_subagents (id, parent_agent_id, subagent_id, enabled) VALUES
 
 -- Social Post Creator subagents (interactive agent that delegates to pipelines)
 ('b0000020-0020-0020-0020-000000000020', '30000000-0000-0000-0000-000000000003', '12345678-9abc-def0-1234-567890abcdef', TRUE), -- research-deep (pipeline)
-('b0000021-0021-0021-0021-000000000021', '30000000-0000-0000-0000-000000000003', 'cccccccc-cccc-cccc-cccc-cccccccccccc', TRUE)  -- research-technical-docs (pipeline)
+('b0000021-0021-0021-0021-000000000021', '30000000-0000-0000-0000-000000000003', 'cccccccc-cccc-cccc-cccc-cccccccccccc', TRUE), -- research-technical-docs (pipeline)
+
+-- Customer-sync subagents (orchestrator -> contact-context)
+('b0000025-0025-0025-0025-000000000025', '60000000-0000-0000-0000-000000000006', '50000000-0000-0000-0000-000000000005', TRUE)  -- contact-context (pipeline)
 ON CONFLICT (parent_agent_id, subagent_id) DO NOTHING;
 
 -- ==========================================

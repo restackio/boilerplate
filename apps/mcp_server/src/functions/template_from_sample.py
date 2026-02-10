@@ -29,6 +29,15 @@ from src.functions.mock_samples.linkedin_profiles_post import (
 from src.functions.mock_samples.pagerduty_incident import (
     PAGERDUTY_INCIDENT_SAMPLE,
 )
+from src.functions.mock_samples.salesforce_contacts import (
+    SALESFORCE_CONTACTS_SAMPLE,
+)
+from src.functions.mock_samples.salesforce_contact_activities import (
+    SALESFORCE_CONTACT_ACTIVITIES_SAMPLE,
+)
+from src.functions.mock_samples.erp_eci_contact_activities import (
+    ERP_ECI_CONTACT_ACTIVITIES_SAMPLE,
+)
 from src.functions.mock_samples.zendesk_ticket import (
     ZENDESK_TICKET_SAMPLE,
 )
@@ -112,6 +121,9 @@ TEMPLATE_CONFIGS = {
         "sample": LINKEDIN_PROFILES_POST_SAMPLE
     },
     "kaiser_policy": {"sample": KAISER_POLICY_SAMPLE},
+    "crm_salesforce_contacts": {"sample": SALESFORCE_CONTACTS_SAMPLE},
+    "crm_salesforce_contact_activities": {"sample": SALESFORCE_CONTACT_ACTIVITIES_SAMPLE},
+    "erp_eci_contact_activities": {"sample": ERP_ECI_CONTACT_ACTIVITIES_SAMPLE},
 }
 
 # Generate the integration templates using the factory function
