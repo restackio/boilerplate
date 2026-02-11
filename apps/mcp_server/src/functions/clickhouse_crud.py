@@ -2,6 +2,7 @@
 
 import os
 from typing import Any
+from urllib.parse import urlparse
 
 import clickhouse_connect
 from clickhouse_connect.driver.asyncclient import AsyncClient
@@ -66,6 +67,23 @@ class ClickHouseListTablesOutput(BaseModel):
     )
 
 
+def _parse_clickhouse_url(url: str) -> dict:
+    """Parse a ClickHouse URL into connection parameters.
+
+    Supports both local (http) and ClickHouse Cloud (https) URLs.
+    """
+    parsed = urlparse(url)
+    secure = parsed.scheme == "https"
+    return {
+        "host": parsed.hostname or "localhost",
+        "port": parsed.port or (8443 if secure else 8123),
+        "username": parsed.username or "default",
+        "password": parsed.password or "",
+        "database": parsed.path.lstrip("/") or "default",
+        "secure": secure,
+    }
+
+
 async def _create_clickhouse_client() -> AsyncClient:
     """Create an async ClickHouse client connection.
 
@@ -78,8 +96,9 @@ async def _create_clickhouse_client() -> AsyncClient:
             "CLICKHOUSE_URL",
             "http://clickhouse:clickhouse@localhost:8123/boilerplate_clickhouse",
         )
+        conn_params = _parse_clickhouse_url(clickhouse_url)
         return await clickhouse_connect.get_async_client(
-            dsn=clickhouse_url
+            **conn_params
         )
     except Exception as e:
         msg = f"Failed to connect to ClickHouse: {e!s}"
