@@ -48,7 +48,11 @@ export async function runWorkflow({
 
 // Helper function for executing workflows and getting results
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function executeWorkflow(workflowName: string, input: Record<string, any>) {
+export async function executeWorkflow(
+  workflowName: string, 
+  input: Record<string, any>,
+  options?: { timeout?: number }
+) {
   try {
     const { workflowId, runId } = await runWorkflow({
       workflowName,
@@ -57,7 +61,8 @@ export async function executeWorkflow(workflowName: string, input: Record<string
     
     const result = await getWorkflowResult({
       workflowId,
-      runId
+      runId,
+      timeout: options?.timeout
     });
     
     return {
@@ -78,16 +83,18 @@ export async function executeWorkflow(workflowName: string, input: Record<string
 
 export async function getWorkflowResult({
   workflowId,
-  runId
+  runId,
+  timeout = 30000 // Default 30 seconds
 }: {
   workflowId: string,
-  runId: string
+  runId: string,
+  timeout?: number
 }) : Promise<unknown> {
   const startTime = Date.now();
   
-  // Add a timeout promise
+  // Add a timeout promise with configurable timeout
   const timeoutPromise = new Promise((_, reject) => {
-    setTimeout(() => reject(new Error('Workflow result timeout after 30 seconds')), 30000);
+    setTimeout(() => reject(new Error(`Workflow result timeout after ${timeout / 1000} seconds`)), timeout);
   });
   
   try {

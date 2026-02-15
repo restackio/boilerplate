@@ -894,18 +894,19 @@ class AgentTask:
                 )
 
             # Handle pipeline MCP call completion
+            # Check for both loadintodataset (legacy) and updatedataset (new) completion
             if (
                 self.agent_type == "pipeline"
                 and event_data.get("type")
                 == "response.output_item.done"
                 and event_data.get("item", {}).get("type")
                 == "mcp_call"
-                and event_data.get("item", {}).get("name")
-                == "loadintodataset"
                 and event_data.get("item", {}).get("status")
                 == "completed"
             ):
-                await self._handle_pipeline_completion()
+                tool_name = event_data.get("item", {}).get("name")
+                if tool_name in ["loadintodataset", "updatedataset"]:
+                    await self._handle_pipeline_completion()
 
         except ValueError as e:
             log.error(f"Error handling response_item: {e}")

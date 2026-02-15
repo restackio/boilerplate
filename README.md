@@ -132,7 +132,7 @@ OpenAI needs a public URL to call your MCP server tools:
 brew install ngrok  # or download from https://ngrok.com
 
 # Expose MCP server
-ngrok http 112233
+ngrok http 11233
 
 # Add the ngrok URL to .env:
 RESTACK_ENGINE_MCP_ADDRESS=https://your-ngrok-url.ngrok-free.app

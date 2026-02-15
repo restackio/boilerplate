@@ -97,21 +97,40 @@ class AgentsCreateWorkflow:
                 )
 
                 # MCP server ID for the pipeline tools (from database seed)
-                mcp_server_id = (
+                restack_core_mcp_server_id = (
                     "c0000000-0000-0000-0000-000000000001"
                 )
+                
+                # Determine extraction tool - use provided or default to generatemock
+                extraction_mcp_server_id = (
+                    workflow_input.extraction_mcp_server_id 
+                    or restack_core_mcp_server_id
+                )
+                extraction_tool_name = (
+                    workflow_input.extraction_tool_name 
+                    or "generatemock"
+                )
+                
+                # Build extraction tool description based on tool name
+                if extraction_tool_name == "generatemock":
+                    extraction_description = "Extract data using mock generation (Step 1: Extract)"
+                else:
+                    extraction_description = f"Extract data using {extraction_tool_name} (Step 1: Extract)"
 
                 # Define the pipeline tools to add
                 pipeline_tools = [
                     {
-                        "tool_name": "generatemock",
-                        "custom_description": "Extract data using mock generation (Step 1: Extract)",
+                        "mcp_server_id": extraction_mcp_server_id,
+                        "tool_name": extraction_tool_name,
+                        "custom_description": extraction_description,
                     },
                     {
+                        "mcp_server_id": restack_core_mcp_server_id,
                         "tool_name": "transformdata",
                         "custom_description": "Transform data using AI analysis (Step 2: Transform)",
                     },
                     {
+                        "mcp_server_id": restack_core_mcp_server_id,
                         "tool_name": "loadintodataset",
                         "custom_description": "Load enriched data to dataset (Step 3: Load)",
                     },
@@ -125,13 +144,9 @@ class AgentsCreateWorkflow:
                             function_input=AgentToolCreateInput(
                                 agent_id=agent_result.agent.id,
                                 tool_type="mcp",
-                                mcp_server_id=mcp_server_id,
-                                tool_name=tool_config[
-                                    "tool_name"
-                                ],
-                                custom_description=tool_config[
-                                    "custom_description"
-                                ],
+                                mcp_server_id=tool_config["mcp_server_id"],
+                                tool_name=tool_config["tool_name"],
+                                custom_description=tool_config["custom_description"],
                                 require_approval=False,
                                 enabled=True,
                             ),
@@ -141,7 +156,8 @@ class AgentsCreateWorkflow:
                             ),
                         )
                         log.info(
-                            f"Added pipeline tool: {tool_config['tool_name']}"
+                            f"Added pipeline tool: {tool_config['tool_name']} "
+                            f"(MCP server: {tool_config['mcp_server_id']})"
                         )
                     except (
                         ValueError,
@@ -149,7 +165,7 @@ class AgentsCreateWorkflow:
                         KeyError,
                     ) as tool_error:
                         log.error(
-                            f"Failed to add pipeline tool {tool_config['tool_name']}: {tool_error}"
+                            f"Failed to add pipeline tool {tool_config.get('tool_name', 'unknown')}: {tool_error}"
                         )
                         # Continue adding other tools even if one fails
 
