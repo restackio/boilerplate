@@ -28,7 +28,7 @@ export function LoginForm({
       if (workflowResult && workflowResult.success && workflowResult.data && workflowResult.data.user) {
         // Store user info in localStorage
         localStorage.setItem("currentUser", JSON.stringify(workflowResult.data.user));
-        router.push("/dashboard");
+        window.location.href = "/dashboard";
       } else {
         setSubmissionError(workflowResult?.error || workflowResult?.data?.error || "Invalid email or password");
       }
