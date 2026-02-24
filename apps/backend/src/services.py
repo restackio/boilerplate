@@ -182,6 +182,7 @@ from src.workflows.crud.agent_subagents_crud import (
     AgentSubagentsReadWorkflow,
     AgentSubagentsToggleWorkflow,
 )
+
 from src.workflows.crud.agent_tools_crud import (
     AgentToolsCreateWorkflow,
     AgentToolsDeleteWorkflow,
@@ -208,6 +209,7 @@ from src.workflows.crud.auth_crud import (
     UserSignupWorkflow,
 )
 from src.workflows.crud.datasets_crud import (
+    DatasetsCreateWorkflow,
     DatasetsGetByIdWorkflow,
     DatasetsReadWorkflow,
     QueryDatasetEventsWorkflow,
@@ -359,6 +361,7 @@ async def run_restack_service() -> None:
             UserLoginWorkflow,
             # Datasets workflows
             DatasetsReadWorkflow,
+            DatasetsCreateWorkflow,
             DatasetsGetByIdWorkflow,
             QueryDatasetEventsWorkflow,
             McpServersReadWorkflow,
