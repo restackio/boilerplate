@@ -32,6 +32,14 @@ export function TaskHeader({ task, onDelete, onUpdateTask, onOpenAnalytics }: Ta
       <Button
         variant="ghost"
         size="sm"
+        onClick={onOpenAnalytics}
+        title="View Analytics"
+      >
+        <BarChart3 className="h-4 w-4" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
         onClick={onDelete}
         title="Delete Task"
       >

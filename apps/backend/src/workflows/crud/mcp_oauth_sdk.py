@@ -54,6 +54,10 @@ class McpOAuthInitializeWorkflowInput(BaseModel):
     user_id: str = Field(..., description="User ID")
     workspace_id: str = Field(..., description="Workspace ID")
     mcp_server_id: str = Field(..., description="MCP Server ID")
+    redirect_uri: str = Field(
+        default="http://localhost:3000/oauth/callback",
+        description="OAuth redirect URI (use ngrok HTTPS URL for Slack)",
+    )
 
 
 class McpOAuthCallbackWorkflowInput(BaseModel):
@@ -70,6 +74,10 @@ class McpOAuthCallbackWorkflowInput(BaseModel):
     client_secret: str | None = Field(
         None,
         description="OAuth client secret from authorization phase",
+    )
+    redirect_uri: str = Field(
+        default="http://localhost:3000/oauth/callback",
+        description="OAuth redirect URI (use ngrok HTTPS URL for Slack)",
     )
 
 
@@ -121,6 +129,14 @@ class McpOAuthInitializeWorkflow:
                 GenerateAuthUrlInput,
             )
 
+            # Extract OAuth config from server headers (if present)
+            headers = server.headers or {}
+            oauth_authorize_url = headers.get("oauth_authorize_url")
+            oauth_token_url = headers.get("oauth_token_url")
+            client_id = headers.get("client_id")
+            client_secret = headers.get("client_secret")
+            scopes = headers.get("scopes")
+
             auth_url_result = await workflow.step(
                 function=oauth_generate_auth_url,
                 function_input=GenerateAuthUrlInput(
@@ -128,7 +144,12 @@ class McpOAuthInitializeWorkflow:
                     server_label=server.server_label,
                     user_id=request.user_id,
                     workspace_id=request.workspace_id,
-                    redirect_uri="http://localhost:3000/oauth/callback",
+                    redirect_uri=request.redirect_uri,
+                    oauth_authorize_url=oauth_authorize_url,
+                    oauth_token_url=oauth_token_url,
+                    client_id=client_id,
+                    client_secret=client_secret,
+                    scopes=scopes,
                 ),
                 start_to_close_timeout=timedelta(seconds=60),
                 task_queue=TASK_QUEUE,
@@ -246,6 +267,10 @@ class McpOAuthCallbackWorkflow:
                 "Step 3: Exchanging authorization code for tokens"
             )
 
+            # Extract OAuth token URL from server headers (if present)
+            server_headers = server_result.server.headers or {}
+            oauth_token_url = server_headers.get("oauth_token_url")
+
             token_result = await workflow.step(
                 function=oauth_exchange_code_for_token,
                 function_input=ExchangeCodeForTokenInput(
@@ -255,9 +280,10 @@ class McpOAuthCallbackWorkflow:
                     workspace_id=request.workspace_id,
                     code=code,
                     state=state,
-                    redirect_uri="http://localhost:3000/oauth/callback",
+                    redirect_uri=request.redirect_uri,
                     client_id=request.client_id,  # Pass the client_id from authorization phase
                     client_secret=request.client_secret,  # Pass the client_secret from authorization phase
+                    oauth_token_url=oauth_token_url,  # Pass explicit token URL if available
                 ),
                 start_to_close_timeout=timedelta(seconds=60),
                 task_queue=TASK_QUEUE,
@@ -324,6 +350,7 @@ class McpOAuthCallbackWorkflow:
                     if token_data.scope
                     else None,
                     auth_type="oauth",
+                    provider_metadata=token_data.provider_metadata,  # Store provider metadata (e.g., Slack team_id)
                     is_default=False,
                 ),
                 start_to_close_timeout=timedelta(seconds=30),
