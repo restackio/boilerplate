@@ -1,7 +1,27 @@
+import os
+
 from pydantic import BaseModel
 from restack_ai.function import function
 
 from .llm_response_stream import LlmResponseInput, Message
+
+# Server-side compaction: when context exceeds this many tokens, OpenAI compacts
+# and emits a compaction item in the stream. Use 0 or unset to disable.
+# See https://developers.openai.com/api/docs/guides/compaction#server-side-compaction
+COMPACT_THRESHOLD_ENV = "OPENAI_COMPACT_THRESHOLD"
+DEFAULT_COMPACT_THRESHOLD = 200_000  # tokens (e.g. ~150k context before compacting)
+
+
+def _get_compact_threshold() -> int | None:
+    raw = os.environ.get(COMPACT_THRESHOLD_ENV)
+    if raw is None or raw == "":
+        return DEFAULT_COMPACT_THRESHOLD
+    try:
+        n = int(raw)
+    except ValueError:
+        return None
+    else:
+        return n if n > 0 else None
 
 
 class LlmPrepareResponseInput(BaseModel):
@@ -31,7 +51,7 @@ async def llm_prepare_response(
 
     # Create OpenAI parameters
     create_params = {
-        "model": function_input.model or "gpt-5",
+        "model": function_input.model or "gpt-5.2",
         "input": input_data,
         "tool_choice": "auto",
         "reasoning": {
@@ -58,6 +78,13 @@ async def llm_prepare_response(
         # Add approval response as input instead of replacing the messages
         create_params["input"] = [
             function_input.approval_response
+        ]
+
+    # Server-side compaction for long conversations (preserves context, reduces tokens)
+    compact_threshold = _get_compact_threshold()
+    if compact_threshold is not None:
+        create_params["context_management"] = [
+            {"type": "compaction", "compact_threshold": compact_threshold}
         ]
 
     return LlmResponseInput(

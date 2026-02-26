@@ -25,7 +25,7 @@ export function PlaygroundLeftPanel({
   // Convert agent to form data
   const formData = useMemo<AgentConfigData>(() => ({
     instructions: agent.instructions || "",
-    model: agent.model || "gpt-5",
+    model: agent.model || "gpt-5.2",
     reasoning_effort: agent.reasoning_effort || "medium",
   }), [agent.instructions, agent.model, agent.reasoning_effort]);
 

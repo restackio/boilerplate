@@ -45,8 +45,17 @@ interface AgentConfigurationFormProps {
   onNameValidation?: (isValid: boolean, error: string) => void;
 }
 
-// Model options - centralized
+// Model options - centralized (latest OpenAI models per https://developers.openai.com/api/docs/changelog/)
 export const MODEL_OPTIONS = [
+  { value: "gpt-5.2", label: "GPT-5.2" },
+  { value: "gpt-5.2-chat-latest", label: "GPT-5.2 Chat (latest)" },
+  { value: "gpt-5.2-codex", label: "GPT-5.2 Codex" },
+  { value: "gpt-5.3-codex", label: "GPT-5.3 Codex" },
+  { value: "gpt-5.1", label: "GPT-5.1" },
+  { value: "gpt-5.1-chat-latest", label: "GPT-5.1 Chat (latest)" },
+  { value: "gpt-5.1-codex", label: "GPT-5.1 Codex" },
+  { value: "gpt-5.1-codex-mini", label: "GPT-5.1 Codex Mini" },
+  { value: "gpt-5.1-codex-max", label: "GPT-5.1 Codex Max" },
   { value: "gpt-5", label: "GPT-5" },
   { value: "gpt-5-mini", label: "GPT-5 Mini" },
   { value: "gpt-5-nano", label: "GPT-5 Nano" },
@@ -106,7 +115,7 @@ export function AgentConfigurationForm({
   const name = data?.name || "";
   const description = data?.description || "";
   const instructions = data?.instructions || "You are a helpful support agent. Your role is to assist users with their technical questions and issues. Always be polite, professional, and thorough in your responses.";
-  const model = data?.model || "gpt-5";
+  const model = data?.model || "gpt-5.2";
   const reasoningEffort = data?.reasoning_effort || "medium";
   
   // UI state

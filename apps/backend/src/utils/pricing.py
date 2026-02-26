@@ -17,6 +17,17 @@ class ModelPricing(NamedTuple):
 
 # Pricing table - all prices per 1M tokens
 MODEL_PRICING = {
+    # GPT-5.2 Family (latest flagship)
+    "gpt-5.2": ModelPricing(1.75, 0.175, 14.00),
+    "gpt-5.2-chat-latest": ModelPricing(1.75, 0.175, 14.00),
+    "gpt-5.2-codex": ModelPricing(1.75, 0.175, 14.00),
+    "gpt-5.3-codex": ModelPricing(1.75, 0.175, 14.00),
+    # GPT-5.1 Family
+    "gpt-5.1": ModelPricing(1.25, 0.125, 10.00),
+    "gpt-5.1-chat-latest": ModelPricing(1.25, 0.125, 10.00),
+    "gpt-5.1-codex": ModelPricing(1.25, 0.125, 10.00),
+    "gpt-5.1-codex-mini": ModelPricing(0.25, 0.025, 2.00),
+    "gpt-5.1-codex-max": ModelPricing(15.00, 0.0, 120.00),
     # GPT-5 Family
     "gpt-5": ModelPricing(1.25, 0.125, 10.00),
     "gpt-5-mini": ModelPricing(0.25, 0.025, 2.00),
@@ -70,8 +81,8 @@ MODEL_PRICING = {
     "gpt-image-1-mini": ModelPricing(2.00, 0.20, 0.0),
 }
 
-# Default pricing (GPT-5)
-DEFAULT_PRICING = MODEL_PRICING["gpt-5"]
+# Default pricing (GPT-5.2)
+DEFAULT_PRICING = MODEL_PRICING["gpt-5.2"]
 
 
 def get_model_pricing(model_name: str | None) -> ModelPricing:

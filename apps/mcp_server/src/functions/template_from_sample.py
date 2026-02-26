@@ -87,7 +87,7 @@ def json_to_schema(  # noqa: PLR0911
 
 
 def create_template(
-    sample: dict[str, Any], model: str = "gpt-4o-mini"
+    sample: dict[str, Any], model: str = "gpt-5.2"
 ) -> dict[str, Any]:
     """Create a standardized integration template with structured outputs."""
     # Generate JSON schema from sample for structured outputs
@@ -176,7 +176,7 @@ async def template_from_sample(
     log.info(
         "Template loaded",
         integration_template=input_data.integration_template,
-        model=template.get("model", "gpt-4o-mini"),
+        model=template.get("model", "gpt-5.2"),
         prompt_size=len(template["system_prompt"]),
         schema_properties=len(
             template["json_schema"].get("properties", {})
@@ -185,7 +185,7 @@ async def template_from_sample(
 
     return LoadTemplateOutput(
         sample=template["sample"],
-        model=template.get("model", "gpt-4o-mini"),
+        model=template.get("model", "gpt-5.2"),
         system_prompt=template["system_prompt"],
         user_prompt_template=template["user_prompt_template"],
         integration_type=input_data.integration_template,
