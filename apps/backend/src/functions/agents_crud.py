@@ -9,6 +9,17 @@ from sqlalchemy.orm import selectinload
 from src.database.connection import get_async_db
 from src.database.models import Agent, AgentSubagent, AgentTool
 
+# Allowed OpenAI model IDs (must match DB constraint and dropdowns)
+AGENT_MODEL_PATTERN = (
+    r"^(gpt-5\.2|gpt-5\.2-chat-latest|gpt-5\.2-codex|gpt-5\.3-codex|"
+    r"gpt-5\.1|gpt-5\.1-chat-latest|gpt-5\.1-codex|gpt-5\.1-codex-mini|gpt-5\.1-codex-max|"
+    r"gpt-5|gpt-5-mini|gpt-5-nano|"
+    r"gpt-5-2025-08-07|gpt-5-mini-2025-08-07|gpt-5-nano-2025-08-07|"
+    r"gpt-4\.1|gpt-4\.1-mini|gpt-4\.1-nano|gpt-4o|gpt-4o-mini|"
+    r"o3-deep-research|o4-mini-deep-research)$"
+)
+DEFAULT_AGENT_MODEL = "gpt-5.2"
+
 
 def _raise_source_agent_not_found_error(
     source_agent_id: str,
@@ -39,12 +50,9 @@ class AgentCreateInput(BaseModel):
         default="interactive", pattern="^(interactive|pipeline)$"
     )
     # New GPT-5 model configuration fields
-    model: str = Field(
-        default="gpt-5",
-        pattern=r"^(gpt-5|gpt-5-mini|gpt-5-nano|gpt-5-2025-08-07|gpt-5-mini-2025-08-07|gpt-5-nano-2025-08-07|gpt-4\.1|gpt-4\.1-mini|gpt-4\.1-nano|gpt-4o|gpt-4o-mini|o3-deep-research|o4-mini-deep-research)$",
-    )
+    model: str = Field(default=DEFAULT_AGENT_MODEL, pattern=AGENT_MODEL_PATTERN)
     reasoning_effort: str = Field(
-        default="medium", pattern="^(minimal|low|medium|high)$"
+        default="medium", pattern="^(none|low|medium|high)$"
     )
     team_id: str | None = Field(default=None, description="If provided, create the agent in the specified team")
     # Note: MCP relationships are now created through the agent tools workflow
@@ -70,12 +78,9 @@ class AgentCloneInput(BaseModel):
         default="interactive", pattern="^(interactive|pipeline)$"
     )
     # New GPT-5 model configuration fields
-    model: str = Field(
-        default="gpt-5",
-        pattern=r"^(gpt-5|gpt-5-mini|gpt-5-nano|gpt-5-2025-08-07|gpt-5-mini-2025-08-07|gpt-5-nano-2025-08-07|gpt-4\.1|gpt-4\.1-mini|gpt-4\.1-nano|gpt-4o|gpt-4o-mini|o3-deep-research|o4-mini-deep-research)$",
-    )
+    model: str = Field(default=DEFAULT_AGENT_MODEL, pattern=AGENT_MODEL_PATTERN)
     reasoning_effort: str = Field(
-        default="medium", pattern="^(minimal|low|medium|high)$"
+        default="medium", pattern="^(none|low|medium|high)$"
     )
 
 
@@ -98,12 +103,9 @@ class AgentUpdateInput(BaseModel):
         None, pattern="^(interactive|pipeline)$"
     )
     # New GPT-5 model configuration fields
-    model: str | None = Field(
-        None,
-        pattern=r"^(gpt-5|gpt-5-mini|gpt-5-nano|gpt-5-2025-08-07|gpt-5-mini-2025-08-07|gpt-5-nano-2025-08-07|gpt-4\.1|gpt-4\.1-mini|gpt-4\.1-nano|gpt-4o|gpt-4o-mini|o3-deep-research|o4-mini-deep-research)$",
-    )
+    model: str | None = Field(None, pattern=AGENT_MODEL_PATTERN)
     reasoning_effort: str | None = Field(
-        None, pattern="^(minimal|low|medium|high)$"
+        None, pattern="^(none|low|medium|high)$"
     )
 
 
@@ -149,7 +151,7 @@ class AgentOutput(BaseModel):
     # Agent type: interactive (user-facing) or pipeline (data processing)
     type: str = "interactive"
     # New GPT-5 model configuration fields
-    model: str = "gpt-5"
+    model: str = DEFAULT_AGENT_MODEL
     reasoning_effort: str = "medium"
 
     created_at: str | None
@@ -222,7 +224,7 @@ def get_latest_agent_versions(
                     if latest_agent.parent_agent_id
                     else None,
                     # New GPT-5 model configuration fields
-                    model=latest_agent.model or "gpt-5",
+                    model=latest_agent.model or DEFAULT_AGENT_MODEL,
                     reasoning_effort=latest_agent.reasoning_effort
                     or "medium",
                     created_at=latest_agent.created_at.isoformat()
@@ -338,7 +340,7 @@ async def agents_read(
                         if agent.parent_agent_id
                         else None,
                         # New GPT-5 model configuration fields
-                        model=agent.model or "gpt-5",
+                        model=agent.model or DEFAULT_AGENT_MODEL,
                         reasoning_effort=agent.reasoning_effort
                         or "medium",
                         created_at=agent.created_at.isoformat()
@@ -372,7 +374,7 @@ class AgentTableOutput(BaseModel):
     type: str | None = None
     status: str
     parent_agent_id: str | None = None
-    model: str | None = "gpt-5"
+    model: str | None = DEFAULT_AGENT_MODEL
     reasoning_effort: str | None = "medium"
     created_at: str | None = None
     updated_at: str | None = None
@@ -458,7 +460,7 @@ def _process_agent_group(
         parent_agent_id=str(display_agent.parent_agent_id)
         if display_agent.parent_agent_id
         else None,
-        model=display_agent.model or "gpt-5",
+        model=display_agent.model or DEFAULT_AGENT_MODEL,
         reasoning_effort=display_agent.reasoning_effort
         or "medium",
         created_at=display_agent.created_at.isoformat()
@@ -513,7 +515,7 @@ async def agents_read_all(
                     parent_agent_id=str(agent.parent_agent_id)
                     if agent.parent_agent_id
                     else None,
-                    model=agent.model or "gpt-5",
+                    model=agent.model or DEFAULT_AGENT_MODEL,
                     reasoning_effort=agent.reasoning_effort
                     or "medium",
                     created_at=agent.created_at.isoformat()
@@ -661,7 +663,7 @@ async def agents_create(
                 # Agent type
                 type=agent.type or "interactive",
                 # New GPT-5 model configuration fields
-                model=agent.model or "gpt-5",
+                model=agent.model or DEFAULT_AGENT_MODEL,
                 reasoning_effort=agent.reasoning_effort
                 or "medium",
                 created_at=agent.created_at.isoformat()
@@ -744,7 +746,7 @@ async def agents_update(
                 # Agent type
                 type=agent.type or "interactive",
                 # New GPT-5 model configuration fields
-                model=agent.model or "gpt-5",
+                model=agent.model or DEFAULT_AGENT_MODEL,
                 reasoning_effort=agent.reasoning_effort
                 or "medium",
                 created_at=agent.created_at.isoformat()
@@ -861,7 +863,7 @@ async def agents_get_by_id(
                 # Agent type
                 type=agent.type or "interactive",
                 # New GPT-5 model configuration fields
-                model=agent.model or "gpt-5",
+                model=agent.model or DEFAULT_AGENT_MODEL,
                 reasoning_effort=agent.reasoning_effort
                 or "medium",
                 created_at=agent.created_at.isoformat()
@@ -957,7 +959,7 @@ async def agents_get_by_status(
                         if agent.parent_agent_id
                         else None,
                         # New GPT-5 model configuration fields
-                        model=agent.model or "gpt-5",
+                        model=agent.model or DEFAULT_AGENT_MODEL,
                         reasoning_effort=agent.reasoning_effort
                         or "medium",
                         created_at=agent.created_at.isoformat()
@@ -1037,7 +1039,7 @@ async def agents_get_versions(
                     if agent.parent_agent_id
                     else None,
                     # New GPT-5 model configuration fields
-                    model=agent.model or "gpt-5",
+                    model=agent.model or DEFAULT_AGENT_MODEL,
                     reasoning_effort=agent.reasoning_effort
                     or "medium",
                     created_at=agent.created_at.isoformat()
@@ -1158,7 +1160,7 @@ async def agents_update_status(
                     parent_agent_id=str(agent.parent_agent_id)
                     if agent.parent_agent_id
                     else None,
-                    model=agent.model or "gpt-5",
+                    model=agent.model or DEFAULT_AGENT_MODEL,
                     reasoning_effort=agent.reasoning_effort
                     or "medium",
                     created_at=agent.created_at.isoformat()
@@ -1381,7 +1383,7 @@ async def agents_clone(
                 else None,
                 # Agent type
                 type=new_agent.type or "interactive",
-                model=new_agent.model or "gpt-5",
+                model=new_agent.model or DEFAULT_AGENT_MODEL,
                 reasoning_effort=new_agent.reasoning_effort
                 or "medium",
                 created_at=new_agent.created_at.isoformat()

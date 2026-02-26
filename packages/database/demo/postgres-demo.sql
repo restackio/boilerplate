@@ -96,7 +96,7 @@ Search and retrieve technical documentation from internal knowledge bases to pro
 This is a pipeline agent that focuses on efficient data retrieval.$$,
     'pipeline',
     'published',
-    'gpt-5-mini',
+    'gpt-5.2',
     'low'
 )
 ON CONFLICT (id) DO NOTHING;
@@ -163,7 +163,7 @@ Use FailingMcpTest with:
 Focus on thorough testing and clear documentation of error handling behavior.$$,
     'interactive',
     'published',
-    'gpt-5',
+    'gpt-5.2',
     'low'
 )
 ON CONFLICT (id) DO NOTHING;
@@ -230,7 +230,7 @@ When a member asks about coverage:
 Your goal is to help members understand their policy coverage.$$,
     'interactive',
     'published',
-    'gpt-5',
+    'gpt-5.2',
     'medium',
     NOW() - INTERVAL '7 days'
 )
@@ -288,7 +288,7 @@ Surface signals from tech leaders' social media profiles to understand what's ha
 Your role is to surface product intelligence from tech leaders to inform our product strategy and content.$$,
     'pipeline',
     'published',
-    'gpt-5',
+    'gpt-5.2',
     'medium'
 )
 ON CONFLICT (id) DO NOTHING;
@@ -330,7 +330,7 @@ Store data with:
 This is a deterministic pipeline focused on efficient data extraction and storage.$$,
     'pipeline',
     'published',
-    'gpt-5-mini',
+    'gpt-5.2',
     'low'
 )
 ON CONFLICT (id) DO NOTHING;
@@ -400,7 +400,7 @@ Analyze signals from tech leaders in the context store and identify 10 product f
 Your role is to identify product intelligence opportunities that help us understand what's happening in the tech world and share our informed perspective.$$,
     'interactive',
     'published',
-    'gpt-5',
+    'gpt-5.2',
     'high'
 )
 ON CONFLICT (id) DO NOTHING;
@@ -464,7 +464,7 @@ Create compelling, technically-informed posts on product topics by researching o
 Your role is to craft technically-informed, opinionated content that showcases our product expertise and unique perspective.$$,
     'interactive',
     'published',
-    'gpt-5',
+    'gpt-5.2',
     'high'
 )
 ON CONFLICT (id) DO NOTHING;
@@ -502,7 +502,7 @@ For a given contact (contact_id), fetch CRM activities from Salesforce and ERP a
 Your goal is to produce a single, reconciled view of that contact across CRM and ERP.$$,
     'pipeline',
     'published',
-    'gpt-5-mini',
+    'gpt-5.2',
     'low'
 )
 ON CONFLICT (id) DO NOTHING;
@@ -534,7 +534,7 @@ Fetch all contacts from Salesforce (CRM), then for each contact create a subtask
 Your role is to sync customer data from CRM to reconciled contact context in the context store.$$,
     'pipeline',
     'published',
-    'gpt-5',
+    'gpt-5.2',
     'medium'
 )
 ON CONFLICT (id) DO NOTHING;
@@ -572,7 +572,7 @@ When the user provides a contact-id, retrieve that contact's reconciled context 
 Your goal is to produce accurate, context-aware quotes that leverage both CRM and ERP data from the context store.$$,
     'interactive',
     'published',
-    'gpt-5',
+    'gpt-5.2',
     'medium'
 )
 ON CONFLICT (id) DO NOTHING;
@@ -1527,7 +1527,7 @@ When a member asks about coverage:
 Your goal is to provide accurate, validated coverage information.$$,
     'interactive',
     'published',
-    'gpt-5',
+    'gpt-5.2',
     'medium',
     'cccccccc-dddd-eeee-ffff-333333333333',
     NOW() - INTERVAL '3 days'
@@ -1615,7 +1615,7 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
           "response": {
             "id": "resp_001",
             "status": "in_progress",
-            "model": "gpt-5",
+            "model": "gpt-5.2",
             "tools": [
               {
                 "type": "mcp",

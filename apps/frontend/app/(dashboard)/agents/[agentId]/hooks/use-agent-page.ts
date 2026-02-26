@@ -57,7 +57,7 @@ export function useAgentPage(agentId: string) {
           name: result.data.name,
           description: result.data.description,
           instructions: result.data.instructions,
-          model: result.data.model || "gpt-5",
+          model: result.data.model || "gpt-5.2",
           reasoning_effort: result.data.reasoning_effort || "medium",
         });
       } else {
@@ -95,7 +95,7 @@ export function useAgentPage(agentId: string) {
       name: agent.name,
       description: agent.description,
       instructions: agent.instructions,
-      model: agent.model || "gpt-5",
+      model: agent.model || "gpt-5.2",
       reasoning_effort: agent.reasoning_effort || "medium",
     };
 
@@ -141,7 +141,7 @@ export function useAgentPage(agentId: string) {
             name: result.data.name,
             description: result.data.description,
             instructions: result.data.instructions,
-            model: result.data.model || "gpt-5",
+            model: result.data.model || "gpt-5.2",
             reasoning_effort: result.data.reasoning_effort || "medium",
           });
         } else {

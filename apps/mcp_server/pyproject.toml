@@ -9,7 +9,7 @@ dependencies = [
     "pydantic[email]>=2.11.7",
     "watchfiles>=1.1.0",
     "python-dotenv>=1.1.1",
-    "openai[aiohttp]==1.107.1",
+    "openai[aiohttp]>=1.107.1",
     "restack-ai>=0.0.115",
     "psycopg2-binary>=2.9.9",
     "asyncpg>=0.29.0",

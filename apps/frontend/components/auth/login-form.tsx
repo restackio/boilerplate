@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { AuthForm, useAuthFormState } from "@workspace/ui/components";
 import { Button } from "@workspace/ui/components/ui/button";
 import { executeWorkflow } from "@/app/actions/workflow";
@@ -13,7 +12,6 @@ export function LoginForm({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const { isLoading, error, startSubmission, finishSubmission, setSubmissionError } = useAuthFormState();
-  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
