@@ -56,7 +56,7 @@ async def llm_prepare_response(
         "tool_choice": "auto",
         "reasoning": {
             "effort": function_input.reasoning_effort
-            or "minimal",
+            or "none",
             "summary": "detailed",
         },
         "text": {

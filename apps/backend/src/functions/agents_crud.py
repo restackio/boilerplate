@@ -52,7 +52,7 @@ class AgentCreateInput(BaseModel):
     # New GPT-5 model configuration fields
     model: str = Field(default=DEFAULT_AGENT_MODEL, pattern=AGENT_MODEL_PATTERN)
     reasoning_effort: str = Field(
-        default="medium", pattern="^(minimal|low|medium|high)$"
+        default="medium", pattern="^(none|low|medium|high)$"
     )
     team_id: str | None = Field(default=None, description="If provided, create the agent in the specified team")
     # Note: MCP relationships are now created through the agent tools workflow
@@ -80,7 +80,7 @@ class AgentCloneInput(BaseModel):
     # New GPT-5 model configuration fields
     model: str = Field(default=DEFAULT_AGENT_MODEL, pattern=AGENT_MODEL_PATTERN)
     reasoning_effort: str = Field(
-        default="medium", pattern="^(minimal|low|medium|high)$"
+        default="medium", pattern="^(none|low|medium|high)$"
     )
 
 
@@ -105,7 +105,7 @@ class AgentUpdateInput(BaseModel):
     # New GPT-5 model configuration fields
     model: str | None = Field(None, pattern=AGENT_MODEL_PATTERN)
     reasoning_effort: str | None = Field(
-        None, pattern="^(minimal|low|medium|high)$"
+        None, pattern="^(none|low|medium|high)$"
     )
 
 

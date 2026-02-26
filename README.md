@@ -135,7 +135,7 @@ brew install ngrok  # or download from https://ngrok.com
 ngrok http 11233
 
 # Add the ngrok URL to .env:
-RESTACK_ENGINE_MCP_ADDRESS=https://your-ngrok-url.ngrok-free.app
+RESTACK_ENGINE_MCP_ADDRESS=https://your-ngrok-url.ngrok-free.app/mcp
 ```
 
 ## Getting started tutorial

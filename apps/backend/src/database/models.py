@@ -254,7 +254,7 @@ class Agent(Base):
         ),
         CheckConstraint(
             reasoning_effort.in_(
-                ["minimal", "low", "medium", "high"]
+                ["none", "low", "medium", "high"]
             ),
             name="valid_reasoning_effort",
         ),

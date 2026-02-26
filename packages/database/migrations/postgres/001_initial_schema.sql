@@ -80,7 +80,7 @@ CREATE TABLE IF NOT EXISTS agents (
         'gpt-4.1', 'gpt-4.1-mini', 'gpt-4.1-nano', 'gpt-4o', 'gpt-4o-mini',
         'o3-deep-research', 'o4-mini-deep-research'
     )),
-    reasoning_effort VARCHAR(20) DEFAULT 'medium' CHECK (reasoning_effort IN ('minimal', 'low', 'medium', 'high')),
+    reasoning_effort VARCHAR(20) DEFAULT 'medium' CHECK (reasoning_effort IN ('none', 'low', 'medium', 'high')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

@@ -89,7 +89,7 @@ export const DEFAULT_MODEL_OPTIONS = [
 
 // Default reasoning effort options
 export const DEFAULT_REASONING_EFFORT_OPTIONS = [
-  { value: "minimal", label: "Minimal" },
+  { value: "none", label: "None" },
   { value: "low", label: "Low" },
   { value: "medium", label: "Medium" },
   { value: "high", label: "High" },
