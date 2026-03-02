@@ -7,6 +7,8 @@ from restack_ai.workflow import (
     workflow,
 )
 
+from src.constants import TASK_QUEUE
+
 with import_functions():
     from src.functions.agent_tools_crud import (
         AgentToolCreateInput,
@@ -57,6 +59,7 @@ class AgentsReadWorkflow:
             return await workflow.step(
                 function=agents_read,
                 function_input=workflow_input,
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=30),
             )
 
@@ -80,6 +83,7 @@ class AgentsCreateWorkflow:
             agent_result = await workflow.step(
                 function=agents_create,
                 function_input=workflow_input,
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=30),
             )
 
@@ -131,6 +135,7 @@ class AgentsCreateWorkflow:
                                 require_approval=False,
                                 enabled=True,
                             ),
+                            task_queue=TASK_QUEUE,
                             start_to_close_timeout=timedelta(
                                 seconds=30
                             ),
@@ -169,6 +174,7 @@ class AgentsUpdateWorkflow:
             return await workflow.step(
                 function=agents_update,
                 function_input=workflow_input,
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=30),
             )
 
@@ -191,6 +197,7 @@ class AgentsDeleteWorkflow:
             return await workflow.step(
                 function=agents_delete,
                 function_input=workflow_input,
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=30),
             )
 
@@ -213,6 +220,7 @@ class AgentsGetByIdWorkflow:
             return await workflow.step(
                 function=agents_get_by_id,
                 function_input=workflow_input,
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=30),
             )
 
@@ -235,6 +243,7 @@ class AgentsGetByStatusWorkflow:
             return await workflow.step(
                 function=agents_get_by_status,
                 function_input=workflow_input,
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=30),
             )
 
@@ -259,6 +268,7 @@ class AgentsGetVersionsWorkflow:
             return await workflow.step(
                 function=agents_get_versions,
                 function_input=workflow_input,
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=30),
             )
 
@@ -284,6 +294,7 @@ class AgentsReadAllWorkflow:
             return await workflow.step(
                 function=agents_read_all,
                 function_input=workflow_input,
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=30),
             )
 
@@ -306,6 +317,7 @@ class AgentsReadTableWorkflow:
             return await workflow.step(
                 function=agents_read_table,
                 function_input=workflow_input,
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=30),
             )
 
@@ -328,6 +340,7 @@ class AgentsArchiveWorkflow:
             return await workflow.step(
                 function=agents_archive,
                 function_input=workflow_input,
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=30),
             )
 
@@ -350,6 +363,7 @@ class AgentsUpdateStatusWorkflow:
             return await workflow.step(
                 function=agents_update_status,
                 function_input=workflow_input,
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=30),
             )
 
@@ -374,6 +388,7 @@ class AgentsCloneWorkflow:
             return await workflow.step(
                 function=agents_clone,
                 function_input=workflow_input,
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(
                     seconds=60
                 ),  # Longer timeout for cloning

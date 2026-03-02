@@ -16,6 +16,8 @@ from restack_ai.agent import (
     uuid,
 )
 
+from src.constants import TASK_QUEUE
+
 
 def create_agent_error_event(
     message: str,
@@ -265,6 +267,7 @@ class AgentTask:
                             if self.workspace_id
                             else None,
                         ),
+                        task_queue=TASK_QUEUE,
                         start_to_close_timeout=timedelta(
                             seconds=60
                         ),
@@ -275,6 +278,7 @@ class AgentTask:
                     completion = await agent.step(
                         function=llm_response_stream,
                         function_input=prepared,
+                        task_queue=TASK_QUEUE,
                         start_to_close_timeout=timedelta(
                             minutes=10
                         ),
@@ -348,12 +352,14 @@ class AgentTask:
         prepared = await agent.step(
             function=llm_prepare_response,
             function_input=approval_input,
+            task_queue=TASK_QUEUE,
         )
 
         # Note: last_response_id is updated in real-time via response_item handler
         _ = await agent.step(
             function=llm_response_stream,
             function_input=prepared,
+            task_queue=TASK_QUEUE,
             start_to_close_timeout=timedelta(seconds=120),
         )
 
@@ -467,6 +473,7 @@ class AgentTask:
             agent_result = await agent.step(
                 function=agents_get_by_id,
                 function_input=AgentIdInput(agent_id=agent_id),
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=30),
             )
             agent_name = (
@@ -494,6 +501,7 @@ class AgentTask:
                 workflow="TasksCreateWorkflow",
                 workflow_id=child_workflow_id,
                 workflow_input=task_input,
+                task_queue=TASK_QUEUE,
             )
 
             # Store minimal state (for multi-client real-time updates)
@@ -614,6 +622,7 @@ class AgentTask:
                             ]
                         },
                     ),
+                    task_queue=TASK_QUEUE,
                     start_to_close_timeout=timedelta(seconds=10),
                 )
                 log.info(
@@ -665,6 +674,7 @@ class AgentTask:
                         "message", "Unknown error"
                     ),
                 ),
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=10),
             )
 
@@ -737,6 +747,7 @@ class AgentTask:
                     "status": "completed",
                     "run_quality_metrics": True,
                 },
+                task_queue=TASK_QUEUE,
                 parent_close_policy=ParentClosePolicy.ABANDON,
             )
             log.info(
@@ -783,6 +794,7 @@ class AgentTask:
                     task_id=str(self.task_id),
                     agent_state=final_state,
                 ),
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=15),
             )
 
@@ -812,6 +824,7 @@ class AgentTask:
                 task_id=self.task_id,
                 status="completed",
             ),
+            task_queue=TASK_QUEUE,
             start_to_close_timeout=timedelta(seconds=30),
         )
 
@@ -825,6 +838,7 @@ class AgentTask:
                     title=self.title,
                     status="completed",
                 ),
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=10),
             )
 
@@ -950,12 +964,14 @@ class AgentTask:
                     title=self.title,
                     status="started",
                 ),
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=10),
             )
 
         agent_result = await agent.step(
             function=agents_get_by_id,
             function_input=AgentIdInput(agent_id=self.agent_id),
+            task_queue=TASK_QUEUE,
             start_to_close_timeout=timedelta(seconds=30),
         )
 
@@ -995,6 +1011,7 @@ class AgentTask:
                 agent_id=self.agent_id,
                 user_id=agent_input.user_id,
             ),
+            task_queue=TASK_QUEUE,
             start_to_close_timeout=timedelta(seconds=30),
         )
         self.tools = tools_result.tools or []
@@ -1030,6 +1047,7 @@ class AgentTask:
                     function_input=AgentSubagentsReadInput(
                         parent_agent_id=self.agent_id
                     ),
+                    task_queue=TASK_QUEUE,
                     start_to_close_timeout=timedelta(
                         seconds=60
                     ),  # Increased timeout for reliability

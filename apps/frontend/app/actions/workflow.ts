@@ -1,12 +1,16 @@
 "use server";
 import { client } from "./client";
 
+const BACKEND_TASK_QUEUE = "backend";
+
 export async function runWorkflow({
   workflowName = "workflowFlow",
   input = {},
+  taskQueue = BACKEND_TASK_QUEUE,
 }: {
   workflowName: string,
   input: Record<string, unknown>,
+  taskQueue?: string,
 }) : Promise<{ workflowId: string; runId: string }> {
   const startTime = Date.now();
   
@@ -21,7 +25,8 @@ export async function runWorkflow({
     const runId = await client.scheduleWorkflow({
       workflowName,
       workflowId,
-      input
+      input,
+      taskQueue,
     });
 
     return {

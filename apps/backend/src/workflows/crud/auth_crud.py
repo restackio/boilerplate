@@ -8,6 +8,8 @@ from restack_ai.workflow import (
     workflow,
 )
 
+from src.constants import TASK_QUEUE
+
 with import_functions():
     from src.functions.auth_crud import (
         AuthOutput,
@@ -32,6 +34,7 @@ class UserSignupWorkflow:
             return await workflow.step(
                 function=user_signup,
                 function_input=workflow_input,
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=30),
             )
 
@@ -54,6 +57,7 @@ class UserLoginWorkflow:
             return await workflow.step(
                 function=user_login,
                 function_input=workflow_input,
+                task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=30),
                 retry_policy=RetryPolicy(
                     maximum_attempts=1,

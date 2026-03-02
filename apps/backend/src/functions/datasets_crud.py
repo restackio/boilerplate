@@ -547,7 +547,7 @@ def _build_user_filters(
     if function_input.search_query:
         conditions.append(
             f"(event_name ILIKE '%{function_input.search_query}%' OR "
-            f"JSONExtractString(raw_data, 'content') ILIKE '%{function_input.search_query}%')"
+            f"toString(raw_data.content) ILIKE '%{function_input.search_query}%')"
         )
 
     return conditions

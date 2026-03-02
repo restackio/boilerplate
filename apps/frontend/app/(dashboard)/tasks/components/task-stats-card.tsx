@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Card } from "@workspace/ui/components/ui/card";
 import { Badge } from "@workspace/ui/components/ui/badge";
 import { Skeleton } from "@workspace/ui/components/ui/skeleton";
@@ -76,6 +76,8 @@ function formatNumber(num: number): string {
 export function TaskStatsCard() {
   const { currentWorkspaceId, isReady } = useDatabaseWorkspace();
   const router = useRouter();
+  const params = useParams();
+  const teamId = params.teamId as string;
   const [stats, setStats] = useState<TaskStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -93,7 +95,8 @@ export function TaskStatsCard() {
     
     try {
       const result = await executeWorkflow("TasksGetStatsWorkflow", {
-        workspace_id: currentWorkspaceId
+        workspace_id: currentWorkspaceId,
+        ...(teamId && { team_id: teamId })
       });
 
       if (result.success && result.data) {
@@ -107,7 +110,7 @@ export function TaskStatsCard() {
     } finally {
       setLoading(false);
     }
-  }, [currentWorkspaceId, isReady]);
+  }, [currentWorkspaceId, isReady, teamId]);
 
   useEffect(() => {
     fetchStats();

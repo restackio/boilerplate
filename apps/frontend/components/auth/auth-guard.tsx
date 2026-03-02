@@ -30,7 +30,8 @@ export function AuthGuard({ children }: AuthGuardProps) {
     // If not authenticated, redirect to login
     setIsAuthenticated(false);
     router.push("/login");
-  }, [router]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (isAuthenticated === null) {
     return (

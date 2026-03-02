@@ -13,6 +13,8 @@ from restack_ai.workflow import (
     workflow,
 )
 
+from src.constants import TASK_QUEUE
+
 with import_functions():
     from src.functions.metrics_crud import (
         CreateMetricDefinitionInput,
@@ -41,6 +43,7 @@ class CreateMetricDefinitionWorkflow:
                 function=create_metric_definition,
                 function_input=workflow_input.model_dump(),
                 start_to_close_timeout=timedelta(seconds=30),
+                task_queue=TASK_QUEUE,
             )
         except Exception as e:
             error_message = (
@@ -65,6 +68,7 @@ class ListMetricDefinitionsWorkflow:
                 function=list_metric_definitions,
                 function_input=workflow_input.model_dump(),
                 start_to_close_timeout=timedelta(seconds=30),
+                task_queue=TASK_QUEUE,
             )
         except Exception as e:
             error_message = (
@@ -91,6 +95,7 @@ class UpdateMetricDefinitionWorkflow:
                 function=update_metric_definition,
                 function_input=workflow_input.model_dump(),
                 start_to_close_timeout=timedelta(seconds=30),
+                task_queue=TASK_QUEUE,
             )
         except Exception as e:
             error_message = (
@@ -120,6 +125,7 @@ class DeleteMetricDefinitionWorkflow:
                 function=delete_metric_definition,
                 function_input=workflow_input.model_dump(),
                 start_to_close_timeout=timedelta(seconds=30),
+                task_queue=TASK_QUEUE,
             )
         except Exception as e:
             error_message = (

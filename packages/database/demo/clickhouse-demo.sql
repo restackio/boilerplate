@@ -43,6 +43,13 @@ INSERT INTO pipeline_events (agent_id, task_id, workspace_id, dataset_id, event_
 
 INSERT INTO pipeline_events (agent_id, task_id, workspace_id, dataset_id, event_name, raw_data, transformed_data, tags, embedding, event_timestamp) VALUES (generateUUIDv4(), generateUUIDv4(), 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'Trading Volume Spike', '{"symbol": "TSLA", "volume": 45678900, "avg_volume": 28456000, "spike_ratio": 1.61, "time_window": "1h"}', NULL, ['financial', 'stock', 'tesla', 'volume', 'spike'], [0.8, 0.6, 0.9, 0.7], now() - INTERVAL 75 MINUTE);
 
+-- ========================================
+-- Contact Context (CRM + ERP reconciled) - for contact-quote agent
+-- ========================================
+-- Seed events so clickhouserunselectquery can retrieve contact context by contact_id / tags
+INSERT INTO pipeline_events (agent_id, task_id, workspace_id, dataset_id, event_name, raw_data, transformed_data, tags, embedding, event_timestamp) VALUES
+(generateUUIDv4(), generateUUIDv4(), 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'contact_context', '{"contact_id": "003xx000001234AAAQ", "contact_name": "Sarah Chen", "account_name": "Acme Office Solutions", "crm_activities": [{"Subject": "Quote follow-up - MPS proposal", "ActivityType": "Task", "Status": "Completed", "ActivityDate": "2024-11-18"}], "erp_activities": [{"activity_type": "contract", "contract_id": "CNT-2024-0892", "device_count": 45, "monthly_revenue": 1250.0}, {"activity_type": "meter_read", "equipment_id": "EQ-789012", "meter_type": "black_white", "read_value": 125000}]}', NULL, ['contact_context', '003xx000001234AAAQ', 'crm', 'erp'], [0.5, 0.5, 0.5, 0.5], now() - INTERVAL 2 DAY),
+(generateUUIDv4(), generateUUIDv4(), 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'contact_context', '{"contact_id": "003xx000001235AAAR", "contact_name": "Michael Torres", "account_name": "GlobalPrint Inc", "crm_activities": [{"Subject": "Account review", "ActivityType": "Event", "StartDateTime": "2024-11-25T14:00:00Z"}], "erp_activities": [{"activity_type": "contract", "contract_id": "CNT-2024-0893", "device_count": 28, "monthly_revenue": 820.0}]}', NULL, ['contact_context', '003xx000001235AAAR', 'crm', 'erp'], [0.5, 0.5, 0.5, 0.5], now() - INTERVAL 1 DAY);
 
 -- ========================================
 -- Task Metrics Seed Data (DISABLED - using real traces instead)

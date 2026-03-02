@@ -11,6 +11,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from .client import client
+from .constants import TASK_QUEUE
 from .formatters import format_webhook_payload_as_task_description
 from .models import TaskCreateInput, WebhookTaskInput
 
@@ -113,9 +114,10 @@ def create_webhook_app() -> FastAPI:
                     workspace_id=workspace_id,
                     title=title,
                     description=description,
-                    status="open",
+                    status="in_progress",
                     agent_name=agent_name,
                 ),
+                task_queue=TASK_QUEUE,
             )
 
             logger.info(

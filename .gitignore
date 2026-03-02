@@ -38,3 +38,4 @@ npm-debug.log*
 *.pem
 
 styles
+clickhouse

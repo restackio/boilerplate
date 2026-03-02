@@ -11,6 +11,8 @@ from restack_ai.workflow import (
     workflow,
 )
 
+from src.constants import TASK_QUEUE
+
 with import_functions():
     from src.functions.mcp_oauth_client import (
         ExchangeCodeForTokenInput,
@@ -106,6 +108,7 @@ class McpOAuthInitializeWorkflow:
                     mcp_server_id=request.mcp_server_id
                 ),
                 start_to_close_timeout=timedelta(seconds=30),
+                task_queue=TASK_QUEUE,
             )
 
             if not server_result or not server_result.server:
@@ -149,6 +152,7 @@ class McpOAuthInitializeWorkflow:
                     scopes=scopes,
                 ),
                 start_to_close_timeout=timedelta(seconds=60),
+                task_queue=TASK_QUEUE,
             )
 
             if (
@@ -220,6 +224,7 @@ class McpOAuthCallbackWorkflow:
                     callback_url=request.callback_url
                 ),
                 start_to_close_timeout=timedelta(seconds=10),
+                task_queue=TASK_QUEUE,
             )
 
             if (
@@ -247,6 +252,7 @@ class McpOAuthCallbackWorkflow:
                     mcp_server_id=request.mcp_server_id
                 ),
                 start_to_close_timeout=timedelta(seconds=30),
+                task_queue=TASK_QUEUE,
             )
 
             if not server_result or not server_result.server:
@@ -280,6 +286,7 @@ class McpOAuthCallbackWorkflow:
                     oauth_token_url=oauth_token_url,  # Pass explicit token URL if available
                 ),
                 start_to_close_timeout=timedelta(seconds=60),
+                task_queue=TASK_QUEUE,
             )
 
             if (
@@ -321,6 +328,7 @@ class McpOAuthCallbackWorkflow:
                         headers=updated_headers,
                     ),
                     start_to_close_timeout=timedelta(seconds=30),
+                    task_queue=TASK_QUEUE,
                 )
                 log.info(
                     "Successfully stored client credentials in MCP server headers"
@@ -346,6 +354,7 @@ class McpOAuthCallbackWorkflow:
                     is_default=False,
                 ),
                 start_to_close_timeout=timedelta(seconds=30),
+                task_queue=TASK_QUEUE,
             )
 
             if not save_result or not save_result.token:
@@ -390,6 +399,7 @@ class OAuthTokensGetByWorkspaceWorkflow:
                 function=oauth_tokens_get_by_workspace,
                 function_input=workflow_input,
                 start_to_close_timeout=timedelta(seconds=30),
+                task_queue=TASK_QUEUE,
             )
 
             log.info(
@@ -424,6 +434,7 @@ class BearerTokenCreateWorkflow:
                 function=bearer_token_create_or_update,
                 function_input=workflow_input,
                 start_to_close_timeout=timedelta(seconds=30),
+                task_queue=TASK_QUEUE,
             )
 
             log.info(
@@ -456,6 +467,7 @@ class OAuthTokenDeleteWorkflow:
                 function=oauth_token_delete,
                 function_input=workflow_input,
                 start_to_close_timeout=timedelta(seconds=30),
+                task_queue=TASK_QUEUE,
             )
 
             log.info(
@@ -488,6 +500,7 @@ class OAuthTokenRefreshWorkflow:
                 function=oauth_token_refresh_and_update,
                 function_input=workflow_input,
                 start_to_close_timeout=timedelta(seconds=60),
+                task_queue=TASK_QUEUE,
             )
 
             log.info(
@@ -521,6 +534,7 @@ class OAuthTokenSetDefaultWorkflow:
                 function=oauth_token_set_default,
                 function_input=workflow_input,
                 start_to_close_timeout=timedelta(seconds=30),
+                task_queue=TASK_QUEUE,
             )
 
             if not result:
@@ -565,6 +579,7 @@ class OAuthTokenSetDefaultByIdWorkflow:
                 function=oauth_token_set_default_by_id,
                 function_input=workflow_input,
                 start_to_close_timeout=timedelta(seconds=30),
+                task_queue=TASK_QUEUE,
             )
 
             if not result:

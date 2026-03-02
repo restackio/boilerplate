@@ -20,6 +20,7 @@ from src.workflows.tools.clickhouse_crud import (
     ClickHouseListTables,
     ClickHouseRunSelectQuery,
 )
+from src.workflows.tools.complete_task import CompleteTask
 from src.workflows.tools.create_subtask import CreateSubtask
 from src.workflows.tools.generate_mock import GenerateMock
 from src.workflows.tools.load_into_dataset import (
@@ -51,6 +52,7 @@ async def run_restack_service() -> None:
             ClickHouseRunSelectQuery,
             CreateSubtask,
             UpdateTodos,
+            CompleteTask,
         ],
         functions=[
             llm_response,

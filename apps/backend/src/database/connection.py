@@ -1,6 +1,7 @@
 import logging
 import os
 from collections.abc import AsyncGenerator
+from urllib.parse import urlparse
 
 import clickhouse_connect
 from dotenv import load_dotenv
@@ -86,6 +87,23 @@ async def close_async_db() -> None:
     await async_engine.dispose()
 
 
+def _parse_clickhouse_url(url: str) -> dict:
+    """Parse a ClickHouse URL into connection parameters.
+
+    Supports both local (http) and ClickHouse Cloud (https) URLs.
+    """
+    parsed = urlparse(url)
+    secure = parsed.scheme == "https"
+    return {
+        "host": parsed.hostname or "localhost",
+        "port": parsed.port or (8443 if secure else 8123),
+        "username": parsed.username or "default",
+        "password": parsed.password or "",
+        "database": parsed.path.lstrip("/") or "default",
+        "secure": secure,
+    }
+
+
 def get_clickhouse_client() -> clickhouse_connect.driver.Client:
     """Get ClickHouse client connection (synchronous - use for compatibility only).
 
@@ -97,7 +115,8 @@ def get_clickhouse_client() -> clickhouse_connect.driver.Client:
         "CLICKHOUSE_URL",
         "http://clickhouse:clickhouse@localhost:8123/boilerplate_clickhouse",
     )
-    return clickhouse_connect.get_client(dsn=clickhouse_url)
+    conn_params = _parse_clickhouse_url(clickhouse_url)
+    return clickhouse_connect.get_client(**conn_params)
 
 
 async def get_clickhouse_async_client() -> (
@@ -113,7 +132,5 @@ async def get_clickhouse_async_client() -> (
         "CLICKHOUSE_URL",
         "http://clickhouse:clickhouse@localhost:8123/boilerplate_clickhouse",
     )
-
-    return await clickhouse_connect.get_async_client(
-        dsn=clickhouse_url
-    )
+    conn_params = _parse_clickhouse_url(clickhouse_url)
+    return await clickhouse_connect.get_async_client(**conn_params)

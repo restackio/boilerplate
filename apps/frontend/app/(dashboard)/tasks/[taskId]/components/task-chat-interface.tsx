@@ -182,9 +182,9 @@ function RenderConversationItem({
     case 'reasoning': {
       const reasoningText = item.openai_output?.summary?.map(s => s.text).join('\n\n') || '';
       
-      // Reasoning is "in progress" if it doesn't have a duration yet
-      // Duration will be calculated when response.output_item.done is received
-      const isInProgress = !reasoningDuration || reasoningDuration === 0;
+      // Use isStreaming from the conversation store - it's properly set to false
+      // when response.output_item.done is received, regardless of duration
+      const isInProgress = item.isStreaming ?? false;
       
       return (
         <Reasoning 

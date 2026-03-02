@@ -141,7 +141,7 @@ export const ReasoningTrigger = ({
           ) : duration > 0 ? (
             <p>Thought for {duration} seconds</p>
           ) : (
-            <p>Thinking</p>
+            <p>Thought for &lt;1s</p>
           )}
           <ChevronDownIcon
             className={cn(
@@ -165,12 +165,14 @@ export const ReasoningContent = ({ className, children, ...props }: ReasoningCon
   <CollapsibleContent
     className={cn(
       'mt-4 text-sm',
-      'data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 text-popover-foreground outline-none data-[state=closed]:animate-out data-[state=open]:animate-in',
+      'data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 outline-none data-[state=closed]:animate-out data-[state=open]:animate-in',
       className
     )}
     {...props}
   >
-    <Response className="grid gap-2">{children}</Response>
+    <div className="pl-3 border-l-2 border-muted-foreground/30 text-muted-foreground italic">
+      <Response className="grid gap-2">{children}</Response>
+    </div>
   </CollapsibleContent>
 );
 

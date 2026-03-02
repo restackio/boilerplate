@@ -38,6 +38,7 @@ import { EmptyState } from "@workspace/ui/components/ui/empty-state";
 import { getLucideIcon } from "@workspace/ui/lib/get-lucide-icon";
 import Link from "next/link";
 import { taskStatusOptions, getStatusColor, getStatusBadge } from "../utils/task-status-utils";
+import { useMemo } from "react";
 
 // Task data type
 export interface Task {
@@ -67,52 +68,18 @@ export interface Task {
 // Column configuration helper
 const dtf = createColumnConfigHelper<Task>();
 
-// Column configurations
-export const taskColumnsConfig = [
-  dtf
-    .text()
-    .id("title")
-    .accessor((row: Task) => row.title)
-    .displayName("Task Title")
-    .icon(Bot)
-    .build(),
-  dtf
-    .option()
-    .id("status")
-    .accessor((row: Task) => row.status)
-    .displayName("Status")
-    .icon(Activity)
-    .build(),
-  dtf
-    .option()
-    .id("agent")
-    .accessor((row: Task) => row.agent_name)
-    .displayName("Agent")
-    .icon(Shield)
-    .build(),
-  dtf
-    .option()
-    .id("type")
-    .accessor((row: Task) => row.type || "interactive")
-    .displayName("Agent Type")
-    .icon(Bot)
-    .build(),
-  dtf
-    .option()
-    .id("team")
-    .accessor((row: Task) => row.team_name || "No Team")
-    .displayName("Team")
-    .icon(Users)
-    .build(),
-  dtf
-    .option()
-    .id("created_by")
-    .accessor((row: Task) => row.schedule_task_id ? "Schedule" : (row.created_by_name || "User"))
-    .displayName("Created by")
-    .icon(User)
-    .build(),
+export function createTaskColumnsConfig(options: { includeTeam?: boolean } = {}) {
+  const { includeTeam = true } = options;
 
-] as const;
+  return [
+    dtf.text().id("title").accessor((row: Task) => row.title).displayName("Task Title").icon(Bot).build(),
+    dtf.option().id("status").accessor((row: Task) => row.status).displayName("Status").icon(Activity).build(),
+    dtf.option().id("agent").accessor((row: Task) => row.agent_name).displayName("Agent").icon(Shield).build(),
+    dtf.option().id("type").accessor((row: Task) => row.type || "interactive").displayName("Agent Type").icon(Bot).build(),
+    dtf.option().id("created_by").accessor((row: Task) => row.schedule_task_id ? "Schedule" : (row.created_by_name || "User")).displayName("Created by").icon(User).build(),
+    ...(includeTeam ? [dtf.option().id("team").accessor((row: Task) => row.team_name || "No Team").displayName("Team").icon(Users).build()] : []),
+  ];
+}
 
 // Level options
 export const taskTeamOptions = [
@@ -177,6 +144,7 @@ interface TasksTableProps {
   teams?: Array<{ label: string; value: string; icon: any }>;
   defaultFilters?: any[];
   dashboard?: boolean;
+  showTeamFilter?: boolean;
 }
 
 export function TasksTable({
@@ -186,13 +154,17 @@ export function TasksTable({
   teams = [],
   defaultFilters = [],
   dashboard = false,
+  showTeamFilter = true,
 }: TasksTableProps) {
-  // Create data table filters instance
+  const columnsConfig = useMemo(
+    () => createTaskColumnsConfig({ includeTeam: showTeamFilter }),
+    [showTeamFilter]
+  );
   const { columns, filters, actions, strategy, filteredData } =
     useDataTableFilters({
       strategy: "client",
       data,
-      columnsConfig: taskColumnsConfig,
+      columnsConfig,
       defaultFilters,
       options: {
         status: taskStatusOptions,

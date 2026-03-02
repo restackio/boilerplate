@@ -26,17 +26,16 @@ with import_functions():
 @workflow.defn(
     description="""Run a SELECT query in ClickHouse.
 
-The pipeline_events table has a `raw_data` JSON column. To extract fields from JSON:
-- Use JSONExtractString(raw_data, 'field_name') for text fields
-- Use JSONExtractUInt(raw_data, 'field_name') for unsigned integers (NOT JSONExtractUInt64)
-- Use JSONExtractInt(raw_data, 'field_name') for signed integers
-- Use JSONExtract(raw_data, 'field_name', 'Array(String)') for arrays
+The pipeline_events table has a `raw_data` JSON column (native JSON type). Access fields using dot notation:
+- Use raw_data.field_name for text fields
+- Use raw_data.field_name for numeric fields (ClickHouse infers the type)
+- Use raw_data.field_name for nested objects (e.g. raw_data.address.city)
 
 Example query:
 SELECT
     event_name,
-    JSONExtractString(raw_data, 'author') AS author,
-    JSONExtractUInt(raw_data, 'likes') AS likes,
+    raw_data.author AS author,
+    raw_data.likes AS likes,
     event_timestamp,
     tags
 FROM pipeline_events

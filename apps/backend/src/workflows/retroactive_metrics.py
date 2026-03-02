@@ -10,6 +10,8 @@ from datetime import timedelta
 
 from restack_ai.workflow import import_functions, log, workflow
 
+from src.constants import TASK_QUEUE
+
 with import_functions():
     from src.functions.metrics_crud import (
         get_metric_definition_by_id,
@@ -82,6 +84,7 @@ class RetroactiveMetrics:
                     "workspace_id": workflow_input.workspace_id,
                 },
                 start_to_close_timeout=timedelta(seconds=30),
+                task_queue=TASK_QUEUE,
             )
 
             if not metric_result or not metric_result.get(
@@ -187,6 +190,7 @@ class RetroactiveMetrics:
                 "offset": offset,
             },
             start_to_close_timeout=timedelta(seconds=60),
+            task_queue=TASK_QUEUE,
         )
 
         if not trace_batch["spans"]:
@@ -360,6 +364,7 @@ class RetroactiveMetrics:
                     "metric_definition": metric_def,
                 },
                 start_to_close_timeout=timedelta(minutes=2),
+                task_queue=TASK_QUEUE,
             )
 
             if not result:
@@ -380,6 +385,7 @@ class RetroactiveMetrics:
                     "message_count": None,
                 },
                 start_to_close_timeout=timedelta(seconds=30),
+                task_queue=TASK_QUEUE,
             )
         except (
             ValueError,
@@ -422,6 +428,7 @@ class RetroactiveMetrics:
                     "metric_definition": metric_def,
                 },
                 start_to_close_timeout=timedelta(seconds=30),
+                task_queue=TASK_QUEUE,
             )
 
             if not result:
@@ -442,6 +449,7 @@ class RetroactiveMetrics:
                     "message_count": None,
                 },
                 start_to_close_timeout=timedelta(seconds=30),
+                task_queue=TASK_QUEUE,
             )
         except (
             ValueError,
@@ -482,6 +490,7 @@ class RetroactiveMetrics:
                     "metric_definition": metric_def,
                 },
                 start_to_close_timeout=timedelta(seconds=10),
+                task_queue=TASK_QUEUE,
             )
 
             if not result:
@@ -502,6 +511,7 @@ class RetroactiveMetrics:
                     "message_count": None,
                 },
                 start_to_close_timeout=timedelta(seconds=30),
+                task_queue=TASK_QUEUE,
             )
         except (
             ValueError,

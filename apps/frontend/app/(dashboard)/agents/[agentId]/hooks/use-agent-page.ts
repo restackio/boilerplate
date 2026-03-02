@@ -117,7 +117,7 @@ export function useAgentPage(agentId: string) {
           status: "draft" as const,
         };
 
-        const result = await cloneAgent(agentId, cloneData);
+        const result = await cloneAgent(agent.parent_agent_id || agent.id, cloneData);
         
         if (result.success) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any

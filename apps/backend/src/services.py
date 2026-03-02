@@ -208,6 +208,7 @@ from src.workflows.crud.auth_crud import (
     UserSignupWorkflow,
 )
 from src.workflows.crud.datasets_crud import (
+    DatasetsCreateWorkflow,
     DatasetsGetByIdWorkflow,
     DatasetsReadWorkflow,
     QueryDatasetEventsWorkflow,
@@ -307,7 +308,10 @@ logger = logging.getLogger(__name__)
 
 async def run_restack_service() -> None:
     """Run the Restack service."""
+    from src.constants import TASK_QUEUE
+
     await client.start_service(
+        task_queue=TASK_QUEUE,
         agents=[AgentTask],
         workflows=[
             AgentsReadWorkflow,
@@ -356,6 +360,7 @@ async def run_restack_service() -> None:
             UserLoginWorkflow,
             # Datasets workflows
             DatasetsReadWorkflow,
+            DatasetsCreateWorkflow,
             DatasetsGetByIdWorkflow,
             QueryDatasetEventsWorkflow,
             McpServersReadWorkflow,
