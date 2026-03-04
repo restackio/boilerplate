@@ -298,5 +298,5 @@ class AddFilesToDatasetWorkflow:
             success=len(errors) == 0,
             files_processed=files_processed,
             total_chunks_ingested=total_chunks,
-            errors=errors if errors else [],
+            errors=errors or [],
         )

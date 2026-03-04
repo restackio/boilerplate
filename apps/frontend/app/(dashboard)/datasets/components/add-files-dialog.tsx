@@ -3,7 +3,10 @@
 import { useRef, useState } from "react";
 import { Button } from "@workspace/ui/components/ui/button";
 import { Label } from "@workspace/ui/components/ui/label";
-import { QuickActionDialog, useQuickActionDialog } from "@workspace/ui/components/quick-action-dialog";
+import {
+  QuickActionDialog,
+  useQuickActionDialog,
+} from "@workspace/ui/components/quick-action-dialog";
 import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
 import { FileUp, FileText } from "lucide-react";
 import { addFilesToDataset } from "@/app/actions/workflow";
@@ -32,7 +35,16 @@ interface AddFilesDialogProps {
 
 export function AddFilesDialog({ datasetId, onSeeded }: AddFilesDialogProps) {
   const { currentWorkspaceId } = useWorkspaceScopedActions();
-  const { isOpen, open, close, isLoading, startLoading, stopLoading, handleError, handleSuccess } = useQuickActionDialog();
+  const {
+    isOpen,
+    open,
+    close,
+    isLoading,
+    startLoading,
+    stopLoading,
+    handleError,
+    handleSuccess,
+  } = useQuickActionDialog();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
@@ -57,10 +69,14 @@ export function AddFilesDialog({ datasetId, onSeeded }: AddFilesDialogProps) {
 
     startLoading();
     try {
-      const filesWithContent: { filename: string; content_base64: string }[] = [];
+      const filesWithContent: { filename: string; content_base64: string }[] =
+        [];
       for (const file of selectedFiles) {
         const base64 = await readFileAsBase64(file);
-        filesWithContent.push({ filename: file.name || "document", content_base64: base64 });
+        filesWithContent.push({
+          filename: file.name || "document",
+          content_base64: base64,
+        });
       }
 
       const result = await addFilesToDataset({
@@ -70,11 +86,7 @@ export function AddFilesDialog({ datasetId, onSeeded }: AddFilesDialogProps) {
       });
 
       if (result.success && result.data) {
-        const data = result.data as { files_processed?: number; total_chunks_ingested?: number; errors?: string[] };
-        const msg = data.errors?.length
-          ? `Ingested ${data.total_chunks_ingested ?? 0} chunks from ${data.files_processed ?? 0} files. Some errors: ${data.errors.slice(0, 2).join("; ")}`
-          : `Ingested ${data.total_chunks_ingested ?? 0} chunks from ${data.files_processed ?? 0} file(s).`;
-        handleSuccess(msg);
+        handleSuccess();
         setSelectedFiles([]);
         if (fileInputRef.current) fileInputRef.current.value = "";
         onSeeded?.();
@@ -119,9 +131,16 @@ export function AddFilesDialog({ datasetId, onSeeded }: AddFilesDialogProps) {
           />
           <div className="space-y-2">
             <Label>Files</Label>
-            <Button type="button" variant="outline" className="w-full justify-start" onClick={handleOpenFilePicker}>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full justify-start"
+              onClick={handleOpenFilePicker}
+            >
               <FileText className="h-4 w-4 mr-2" />
-              {selectedFiles.length === 0 ? "Select files..." : `${selectedFiles.length} file(s) selected`}
+              {selectedFiles.length === 0
+                ? "Select files..."
+                : `${selectedFiles.length} file(s) selected`}
             </Button>
             {selectedFiles.length > 0 && (
               <ul className="text-sm text-muted-foreground list-disc list-inside max-h-24 overflow-y-auto">

@@ -9,6 +9,7 @@ import {
 import { AgentStreamProvider } from "@/app/(dashboard)/agents/[agentId]/providers/agent-stream-provider";
 import { useAgentState } from "@/app/(dashboard)/agents/[agentId]/hooks/use-agent-state";
 import { useRxjsConversation } from "@/app/(dashboard)/tasks/[taskId]/hooks/use-rxjs-conversation";
+import type { OpenAIEvent } from "@/app/(dashboard)/tasks/[taskId]/types";
 import { TaskChatInterface } from "@/app/(dashboard)/tasks/[taskId]/components";
 import { PromptInput } from "@workspace/ui/components/ai-elements/prompt-input";
 import { CenteredLoading } from "@workspace/ui/components/loading-states";
@@ -46,10 +47,12 @@ function PublicChatInner({ task }: { task: PublicTask }) {
 
   const { conversation } = useRxjsConversation({
     responseState: responseState as
-      | { events: unknown[]; [key: string]: unknown }
+      | { events: OpenAIEvent[]; [key: string]: unknown }
       | false,
-    agentResponses: (agentResponses as { events?: unknown[] }[]) ?? [],
-    persistedState: task.agent_state,
+    agentResponses: (agentResponses as { events?: OpenAIEvent[]; [key: string]: unknown }[]) ?? [],
+    persistedState: task.agent_state as
+      | { events?: OpenAIEvent[]; todos?: unknown[]; subtasks?: unknown[]; messages?: unknown[]; metadata?: Record<string, unknown> }
+      | undefined,
     storeKey: taskId,
   });
 

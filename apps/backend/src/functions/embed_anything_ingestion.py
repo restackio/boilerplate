@@ -11,6 +11,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+import anyio
 from pydantic import BaseModel, Field
 from restack_ai.function import function, log
 
@@ -154,7 +155,7 @@ async def embed_anything_pdf_to_events(
                 },
                 transformed_data=None,
                 tags=(input_data.tags or []) + [f"chunk_{i}"],
-                embedding=emb if emb else None,
+                embedding=emb or None,
                 event_timestamp=None,
             )
             events.append(event.model_dump())
@@ -170,4 +171,4 @@ async def embed_anything_pdf_to_events(
         return EmbedAnythingPdfOutput(error=str(e))
     finally:
         with contextlib.suppress(OSError):
-            Path(path).unlink(missing_ok=True)
+            await anyio.Path(path).unlink(missing_ok=True)
