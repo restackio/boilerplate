@@ -31,6 +31,24 @@ services:
     networks:
       - boilerplate-network
 
+  # CockroachDB - Distributed SQL context store
+  cockroachdb:
+    image: cockroachdb/cockroach:latest
+    container_name: boilerplate_cockroachdb
+    command: start-single-node --insecure --store=attrs=ssd,path=/cockroach/cockroach-data
+    ports:
+      - "26257:26257"
+      - "8080:8080"
+    volumes:
+      - cockroachdb_data:/cockroach/cockroach-data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health?ready=1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - boilerplate-network
+
   # ClickHouse Database for Analytics and Datasets
   clickhouse:
     image: clickhouse/clickhouse-server:latest
@@ -95,6 +113,7 @@ services:
       - RESET_DEMO=${RESET_DEMO:-false}
       - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/boilerplate_postgres}
       - CLICKHOUSE_URL=${CLICKHOUSE_URL:-http://clickhouse:clickhouse@clickhouse:8123/boilerplate_clickhouse}
+      - COCKROACHDB_URL=${COCKROACHDB_URL:-postgresql://root@cockroachdb:26257/boilerplate_cockroachdb?sslmode=disable}
       - RESTACK_ENGINE_ADDRESS=${RESTACK_ENGINE_ADDRESS:-restack:7233}
       - RESTACK_ENGINE_API_ADDRESS=${RESTACK_ENGINE_API_ADDRESS:-restack:6233}
       - RESTACK_ENGINE_STREAM_ADDRESS=${RESTACK_ENGINE_STREAM_ADDRESS:-restack:9233}
@@ -104,6 +123,8 @@ services:
       postgres:
         condition: service_healthy
       clickhouse:
+        condition: service_healthy
+      cockroachdb:
         condition: service_healthy
       restack:
         condition: service_healthy
@@ -122,6 +143,7 @@ services:
     environment:
       - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/boilerplate_postgres}
       - CLICKHOUSE_URL=${CLICKHOUSE_URL:-http://clickhouse:clickhouse@clickhouse:8123/boilerplate_clickhouse}
+      - COCKROACHDB_URL=${COCKROACHDB_URL:-postgresql://root@cockroachdb:26257/boilerplate_cockroachdb?sslmode=disable}
       - RESTACK_ENGINE_ADDRESS=${RESTACK_ENGINE_ADDRESS:-restack:7233}
       - RESTACK_ENGINE_API_ADDRESS=${RESTACK_ENGINE_API_ADDRESS:-restack:6233}
       - RESTACK_ENGINE_STREAM_ADDRESS=${RESTACK_ENGINE_STREAM_ADDRESS:-restack:9233}
@@ -133,6 +155,8 @@ services:
       postgres:
         condition: service_healthy
       clickhouse:
+        condition: service_healthy
+      cockroachdb:
         condition: service_healthy
       restack:
         condition: service_healthy
@@ -153,6 +177,7 @@ services:
     environment:
       - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/boilerplate_postgres}
       - CLICKHOUSE_URL=${CLICKHOUSE_URL:-http://clickhouse:clickhouse@clickhouse:8123/boilerplate_clickhouse}
+      - COCKROACHDB_URL=${COCKROACHDB_URL:-postgresql://root@cockroachdb:26257/boilerplate_cockroachdb?sslmode=disable}
       - RESTACK_ENGINE_ADDRESS=${RESTACK_ENGINE_ADDRESS:-restack:7233}
       - RESTACK_ENGINE_API_ADDRESS=${RESTACK_ENGINE_API_ADDRESS:-restack:6233}
       - RESTACK_ENGINE_STREAM_ADDRESS=${RESTACK_ENGINE_STREAM_ADDRESS:-restack:9233}
@@ -162,6 +187,8 @@ services:
       postgres:
         condition: service_healthy
       clickhouse:
+        condition: service_healthy
+      cockroachdb:
         condition: service_healthy
       restack:
         condition: service_healthy
@@ -203,6 +230,8 @@ volumes:
   clickhouse_data:
     driver: local
   clickhouse_logs:
+    driver: local
+  cockroachdb_data:
     driver: local
 
 networks:

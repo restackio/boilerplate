@@ -3,6 +3,7 @@ import os
 from collections.abc import AsyncGenerator
 from urllib.parse import urlparse
 
+import asyncpg
 import clickhouse_connect
 from dotenv import load_dotenv
 from sqlalchemy.exc import DisconnectionError
@@ -134,3 +135,47 @@ async def get_clickhouse_async_client() -> (
     )
     conn_params = _parse_clickhouse_url(clickhouse_url)
     return await clickhouse_connect.get_async_client(**conn_params)
+
+
+# ---------------------------------------------------------------------------
+# CockroachDB connection pool (asyncpg)
+# CockroachDB speaks the PostgreSQL wire protocol, so asyncpg works directly.
+# ---------------------------------------------------------------------------
+
+_cockroachdb_pool: asyncpg.Pool | None = None
+
+
+async def get_cockroachdb_pool() -> asyncpg.Pool:
+    """Return a shared CockroachDB asyncpg connection pool, creating it on first call.
+
+    Requires COCKROACHDB_URL environment variable in format:
+      postgresql://root@host:port/database?sslmode=disable   (insecure / local)
+      postgresql://user:password@host:port/database           (with TLS)
+    """
+    global _cockroachdb_pool  # noqa: PLW0603
+    if _cockroachdb_pool is None or _cockroachdb_pool._closed:  # noqa: SLF001
+        cockroachdb_url = os.getenv(
+            "COCKROACHDB_URL",
+            "postgresql://root@localhost:26257/boilerplate_cockroachdb?sslmode=disable",
+        )
+        _cockroachdb_pool = await asyncpg.create_pool(
+            dsn=cockroachdb_url,
+            min_size=2,
+            max_size=10,
+            command_timeout=30,
+        )
+    return _cockroachdb_pool
+
+
+async def get_cockroachdb_connection() -> asyncpg.Connection:
+    """Acquire a single CockroachDB connection from the shared pool."""
+    pool = await get_cockroachdb_pool()
+    return await pool.acquire()
+
+
+async def close_cockroachdb_pool() -> None:
+    """Close the CockroachDB connection pool gracefully."""
+    global _cockroachdb_pool  # noqa: PLW0603
+    if _cockroachdb_pool and not _cockroachdb_pool._closed:  # noqa: SLF001
+        await _cockroachdb_pool.close()
+        _cockroachdb_pool = None

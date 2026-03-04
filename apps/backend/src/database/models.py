@@ -650,7 +650,7 @@ class Dataset(Base):
     __table_args__ = (
         CheckConstraint(
             storage_type.in_(
-                ["clickhouse"]
+                ["clickhouse", "cockroachdb"]
             ),  # Future: 'postgres', 's3', 'bigquery', etc.
             name="valid_storage_type",
         ),

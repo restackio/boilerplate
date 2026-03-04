@@ -105,7 +105,7 @@ CREATE TABLE IF NOT EXISTS datasets (
     description TEXT,
     
     -- Storage configuration (storage-agnostic)
-    storage_type VARCHAR(50) NOT NULL DEFAULT 'clickhouse' CHECK (storage_type IN ('clickhouse')), -- Future: 'postgres', 's3', 'bigquery', etc.
+    storage_type VARCHAR(50) NOT NULL DEFAULT 'clickhouse' CHECK (storage_type IN ('clickhouse', 'cockroachdb')), -- Future: 'postgres', 's3', 'bigquery', etc.
     storage_config JSONB NOT NULL, -- Storage-specific configuration (table names, connection details, etc.)
     last_updated_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

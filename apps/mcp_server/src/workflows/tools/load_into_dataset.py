@@ -215,36 +215,44 @@ class LoadIntoDataset:
                     workflow_input.workspace_id,
                 )
 
-            # Prepare events for ClickHouse ingestion
-            # Create proper PipelineEventInput objects
+            # Determine storage type of the target dataset
+            storage_type = "clickhouse"
+            for dataset in datasets_result["datasets"]:
+                if dataset["name"] == workflow_input.dataset_name:
+                    storage_type = dataset.get("storage_type", "clickhouse")
+                    break
+
+            # Build events list (same shape regardless of storage backend)
             events = []
             for record in processed_data:
                 event = PipelineEventInput(
                     agent_id=workflow_input.agent_id,
                     task_id=workflow_input.task_id,
                     workspace_id=workflow_input.workspace_id,
-                    dataset_id=workflow_input.dataset_name,  # Use dataset name as dataset_id
+                    dataset_id=workflow_input.dataset_name,
                     event_name=workflow_input.event_name,
-                    raw_data=record,  # Store the entire record as raw_data
-                    transformed_data=None,  # Optional processed data
+                    raw_data=record,
+                    transformed_data=None,
                     tags=workflow_input.tags
                     or [
                         workflow_input.event_name,
                         workflow_input.dataset_name,
                     ],
-                    embedding=None,  # Optional vector embedding
-                    event_timestamp=None,  # Will be set automatically by ingest_pipeline_events function
+                    embedding=None,
+                    event_timestamp=None,
                 )
                 events.append(event)
 
-            # Actually ingest the data into ClickHouse
-            log.info(
-                f"Ingesting {len(events)} events into ClickHouse"
+            # Route ingestion to the correct storage backend
+            ingest_function = (
+                "ingest_pipeline_events_cockroachdb"
+                if storage_type == "cockroachdb"
+                else "ingest_pipeline_events"
             )
-
-            # Log detailed information about the events being sent
             log.info(
-                f"Event details: agent_id={workflow_input.agent_id}, workspace_id={workflow_input.workspace_id}, dataset_name={workflow_input.dataset_name}"
+                f"Ingesting {len(events)} events into {storage_type} "
+                f"via {ingest_function} "
+                f"(dataset={workflow_input.dataset_name}, workspace={workflow_input.workspace_id})"
             )
             log.info(
                 f"First event sample: {events[0].model_dump() if events else 'No events'}"
@@ -252,7 +260,7 @@ class LoadIntoDataset:
 
             try:
                 ingest_result = await workflow.step(
-                    function="ingest_pipeline_events",
+                    function=ingest_function,
                     function_input=events,
                     task_queue="backend",
                 )
@@ -288,9 +296,8 @@ class LoadIntoDataset:
                 "LoadIntoDataset completed successfully",
                 dataset=output.dataset_name,
                 rows=output.inserted_rows,
-                clickhouse_table=ingest_result.get(
-                    "table_name", "unknown"
-                ),
+                storage_type=storage_type,
+                table=ingest_result.get("table_name", "unknown"),
             )
 
         except Exception as e:

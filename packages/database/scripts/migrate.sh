@@ -12,6 +12,7 @@ echo "========================================"
 # Set default URLs for local development if not provided
 : "${DATABASE_URL:=postgresql://postgres:postgres@localhost:5432/boilerplate_postgres}"
 : "${CLICKHOUSE_URL:=http://clickhouse:clickhouse@localhost:8123/boilerplate_clickhouse}"
+: "${COCKROACHDB_URL:=postgresql://root@localhost:26257/boilerplate_cockroachdb?sslmode=disable}"
 
 # Function to parse PostgreSQL URL
 parse_postgres_url() {
@@ -33,6 +34,36 @@ parse_postgres_url() {
     POSTGRES_HOST="${BASH_REMATCH[1]}"
     POSTGRES_PORT="5432"
     POSTGRES_DB="${BASH_REMATCH[2]}"
+  fi
+}
+
+# Function to parse CockroachDB URL (postgresql://user@host:port/db?params)
+parse_cockroachdb_url() {
+  local url="$1"
+  url="${url#postgresql://}"
+  url="${url#postgres://}"
+
+  # Strip query string
+  url="${url%%\?*}"
+
+  # Optional user (CockroachDB insecure uses just "root" with no password)
+  if [[ $url =~ ^([^:@]+)@(.+)$ ]]; then
+    COCKROACHDB_USER="${BASH_REMATCH[1]}"
+    url="${BASH_REMATCH[2]}"
+  elif [[ $url =~ ^([^:]+):([^@]*)@(.+)$ ]]; then
+    COCKROACHDB_USER="${BASH_REMATCH[1]}"
+    COCKROACHDB_PASSWORD="${BASH_REMATCH[2]}"
+    url="${BASH_REMATCH[3]}"
+  fi
+
+  if [[ $url =~ ^([^:]+):([^/]+)/(.+)$ ]]; then
+    COCKROACHDB_HOST="${BASH_REMATCH[1]}"
+    COCKROACHDB_PORT="${BASH_REMATCH[2]}"
+    COCKROACHDB_DB="${BASH_REMATCH[3]}"
+  elif [[ $url =~ ^([^/]+)/(.+)$ ]]; then
+    COCKROACHDB_HOST="${BASH_REMATCH[1]}"
+    COCKROACHDB_PORT="26257"
+    COCKROACHDB_DB="${BASH_REMATCH[2]}"
   fi
 }
 
@@ -63,6 +94,7 @@ parse_clickhouse_url() {
 # Parse connection URLs
 parse_postgres_url "$DATABASE_URL"
 parse_clickhouse_url "$CLICKHOUSE_URL"
+parse_cockroachdb_url "$COCKROACHDB_URL"
 
 # Detect if ClickHouse uses HTTPS (ClickHouse Cloud)
 CLICKHOUSE_SECURE=false
@@ -74,8 +106,9 @@ else
   CLICKHOUSE_NATIVE_PORT=9000
 fi
 
-echo "PostgreSQL: $POSTGRES_USER@$POSTGRES_HOST:$POSTGRES_PORT/$POSTGRES_DB"
-echo "ClickHouse: $CLICKHOUSE_USER@$CLICKHOUSE_HOST:$CLICKHOUSE_PORT/$CLICKHOUSE_DB (secure: $CLICKHOUSE_SECURE)"
+echo "PostgreSQL:  $POSTGRES_USER@$POSTGRES_HOST:$POSTGRES_PORT/$POSTGRES_DB"
+echo "ClickHouse:  $CLICKHOUSE_USER@$CLICKHOUSE_HOST:$CLICKHOUSE_PORT/$CLICKHOUSE_DB (secure: $CLICKHOUSE_SECURE)"
+echo "CockroachDB: ${COCKROACHDB_USER:-root}@$COCKROACHDB_HOST:${COCKROACHDB_PORT:-26257}/$COCKROACHDB_DB"
 echo ""
 
 # Determine migrations directory
@@ -84,14 +117,17 @@ if [ -d "/app/packages/database/migrations" ]; then
   # Running in Docker container
   POSTGRES_MIGRATIONS_DIR="/app/packages/database/migrations/postgres"
   CLICKHOUSE_MIGRATIONS_DIR="/app/packages/database/migrations/clickhouse"
+  COCKROACHDB_MIGRATIONS_DIR="/app/packages/database/migrations/cockroachdb"
 elif [ -d "packages/database/migrations" ]; then
   # Running from repo root
   POSTGRES_MIGRATIONS_DIR="packages/database/migrations/postgres"
   CLICKHOUSE_MIGRATIONS_DIR="packages/database/migrations/clickhouse"
+  COCKROACHDB_MIGRATIONS_DIR="packages/database/migrations/cockroachdb"
 elif [ -d "$(dirname "$0")/../migrations" ]; then
   # Running from scripts directory
   POSTGRES_MIGRATIONS_DIR="$(dirname "$0")/../migrations/postgres"
   CLICKHOUSE_MIGRATIONS_DIR="$(dirname "$0")/../migrations/clickhouse"
+  COCKROACHDB_MIGRATIONS_DIR="$(dirname "$0")/../migrations/cockroachdb"
 else
   echo "Error: Cannot find migrations directory"
   exit 1
@@ -249,5 +285,72 @@ for migration_file in "$CLICKHOUSE_MIGRATIONS_DIR"/*.sql; do
 done
 
 echo "✓ ClickHouse migrations complete"
+echo ""
+
+# CockroachDB migrations
+echo "→ Running CockroachDB migrations..."
+
+# CockroachDB healthcheck via its HTTP status endpoint
+COCKROACHDB_HOST="${COCKROACHDB_HOST:-localhost}"
+COCKROACHDB_PORT_SQL="${COCKROACHDB_PORT:-26257}"
+
+if curl -sf "http://$COCKROACHDB_HOST:8080/health?ready=1" > /dev/null 2>&1; then
+  echo "✓ CockroachDB is ready"
+
+  # Use Docker if cockroach CLI not available locally
+  CRDB_USE_DOCKER=false
+  if ! command -v cockroach &> /dev/null; then
+    if docker ps --format '{{.Names}}' | grep -q '^boilerplate_cockroachdb$'; then
+      CRDB_USE_DOCKER=true
+      echo "  ℹ Using Docker container for CockroachDB migrations (cockroach CLI not found locally)"
+    else
+      echo "  ⚠ Warning: cockroach CLI not found and Docker container not running"
+      echo "  Please start the container with: docker compose -f docker-compose.dev.yml up -d cockroachdb"
+      echo "  Skipping CockroachDB migrations..."
+      echo "✓ CockroachDB migrations skipped"
+      echo "========================================"
+      exit 0
+    fi
+  fi
+
+  crdb_sql() {
+    if [ "$CRDB_USE_DOCKER" = true ]; then
+      docker exec -i boilerplate_cockroachdb cockroach sql --insecure --host=localhost "$@"
+    else
+      cockroach sql --insecure --host="$COCKROACHDB_HOST" --port="$COCKROACHDB_PORT_SQL" "$@"
+    fi
+  }
+
+  for migration_file in "$COCKROACHDB_MIGRATIONS_DIR"/*.sql; do
+    if [ ! -f "$migration_file" ]; then
+      echo "  No migrations found in $COCKROACHDB_MIGRATIONS_DIR"
+      break
+    fi
+
+    migration_name=$(basename "$migration_file")
+
+    # Check if migration tracking table exists and migration already applied
+    already_applied=$(crdb_sql --execute \
+      "SELECT count(*) FROM boilerplate_cockroachdb.schema_migrations WHERE migration_name = '$migration_name'" \
+      --format=tsv 2>/dev/null | tail -1 || echo "0")
+
+    if [ "$already_applied" = "0" ] || [ -z "$already_applied" ]; then
+      echo "  Applying: $migration_name"
+      crdb_sql < "$migration_file" > /dev/null
+      crdb_sql --execute \
+        "INSERT INTO boilerplate_cockroachdb.schema_migrations (migration_name) VALUES ('$migration_name') ON CONFLICT DO NOTHING" \
+        > /dev/null
+      echo "  ✓ Applied: $migration_name"
+    else
+      echo "  ⊙ Skipped: $migration_name (already applied)"
+    fi
+  done
+
+  echo "✓ CockroachDB migrations complete"
+else
+  echo "  ⚠ CockroachDB not reachable at http://$COCKROACHDB_HOST:8080 - skipping migrations"
+  echo "  Start the container with: docker compose -f docker-compose.dev.yml up -d cockroachdb"
+fi
+
 echo "========================================"
 
