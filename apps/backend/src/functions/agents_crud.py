@@ -434,14 +434,10 @@ def _process_agent_group(
 
     # Determine which agent to show in the table
     # Priority: latest published version, fallback to latest overall if no published version
-    display_agent = (
-        published_agent
-        if published_agent
-        else max(
-            group_agents,
-            key=lambda x: x.updated_at
-            or datetime.min.replace(tzinfo=UTC),
-        )
+    display_agent = published_agent or max(
+        group_agents,
+        key=lambda x: x.updated_at
+        or datetime.min.replace(tzinfo=UTC),
     )
 
     # Create short UUID for published version
