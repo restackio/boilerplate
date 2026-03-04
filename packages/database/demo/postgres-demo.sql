@@ -131,8 +131,8 @@ VALUES (
 3. Cite the source filename when possible.$$,
     'interactive',
     'published',
-    'gpt-5',
-    'medium',
+    'gpt-5.2',
+    'low',
     TRUE
 )
 ON CONFLICT (id) DO NOTHING;
