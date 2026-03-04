@@ -44,7 +44,7 @@ export function useWorkspaceActions(currentUser?: User | null) {
   }, [currentUser]);
 
   const createWorkspace = useCallback(async (workspaceData: WorkspaceCreateInput) => {
-    const result = await executeWorkflow("WorkspacesCreateWorkflow", workspaceData);
+    const result = await executeWorkflow("WorkspacesCreateWorkflow", workspaceData as unknown as Record<string, unknown>);
     if (result.success) {
       await fetchWorkspaces();
       return result.data.workspace;
