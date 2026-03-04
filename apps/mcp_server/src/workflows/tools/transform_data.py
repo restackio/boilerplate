@@ -38,7 +38,7 @@ class TransformDataInput(BaseModel):
         ),
     )
     model: str = Field(
-        default="gpt-4o-mini",
+        default="gpt-5-mini",
         description="AI model to use for transformation",
     )
 

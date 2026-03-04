@@ -212,7 +212,7 @@ class Agent(Base):
         String(20), nullable=False, default="interactive"
     )
     # New GPT-5 model configuration fields
-    model = Column(String(100), nullable=False, default="gpt-5")
+    model = Column(String(100), nullable=False, default="gpt-5.2")
     reasoning_effort = Column(
         String(20), nullable=False, default="medium"
     )
@@ -242,21 +242,17 @@ class Agent(Base):
         CheckConstraint(
             model.in_(
                 [
-                    "gpt-5",
-                    "gpt-5-mini",
-                    "gpt-5-nano",
-                    "gpt-5-2025-08-07",
-                    "gpt-5-mini-2025-08-07",
-                    "gpt-5-nano-2025-08-07",
-                    "o3-deep-research",
-                    "o4-mini-deep-research",
+                    "gpt-5.2",
+                    "gpt-5.1",
+                    "gpt-5", "gpt-5-mini", "gpt-5-nano",
+                    "o3-deep-research", "o4-mini-deep-research",
                 ]
             ),
             name="valid_model",
         ),
         CheckConstraint(
             reasoning_effort.in_(
-                ["minimal", "low", "medium", "high"]
+                ["none", "low", "medium", "high"]
             ),
             name="valid_reasoning_effort",
         ),

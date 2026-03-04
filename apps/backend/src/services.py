@@ -576,6 +576,12 @@ def init_tracing() -> None:
                 "Tracing initialized: ClickHouse (development mode)"
             )
 
+    except (ImportError, ModuleNotFoundError) as e:
+        logger.info(
+            "Tracing SDK not available (install openai-agents for tracing): %s",
+            e,
+        )
+        logger.info("Continuing without tracing...")
     except (
         ValueError,
         TypeError,

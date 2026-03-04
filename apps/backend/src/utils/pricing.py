@@ -16,10 +16,24 @@ class ModelPricing(NamedTuple):
 
 
 # Pricing table - all prices per 1M tokens
+# Source: https://openai.com/api/pricing/ (updated Mar 2026)
 MODEL_PRICING = {
+    # GPT-5.2 Family (flagship)
+    "gpt-5.2": ModelPricing(1.75, 0.175, 14.00),
+    "gpt-5.2-chat-latest": ModelPricing(1.75, 0.175, 14.00),
+    "gpt-5.2-codex": ModelPricing(1.75, 0.175, 14.00),
+    "gpt-5.3-codex": ModelPricing(1.75, 0.175, 14.00),
+    "gpt-5.2-pro": ModelPricing(21.00, 0.0, 168.00),
+    # GPT-5 mini
+    "gpt-5-mini": ModelPricing(0.25, 0.025, 2.00),
+    # GPT-5.1 Family
+    "gpt-5.1": ModelPricing(1.25, 0.125, 10.00),
+    "gpt-5.1-chat-latest": ModelPricing(1.25, 0.125, 10.00),
+    "gpt-5.1-codex": ModelPricing(1.25, 0.125, 10.00),
+    "gpt-5.1-codex-mini": ModelPricing(0.25, 0.025, 2.00),
+    "gpt-5.1-codex-max": ModelPricing(15.00, 0.0, 120.00),
     # GPT-5 Family
     "gpt-5": ModelPricing(1.25, 0.125, 10.00),
-    "gpt-5-mini": ModelPricing(0.25, 0.025, 2.00),
     "gpt-5-nano": ModelPricing(0.05, 0.005, 0.40),
     "gpt-5-chat-latest": ModelPricing(1.25, 0.125, 10.00),
     "gpt-5-codex": ModelPricing(1.25, 0.125, 10.00),
@@ -28,7 +42,7 @@ MODEL_PRICING = {
     "gpt-5-2025-08-07": ModelPricing(1.25, 0.125, 10.00),
     "gpt-5-mini-2025-08-07": ModelPricing(0.25, 0.025, 2.00),
     "gpt-5-nano-2025-08-07": ModelPricing(0.05, 0.005, 0.40),
-    # GPT-4.1 Family
+    # GPT-4.1 Family (fine-tuning prices on page; inference may vary)
     "gpt-4.1": ModelPricing(2.00, 0.50, 8.00),
     "gpt-4.1-mini": ModelPricing(0.40, 0.10, 1.60),
     "gpt-4.1-nano": ModelPricing(0.10, 0.025, 0.40),
@@ -36,13 +50,12 @@ MODEL_PRICING = {
     "gpt-4o": ModelPricing(2.50, 1.25, 10.00),
     "gpt-4o-2024-05-13": ModelPricing(5.00, 0.0, 15.00),
     "gpt-4o-mini": ModelPricing(0.15, 0.075, 0.60),
-    # Realtime Models
+    # Realtime API
+    "gpt-realtime-1.5": ModelPricing(4.00, 0.40, 16.00),
     "gpt-realtime": ModelPricing(4.00, 0.40, 16.00),
     "gpt-realtime-mini": ModelPricing(0.60, 0.06, 2.40),
     "gpt-4o-realtime-preview": ModelPricing(5.00, 2.50, 20.00),
-    "gpt-4o-mini-realtime-preview": ModelPricing(
-        0.60, 0.30, 2.40
-    ),
+    "gpt-4o-mini-realtime-preview": ModelPricing(0.60, 0.30, 2.40),
     # Audio Models
     "gpt-audio": ModelPricing(2.50, 0.0, 10.00),
     "gpt-audio-mini": ModelPricing(0.60, 0.0, 2.40),
@@ -65,20 +78,21 @@ MODEL_PRICING = {
     "gpt-4o-search-preview": ModelPricing(2.50, 0.0, 10.00),
     # Computer Use
     "computer-use-preview": ModelPricing(3.00, 0.0, 12.00),
-    # Image Models
+    # Image Generation API
+    "gpt-image-1.5": ModelPricing(5.00, 1.25, 10.00),
     "gpt-image-1": ModelPricing(5.00, 1.25, 0.0),
     "gpt-image-1-mini": ModelPricing(2.00, 0.20, 0.0),
 }
 
-# Default pricing (GPT-5)
-DEFAULT_PRICING = MODEL_PRICING["gpt-5"]
+# Default pricing (GPT-5.2)
+DEFAULT_PRICING = MODEL_PRICING["gpt-5.2"]
 
 
 def get_model_pricing(model_name: str | None) -> ModelPricing:
     """Get pricing for a specific model.
 
     Args:
-        model_name: The model name (e.g., "gpt-5", "gpt-4o-mini")
+        model_name: The model name (e.g., "gpt-5.2", "gpt-5-mini")
 
     Returns:
         ModelPricing tuple with (input_price, cached_input_price, output_price)

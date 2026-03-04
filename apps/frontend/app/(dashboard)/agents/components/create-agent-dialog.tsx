@@ -61,7 +61,7 @@ export function CreateAgentDialog({ onAgentCreated, teamId }: CreateAgentDialogP
       name: agentName,
       description: "",
       instructions: baseInstructions,
-      model: "gpt-5",
+      model: "gpt-5.2",
       reasoning_effort: "medium",
       type: selectedAgentType,
       status: "draft" as const,
