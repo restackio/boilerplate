@@ -23,6 +23,9 @@ _embed_config: Any = None
 # Default: small HF model, no GPU required
 DEFAULT_MODEL_ID = "sentence-transformers/all-MiniLM-L12-v2"
 
+# Sentinel UUID when ingestion is dataset-only (no agent context)
+DATASET_ONLY_AGENT_ID = "00000000-0000-0000-0000-000000000000"
+
 _IMPORT_ERR_MSG = (
     "embed-anything not installed. pip install embed-anything"
 )
@@ -57,7 +60,10 @@ class EmbedAnythingPdfInput(BaseModel):
     content_base64: str = Field(
         ..., description="PDF content as base64"
     )
-    agent_id: str | None = Field(..., min_length=1)
+    agent_id: str | None = Field(
+        default=None,
+        description="Agent UUID; omit for dataset-only ingestion (uses sentinel).",
+    )
     workspace_id: str = Field(..., min_length=1)
     dataset_id: str = Field(
         ..., description="Dataset name for events"
@@ -93,7 +99,9 @@ async def embed_anything_pdf_to_events(
             input_data.content_base64, validate=True
         )
     except (ValueError, TypeError) as e:
-        log.error(f"Invalid base64 for {input_data.filename}: {e}")
+        log.error(
+            f"Invalid base64 for {input_data.filename}: {e}"
+        )
         return EmbedAnythingPdfOutput(
             error=f"Invalid base64: {e}"
         )
@@ -132,7 +140,8 @@ async def embed_anything_pdf_to_events(
                 except (TypeError, ValueError):
                     emb = []
             event = PipelineEventInput(
-                agent_id=input_data.agent_id or "",
+                agent_id=input_data.agent_id
+                or DATASET_ONLY_AGENT_ID,
                 task_id=input_data.task_id,
                 workspace_id=input_data.workspace_id,
                 dataset_id=input_data.dataset_id,
@@ -155,7 +164,9 @@ async def embed_anything_pdf_to_events(
             chunks_count=len(events),
         )
     except (OSError, ValueError, TypeError, AttributeError) as e:
-        log.error(f"EmbedAnything failed for {input_data.filename}: {e}")
+        log.error(
+            f"EmbedAnything failed for {input_data.filename}: {e}"
+        )
         return EmbedAnythingPdfOutput(error=str(e))
     finally:
         with contextlib.suppress(OSError):

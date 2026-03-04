@@ -331,7 +331,7 @@ async def run_restack_service() -> None:
             AgentsGetByStatusWorkflow,
             AgentsGetVersionsWorkflow,
             TasksReadWorkflow,
-    TasksCreateWorkflow,
+            TasksCreateWorkflow,
             TasksUpdateWorkflow,
             TasksDeleteWorkflow,
             TasksGetByIdWorkflow,

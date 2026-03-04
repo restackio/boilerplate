@@ -148,7 +148,6 @@ class QueryDatasetEventsWorkflow:
 # --- Seed dataset from PDFs (EmbedAnything: one workflow, no API key) ---
 
 
-
 class AddFilesToDatasetInput(BaseModel):
     """Input for adding files to a dataset. Files as base64; EmbedAnything does extract+embed."""
 

@@ -49,7 +49,9 @@ with import_functions():
 
 
 def _raise_agent_not_found_or_not_public() -> None:
-    raise NonRetryableError(message="Agent not found or not public")
+    raise NonRetryableError(
+        message="Agent not found or not public"
+    )
 
 
 def _raise_public_agent_no_workspace() -> None:
@@ -85,7 +87,9 @@ class TasksCreateWorkflowInput(BaseModel):
     team_id: str | None = None
 
     @model_validator(mode="after")
-    def public_path_requires_agent_id(self) -> "TasksCreateWorkflowInput":
+    def public_path_requires_agent_id(
+        self,
+    ) -> "TasksCreateWorkflowInput":
         if not self.workspace_id and not self.agent_id:
             msg = "agent_id is required when workspace_id is omitted (public agent)"
             raise ValueError(msg)
@@ -115,7 +119,9 @@ class TasksCreateWorkflowInput(BaseModel):
             is_scheduled=self.is_scheduled,
             schedule_status=self.schedule_status,
             temporal_schedule_id=self.temporal_schedule_id,
-            team_id=team_id if team_id is not None else self.team_id,
+            team_id=team_id
+            if team_id is not None
+            else self.team_id,
         )
 
 
@@ -162,8 +168,12 @@ class TasksCreateWorkflow:
         log.info("TasksCreateWorkflow started")
         input_data = (
             workflow_input
-            if isinstance(workflow_input, TasksCreateWorkflowInput)
-            else TasksCreateWorkflowInput.model_validate(workflow_input)
+            if isinstance(
+                workflow_input, TasksCreateWorkflowInput
+            )
+            else TasksCreateWorkflowInput.model_validate(
+                workflow_input
+            )
         )
         try:
             # Resolve to TaskCreateInput: authenticated (has workspace_id) or public (resolve agent)
@@ -193,10 +203,7 @@ class TasksCreateWorkflow:
                 )
 
             # Resolve agent_name to agent_id if needed
-            if (
-                task_input.agent_name
-                and not task_input.agent_id
-            ):
+            if task_input.agent_name and not task_input.agent_id:
                 log.info(
                     f"Resolving agent name: {task_input.agent_name}"
                 )
