@@ -1,4 +1,3 @@
-import logging
 import uuid
 from datetime import UTC, datetime
 
@@ -114,6 +113,10 @@ class AgentUpdateInput(BaseModel):
 
 class AgentIdInput(BaseModel):
     agent_id: str = Field(..., min_length=1)
+    public_only: bool = Field(
+        default=False,
+        description="If True, return agent only when is_public and status=published",
+    )
 
 
 class AgentGetByStatusInput(BaseModel):
@@ -873,6 +876,11 @@ async def agents_get_by_id(
 
             if not agent:
                 return AgentGetByIdOutput(agent=None)
+            if function_input.public_only and (
+                not getattr(agent, "is_public", False)
+                or agent.status != "published"
+            ):
+                return AgentGetByIdOutput(agent=None)
             out = AgentOutput(
                 id=str(agent.id),
                 workspace_id=str(agent.workspace_id),
@@ -909,78 +917,6 @@ async def agents_get_by_id(
                 message=f"Failed to get agent: {e!s}"
             ) from e
     return AgentGetByIdOutput(agent=None)
-
-
-@function.defn()
-async def agents_get_public(
-    function_input: AgentIdInput,
-) -> AgentSingleOutput | None:
-    """Get agent by ID only if is_public and published (for public chat URL)."""
-    if isinstance(function_input, dict):
-        function_input = AgentIdInput.model_validate(
-            function_input
-        )
-    agent_id = function_input.agent_id
-    async for db in get_async_db():
-        try:
-            agent_query = (
-                select(Agent)
-                .options(selectinload(Agent.team))
-                .where(Agent.id == uuid.UUID(agent_id))
-            )
-            result = await db.execute(agent_query)
-            agent = result.scalar_one_or_none()
-            log.info(f"agents_get_public: agent={agent}")
-            if not agent or not getattr(
-                agent, "is_public", False
-            ):
-                log.info(
-                    "agents_get_public: agent not found or not public"
-                )
-                return None
-            if agent.status != "published":
-                log.info(
-                    f"agents_get_public: agent not published status={agent.status}"
-                )
-                return None
-            return AgentSingleOutput(
-                agent=AgentOutput(
-                    id=str(agent.id),
-                    workspace_id=str(agent.workspace_id),
-                    team_id=str(agent.team_id)
-                    if agent.team_id
-                    else None,
-                    team_name=agent.team.name
-                    if agent.team
-                    else None,
-                    name=agent.name,
-                    description=agent.description,
-                    instructions=agent.instructions,
-                    status=agent.status,
-                    parent_agent_id=str(agent.parent_agent_id)
-                    if agent.parent_agent_id
-                    else None,
-                    type=agent.type or "interactive",
-                    model=agent.model or "gpt-5",
-                    reasoning_effort=agent.reasoning_effort
-                    or "medium",
-                    is_public=True,
-                    created_at=agent.created_at.isoformat()
-                    if agent.created_at
-                    else None,
-                    updated_at=agent.updated_at.isoformat()
-                    if agent.updated_at
-                    else None,
-                )
-            )
-        except Exception as e:
-            logging.getLogger(__name__).exception(
-                "agents_get_public failed"
-            )
-            raise NonRetryableError(
-                message=f"Failed to get public agent: {e!s}"
-            ) from e
-    return None
 
 
 @function.defn()

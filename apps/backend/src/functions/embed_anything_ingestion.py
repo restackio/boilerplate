@@ -7,17 +7,14 @@ See https://github.com/StarlightSearch/EmbedAnything
 
 import base64
 import contextlib
-import logging
 import tempfile
 from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, Field
-from restack_ai.function import function
+from restack_ai.function import function, log
 
 from src.functions.data_ingestion import PipelineEventInput
-
-logger = logging.getLogger(__name__)
 
 # Lazy-loaded EmbedAnything model
 _embed_model: Any = None
@@ -95,10 +92,8 @@ async def embed_anything_pdf_to_events(
         content = base64.b64decode(
             input_data.content_base64, validate=True
         )
-    except Exception as e:
-        logger.exception(
-            "Invalid base64 for %s", input_data.filename
-        )
+    except (ValueError, TypeError) as e:
+        log.error(f"Invalid base64 for {input_data.filename}: {e}")
         return EmbedAnythingPdfOutput(
             error=f"Invalid base64: {e}"
         )
@@ -159,10 +154,8 @@ async def embed_anything_pdf_to_events(
             events=events,
             chunks_count=len(events),
         )
-    except Exception as e:
-        logger.exception(
-            "EmbedAnything failed for %s", input_data.filename
-        )
+    except (OSError, ValueError, TypeError, AttributeError) as e:
+        log.error(f"EmbedAnything failed for {input_data.filename}: {e}")
         return EmbedAnythingPdfOutput(error=str(e))
     finally:
         with contextlib.suppress(OSError):

@@ -31,7 +31,6 @@ from src.functions.agents_crud import (
     agents_delete,
     agents_get_by_id,
     agents_get_by_status,
-    agents_get_public,
     agents_get_versions,
     agents_read,
     agents_read_all,
@@ -206,7 +205,6 @@ from src.workflows.crud.agents_crud import (
     AgentsReadWorkflow,
     AgentsUpdateStatusWorkflow,
     AgentsUpdateWorkflow,
-    GetPublicAgentWorkflow,
 )
 from src.workflows.crud.auth_crud import (
     UserLoginWorkflow,
@@ -253,7 +251,6 @@ from src.workflows.crud.task_metrics_crud import (
     GetTaskMetricsWorkflow,
 )
 from src.workflows.crud.tasks_crud import (
-    CreateTaskForPublicAgentWorkflow,
     PlaygroundCreateDualTasksWorkflow,
     TasksCreateWorkflow,
     TasksDeleteWorkflow,
@@ -333,10 +330,8 @@ async def run_restack_service() -> None:
             AgentsGetByIdWorkflow,
             AgentsGetByStatusWorkflow,
             AgentsGetVersionsWorkflow,
-            GetPublicAgentWorkflow,
             TasksReadWorkflow,
-            CreateTaskForPublicAgentWorkflow,
-            TasksCreateWorkflow,
+    TasksCreateWorkflow,
             TasksUpdateWorkflow,
             TasksDeleteWorkflow,
             TasksGetByIdWorkflow,
@@ -441,7 +436,6 @@ async def run_restack_service() -> None:
             agents_get_versions,
             agents_resolve_by_name,
             agents_update_status,
-            agents_get_public,
             tasks_read,
             tasks_create,
             tasks_update,

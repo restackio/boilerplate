@@ -469,23 +469,18 @@ class AgentTask:
             task_title = create_data.get("task_title", "")
             parent_workflow_id = agent_info().workflow_id
 
-            # Get agent info for display (result may be Pydantic model or dict)
+            # Get agent info for display
             agent_result = await agent.step(
                 function=agents_get_by_id,
                 function_input=AgentIdInput(agent_id=agent_id),
                 task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=30),
             )
-            _agent = (
-                agent_result.get("agent")
-                if isinstance(agent_result, dict)
-                else getattr(agent_result, "agent", None)
-            )
             agent_name = (
-                _agent.get("name")
-                if isinstance(_agent, dict)
-                else getattr(_agent, "name", None)
-            ) or "Unknown"
+                agent_result.agent.name
+                if agent_result and agent_result.agent
+                else "Unknown"
+            )
 
             # Create and start child task using TasksCreateWorkflow
             task_input = TaskCreateInput(
@@ -931,7 +926,7 @@ class AgentTask:
         return {"end": True}
 
     @agent.run
-    async def run(self, agent_input: AgentTaskInput) -> None:  # noqa: PLR0915
+    async def run(self, agent_input: AgentTaskInput) -> None:
         self.agent_id = agent_input.agent_id
         self.task_id = agent_input.task_id
         self.user_id = agent_input.user_id
@@ -985,38 +980,29 @@ class AgentTask:
             result=agent_result,
         )
 
-        # Activity may return Pydantic model or dict (SDK deserialization)
-        agent_data = (
-            agent_result.get("agent")
-            if isinstance(agent_result, dict)
-            else getattr(agent_result, "agent", None)
-        )
-        if not agent_data:
+        if agent_result.agent:
+            agent_data = agent_result.agent
+            self.agent_model = agent_data.model
+            self.agent_reasoning_effort = (
+                agent_data.reasoning_effort
+            )
+            self.agent_type = agent_data.type
+
+            if (
+                agent_data.instructions
+                and agent_data.instructions.strip()
+            ):
+                instructions = agent_data.instructions
+
+                self.messages.append(
+                    Message(
+                        role="developer",
+                        content=f"{instructions}. Markdown is supported. Use headings wherever appropriate. Agent meta info: {meta_info!s}",
+                    )
+                )
+        else:
             raise NonRetryableError(
                 message=f"Agent with id {self.agent_id} not found"
-            )
-
-        def _attr(
-            o: object, key: str, default: str | None = None
-        ) -> str | None:
-            if isinstance(o, dict):
-                return o.get(key, default)
-            return getattr(o, key, default)
-
-        self.agent_model = _attr(agent_data, "model") or "gpt-5"
-        self.agent_reasoning_effort = (
-            _attr(agent_data, "reasoning_effort") or "medium"
-        )
-        self.agent_type = (
-            _attr(agent_data, "type") or "interactive"
-        )
-        instructions = _attr(agent_data, "instructions") or ""
-        if instructions.strip():
-            self.messages.append(
-                Message(
-                    role="developer",
-                    content=f"{instructions}. Markdown is supported. Use headings wherever appropriate. Agent meta info: {meta_info!s}",
-                )
             )
 
         tools_result = await agent.step(
@@ -1028,12 +1014,7 @@ class AgentTask:
             task_queue=TASK_QUEUE,
             start_to_close_timeout=timedelta(seconds=30),
         )
-        # Activity may return Pydantic model or dict
-        self.tools = (
-            tools_result.get("tools", [])
-            if isinstance(tools_result, dict)
-            else (getattr(tools_result, "tools", None) or [])
-        )
+        self.tools = tools_result.tools or []
 
         # Check if createsubtask tool is enabled and append subagents list
         # MCP tools have their names in the 'allowed_tools' array

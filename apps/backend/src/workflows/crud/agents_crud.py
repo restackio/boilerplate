@@ -37,7 +37,6 @@ with import_functions():
         agents_delete,
         agents_get_by_id,
         agents_get_by_status,
-        agents_get_public,
         agents_get_versions,
         agents_read,
         agents_read_all,
@@ -69,34 +68,6 @@ class AgentsReadWorkflow:
             error_message = f"Error during agents_read: {e}"
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e
-
-
-@workflow.defn()
-class GetPublicAgentWorkflow:
-    """Get agent by ID only if is_public and published (for public chat)."""
-
-    @workflow.run
-    async def run(
-        self, workflow_input: AgentIdInput
-    ) -> AgentSingleOutput:
-        log.info(
-            f"GetPublicAgentWorkflow started agent_id={workflow_input.agent_id}"
-        )
-        result = await workflow.step(
-            function=agents_get_public,
-            function_input=workflow_input,
-            task_queue=TASK_QUEUE,
-            start_to_close_timeout=timedelta(seconds=10),
-        )
-        log.info(
-            f"GetPublicAgentWorkflow step completed result={'present' if result else 'None'}"
-        )
-        if not result:
-            raise NonRetryableError(
-                message="Agent not found or not public"
-            )
-        log.info("GetPublicAgentWorkflow returning result")
-        return result
 
 
 @workflow.defn()

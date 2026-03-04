@@ -8,12 +8,12 @@ export async function runWorkflow({
   input = {},
   taskQueue = BACKEND_TASK_QUEUE,
 }: {
-  workflowName: string,
-  input: Record<string, unknown>,
-  taskQueue?: string,
-}) : Promise<{ workflowId: string; runId: string }> {
+  workflowName: string;
+  input: Record<string, unknown>;
+  taskQueue?: string;
+}): Promise<{ workflowId: string; runId: string }> {
   const startTime = Date.now();
-  
+
   if (!workflowName || !input) {
     throw new Error("Workflow name and input are required");
   }
@@ -21,7 +21,6 @@ export async function runWorkflow({
   const workflowId = `${crypto.randomUUID()}-${workflowName.toString()}`;
 
   try {
-    
     const runId = await client.scheduleWorkflow({
       workflowName,
       workflowId,
@@ -31,7 +30,7 @@ export async function runWorkflow({
 
     return {
       workflowId,
-      runId
+      runId,
     };
   } catch (error) {
     const endTime = Date.now();
@@ -45,33 +44,34 @@ export async function runWorkflow({
   }
 }
 
-
 // Helper function for executing workflows and getting results
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function executeWorkflow(workflowName: string, input: Record<string, any>) {
+export async function executeWorkflow(
+  workflowName: string,
+  input: Record<string, unknown>,
+) {
   try {
     const { workflowId, runId } = await runWorkflow({
       workflowName,
-      input
+      input,
     });
-    
+
     const result = await getWorkflowResult({
       workflowId,
-      runId
+      runId,
     });
-    
+
     return {
       success: true,
       data: result,
       workflowId,
-      runId
+      runId,
     };
   } catch (error) {
     console.error("Workflow execution failed:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",
-      data: null
+      data: null,
     };
   }
 }
@@ -81,28 +81,40 @@ export async function getWorkflowResult({
   runId,
   timeoutMs = 30000,
 }: {
-  workflowId: string,
-  runId: string,
-  timeoutMs?: number
-}) : Promise<unknown> {
+  workflowId: string;
+  runId: string;
+  timeoutMs?: number;
+}): Promise<unknown> {
   const startTime = Date.now();
   if (process.env.NODE_ENV === "development") {
-    console.log(`[getWorkflowResult] waiting workflowId=${workflowId} runId=${runId} timeout=${timeoutMs}ms`);
+    console.log(
+      `[getWorkflowResult] waiting workflowId=${workflowId} runId=${runId} timeout=${timeoutMs}ms`,
+    );
   }
 
   const timeoutPromise = new Promise((_, reject) => {
-    setTimeout(() => reject(new Error(`Workflow result timeout after ${timeoutMs / 1000} seconds`)), timeoutMs);
+    setTimeout(
+      () =>
+        reject(
+          new Error(
+            `Workflow result timeout after ${timeoutMs / 1000} seconds`,
+          ),
+        ),
+      timeoutMs,
+    );
   });
 
   try {
     const resultPromise = client.getWorkflowResult({
       workflowId,
-      runId
+      runId,
     });
 
     const result = await Promise.race([resultPromise, timeoutPromise]);
     if (process.env.NODE_ENV === "development") {
-      console.log(`[getWorkflowResult] result received in ${Date.now() - startTime}ms`);
+      console.log(
+        `[getWorkflowResult] result received in ${Date.now() - startTime}ms`,
+      );
     }
     return result;
   } catch (error) {
@@ -116,12 +128,12 @@ export async function getWorkflowResult({
 export async function getMcpServers(workspaceId: string) {
   const { workflowId, runId } = await runWorkflow({
     workflowName: "McpServersReadWorkflow",
-    input: { workspace_id: workspaceId }
+    input: { workspace_id: workspaceId },
   });
-  
+
   return await getWorkflowResult({
     workflowId,
-    runId
+    runId,
   });
 }
 
@@ -139,12 +151,12 @@ export async function createMcpServer(mcpServerData: {
 }) {
   const { workflowId, runId } = await runWorkflow({
     workflowName: "McpServersCreateWorkflow",
-    input: mcpServerData
+    input: mcpServerData,
   });
-  
+
   return await getWorkflowResult({
     workflowId,
-    runId
+    runId,
   });
 }
 
@@ -162,60 +174,60 @@ export async function updateMcpServer(mcpServerData: {
 }) {
   const { workflowId, runId } = await runWorkflow({
     workflowName: "McpServersUpdateWorkflow",
-    input: mcpServerData
+    input: mcpServerData,
   });
-  
+
   return await getWorkflowResult({
     workflowId,
-    runId
+    runId,
   });
 }
 
 export async function deleteMcpServer(mcpServerId: string) {
   const { workflowId, runId } = await runWorkflow({
     workflowName: "McpServersDeleteWorkflow",
-    input: { mcp_server_id: mcpServerId }
+    input: { mcp_server_id: mcpServerId },
   });
-  
+
   return await getWorkflowResult({
     workflowId,
-    runId
+    runId,
   });
 }
 
 export async function getMcpServerById(mcpServerId: string) {
   const { workflowId, runId } = await runWorkflow({
     workflowName: "McpServersGetByIdWorkflow",
-    input: { mcp_server_id: mcpServerId }
+    input: { mcp_server_id: mcpServerId },
   });
-  
+
   return await getWorkflowResult({
     workflowId,
-    runId
+    runId,
   });
 }
 
 export async function listMcpServerTools(
-  serverUrl: string, 
-  headers?: Record<string, string>, 
+  serverUrl: string,
+  headers?: Record<string, string>,
   local?: boolean,
   workspaceId?: string,
-  mcpServerId?: string
+  mcpServerId?: string,
 ) {
   const { workflowId, runId } = await runWorkflow({
     workflowName: "McpToolsListWorkflow",
-    input: { 
+    input: {
       server_url: serverUrl,
       headers: headers || null,
       local: local || false,
       workspace_id: workspaceId || null,
-      mcp_server_id: mcpServerId || null
-    }
+      mcp_server_id: mcpServerId || null,
+    },
   });
-  
+
   return await getWorkflowResult({
     workflowId,
-    runId
+    runId,
   });
 }
 
@@ -223,10 +235,11 @@ export async function listMcpServerTools(
 export async function getAgentMcpServers(agentId: string) {
   // MCP servers are now managed through the unified agent_tools table
   const tools = await getAgentTools(agentId);
-  
+
   // Filter to only MCP type tools
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const mcpTools = (tools as any)?.agent_tools?.filter((tool: any) => tool.tool_type === 'mcp') || [];
+  const data = tools as { agent_tools?: { tool_type?: string }[] };
+  const mcpTools =
+    data?.agent_tools?.filter((tool) => tool.tool_type === "mcp") ?? [];
   return { agent_mcp_servers: mcpTools };
 }
 
@@ -242,7 +255,7 @@ export async function getAgentTools(agentId: string) {
 
 export async function createAgentTool(toolData: {
   agent_id: string;
-  tool_type: 'web_search'|'mcp'|'code_interpreter'|'image_generation';
+  tool_type: "web_search" | "mcp" | "code_interpreter" | "image_generation";
   mcp_server_id?: string;
   // MCP-specific fields
   tool_name?: string;
@@ -263,7 +276,7 @@ export async function createAgentTool(toolData: {
 
 export async function updateAgentTool(toolData: {
   agent_tool_id: string;
-  tool_type?: 'web_search'|'mcp'|'code_interpreter'|'image_generation';
+  tool_type?: "web_search" | "mcp" | "code_interpreter" | "image_generation";
   mcp_server_id?: string | null;
   // MCP-specific fields
   tool_name?: string;
@@ -282,9 +295,7 @@ export async function updateAgentTool(toolData: {
   return await getWorkflowResult({ workflowId, runId });
 }
 
-export async function deleteAgentTool(deleteData: {
-  agent_tool_id: string;
-}) {
+export async function deleteAgentTool(deleteData: { agent_tool_id: string }) {
   const { workflowId, runId } = await runWorkflow({
     workflowName: "AgentToolsDeleteWorkflow",
     input: deleteData,
@@ -300,10 +311,10 @@ export async function createAgentMcpServer(agentMcpServerData: {
   // Create MCP server tool via unified agent_tools table
   return await createAgentTool({
     agent_id: agentMcpServerData.agent_id,
-    tool_type: 'mcp',
+    tool_type: "mcp",
     mcp_server_id: agentMcpServerData.mcp_server_id,
     allowed_tools: agentMcpServerData.allowed_tools,
-    enabled: true
+    enabled: true,
   });
 }
 
@@ -327,24 +338,24 @@ export async function createDataset(datasetData: {
 }) {
   const { workflowId, runId } = await runWorkflow({
     workflowName: "DatasetsCreateWorkflow",
-    input: datasetData
+    input: datasetData,
   });
-  
+
   return await getWorkflowResult({
     workflowId,
-    runId
+    runId,
   });
 }
 
 export async function getDatasets(workspaceId: string) {
   const { workflowId, runId } = await runWorkflow({
     workflowName: "DatasetsReadWorkflow",
-    input: { workspace_id: workspaceId }
+    input: { workspace_id: workspaceId },
   });
-  
+
   return await getWorkflowResult({
     workflowId,
-    runId
+    runId,
   });
 }
 
@@ -352,15 +363,23 @@ export async function getDatasets(workspaceId: string) {
 export async function getPublicAgent(agentId: string) {
   try {
     if (process.env.NODE_ENV === "development") {
-      console.log("[getPublicAgent] runWorkflow GetPublicAgentWorkflow agentId=", agentId);
+      console.log(
+        "[getPublicAgent] runWorkflow AgentsGetByIdWorkflow agentId=",
+        agentId,
+      );
     }
     const { workflowId, runId } = await runWorkflow({
-      workflowName: "GetPublicAgentWorkflow",
-      input: { agent_id: agentId },
+      workflowName: "AgentsGetByIdWorkflow",
+      input: { agent_id: agentId, public_only: true },
       taskQueue: BACKEND_TASK_QUEUE,
     });
     if (process.env.NODE_ENV === "development") {
-      console.log("[getPublicAgent] workflow scheduled workflowId=", workflowId, "runId=", runId);
+      console.log(
+        "[getPublicAgent] workflow scheduled workflowId=",
+        workflowId,
+        "runId=",
+        runId,
+      );
     }
     const result = await getWorkflowResult({
       workflowId,
@@ -368,14 +387,26 @@ export async function getPublicAgent(agentId: string) {
       timeoutMs: 60 * 1000, // 60s for public chat page load
     });
     if (process.env.NODE_ENV === "development") {
-      console.log("[getPublicAgent] result received", result != null ? "ok" : "null");
+      console.log(
+        "[getPublicAgent] result received",
+        result != null ? "ok" : "null",
+      );
     }
     const data = result as { agent?: unknown } | null;
-    if (!data?.agent) return { success: false, data: null, error: "Agent not found or not public" };
+    if (!data?.agent)
+      return {
+        success: false,
+        data: null,
+        error: "Agent not found or not public",
+      };
     return { success: true, data: data.agent, error: null };
   } catch (error) {
     console.error("getPublicAgent failed:", error);
-    return { success: false, data: null, error: error instanceof Error ? error.message : "Unknown error" };
+    return {
+      success: false,
+      data: null,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
   }
 }
 
@@ -387,7 +418,7 @@ export async function createTaskForPublicAgent(params: {
 }) {
   try {
     const { workflowId, runId } = await runWorkflow({
-      workflowName: "CreateTaskForPublicAgentWorkflow",
+      workflowName: "TasksCreateWorkflow",
       input: params,
       taskQueue: BACKEND_TASK_QUEUE,
     });
@@ -396,7 +427,15 @@ export async function createTaskForPublicAgent(params: {
       runId,
       timeoutMs: 60 * 1000,
     });
-    const out = result as { task?: { id?: string; temporal_agent_id?: string; workspace_id?: string; status?: string; agent_state?: unknown } };
+    const out = result as {
+      task?: {
+        id?: string;
+        temporal_agent_id?: string;
+        workspace_id?: string;
+        status?: string;
+        agent_state?: unknown;
+      };
+    };
     const task = out?.task;
     if (!task?.id) {
       return { success: false, data: null, error: "Failed to create task" };
@@ -424,7 +463,8 @@ export async function addFilesToDataset(params: {
     if (!params.files_with_content?.length) {
       return {
         success: false,
-        error: "files_with_content is required (list of { filename, content_base64 }).",
+        error:
+          "files_with_content is required (list of { filename, content_base64 }).",
         data: null,
       };
     }
@@ -458,7 +498,7 @@ export async function addFilesToDataset(params: {
 export async function deleteAgentMcpServer(agentMcpServerId: string) {
   // Delete MCP server tool via unified agent_tools table
   return await deleteAgentTool({
-    agent_tool_id: agentMcpServerId
+    agent_tool_id: agentMcpServerId,
   });
 }
 
@@ -501,4 +541,3 @@ export async function deleteAgentMcpTool(toolId: string) {
   // Use the unified agent tools system
   return await deleteAgentTool({ agent_tool_id: toolId });
 }
-
