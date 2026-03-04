@@ -69,20 +69,10 @@ interface PromptTemplate {
 // Default model options (latest OpenAI models per https://developers.openai.com/api/docs/changelog/)
 export const DEFAULT_MODEL_OPTIONS = [
   { value: "gpt-5.2", label: "GPT-5.2" },
-  { value: "gpt-5.2-chat-latest", label: "GPT-5.2 Chat (latest)" },
-  { value: "gpt-5.2-codex", label: "GPT-5.2 Codex" },
-  { value: "gpt-5.3-codex", label: "GPT-5.3 Codex" },
   { value: "gpt-5.1", label: "GPT-5.1" },
-  { value: "gpt-5.1-chat-latest", label: "GPT-5.1 Chat (latest)" },
-  { value: "gpt-5.1-codex", label: "GPT-5.1 Codex" },
-  { value: "gpt-5.1-codex-mini", label: "GPT-5.1 Codex Mini" },
-  { value: "gpt-5.1-codex-max", label: "GPT-5.1 Codex Max" },
   { value: "gpt-5", label: "GPT-5" },
   { value: "gpt-5-mini", label: "GPT-5 Mini" },
   { value: "gpt-5-nano", label: "GPT-5 Nano" },
-  { value: "gpt-5-2025-08-07", label: "GPT-5 (2025-08-07)" },
-  { value: "gpt-5-mini-2025-08-07", label: "GPT-5 Mini (2025-08-07)" },
-  { value: "gpt-5-nano-2025-08-07", label: "GPT-5 Nano (2025-08-07)" },
   { value: "o3-deep-research", label: "O3 Deep Research" },
   { value: "o4-mini-deep-research", label: "O4 Mini Deep Research" },
 ];

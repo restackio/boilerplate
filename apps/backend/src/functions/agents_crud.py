@@ -11,11 +11,7 @@ from src.database.models import Agent, AgentSubagent, AgentTool
 
 # Allowed OpenAI model IDs (must match DB constraint and dropdowns)
 AGENT_MODEL_PATTERN = (
-    r"^(gpt-5\.2|gpt-5\.2-chat-latest|gpt-5\.2-codex|gpt-5\.3-codex|"
-    r"gpt-5\.1|gpt-5\.1-chat-latest|gpt-5\.1-codex|gpt-5\.1-codex-mini|gpt-5\.1-codex-max|"
-    r"gpt-5|gpt-5-mini|gpt-5-nano|"
-    r"gpt-5-2025-08-07|gpt-5-mini-2025-08-07|gpt-5-nano-2025-08-07|"
-    r"gpt-4\.1|gpt-4\.1-mini|gpt-4\.1-nano|gpt-4o|gpt-4o-mini|"
+    r"^(gpt-5.2|gpt-5.1|gpt-5|gpt-5-mini|gpt-5-nano|"
     r"o3-deep-research|o4-mini-deep-research)$"
 )
 DEFAULT_AGENT_MODEL = "gpt-5.2"
