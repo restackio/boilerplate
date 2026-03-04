@@ -80,16 +80,13 @@ class QueryDatasetEventsOutput(BaseModel):
 
 
 def _build_where_conditions(
-    storage_config: dict, workspace_id: str
+    storage_config: dict, workspace_id: str, dataset_id: str
 ) -> list[str]:
-    """Build WHERE clause conditions based on storage config."""
-    where_conditions = [f"workspace_id = '{workspace_id}'"]
-
-    # Handle dataset_id filter if specified
-    if "dataset_id" in storage_config:
-        where_conditions.append(
-            f"dataset_id = '{storage_config['dataset_id']}'"
-        )
+    """Build WHERE clause conditions: scope by workspace and dataset id."""
+    where_conditions = [
+        f"workspace_id = '{workspace_id}'",
+        f"dataset_id = '{dataset_id}'",
+    ]
 
     # Handle tag-based filtering
     if (
@@ -117,14 +114,14 @@ def _build_where_conditions(
 
 
 async def _get_clickhouse_stats(
-    storage_config: dict, workspace_id: str
+    storage_config: dict, workspace_id: str, dataset_id: str
 ) -> dict:
     """Get real-time statistics from ClickHouse for a dataset."""
     try:
         client = await get_clickhouse_async_client()
 
         where_conditions = _build_where_conditions(
-            storage_config, workspace_id
+            storage_config, workspace_id, dataset_id
         )
 
         # Additional filtering is handled in _build_where_conditions helper
@@ -210,6 +207,7 @@ async def datasets_read(
                         stats = await _get_clickhouse_stats(
                             row.storage_config,
                             function_input.workspace_id,
+                            str(row.id),
                         )
                     else:
                         # Future: handle other storage types
@@ -385,6 +383,8 @@ async def datasets_create(
                     "table": "pipeline_events",
                     "filter": {},
                 }
+            # Scope queries to this dataset's events (by UUID)
+            storage_config["dataset_id"] = dataset_id
 
             # Add tag-based filtering if tags are provided
             if function_input.tags:
@@ -484,17 +484,13 @@ async def query_dataset_events(
 
 
 def _build_dataset_filters(
-    storage_config: dict, workspace_id: str
+    _storage_config: dict, workspace_id: str, dataset_id: str
 ) -> list[str]:
-    """Build WHERE conditions from dataset storage config."""
-    conditions = [f"workspace_id = '{workspace_id}'"]
-
-    if "dataset_id" in storage_config:
-        conditions.append(
-            f"dataset_id = '{storage_config['dataset_id']}'"
-        )
-
-    return conditions
+    """Build WHERE conditions: always scope by workspace and requested dataset id."""
+    return [
+        f"workspace_id = '{workspace_id}'",
+        f"dataset_id = '{dataset_id}'",
+    ]
 
 
 def _build_tag_filters(storage_config: dict) -> list[str]:
@@ -573,7 +569,9 @@ async def _query_clickhouse_events(
         where_conditions = []
         where_conditions.extend(
             _build_dataset_filters(
-                storage_config, function_input.workspace_id
+                storage_config,
+                function_input.workspace_id,
+                function_input.dataset_id,
             )
         )
         where_conditions.extend(

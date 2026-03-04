@@ -31,6 +31,7 @@ from src.functions.agents_crud import (
     agents_delete,
     agents_get_by_id,
     agents_get_by_status,
+    agents_get_public,
     agents_get_versions,
     agents_read,
     agents_read_all,
@@ -50,6 +51,9 @@ from src.functions.datasets_crud import (
     datasets_get_by_id,
     datasets_read,
     query_dataset_events,
+)
+from src.functions.embed_anything_ingestion import (
+    embed_anything_pdf_to_events,
 )
 from src.functions.feedback_metrics import (
     get_detailed_feedbacks,
@@ -202,12 +206,14 @@ from src.workflows.crud.agents_crud import (
     AgentsReadWorkflow,
     AgentsUpdateStatusWorkflow,
     AgentsUpdateWorkflow,
+    GetPublicAgentWorkflow,
 )
 from src.workflows.crud.auth_crud import (
     UserLoginWorkflow,
     UserSignupWorkflow,
 )
 from src.workflows.crud.datasets_crud import (
+    AddFilesToDatasetWorkflow,
     DatasetsCreateWorkflow,
     DatasetsGetByIdWorkflow,
     DatasetsReadWorkflow,
@@ -247,6 +253,7 @@ from src.workflows.crud.task_metrics_crud import (
     GetTaskMetricsWorkflow,
 )
 from src.workflows.crud.tasks_crud import (
+    CreateTaskForPublicAgentWorkflow,
     PlaygroundCreateDualTasksWorkflow,
     TasksCreateWorkflow,
     TasksDeleteWorkflow,
@@ -326,7 +333,9 @@ async def run_restack_service() -> None:
             AgentsGetByIdWorkflow,
             AgentsGetByStatusWorkflow,
             AgentsGetVersionsWorkflow,
+            GetPublicAgentWorkflow,
             TasksReadWorkflow,
+            CreateTaskForPublicAgentWorkflow,
             TasksCreateWorkflow,
             TasksUpdateWorkflow,
             TasksDeleteWorkflow,
@@ -363,6 +372,7 @@ async def run_restack_service() -> None:
             DatasetsCreateWorkflow,
             DatasetsGetByIdWorkflow,
             QueryDatasetEventsWorkflow,
+            AddFilesToDatasetWorkflow,
             McpServersReadWorkflow,
             McpServersCreateWorkflow,
             McpServersUpdateWorkflow,
@@ -431,6 +441,7 @@ async def run_restack_service() -> None:
             agents_get_versions,
             agents_resolve_by_name,
             agents_update_status,
+            agents_get_public,
             tasks_read,
             tasks_create,
             tasks_update,
@@ -479,6 +490,7 @@ async def run_restack_service() -> None:
             # Data ingestion functions
             ingest_pipeline_events,
             query_clickhouse_data,
+            embed_anything_pdf_to_events,
             mcp_servers_read,
             mcp_servers_create,
             mcp_servers_update,

@@ -78,33 +78,36 @@ export async function executeWorkflow(workflowName: string, input: Record<string
 
 export async function getWorkflowResult({
   workflowId,
-  runId
+  runId,
+  timeoutMs = 30000,
 }: {
   workflowId: string,
-  runId: string
+  runId: string,
+  timeoutMs?: number
 }) : Promise<unknown> {
   const startTime = Date.now();
-  
-  // Add a timeout promise
+  if (process.env.NODE_ENV === "development") {
+    console.log(`[getWorkflowResult] waiting workflowId=${workflowId} runId=${runId} timeout=${timeoutMs}ms`);
+  }
+
   const timeoutPromise = new Promise((_, reject) => {
-    setTimeout(() => reject(new Error('Workflow result timeout after 30 seconds')), 30000);
+    setTimeout(() => reject(new Error(`Workflow result timeout after ${timeoutMs / 1000} seconds`)), timeoutMs);
   });
-  
+
   try {
     const resultPromise = client.getWorkflowResult({
       workflowId,
       runId
     });
-    
-    // Race between the actual result and the timeout
-    const result = await Promise.race([resultPromise, timeoutPromise]);
-    
-    // const endTime = Date.now(); // Currently unused - could be used for timing
 
+    const result = await Promise.race([resultPromise, timeoutPromise]);
+    if (process.env.NODE_ENV === "development") {
+      console.log(`[getWorkflowResult] result received in ${Date.now() - startTime}ms`);
+    }
     return result;
   } catch (error) {
-    const endTime = Date.now();
-    console.error(`[getWorkflowResult] Error after ${endTime - startTime}ms:`, error);
+    const elapsed = Date.now() - startTime;
+    console.error(`[getWorkflowResult] Error after ${elapsed}ms:`, error);
     throw error;
   }
 }
@@ -343,6 +346,113 @@ export async function getDatasets(workspaceId: string) {
     workflowId,
     runId
   });
+}
+
+/** Get a public agent by id (for /chat/[agentId] - no auth). Returns null if not found or not public. */
+export async function getPublicAgent(agentId: string) {
+  try {
+    if (process.env.NODE_ENV === "development") {
+      console.log("[getPublicAgent] runWorkflow GetPublicAgentWorkflow agentId=", agentId);
+    }
+    const { workflowId, runId } = await runWorkflow({
+      workflowName: "GetPublicAgentWorkflow",
+      input: { agent_id: agentId },
+      taskQueue: BACKEND_TASK_QUEUE,
+    });
+    if (process.env.NODE_ENV === "development") {
+      console.log("[getPublicAgent] workflow scheduled workflowId=", workflowId, "runId=", runId);
+    }
+    const result = await getWorkflowResult({
+      workflowId,
+      runId,
+      timeoutMs: 60 * 1000, // 60s for public chat page load
+    });
+    if (process.env.NODE_ENV === "development") {
+      console.log("[getPublicAgent] result received", result != null ? "ok" : "null");
+    }
+    const data = result as { agent?: unknown } | null;
+    if (!data?.agent) return { success: false, data: null, error: "Agent not found or not public" };
+    return { success: true, data: data.agent, error: null };
+  } catch (error) {
+    console.error("getPublicAgent failed:", error);
+    return { success: false, data: null, error: error instanceof Error ? error.message : "Unknown error" };
+  }
+}
+
+/** Create a task for a public agent (visitor chat - no auth). Returns task with id and temporal_agent_id. */
+export async function createTaskForPublicAgent(params: {
+  agent_id: string;
+  title: string;
+  description: string;
+}) {
+  try {
+    const { workflowId, runId } = await runWorkflow({
+      workflowName: "CreateTaskForPublicAgentWorkflow",
+      input: params,
+      taskQueue: BACKEND_TASK_QUEUE,
+    });
+    const result = await getWorkflowResult({
+      workflowId,
+      runId,
+      timeoutMs: 60 * 1000,
+    });
+    const out = result as { task?: { id?: string; temporal_agent_id?: string; workspace_id?: string; status?: string; agent_state?: unknown } };
+    const task = out?.task;
+    if (!task?.id) {
+      return { success: false, data: null, error: "Failed to create task" };
+    }
+    return { success: true, data: task, workflowId, runId };
+  } catch (error) {
+    console.error("createTaskForPublicAgent failed:", error);
+    return {
+      success: false,
+      data: null,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
+
+/** Add files to a dataset: EmbedAnything (extract + embed) → ClickHouse. Accepts PDF, text, images, etc. */
+export async function addFilesToDataset(params: {
+  workspace_id: string;
+  dataset_id: string;
+  task_id?: string | null;
+  /** Inline file content (base64). Required. */
+  files_with_content?: { filename: string; content_base64: string }[];
+}) {
+  try {
+    if (!params.files_with_content?.length) {
+      return {
+        success: false,
+        error: "files_with_content is required (list of { filename, content_base64 }).",
+        data: null,
+      };
+    }
+    const input: Record<string, unknown> = {
+      workspace_id: params.workspace_id,
+      dataset_id: params.dataset_id,
+      task_id: params.task_id ?? undefined,
+      files_with_content: params.files_with_content,
+    };
+    const { workflowId, runId } = await runWorkflow({
+      workflowName: "AddFilesToDatasetWorkflow",
+      input,
+      taskQueue: BACKEND_TASK_QUEUE,
+    });
+    const result = await getWorkflowResult({
+      workflowId,
+      runId,
+      timeoutMs: 5 * 60 * 1000, // 5 minutes for multi-PDF ingest
+    });
+    return { success: true, data: result, workflowId, runId };
+  } catch (error) {
+    console.error("AddFilesToDataset failed:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+      data: null,
+    };
+  }
 }
 
 export async function deleteAgentMcpServer(agentMcpServerId: string) {

@@ -46,7 +46,7 @@ else
   echo "⚠ Warning: $DEMO_DIR/postgres-demo.sql not found"
 fi
 
-# ClickHouse: Delete and re-insert
+# ClickHouse: Delete and re-insert (tolerate missing tables if migrations not yet run)
 echo "→ Deleting ClickHouse demo data..."
 
 # Parse CLICKHOUSE_URL only
@@ -83,15 +83,26 @@ else
   CH_CMD="clickhouse-client --host $CLICKHOUSE_HOST --port $CLICKHOUSE_NATIVE_PORT --user $CLICKHOUSE_USER --password $CLICKHOUSE_PASSWORD"
 fi
 
-# Delete demo data
+# Delete demo data (ignore if tables do not exist yet - run pnpm db:migrate first to create them)
+set +e
 $CH_CMD --database=$CLICKHOUSE_DB --multiquery <<-EOSQL
   DELETE FROM pipeline_events WHERE workspace_id = '$DEMO_WORKSPACE_ID';
   DELETE FROM task_metrics WHERE workspace_id = '$DEMO_WORKSPACE_ID';
 EOSQL
-echo "✓ ClickHouse demo data deleted"
+CH_EXIT=$?
+set -e
+if [ "$CH_EXIT" -eq 0 ]; then
+  echo "✓ ClickHouse demo data deleted"
+elif [ "$CH_EXIT" -eq 60 ]; then
+  echo "⊙ ClickHouse tables not found (run pnpm db:migrate first to create them); skipping delete"
+else
+  echo "⚠ ClickHouse delete exited with code $CH_EXIT; continuing anyway"
+fi
 
 echo "→ Inserting ClickHouse demo data..."
-if [ -f "$DEMO_DIR/clickhouse-demo.sql" ]; then
+if [ "$CH_EXIT" -eq 60 ]; then
+  echo "⊙ Skipping ClickHouse insert (tables do not exist). Run: pnpm db:migrate"
+elif [ -f "$DEMO_DIR/clickhouse-demo.sql" ]; then
   $CH_CMD --database=$CLICKHOUSE_DB --multiquery < "$DEMO_DIR/clickhouse-demo.sql"
   echo "✓ ClickHouse demo data inserted"
 else

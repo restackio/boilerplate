@@ -1,3 +1,4 @@
+import logging
 import uuid
 
 from pydantic import BaseModel, Field, field_validator
@@ -188,7 +189,8 @@ async def tasks_read(
 
             if function_input.team_id:
                 tasks_query = tasks_query.where(
-                    Task.team_id == uuid.UUID(function_input.team_id)
+                    Task.team_id
+                    == uuid.UUID(function_input.team_id)
                 )
 
             result = await db.execute(tasks_query)
@@ -259,6 +261,9 @@ async def tasks_create(
     task_data: TaskCreateInput,
 ) -> TaskSingleOutput:
     """Create a new task."""
+    # Normalize input (activity may receive dict from SDK)
+    if isinstance(task_data, dict):
+        task_data = TaskCreateInput.model_validate(task_data)
     async for db in get_async_db():
         try:
             # Create task with UUID
@@ -347,12 +352,15 @@ async def tasks_create(
                 else None,
                 updated_at=task.updated_at.isoformat()
                 if task.updated_at
-                else None
+                else None,
             )
 
             return TaskSingleOutput(task=result)
         except Exception as e:
             await db.rollback()
+            logging.getLogger(__name__).exception(
+                "tasks_create activity failed"
+            )
             raise NonRetryableError(
                 message=f"Failed to create task: {e!s}"
             ) from e
@@ -953,7 +961,8 @@ async def tasks_get_stats(
 
             if function_input.team_id:
                 stats_query = stats_query.where(
-                    Task.team_id == uuid.UUID(function_input.team_id)
+                    Task.team_id
+                    == uuid.UUID(function_input.team_id)
                 )
 
             result = await db.execute(stats_query)

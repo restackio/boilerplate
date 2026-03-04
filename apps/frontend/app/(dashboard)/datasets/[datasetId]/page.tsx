@@ -13,6 +13,7 @@ import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
 import { Dataset } from "../components/datasets-table";
 import { EventsTable, PipelineEvent } from "../components/events-table";
+import { AddFilesDialog } from "../components/add-files-dialog";
 
 
 export default function DatasetDetailPage() {
@@ -158,10 +159,16 @@ export default function DatasetDetailPage() {
           { label: dataset.name }
         ]}
         actions={
-          <Button variant="outline" onClick={handleRefresh} disabled={loading || eventsLoading}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${(loading || eventsLoading) ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
+          <div className="flex items-center gap-2">
+            <AddFilesDialog
+              datasetId={dataset.id}
+              onSeeded={fetchEvents}
+            />
+            <Button variant="outline" onClick={handleRefresh} disabled={loading || eventsLoading}>
+              <RefreshCw className={`h-4 w-4 mr-2 ${(loading || eventsLoading) ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </div>
         }
         fixed={true}
       />

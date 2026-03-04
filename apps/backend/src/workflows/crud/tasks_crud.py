@@ -1,5 +1,6 @@
 import asyncio
 from datetime import timedelta
+from typing import Any
 
 from pydantic import BaseModel, Field
 from restack_ai.workflow import (
@@ -16,7 +17,9 @@ from src.constants import TASK_QUEUE
 
 with import_functions():
     from src.functions.agents_crud import (
+        AgentIdInput,
         AgentResolveInput,
+        agents_get_public,
         agents_resolve_by_name,
     )
     from src.functions.llm_response_stream import Message
@@ -47,6 +50,14 @@ with import_functions():
 
 
 # Input models for workflows
+class CreateTaskForPublicAgentInput(BaseModel):
+    """Input for creating a task from the public chat page (no auth)."""
+
+    agent_id: str = Field(..., min_length=1)
+    title: str = Field(..., min_length=1, max_length=255)
+    description: str = Field(..., min_length=1)
+
+
 class PlaygroundCreateDualTasksInput(BaseModel):
     workspace_id: str = Field(..., min_length=1)
     task_description: str = Field(..., min_length=1)
@@ -181,6 +192,138 @@ class TasksCreateWorkflow:
         else:
             # Return the updated result with temporal_agent_id set
             return updated_result
+
+
+@workflow.defn()
+class CreateTaskForPublicAgentWorkflow:
+    """Create a task for a public agent (visitor chat without login)."""
+
+    @workflow.run
+    async def run(
+        self,
+        workflow_input: CreateTaskForPublicAgentInput,
+    ) -> TaskSingleOutput:
+        log.info("CreateTaskForPublicAgentWorkflow started")
+        public_result = await workflow.step(
+            function=agents_get_public,
+            function_input=AgentIdInput(
+                agent_id=workflow_input.agent_id
+            ),
+            task_queue=TASK_QUEUE,
+            start_to_close_timeout=timedelta(seconds=10),
+        )
+        _agent = (
+            public_result.get("agent")
+            if isinstance(public_result, dict)
+            else getattr(public_result, "agent", None)
+        )
+        if not _agent:
+            raise NonRetryableError(
+                message="Agent not found or not public"
+            )
+        _workspace_id = (
+            _agent.get("workspace_id")
+            if isinstance(_agent, dict)
+            else getattr(_agent, "workspace_id", None)
+        )
+        _team_id = (
+            _agent.get("team_id")
+            if isinstance(_agent, dict)
+            else getattr(_agent, "team_id", None)
+        )
+        if not _workspace_id:
+            raise NonRetryableError(
+                message="Public agent has no workspace_id; cannot create task"
+            )
+        task_input = TaskCreateInput(
+            workspace_id=str(_workspace_id),
+            agent_id=workflow_input.agent_id,
+            title=workflow_input.title,
+            description=workflow_input.description,
+            status="in_progress",
+            assigned_to_id=None,
+            team_id=_team_id,
+        )
+        result = await workflow.step(
+            function=tasks_create,
+            function_input=task_input,
+            task_queue=TASK_QUEUE,
+            start_to_close_timeout=timedelta(seconds=2),
+        )
+        # Activity may return Pydantic model or dict
+        _task = (
+            result.get("task")
+            if isinstance(result, dict)
+            else getattr(result, "task", None)
+        )
+        if not _task:
+            raise NonRetryableError(
+                message="tasks_create did not return a task"
+            )
+
+        def _get(o: object, k: str, d: Any = None) -> Any:
+            return (
+                o.get(k, d)
+                if isinstance(o, dict)
+                else getattr(o, k, d)
+            )
+
+        temporal_parent_agent_id = _get(
+            _task, "temporal_parent_agent_id"
+        )
+        # Use workflow_input.agent_id so the child always gets the correct agent (task result may not serialize agent_id)
+        agent_task = await workflow.child_start(
+            agent_id=f"task_agent_{_get(_task, 'id')}",
+            agent=AgentTask,
+            agent_input=AgentTaskInput(
+                title=_get(_task, "title", ""),
+                description=_get(_task, "description") or "",
+                status=_get(_task, "status", "in_progress"),
+                agent_id=workflow_input.agent_id,
+                assigned_to_id=None,
+                user_id=None,
+                workspace_id=_get(_task, "workspace_id"),
+                task_id=_get(_task, "id"),
+                parent_task_id=_get(_task, "parent_task_id"),
+                temporal_parent_agent_id=temporal_parent_agent_id,
+            ),
+            task_queue=TASK_QUEUE,
+            parent_close_policy=ParentClosePolicy.ABANDON,
+        )
+        await workflow.step(
+            function=tasks_update_agent_task_id,
+            function_input=TaskUpdateAgentTaskIdInput(
+                task_id=str(_get(_task, "id")),
+                temporal_agent_id=agent_task.id,
+            ),
+            task_queue=TASK_QUEUE,
+        )
+        await workflow.step(
+            function=send_agent_event,
+            function_input=SendAgentEventInput(
+                event_name="messages",
+                temporal_agent_id=agent_task.id,
+                event_input={
+                    "messages": [
+                        Message(
+                            role="user",
+                            content=(
+                                _get(_task, "description") or ""
+                            ),
+                        ).model_dump()
+                    ],
+                },
+            ),
+            task_queue=TASK_QUEUE,
+        )
+        return await workflow.step(
+            function=tasks_get_by_id,
+            function_input=TaskGetByIdInput(
+                task_id=str(_get(_task, "id"))
+            ),
+            task_queue=TASK_QUEUE,
+            start_to_close_timeout=timedelta(seconds=5),
+        )
 
 
 @workflow.defn()

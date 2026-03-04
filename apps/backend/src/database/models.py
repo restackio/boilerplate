@@ -216,6 +216,7 @@ class Agent(Base):
     reasoning_effort = Column(
         String(20), nullable=False, default="medium"
     )
+    is_public = Column(Boolean, nullable=False, default=False)
 
     created_at = Column(
         DateTime,
@@ -764,4 +765,6 @@ class MetricAgent(Base):
     metric_definition = relationship(
         "MetricDefinition", back_populates="metric_agents"
     )
-    parent_agent = relationship("Agent", back_populates="metric_agents")
+    parent_agent = relationship(
+        "Agent", back_populates="metric_agents"
+    )
