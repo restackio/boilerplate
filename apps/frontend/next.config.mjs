@@ -26,6 +26,10 @@ const nextConfig = {
     webpackBuildWorker: true,
     // Optimize package imports
     optimizePackageImports: ['@workspace/ui'],
+    // Allow large payloads for Add files (base64 files sent via server action)
+    serverActions: {
+      bodySizeLimit: '50mb',
+    },
   },
 }
 

@@ -1,12 +1,12 @@
 import { TooltipProvider } from "@workspace/ui/components/ui/tooltip";
 import { Skeleton } from "@workspace/ui/components/ui/skeleton";
 import { PageHeader } from "@workspace/ui/components/page-header";
-import { Settings, Webhook, Workflow, History } from "lucide-react";
+import { Settings, Webhook, Share2, History } from "lucide-react";
 
 const tabsConfig = [
   { id: "setup", label: "Setup", icon: Settings },
   { id: "webhooks", label: "Webhooks", icon: Webhook },
-  { id: "flow", label: "Flow", icon: Workflow },
+  { id: "sharing", label: "Public URL", icon: Share2 },
   { id: "versions", label: "Version history", icon: History },
 ];
 

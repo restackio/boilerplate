@@ -29,6 +29,7 @@ export interface Agent {
   type?: "interactive" | "pipeline";
   team_id?: string;
   team_name?: string;
+  is_public?: boolean;
   created_at?: string;
   updated_at?: string;
   version_count?: number;
@@ -190,8 +191,8 @@ async function executeWorkflow<T>(
         };
       }
       
-      // For single responses (e.g., AgentsCreateWorkflow returns { agent: {...} })
-      if ('agent' in result && result.agent) {
+      // For single agent responses (e.g. AgentsGetByIdWorkflow returns { agent } or { agent: null })
+      if ('agent' in result) {
         return {
           success: true,
           data: result.agent as T,
@@ -456,14 +457,11 @@ export function useWorkspaceScopedActions() {
     }
 
     try {
-
-      const result = await executeWorkflow<Agent>("AgentsGetByIdWorkflow", {
+      // executeWorkflow already unwraps { agent } -> data for single-entity responses
+      return await executeWorkflow<Agent | null>("AgentsGetByIdWorkflow", {
         agent_id: agentId,
         workspace_id: currentWorkspaceId
       });
-
-      
-      return result;
     } catch (error) {
       console.error("[useWorkspaceScopedActions] Error in getAgentById:", error);
       return { success: false, error: "Failed to get agent" };

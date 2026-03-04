@@ -119,7 +119,9 @@ async def workspaces_create(
                 user_workspace_id = uuid.uuid4()
                 user_workspace = UserWorkspace(
                     id=user_workspace_id,
-                    user_id=uuid.UUID(workspace_data.created_by_user_id),
+                    user_id=uuid.UUID(
+                        workspace_data.created_by_user_id
+                    ),
                     workspace_id=workspace.id,
                     role="owner",
                 )

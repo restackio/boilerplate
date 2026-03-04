@@ -38,5 +38,14 @@ async def send_agent_event(
         )
 
     except Exception as e:
+        err_msg = str(e).lower()
+        if (
+            "workflow execution already completed" in err_msg
+            or "already completed" in err_msg
+        ):
+            return SendAgentEventOutput(
+                success=True,
+                message=f"Target workflow {function_input.temporal_agent_id} already completed; event '{function_input.event_name}' skipped",
+            )
         msg = f"send_agent_event failed: {e}"
         raise NonRetryableError(msg) from e

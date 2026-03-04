@@ -61,7 +61,9 @@ export function useAgentPage(agentId: string) {
           reasoning_effort: result.data.reasoning_effort || "medium",
         });
       } else {
-        console.error("Failed to fetch agent:", result.error);
+        if (!result.success) {
+          console.error("Failed to fetch agent:", result.error);
+        }
         setAgent(null);
       }
     } catch (error) {

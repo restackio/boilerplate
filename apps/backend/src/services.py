@@ -51,6 +51,9 @@ from src.functions.datasets_crud import (
     datasets_read,
     query_dataset_events,
 )
+from src.functions.embed_anything_ingestion import (
+    embed_anything_pdf_to_events,
+)
 from src.functions.feedback_metrics import (
     get_detailed_feedbacks,
     get_feedback_analytics,
@@ -208,6 +211,7 @@ from src.workflows.crud.auth_crud import (
     UserSignupWorkflow,
 )
 from src.workflows.crud.datasets_crud import (
+    AddFilesToDatasetWorkflow,
     DatasetsCreateWorkflow,
     DatasetsGetByIdWorkflow,
     DatasetsReadWorkflow,
@@ -363,6 +367,7 @@ async def run_restack_service() -> None:
             DatasetsCreateWorkflow,
             DatasetsGetByIdWorkflow,
             QueryDatasetEventsWorkflow,
+            AddFilesToDatasetWorkflow,
             McpServersReadWorkflow,
             McpServersCreateWorkflow,
             McpServersUpdateWorkflow,
@@ -479,6 +484,7 @@ async def run_restack_service() -> None:
             # Data ingestion functions
             ingest_pipeline_events,
             query_clickhouse_data,
+            embed_anything_pdf_to_events,
             mcp_servers_read,
             mcp_servers_create,
             mcp_servers_update,

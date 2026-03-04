@@ -1,6 +1,7 @@
 export type { AgentConfigData } from './agent-configuration-form';
 export { AgentConfigurationForm } from './agent-configuration-form';
 export { AgentSetupTab } from './agent-setup-tab';
+export { AgentSharingTab } from './agent-sharing-tab';
 export { AgentVersionsTab } from './agent-versions-tab';
 export { DeleteAgentDialog, ArchiveAgentDialog } from './delete-agent-dialog';
 export { AgentToolsManager } from './agent-tools-manager';

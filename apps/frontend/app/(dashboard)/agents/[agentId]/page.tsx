@@ -32,6 +32,7 @@ export default function AgentEditPage() {
     handleDelete,
     handleArchive,
     getAgentVersions,
+    fetchAgent,
   } = useAgentPage(agentId);
 
   if (!isReady || isLoading) {
@@ -85,6 +86,7 @@ export default function AgentEditPage() {
               workspaceId={workspaceId}
               agentId={agentId}
               getAgentVersions={getAgentVersions}
+              onAgentUpdated={fetchAgent}
             />
           </div>
         </div>

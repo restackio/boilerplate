@@ -2,7 +2,7 @@ import uuid
 from datetime import UTC, datetime
 
 from pydantic import BaseModel, Field
-from restack_ai.function import NonRetryableError, function
+from restack_ai.function import NonRetryableError, function, log
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import selectinload
 
@@ -50,7 +50,10 @@ class AgentCreateInput(BaseModel):
     reasoning_effort: str = Field(
         default="medium", pattern="^(none|low|medium|high)$"
     )
-    team_id: str | None = Field(default=None, description="If provided, create the agent in the specified team")
+    team_id: str | None = Field(
+        default=None,
+        description="If provided, create the agent in the specified team",
+    )
     # Note: MCP relationships are now created through the agent tools workflow
     # which requires specific tool names, not through agent creation
 
@@ -103,10 +106,15 @@ class AgentUpdateInput(BaseModel):
     reasoning_effort: str | None = Field(
         None, pattern="^(none|low|medium|high)$"
     )
+    is_public: bool | None = None
 
 
 class AgentIdInput(BaseModel):
     agent_id: str = Field(..., min_length=1)
+    public_only: bool = Field(
+        default=False,
+        description="If True, return agent only when is_public and status=published",
+    )
 
 
 class AgentGetByStatusInput(BaseModel):
@@ -130,7 +138,10 @@ class AgentGetByWorkspaceInput(BaseModel):
         default=False,
         description="If true, return only parent agents",
     )
-    team_id: str | None = Field(default=None, description="If provided, return only agents in the specified team")
+    team_id: str | None = Field(
+        default=None,
+        description="If provided, return only agents in the specified team",
+    )
 
 
 # Pydantic models for output serialization
@@ -149,6 +160,7 @@ class AgentOutput(BaseModel):
     # New GPT-5 model configuration fields
     model: str = DEFAULT_AGENT_MODEL
     reasoning_effort: str = "medium"
+    is_public: bool = False
 
     created_at: str | None
     updated_at: str | None
@@ -167,6 +179,12 @@ class AgentListOutput(BaseModel):
 
 class AgentSingleOutput(BaseModel):
     agent: AgentOutput
+
+
+class AgentGetByIdOutput(BaseModel):
+    """Result of get-by-id; agent is None when not found."""
+
+    agent: AgentOutput | None
 
 
 class AgentDeleteOutput(BaseModel):
@@ -213,7 +231,9 @@ def get_latest_agent_versions(
                     description=latest_agent.description,
                     instructions=latest_agent.instructions,
                     status=latest_agent.status,
-                    is_draft=latest_agent.is_draft,
+                    is_public=getattr(
+                        latest_agent, "is_public", False
+                    ),
                     parent_agent_id=str(
                         latest_agent.parent_agent_id
                     )
@@ -330,6 +350,9 @@ async def agents_read(
                         else None,
                         name=agent.name,
                         description=agent.description,
+                        is_public=getattr(
+                            agent, "is_public", False
+                        ),
                         instructions=agent.instructions,
                         status=agent.status,
                         parent_agent_id=str(agent.parent_agent_id)
@@ -411,14 +434,10 @@ def _process_agent_group(
 
     # Determine which agent to show in the table
     # Priority: latest published version, fallback to latest overall if no published version
-    display_agent = (
-        published_agent
-        if published_agent
-        else max(
-            group_agents,
-            key=lambda x: x.updated_at
-            or datetime.min.replace(tzinfo=UTC),
-        )
+    display_agent = published_agent or max(
+        group_agents,
+        key=lambda x: x.updated_at
+        or datetime.min.replace(tzinfo=UTC),
     )
 
     # Create short UUID for published version
@@ -564,7 +583,8 @@ async def agents_read_table(
             # Apply team_id filter if requested
             if function_input.team_id:
                 all_agents_query = all_agents_query.where(
-                    Agent.team_id == uuid.UUID(function_input.team_id)
+                    Agent.team_id
+                    == uuid.UUID(function_input.team_id)
                 )
 
             all_agents_query = all_agents_query.order_by(
@@ -636,7 +656,9 @@ async def agents_create(
                 # New GPT-5 model configuration fields
                 model=agent_data.model,
                 reasoning_effort=agent_data.reasoning_effort,
-                team_id=uuid.UUID(agent_data.team_id) if agent_data.team_id else None,
+                team_id=uuid.UUID(agent_data.team_id)
+                if agent_data.team_id
+                else None,
             )
             db.add(agent)
             await db.commit()
@@ -662,6 +684,7 @@ async def agents_create(
                 model=agent.model or DEFAULT_AGENT_MODEL,
                 reasoning_effort=agent.reasoning_effort
                 or "medium",
+                is_public=getattr(agent, "is_public", False),
                 created_at=agent.created_at.isoformat()
                 if agent.created_at
                 else None,
@@ -745,6 +768,7 @@ async def agents_update(
                 model=agent.model or DEFAULT_AGENT_MODEL,
                 reasoning_effort=agent.reasoning_effort
                 or "medium",
+                is_public=getattr(agent, "is_public", False),
                 created_at=agent.created_at.isoformat()
                 if agent.created_at
                 else None,
@@ -823,26 +847,35 @@ async def agents_delete(
 @function.defn()
 async def agents_get_by_id(
     function_input: AgentIdInput,
-) -> AgentSingleOutput:
-    """Get agent by ID."""
+) -> AgentGetByIdOutput:
+    """Get agent by ID. Returns agent=None when not found (no exception)."""
+    if isinstance(function_input, dict):
+        function_input = AgentIdInput.model_validate(
+            function_input
+        )
+    agent_id = function_input.agent_id
     async for db in get_async_db():
         try:
-            # Get the specific agent by ID
             agent_query = (
                 select(Agent)
                 .options(selectinload(Agent.team))
-                .where(
-                    Agent.id == uuid.UUID(function_input.agent_id)
-                )
+                .where(Agent.id == uuid.UUID(agent_id))
             )
             result = await db.execute(agent_query)
             agent = result.scalar_one_or_none()
 
+            log.info(
+                f"agents_get_by_id: agent_id={agent_id} agent={'found' if agent else 'None'}"
+            )
+
             if not agent:
-                raise NonRetryableError(  # noqa: TRY301
-                    message=f"Agent with id {function_input.agent_id} not found"
-                )
-            result = AgentOutput(
+                return AgentGetByIdOutput(agent=None)
+            if function_input.public_only and (
+                not getattr(agent, "is_public", False)
+                or agent.status != "published"
+            ):
+                return AgentGetByIdOutput(agent=None)
+            out = AgentOutput(
                 id=str(agent.id),
                 workspace_id=str(agent.workspace_id),
                 team_id=str(agent.team_id)
@@ -862,6 +895,7 @@ async def agents_get_by_id(
                 model=agent.model or DEFAULT_AGENT_MODEL,
                 reasoning_effort=agent.reasoning_effort
                 or "medium",
+                is_public=getattr(agent, "is_public", False),
                 created_at=agent.created_at.isoformat()
                 if agent.created_at
                 else None,
@@ -869,12 +903,14 @@ async def agents_get_by_id(
                 if agent.updated_at
                 else None,
             )
-            return AgentSingleOutput(agent=result)
+            return AgentGetByIdOutput(agent=out)
+        except (ValueError, TypeError):
+            return AgentGetByIdOutput(agent=None)
         except Exception as e:
             raise NonRetryableError(
                 message=f"Failed to get agent: {e!s}"
             ) from e
-    return None
+    return AgentGetByIdOutput(agent=None)
 
 
 @function.defn()

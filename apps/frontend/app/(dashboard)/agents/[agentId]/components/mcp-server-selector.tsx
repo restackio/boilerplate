@@ -87,7 +87,7 @@ export function McpServerSelector({ agentId, workspaceId, onMcpServersChange }: 
       try {
         const result = await getAgentMcpServers(agentId);
         if (result && result.agent_mcp_servers) {
-          setAgentMcpServers(result.agent_mcp_servers);
+          setAgentMcpServers((result.agent_mcp_servers ?? []) as AgentMcpServer[]);
         }
       } catch (error) {
         console.error("Error loading agent MCP servers:", error);
