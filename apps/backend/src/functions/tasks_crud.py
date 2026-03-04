@@ -1,8 +1,7 @@
-import logging
 import uuid
 
 from pydantic import BaseModel, Field, field_validator
-from restack_ai.function import NonRetryableError, function
+from restack_ai.function import NonRetryableError, function, log
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
@@ -358,9 +357,7 @@ async def tasks_create(
             return TaskSingleOutput(task=result)
         except Exception as e:
             await db.rollback()
-            logging.getLogger(__name__).exception(
-                "tasks_create activity failed"
-            )
+            log.error(f"tasks_create activity failed: {e!s}")
             raise NonRetryableError(
                 message=f"Failed to create task: {e!s}"
             ) from e

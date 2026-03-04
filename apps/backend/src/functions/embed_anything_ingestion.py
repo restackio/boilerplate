@@ -57,7 +57,7 @@ class EmbedAnythingPdfInput(BaseModel):
     content_base64: str = Field(
         ..., description="PDF content as base64"
     )
-    agent_id: str = Field(..., min_length=1)
+    agent_id: str | None = Field(..., min_length=1)
     workspace_id: str = Field(..., min_length=1)
     dataset_id: str = Field(
         ..., description="Dataset name for events"
@@ -132,7 +132,7 @@ async def embed_anything_pdf_to_events(
                 except (TypeError, ValueError):
                     emb = []
             event = PipelineEventInput(
-                agent_id=input_data.agent_id,
+                agent_id=input_data.agent_id or "",
                 task_id=input_data.task_id,
                 workspace_id=input_data.workspace_id,
                 dataset_id=input_data.dataset_id,

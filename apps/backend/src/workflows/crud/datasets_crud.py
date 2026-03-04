@@ -148,9 +148,6 @@ class QueryDatasetEventsWorkflow:
 # --- Seed dataset from PDFs (EmbedAnything: one workflow, no API key) ---
 
 
-# Default agent_id for file ingestion when not provided (attribution only, no UI choice)
-FILE_INGESTION_AGENT_ID = "e0000000-0000-0000-0000-00000000000e"
-
 
 class AddFilesToDatasetInput(BaseModel):
     """Input for adding files to a dataset. Files as base64; EmbedAnything does extract+embed."""
@@ -160,10 +157,6 @@ class AddFilesToDatasetInput(BaseModel):
         ...,
         min_length=1,
         description="Dataset UUID; events are stored with this id for scoped queries.",
-    )
-    agent_id: str | None = Field(
-        default=None,
-        description="Optional; uses default file-ingestion agent when omitted",
     )
     task_id: str | None = None
     files_with_content: list[dict[str, Any]] = Field(
@@ -230,9 +223,6 @@ class AddFilesToDatasetWorkflow:
                     f"{filename}: missing content_base64"
                 )
                 continue
-            agent_id = (
-                workflow_input.agent_id or FILE_INGESTION_AGENT_ID
-            )
             # One step: file → events (extract + chunk + embed via EmbedAnything)
             try:
                 to_events_result = await workflow.step(
@@ -240,7 +230,6 @@ class AddFilesToDatasetWorkflow:
                     function_input=EmbedAnythingPdfInput(
                         filename=filename,
                         content_base64=content_b64,
-                        agent_id=agent_id,
                         workspace_id=workflow_input.workspace_id,
                         dataset_id=workflow_input.dataset_id,
                         task_id=workflow_input.task_id,
