@@ -405,8 +405,8 @@ async def ingest_performance_metrics(
         # Import here to avoid circular dependencies
         from src.utils.pricing import calculate_cost
 
-        # Use the model from input_data if available, otherwise default to GPT-5
-        model_name = getattr(input_data, "model", None) or "gpt-5"
+        # Use the model from input_data if available, otherwise default to GPT-5.2
+        model_name = getattr(input_data, "model", None) or "gpt-5.2"
         cost_usd = calculate_cost(
             input_data.input_tokens,
             input_data.output_tokens,
