@@ -19,6 +19,7 @@ class ModelPricing(NamedTuple):
 # Source: https://openai.com/api/pricing/ (updated Mar 2026)
 MODEL_PRICING = {
     # GPT-5.2 Family (flagship)
+    "gpt-5.3-chat-latest": ModelPricing(1.75, 0.175, 14.00),
     "gpt-5.2": ModelPricing(1.75, 0.175, 14.00),
     "gpt-5.2-chat-latest": ModelPricing(1.75, 0.175, 14.00),
     "gpt-5.2-codex": ModelPricing(1.75, 0.175, 14.00),

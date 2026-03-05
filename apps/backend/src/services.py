@@ -49,6 +49,8 @@ from src.functions.datasets_crud import (
     datasets_create,
     datasets_get_by_id,
     datasets_read,
+    delete_dataset_events_by_source,
+    list_dataset_files,
     query_dataset_events,
 )
 from src.functions.embed_anything_ingestion import (
@@ -215,6 +217,8 @@ from src.workflows.crud.datasets_crud import (
     DatasetsCreateWorkflow,
     DatasetsGetByIdWorkflow,
     DatasetsReadWorkflow,
+    DeleteDatasetEventsBySourceWorkflow,
+    ListDatasetFilesWorkflow,
     QueryDatasetEventsWorkflow,
 )
 from src.workflows.crud.mcp_oauth_sdk import (
@@ -367,6 +371,8 @@ async def run_restack_service() -> None:
             DatasetsCreateWorkflow,
             DatasetsGetByIdWorkflow,
             QueryDatasetEventsWorkflow,
+            ListDatasetFilesWorkflow,
+            DeleteDatasetEventsBySourceWorkflow,
             AddFilesToDatasetWorkflow,
             McpServersReadWorkflow,
             McpServersCreateWorkflow,
@@ -480,6 +486,8 @@ async def run_restack_service() -> None:
             datasets_read,
             datasets_get_by_id,
             query_dataset_events,
+            list_dataset_files,
+            delete_dataset_events_by_source,
             datasets_create,
             # Data ingestion functions
             ingest_pipeline_events,

@@ -24,7 +24,11 @@ import {
 import { Switch } from "@workspace/ui/components/ui/switch";
 import { Loader2, Trash2, Play, X, Search } from "lucide-react";
 import { Slider } from "@workspace/ui/components/ui/slider";
-import { updateMetric, deleteMetric, runRetroactiveEvaluation } from "@/app/actions/metrics";
+import {
+  updateMetric,
+  deleteMetric,
+  runRetroactiveEvaluation,
+} from "@/app/actions/metrics";
 import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
 
 interface EditMetricDialogProps {
@@ -62,26 +66,34 @@ export function EditMetricDialog({
 
   // Parse config
   const parsedConfig = typeof config === "string" ? JSON.parse(config) : config;
-  
+
   // Form state
   const [name, setName] = useState(initialMetricName);
   const [description, setDescription] = useState(initialDescription || "");
   const [isActive, setIsActive] = useState(initialIsActive);
   const metricType = initialMetricType || "llm_judge";
-  
+
   // LLM Judge config
-  const [judgePrompt, setJudgePrompt] = useState(parsedConfig.judge_prompt || "");
-  const [judgeModel, setJudgeModel] = useState(parsedConfig.judge_model || "gpt-5-nano");
+  const [judgePrompt, setJudgePrompt] = useState(
+    parsedConfig.judge_prompt || "",
+  );
+  const [judgeModel, setJudgeModel] = useState(
+    parsedConfig.judge_model || "gpt-5-nano",
+  );
 
   // Python Code config
   const [pythonCode, setPythonCode] = useState(parsedConfig.code || "");
 
   // Formula config
   const [formula, setFormula] = useState(parsedConfig.formula || "");
-  const [formulaVariables, setFormulaVariables] = useState<string[]>(parsedConfig.variables || []);
+  const [formulaVariables, setFormulaVariables] = useState<string[]>(
+    parsedConfig.variables || [],
+  );
 
   // Parent agents selection
-  const [selectedParentAgentIds, setSelectedParentAgentIds] = useState<string[]>(initialParentAgentIds || []);
+  const [selectedParentAgentIds, setSelectedParentAgentIds] = useState<
+    string[]
+  >(initialParentAgentIds || []);
   const [agentSearchQuery, setAgentSearchQuery] = useState("");
   const { agents, fetchAgents } = useWorkspaceScopedActions();
 
@@ -114,7 +126,14 @@ export function EditMetricDialog({
       setSuccess(null);
       setShowDeleteConfirm(false);
     }
-  }, [open, initialMetricName, initialDescription, initialIsActive, initialParentAgentIds, parsedConfig]);
+  }, [
+    open,
+    initialMetricName,
+    initialDescription,
+    initialIsActive,
+    initialParentAgentIds,
+    parsedConfig,
+  ]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -168,7 +187,7 @@ export function EditMetricDialog({
       if (result) {
         setSuccess("Metric updated successfully");
         onMetricUpdated?.();
-        
+
         // Close dialog after a brief delay
         setTimeout(() => {
           onOpenChange(false);
@@ -217,7 +236,7 @@ export function EditMetricDialog({
       // Calculate date range
       const now = new Date();
       const weeksAgo = new Date(now);
-      weeksAgo.setDate(weeksAgo.getDate() - (retroactiveWeeks * 7));
+      weeksAgo.setDate(weeksAgo.getDate() - retroactiveWeeks * 7);
 
       const result = await runRetroactiveEvaluation({
         workspace_id: workspaceId,
@@ -229,7 +248,7 @@ export function EditMetricDialog({
 
       if (result.success) {
         setSuccess(
-          `Retroactive evaluation started on ${samplePercentage}% of traces from last ${retroactiveWeeks} weeks. Check back shortly to see results.`
+          `Retroactive evaluation started on ${samplePercentage}% of traces from last ${retroactiveWeeks} weeks. Check back shortly to see results.`,
         );
         setRunRetroactive(false);
         onMetricUpdated?.();
@@ -237,7 +256,11 @@ export function EditMetricDialog({
         setError(result.error || "Failed to start retroactive evaluation");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to start retroactive evaluation");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to start retroactive evaluation",
+      );
     } finally {
       setRetroLoading(false);
     }
@@ -317,24 +340,35 @@ export function EditMetricDialog({
               <div className="space-y-2">
                 <Label>Associated agents</Label>
                 <p className="text-xs text-muted-foreground">
-                  Select parent agents to evaluate. The metric will run on all versions of these agents. Leave empty to run for all agents.
+                  Select parent agents to evaluate. The metric will run on all
+                  versions of these agents. Leave empty to run for all agents.
                 </p>
-                
+
                 {/* Selected agents badges */}
                 {selectedParentAgentIds.length > 0 && (
                   <div className="flex flex-wrap gap-2 mb-2">
                     {selectedParentAgentIds.map((agentId) => {
-                      const agent = agents.find((a) => a.id === agentId && !a.parent_agent_id);
+                      const agent = agents.find(
+                        (a) => a.id === agentId && !a.parent_agent_id,
+                      );
                       if (!agent) return null;
                       return (
                         <Badge key={agentId} className="gap-1.5 pr-1">
-                          <span className="max-w-[200px] truncate">{agent.name}</span>
+                          <span className="max-w-[200px] truncate">
+                            {agent.name}
+                          </span>
                           <Button
                             type="button"
                             variant="ghost"
                             size="sm"
                             className="h-4 w-4 p-0 hover:bg-transparent"
-                            onClick={() => setSelectedParentAgentIds(selectedParentAgentIds.filter((id) => id !== agentId))}
+                            onClick={() =>
+                              setSelectedParentAgentIds(
+                                selectedParentAgentIds.filter(
+                                  (id) => id !== agentId,
+                                ),
+                              )
+                            }
                             disabled={loading}
                           >
                             <X className="h-3 w-3" />
@@ -366,20 +400,29 @@ export function EditMetricDialog({
                             // Only show parent agents (not versions)
                             !agent.parent_agent_id &&
                             !selectedParentAgentIds.includes(agent.id) &&
-                            (agent.name.toLowerCase().includes(agentSearchQuery.toLowerCase()) ||
-                              agent.description?.toLowerCase().includes(agentSearchQuery.toLowerCase()))
+                            (agent.name
+                              .toLowerCase()
+                              .includes(agentSearchQuery.toLowerCase()) ||
+                              agent.description
+                                ?.toLowerCase()
+                                .includes(agentSearchQuery.toLowerCase())),
                         )
                         .map((agent) => (
                           <div
                             key={agent.id}
                             className="flex items-center justify-between p-2 hover:bg-muted cursor-pointer"
                             onClick={() => {
-                              setSelectedParentAgentIds([...selectedParentAgentIds, agent.id]);
+                              setSelectedParentAgentIds([
+                                ...selectedParentAgentIds,
+                                agent.id,
+                              ]);
                               setAgentSearchQuery("");
                             }}
                           >
                             <div>
-                              <p className="text-sm font-medium">{agent.name}</p>
+                              <p className="text-sm font-medium">
+                                {agent.name}
+                              </p>
                               {agent.description && (
                                 <p className="text-xs text-muted-foreground truncate max-w-xs">
                                   {agent.description}
@@ -393,10 +436,16 @@ export function EditMetricDialog({
                           // Only show parent agents (not versions)
                           !agent.parent_agent_id &&
                           !selectedParentAgentIds.includes(agent.id) &&
-                          (agent.name.toLowerCase().includes(agentSearchQuery.toLowerCase()) ||
-                            agent.description?.toLowerCase().includes(agentSearchQuery.toLowerCase()))
+                          (agent.name
+                            .toLowerCase()
+                            .includes(agentSearchQuery.toLowerCase()) ||
+                            agent.description
+                              ?.toLowerCase()
+                              .includes(agentSearchQuery.toLowerCase())),
                       ).length === 0 && (
-                        <p className="p-2 text-sm text-muted-foreground">No agents found</p>
+                        <p className="p-2 text-sm text-muted-foreground">
+                          No agents found
+                        </p>
                       )}
                     </div>
                   )}
@@ -426,7 +475,11 @@ export function EditMetricDialog({
                 <>
                   <div className="space-y-2">
                     <Label htmlFor="judgeModel">Model</Label>
-                    <Select value={judgeModel} onValueChange={setJudgeModel} disabled={loading}>
+                    <Select
+                      value={judgeModel}
+                      onValueChange={setJudgeModel}
+                      disabled={loading}
+                    >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -443,7 +496,9 @@ export function EditMetricDialog({
                     <Label htmlFor="judgePrompt">Prompt</Label>
                     <Textarea
                       id="judgePrompt"
-                      placeholder={'Example:\n"Evaluate if this response is helpful and answers the user\'s question clearly. Consider accuracy, completeness, and tone.'}
+                      placeholder={
+                        "Example:\n\"Evaluate if this response is helpful and answers the user's question clearly. Consider accuracy, completeness, and tone."
+                      }
                       value={judgePrompt}
                       onChange={(e) => setJudgePrompt(e.target.value)}
                       rows={6}
@@ -451,7 +506,8 @@ export function EditMetricDialog({
                       disabled={loading}
                     />
                     <p className="text-xs text-muted-foreground">
-                      LLM will receive the task input and output, and evaluate based on your prompt.
+                      LLM will receive the task input and output, and evaluate
+                      based on your prompt.
                     </p>
                   </div>
                 </>
@@ -463,7 +519,9 @@ export function EditMetricDialog({
                   <Label htmlFor="pythonCode">Python Code</Label>
                   <Textarea
                     id="pythonCode"
-                    placeholder={'def evaluate(task_input, task_output, performance):\n    # Your evaluation logic here\n    # Available variables:\n    # - task_input: str\n    # - task_output: str\n    # - performance: dict with duration_ms, input_tokens, output_tokens, status\n    \n    # Return boolean or dict:\n    return {\n        "passed": True,\n        "score": 85.0,  # optional\n        "reasoning": "Response meets criteria"  # optional\n    }'}
+                    placeholder={
+                      'def evaluate(task_input, task_output, performance):\n    # Your evaluation logic here\n    # Available variables:\n    # - task_input: str\n    # - task_output: str\n    # - performance: dict with duration_ms, input_tokens, output_tokens, status\n    \n    # Return boolean or dict:\n    return {\n        "passed": True,\n        "score": 85.0,  # optional\n        "reasoning": "Response meets criteria"  # optional\n    }'
+                    }
                     value={pythonCode}
                     onChange={(e) => setPythonCode(e.target.value)}
                     rows={12}
@@ -472,8 +530,14 @@ export function EditMetricDialog({
                     disabled={loading}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Define an <code className="bg-muted px-1 rounded">evaluate(task_input, task_output, performance)</code> function. 
-                    Return a boolean or dict with <code className="bg-muted px-1 rounded">passed</code>, <code className="bg-muted px-1 rounded">score</code>, and <code className="bg-muted px-1 rounded">reasoning</code>.
+                    Define an{" "}
+                    <code className="bg-muted px-1 rounded">
+                      evaluate(task_input, task_output, performance)
+                    </code>{" "}
+                    function. Return a boolean or dict with{" "}
+                    <code className="bg-muted px-1 rounded">passed</code>,{" "}
+                    <code className="bg-muted px-1 rounded">score</code>, and{" "}
+                    <code className="bg-muted px-1 rounded">reasoning</code>.
                   </p>
                 </div>
               )}
@@ -493,27 +557,48 @@ export function EditMetricDialog({
                       disabled={loading}
                     />
                     <p className="text-xs text-muted-foreground">
-                      Boolean expression using performance variables. Available: <code className="bg-muted px-1 rounded">duration_ms</code>, <code className="bg-muted px-1 rounded">input_tokens</code>, <code className="bg-muted px-1 rounded">output_tokens</code>, <code className="bg-muted px-1 rounded">cost_usd</code>
+                      Boolean expression using performance variables. Available:{" "}
+                      <code className="bg-muted px-1 rounded">duration_ms</code>
+                      ,{" "}
+                      <code className="bg-muted px-1 rounded">
+                        input_tokens
+                      </code>
+                      ,{" "}
+                      <code className="bg-muted px-1 rounded">
+                        output_tokens
+                      </code>
+                      , <code className="bg-muted px-1 rounded">cost_usd</code>
                     </p>
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label htmlFor="formulaVariables">Variables</Label>
                     <div className="flex gap-2 flex-wrap">
-                      {["duration_ms", "input_tokens", "output_tokens", "cost_usd"].map((variable) => {
+                      {[
+                        "duration_ms",
+                        "input_tokens",
+                        "output_tokens",
+                        "cost_usd",
+                      ].map((variable) => {
                         const isSelected = formulaVariables.includes(variable);
                         const variant = isSelected ? "default" : "outline";
                         return (
                           <Badge
                             key={variable}
-                            variant={variant as "default" | "secondary" | "destructive" | "outline"}
+                            variant={
+                              variant as
+                                | "default"
+                                | "secondary"
+                                | "destructive"
+                                | "outline"
+                            }
                             className="cursor-pointer"
                             onClick={() => {
                               if (!loading) {
                                 setFormulaVariables((prev) =>
                                   prev.includes(variable)
                                     ? prev.filter((v) => v !== variable)
-                                    : [...prev, variable]
+                                    : [...prev, variable],
                                 );
                               }
                             }}
@@ -556,7 +641,8 @@ export function EditMetricDialog({
                       <div className="flex items-center justify-between">
                         <Label>Time range</Label>
                         <span className="text-sm font-medium">
-                          Last {retroactiveWeeks} {retroactiveWeeks === 1 ? "week" : "weeks"}
+                          Last {retroactiveWeeks}{" "}
+                          {retroactiveWeeks === 1 ? "week" : "weeks"}
                         </span>
                       </div>
                       <Slider
@@ -568,7 +654,8 @@ export function EditMetricDialog({
                         className="w-full"
                       />
                       <p className="text-xs text-muted-foreground">
-                        Evaluate tasks from the last {retroactiveWeeks} {retroactiveWeeks === 1 ? "week" : "weeks"}
+                        Evaluate tasks from the last {retroactiveWeeks}{" "}
+                        {retroactiveWeeks === 1 ? "week" : "weeks"}
                       </p>
                     </div>
 
@@ -590,7 +677,8 @@ export function EditMetricDialog({
                       />
                       <p className="text-xs text-muted-foreground">
                         Evaluate {samplePercentage}% of tasks
-                        {samplePercentage < 100 && " (recommended for large datasets)"}
+                        {samplePercentage < 100 &&
+                          " (recommended for large datasets)"}
                       </p>
                     </div>
 
@@ -600,13 +688,18 @@ export function EditMetricDialog({
                       disabled={retroLoading}
                       className="w-full"
                     >
-                      {retroLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      {retroLoading ? "Starting evaluation..." : "Start evaluation"}
+                      {retroLoading && (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      )}
+                      {retroLoading
+                        ? "Starting evaluation..."
+                        : "Start evaluation"}
                     </Button>
 
                     <div className="bg-neutral-50 dark:bg-neutral-950/20 rounded-lg p-3 text-sm">
                       <p className="text-neutral-900 dark:text-neutral-100">
-                        💡 <strong>Tip:</strong> Results will be added to your analytics as they complete. This runs in the background.
+                        💡 <strong>Tip:</strong> Results will be added to your
+                        analytics as they complete. This runs in the background.
                       </p>
                     </div>
                   </div>
@@ -617,7 +710,9 @@ export function EditMetricDialog({
               {!showDeleteConfirm ? (
                 <div className="rounded-lg border border-destructive/50 p-4 space-y-3">
                   <div>
-                    <Label className="text-base text-destructive">Danger Zone</Label>
+                    <Label className="text-base text-destructive">
+                      Danger Zone
+                    </Label>
                     <p className="text-sm text-muted-foreground">
                       Deleting a metric is permanent and cannot be undone.
                     </p>
@@ -636,11 +731,14 @@ export function EditMetricDialog({
               ) : (
                 <div className="rounded-lg border border-destructive p-4 space-y-3 bg-destructive/10">
                   <div>
-                    <Label className="text-base text-destructive">Confirm Deletion</Label>
+                    <Label className="text-base text-destructive">
+                      Confirm Deletion
+                    </Label>
                     <p className="text-sm text-muted-foreground mt-2">
-                      Are you sure you want to delete <strong>{initialMetricName}</strong>?
-                      All historical evaluation data will be preserved, but no new evaluations will be performed.
-                      This action cannot be undone.
+                      Are you sure you want to delete{" "}
+                      <strong>{initialMetricName}</strong>? All historical
+                      evaluation data will be preserved, but no new evaluations
+                      will be performed. This action cannot be undone.
                     </p>
                   </div>
                   <div className="flex gap-2">
@@ -660,7 +758,9 @@ export function EditMetricDialog({
                       disabled={deleteLoading}
                       className="flex-1"
                     >
-                      {deleteLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      {deleteLoading && (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      )}
                       Confirm Delete
                     </Button>
                   </div>
@@ -677,10 +777,7 @@ export function EditMetricDialog({
               >
                 Close
               </Button>
-              <Button
-                type="submit"
-                disabled={loading || deleteLoading}
-              >
+              <Button type="submit" disabled={loading || deleteLoading}>
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {loading ? "Saving..." : "Save changes"}
               </Button>

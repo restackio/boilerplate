@@ -11,7 +11,7 @@ from src.database.models import Agent, AgentSubagent, AgentTool
 
 # Allowed OpenAI model IDs (must match DB constraint and dropdowns)
 AGENT_MODEL_PATTERN = (
-    r"^(gpt-5.2|gpt-5.1|gpt-5|gpt-5-mini|gpt-5-nano|"
+    r"^(gpt-5.3-chat-latest|gpt-5.2|gpt-5.1|gpt-5|gpt-5-mini|gpt-5-nano|"
     r"o3-deep-research|o4-mini-deep-research)$"
 )
 DEFAULT_AGENT_MODEL = "gpt-5.2"
@@ -1130,9 +1130,11 @@ async def agents_update_status(
                     message="Invalid agent_id format"
                 ) from e
 
-            # Get the agent to update
-            agent_query = select(Agent).where(
-                Agent.id == agent_id
+            # Get the agent to update (eager load team to avoid lazy load in async)
+            agent_query = (
+                select(Agent)
+                .where(Agent.id == agent_id)
+                .options(selectinload(Agent.team))
             )
             result = await db.execute(agent_query)
             agent = result.scalar_one_or_none()
@@ -1144,12 +1146,13 @@ async def agents_update_status(
 
             archived_agent_id = None
 
-            # Handle publish workflow - archive any currently published version
+            # Handle publish workflow - archive all currently published versions
+            # (only one published version per agent group is allowed)
             if function_input.status == "published":
                 # Find the root agent ID (parent or self)
                 root_agent_id = agent.parent_agent_id or agent.id
 
-                # Find any currently published agent in this group
+                # Find all currently published agents in this group
                 published_query = select(Agent).where(
                     and_(
                         func.coalesce(
@@ -1159,32 +1162,27 @@ async def agents_update_status(
                         Agent.status == "published",
                     )
                 )
-                published_result = await db.execute(
-                    published_query
-                )
-                currently_published = (
-                    published_result.scalar_one_or_none()
+                published_result = await db.execute(published_query)
+                currently_published_list = list(
+                    published_result.scalars().all()
                 )
 
-                if (
-                    currently_published
-                    and currently_published.id != agent.id
-                ):
-                    currently_published.status = "archived"
-                    currently_published.updated_at = datetime.now(
-                        UTC
-                    )
-                    archived_agent_id = str(
-                        currently_published.id
-                    )
+                for published_agent in currently_published_list:
+                    if published_agent.id != agent.id:
+                        published_agent.status = "archived"
+                        published_agent.updated_at = datetime.now(
+                            UTC
+                        ).replace(tzinfo=None)
+                        if archived_agent_id is None:
+                            archived_agent_id = str(published_agent.id)
 
             # Update the target agent status
             agent.status = function_input.status
-            agent.updated_at = datetime.now(UTC)
+            agent.updated_at = datetime.now(UTC).replace(tzinfo=None)
 
             await db.commit()
-            await db.refresh(agent)
-
+            # Build response from in-memory state (avoid refresh to prevent
+            # expiring agent.team and triggering lazy load in async context)
             return AgentUpdateStatusOutput(
                 agent=AgentOutput(
                     id=str(agent.id),

@@ -135,13 +135,12 @@ interface AgentsTableProps {
   showTeamFilter?: boolean;
 }
 
-// Helper function to get the correct agent ID for navigation
+// Helper function to get the correct agent ID for navigation (default: open published version when present)
 function getAgentNavigationId(agent: Agent): string {
+  // Prefer opening the published version when it exists so the list opens the live version, not the parent/root
+  if (agent.published_version_id) return agent.published_version_id;
   // For draft agents, use the latest draft version ID if available
-  if (agent.status === 'draft' && agent.latest_draft_version_id) {
-    return agent.latest_draft_version_id;
-  }
-  // For published/archived agents, use the main agent ID
+  if (agent.status === 'draft' && agent.latest_draft_version_id) return agent.latest_draft_version_id;
   return agent.id;
 }
 

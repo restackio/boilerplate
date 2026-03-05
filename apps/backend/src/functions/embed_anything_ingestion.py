@@ -13,7 +13,7 @@ from typing import Any
 
 import anyio
 from pydantic import BaseModel, Field
-from restack_ai.function import function, log
+from restack_ai.function import function, heartbeat, log
 
 from src.functions.data_ingestion import PipelineEventInput
 
@@ -128,6 +128,8 @@ async def embed_anything_pdf_to_events(
         # data is list of EmbedData (text, embedding, metadata)
         events: list[dict[str, Any]] = []
         for i, item in enumerate(data):
+            if i > 0 and i % 10 == 0:
+                heartbeat(f"embed_anything: processing chunk {i}/{len(data)}")
             text = getattr(item, "text", "") or ""
             emb = getattr(item, "embedding", None)
             meta = getattr(item, "metadata", None) or {}
@@ -159,7 +161,6 @@ async def embed_anything_pdf_to_events(
                 event_timestamp=None,
             )
             events.append(event.model_dump())
-
         return EmbedAnythingPdfOutput(
             events=events,
             chunks_count=len(events),
