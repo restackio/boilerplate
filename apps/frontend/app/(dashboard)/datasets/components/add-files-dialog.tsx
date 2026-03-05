@@ -9,7 +9,18 @@ import {
 } from "@workspace/ui/components/quick-action-dialog";
 import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
 import { FileUp, FileText } from "lucide-react";
-import { addFilesToDataset } from "@/app/actions/workflow";
+import {
+  scheduleAddFilesToDatasetWorkflow,
+  getWorkflowResult,
+} from "@/app/actions/workflow";
+import {
+  GRPC_MESSAGE_LIMIT_BYTES,
+  SAFE_PAYLOAD_BYTES,
+  splitPdfIntoParts,
+  batchUnderLimit,
+} from "../lib/pdf-split";
+
+const LOG_PREFIX = "[AddFilesToDataset]";
 
 function readFileAsBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -22,6 +33,11 @@ function readFileAsBase64(file: File): Promise<string> {
     reader.onerror = () => reject(reader.error);
     reader.readAsDataURL(file);
   });
+}
+
+function isPdf(file: File): boolean {
+  const name = (file.name || "").toLowerCase();
+  return name.endsWith(".pdf") || file.type === "application/pdf";
 }
 
 /** File types supported by EmbedAnything: PDF, text, markdown, images */
@@ -67,32 +83,108 @@ export function AddFilesDialog({ datasetId, onSeeded }: AddFilesDialogProps) {
       return;
     }
 
+    const tooLargeNonPdf = selectedFiles.filter(
+      (f) => !isPdf(f) && f.size > GRPC_MESSAGE_LIMIT_BYTES,
+    );
+    if (tooLargeNonPdf.length > 0) {
+      const names = tooLargeNonPdf.map((f) => f.name).join(", ");
+      handleError(
+        `Restack has a 4 MB limit per message. The following non-PDF files exceed 4 MB and cannot be uploaded: ${names}. Please use smaller files or split PDFs (PDFs are split automatically).`,
+      );
+      return;
+    }
+
     startLoading();
     try {
       const filesWithContent: { filename: string; content_base64: string }[] =
         [];
       for (const file of selectedFiles) {
-        const base64 = await readFileAsBase64(file);
-        filesWithContent.push({
-          filename: file.name || "document",
-          content_base64: base64,
-        });
+        const baseName = file.name || "document";
+        const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+        const shouldSplit =
+          isPdf(file) && file.size > SAFE_PAYLOAD_BYTES;
+        console.log(
+          `${LOG_PREFIX} file=${baseName} size=${file.size} (${sizeMB} MB) isPdf=${isPdf(file)} safeLimit=${SAFE_PAYLOAD_BYTES} → ${shouldSplit ? "splitting" : "single"}`
+        );
+        if (shouldSplit) {
+          const parts = await splitPdfIntoParts(file, baseName);
+          console.log(
+            `${LOG_PREFIX} split "${baseName}" into ${parts.length} part(s)`
+          );
+          filesWithContent.push(...parts);
+        } else {
+          const base64 = await readFileAsBase64(file);
+          filesWithContent.push({
+            filename: baseName,
+            content_base64: base64,
+          });
+        }
       }
 
-      const result = await addFilesToDataset({
-        workspace_id: currentWorkspaceId,
-        dataset_id: datasetId,
-        files_with_content: filesWithContent,
-      });
-
-      if (result.success && result.data) {
-        handleSuccess();
-        setSelectedFiles([]);
-        if (fileInputRef.current) fileInputRef.current.value = "";
-        onSeeded?.();
-      } else {
-        throw new Error(result.error || "Add files failed");
+      console.log(
+        `${LOG_PREFIX} total items=${filesWithContent.length} batching...`
+      );
+      if (filesWithContent.length === 0) {
+        handleError("No files to upload");
+        stopLoading();
+        return;
       }
+
+      const batches = batchUnderLimit(filesWithContent);
+      console.log(
+        `${LOG_PREFIX} batches=${batches.length} (sizes: ${batches.map((b) => b.length).join(", ")})`
+      );
+      // Schedule all workflows first so each batch gets its own workflow (avoids serialization)
+      const scheduled = await Promise.all(
+        batches.map((batch) =>
+          scheduleAddFilesToDatasetWorkflow({
+            workspace_id: currentWorkspaceId,
+            dataset_id: datasetId,
+            files_with_content: batch,
+          }),
+        ),
+      );
+      const scheduleErrors = scheduled
+        .filter((s): s is { success: false; error: string } => !s.success)
+        .map((s) => s.error);
+      if (scheduleErrors.length > 0) {
+        throw new Error(scheduleErrors.join("; "));
+      }
+      const ids = scheduled.filter(
+        (s): s is { success: true; workflowId: string; runId: string } =>
+          s.success && "workflowId" in s,
+      );
+      console.log(
+        `${LOG_PREFIX} scheduled ${ids.length} workflow(s), waiting for results...`
+      );
+      const results = await Promise.all(
+        ids.map(({ workflowId, runId }) =>
+          getWorkflowResult({
+            workflowId,
+            runId,
+            timeoutMs: 5 * 60 * 1000,
+          }),
+        ),
+      );
+      const errors: string[] = [];
+      for (let i = 0; i < results.length; i++) {
+        const r = results[i] as
+          | { success?: boolean; errors?: string[] }
+          | null
+          | undefined;
+        if (r && typeof r === "object" && r.success === false) {
+          const batchErrs = r.errors?.length ? r.errors : ["Workflow failed"];
+          errors.push(...batchErrs.map((e) => `Batch ${i + 1}: ${e}`));
+        }
+      }
+
+      if (errors.length > 0) {
+        throw new Error(errors.join("; "));
+      }
+      handleSuccess();
+      setSelectedFiles([]);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      onSeeded?.();
     } catch (err) {
       handleError(err instanceof Error ? err.message : "Add files failed");
     } finally {
@@ -150,7 +242,8 @@ export function AddFilesDialog({ datasetId, onSeeded }: AddFilesDialogProps) {
               </ul>
             )}
             <p className="text-xs text-muted-foreground">
-              PDF, TXT, MD, JPEG, PNG supported.
+              PDF, TXT, MD, JPEG, PNG supported. Max 4 MB per file for non-PDFs;
+              large PDFs are split automatically.
             </p>
           </div>
         </div>

@@ -50,8 +50,9 @@ interface AgentConfigurationFormProps {
   onNameValidation?: (isValid: boolean, error: string) => void;
 }
 
-// Model options - centralized (latest OpenAI models per https://developers.openai.com/api/docs/changelog/)
+// Model options - centralized (latest OpenAI models per https://developers.openai.com/api/docs/guides/latest-model)
 export const MODEL_OPTIONS = [
+  { value: "gpt-5.4", label: "GPT-5.4" },
   { value: "gpt-5.3-chat-latest", label: "GPT-5.3 Chat" },
   { value: "gpt-5.2", label: "GPT-5.2" },
   { value: "gpt-5.1", label: "GPT-5.1" },
@@ -62,12 +63,13 @@ export const MODEL_OPTIONS = [
   { value: "o4-mini-deep-research", label: "O4 Mini Deep Research" },
 ];
 
-// Reasoning effort options - centralized
+// Reasoning effort options - centralized (GPT-5.4 supports xhigh)
 export const REASONING_EFFORT_OPTIONS = [
   { value: "none", label: "None" },
   { value: "low", label: "Low" },
   { value: "medium", label: "Medium" },
   { value: "high", label: "High" },
+  { value: "xhigh", label: "Extra High" },
 ];
 
 // Helper component for layout
@@ -114,7 +116,7 @@ export function AgentConfigurationForm({
   const instructions =
     data?.instructions ||
     "You are a helpful support agent. Your role is to assist users with their technical questions and issues. Always be polite, professional, and thorough in your responses.";
-  const model = data?.model || "gpt-5.2";
+  const model = data?.model || "gpt-5.4";
   const reasoningEffort = data?.reasoning_effort || "medium";
 
   // UI state

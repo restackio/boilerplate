@@ -2,7 +2,7 @@
 
 Single activity: receives PDF base64; EmbedAnything does extract/OCR, chunking, and
 embeddings; returns events (metadata + embedding) for ClickHouse. No OpenAI, no API key.
-Large PDFs are split by page and processed per part so we can heartbeat between parts.
+PDF splitting for the 4 MB gRPC limit is done in the frontend; each payload is one part.
 See https://github.com/StarlightSearch/EmbedAnything
 """
 
@@ -32,10 +32,8 @@ BUFFER_SIZE = 64
 
 # Throttle heartbeat for large doc (every N chunks) to reduce overhead
 HEARTBEAT_EVERY_N_CHUNKS = 50
-
-# Split large PDFs into parts by page so we can heartbeat between parts (avoids timeout).
-PAGES_PER_PART = 25
-SIZE_MB_SPLIT_THRESHOLD = 1.0
+# Send heartbeat every N seconds during long-running embed_file (activity heartbeat_timeout is 2 min)
+HEARTBEAT_INTERVAL_SECONDS = 45
 
 # Sentinel UUID when ingestion is dataset-only (no agent context)
 DATASET_ONLY_AGENT_ID = "00000000-0000-0000-0000-000000000000"
@@ -68,44 +66,6 @@ def _get_embed_model_and_config() -> tuple[Any, Any]:
         splitting_strategy="sentence",
     )
     return _embed_model, _embed_config
-
-
-def _split_pdf_into_parts(
-    pdf_path: str,
-    pages_per_part: int,
-) -> list[str]:
-    """Split a PDF into temp files of at most pages_per_part pages. Returns part paths or []."""
-    try:
-        from pypdf import PdfReader, PdfWriter
-    except ImportError:
-        return []
-    try:
-        reader = PdfReader(pdf_path)
-        num_pages = len(reader.pages)
-    except (OSError, ValueError, TypeError):
-        return []
-    if num_pages <= pages_per_part:
-        return []
-    part_paths = []
-    try:
-        for start in range(0, num_pages, pages_per_part):
-            end = min(start + pages_per_part, num_pages)
-            writer = PdfWriter()
-            for i in range(start, end):
-                writer.add_page(reader.pages[i])
-            with tempfile.NamedTemporaryFile(
-                delete=False,
-                suffix=".pdf",
-                prefix="embed_part_",
-            ) as tmp:
-                writer.write(tmp)
-                part_paths.append(tmp.name)
-    except (OSError, ValueError, TypeError):
-        for p in part_paths:
-            with contextlib.suppress(OSError):
-                Path(p).unlink(missing_ok=True)
-        return []
-    return part_paths
 
 
 class EmbedAnythingPdfInput(BaseModel):
@@ -231,57 +191,42 @@ async def embed_anything_pdf_to_events(
         path = tmp.name
     log.info(f"embed_anything: temp file written path={path}")
 
-    part_paths: list[str] = []
-    if (
-        suffix.lower() == ".pdf"
-        and size_mb >= SIZE_MB_SPLIT_THRESHOLD
-    ):
-        part_paths = _split_pdf_into_parts(path, PAGES_PER_PART)
-        if part_paths:
-            log.info(
-                f"embed_anything: split PDF into {len(part_paths)} parts "
-                f"(max {PAGES_PER_PART} pages each)"
-            )
-
     try:
         import embed_anything
 
         log.info("embed_anything: loading model and config")
         model, config = _get_embed_model_and_config()
-        data: list[Any] = []
 
-        if part_paths:
-            for idx, part_path in enumerate(part_paths):
-                log.info(
-                    f"embed_anything: part {idx + 1}/{len(part_paths)} "
-                    f"path={part_path}"
-                )
-                heartbeat(
-                    f"embed_anything: part {idx + 1}/{len(part_paths)}"
-                )
-                part_data = await anyio.to_thread.run_sync(
-                    lambda p=part_path: embed_anything.embed_file(
-                        p,
+        # Run blocking embed_file in a thread while sending heartbeats so the activity
+        # does not hit heartbeat_timeout (2 min) and cause "Connection lost".
+        done = anyio.Event()
+        result_holder: list[Any] = []
+
+        async def run_embed_in_thread() -> None:
+            try:
+                r = await anyio.to_thread.run_sync(
+                    lambda: embed_anything.embed_file(
+                        path,
                         embedder=model,
                         config=config,
                     ),
                 )
-                data.extend(part_data)
-                log.info(
-                    f"embed_anything: part {idx + 1}/{len(part_paths)} "
-                    f"returned {len(part_data)} chunks (total so far {len(data)})"
-                )
-        else:
-            log.info(
-                "embed_anything: model ready, calling embed_file (single file)"
-            )
-            data = await anyio.to_thread.run_sync(
-                lambda: embed_anything.embed_file(
-                    path,
-                    embedder=model,
-                    config=config,
-                ),
-            )
+                result_holder.append(r)
+            finally:
+                done.set()
+
+        async def heartbeat_loop() -> None:
+            while True:
+                await anyio.sleep(HEARTBEAT_INTERVAL_SECONDS)
+                if done.is_set():
+                    break
+                heartbeat("embed_anything: processing...")
+
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(run_embed_in_thread)
+            tg.start_soon(heartbeat_loop)
+
+        data = result_holder[0] if result_holder else []
 
         num_chunks = len(data) if data else 0
         log.info(
@@ -307,8 +252,3 @@ async def embed_anything_pdf_to_events(
     finally:
         with contextlib.suppress(OSError):
             await anyio.Path(path).unlink(missing_ok=True)
-        for part_path in part_paths:
-            with contextlib.suppress(OSError):
-                await anyio.Path(part_path).unlink(
-                    missing_ok=True
-                )

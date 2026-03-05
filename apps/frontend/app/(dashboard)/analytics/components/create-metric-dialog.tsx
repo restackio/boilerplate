@@ -418,6 +418,7 @@ export function CreateMetricDialog({
                       <SelectItem value="gpt-5-mini">GPT-5 Mini</SelectItem>
                       <SelectItem value="gpt-5">GPT-5</SelectItem>
                       <SelectItem value="gpt-5.2">GPT-5.2</SelectItem>
+                      <SelectItem value="gpt-5.4">GPT-5.4</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

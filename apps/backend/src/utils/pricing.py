@@ -18,7 +18,9 @@ class ModelPricing(NamedTuple):
 # Pricing table - all prices per 1M tokens
 # Source: https://openai.com/api/pricing/ (updated Mar 2026)
 MODEL_PRICING = {
-    # GPT-5.2 Family (flagship)
+    # GPT-5.4 Family (flagship, per https://developers.openai.com/api/docs/guides/latest-model)
+    "gpt-5.4": ModelPricing(1.75, 0.175, 14.00),
+    # GPT-5.2/5.3 Family
     "gpt-5.3-chat-latest": ModelPricing(1.75, 0.175, 14.00),
     "gpt-5.2": ModelPricing(1.75, 0.175, 14.00),
     "gpt-5.2-chat-latest": ModelPricing(1.75, 0.175, 14.00),
@@ -87,15 +89,15 @@ MODEL_PRICING = {
     "gpt-image-1-mini": ModelPricing(2.00, 0.20, 0.0),
 }
 
-# Default pricing (GPT-5.2)
-DEFAULT_PRICING = MODEL_PRICING["gpt-5.2"]
+# Default pricing (GPT-5.4)
+DEFAULT_PRICING = MODEL_PRICING["gpt-5.4"]
 
 
 def get_model_pricing(model_name: str | None) -> ModelPricing:
     """Get pricing for a specific model.
 
     Args:
-        model_name: The model name (e.g., "gpt-5.2", "gpt-5-mini")
+        model_name: The model name (e.g., "gpt-5.4", "gpt-5-mini")
 
     Returns:
         ModelPricing tuple with (input_price, cached_input_price, output_price)

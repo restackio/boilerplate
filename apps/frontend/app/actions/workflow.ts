@@ -451,6 +451,50 @@ export async function createTaskForPublicAgent(params: {
   }
 }
 
+/** Schedule AddFilesToDataset workflow (no wait). Use with getWorkflowResult to wait. Ensures multiple batches each get their own workflow. */
+export async function scheduleAddFilesToDatasetWorkflow(params: {
+  workspace_id: string;
+  dataset_id: string;
+  task_id?: string | null;
+  files_with_content: { filename: string; content_base64: string }[];
+}): Promise<
+  | { success: true; workflowId: string; runId: string }
+  | { success: false; error: string; workflowId?: never; runId?: never }
+> {
+  try {
+    if (!params.files_with_content?.length) {
+      return {
+        success: false,
+        error:
+          "files_with_content is required (list of { filename, content_base64 }).",
+      };
+    }
+    const input: Record<string, unknown> = {
+      workspace_id: params.workspace_id,
+      dataset_id: params.dataset_id,
+      task_id: params.task_id ?? undefined,
+      files_with_content: params.files_with_content,
+    };
+    const { workflowId, runId } = await runWorkflow({
+      workflowName: "AddFilesToDatasetWorkflow",
+      input,
+      taskQueue: BACKEND_TASK_QUEUE,
+    });
+    if (process.env.NODE_ENV === "development") {
+      console.log(
+        `[scheduleAddFilesToDatasetWorkflow] scheduled workflowId=${workflowId} files=${params.files_with_content.length}`,
+      );
+    }
+    return { success: true, workflowId, runId };
+  } catch (error) {
+    console.error("scheduleAddFilesToDatasetWorkflow failed:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
+
 /** Add files to a dataset: EmbedAnything (extract + embed) → ClickHouse. Accepts PDF, text, images, etc. */
 export async function addFilesToDataset(params: {
   workspace_id: string;
@@ -468,23 +512,24 @@ export async function addFilesToDataset(params: {
         data: null,
       };
     }
-    const input: Record<string, unknown> = {
-      workspace_id: params.workspace_id,
-      dataset_id: params.dataset_id,
-      task_id: params.task_id ?? undefined,
+    const scheduled = await scheduleAddFilesToDatasetWorkflow({
+      ...params,
       files_with_content: params.files_with_content,
-    };
-    const { workflowId, runId } = await runWorkflow({
-      workflowName: "AddFilesToDatasetWorkflow",
-      input,
-      taskQueue: BACKEND_TASK_QUEUE,
     });
+    if ("error" in scheduled) {
+      return { success: false, error: scheduled.error, data: null };
+    }
     const result = await getWorkflowResult({
-      workflowId,
-      runId,
+      workflowId: scheduled.workflowId,
+      runId: scheduled.runId,
       timeoutMs: 5 * 60 * 1000, // 5 minutes for multi-PDF ingest
     });
-    return { success: true, data: result, workflowId, runId };
+    return {
+      success: true,
+      data: result,
+      workflowId: scheduled.workflowId,
+      runId: scheduled.runId,
+    };
   } catch (error) {
     console.error("AddFilesToDataset failed:", error);
     return {
