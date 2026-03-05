@@ -55,7 +55,9 @@ MODEL_PRICING = {
     "gpt-realtime": ModelPricing(4.00, 0.40, 16.00),
     "gpt-realtime-mini": ModelPricing(0.60, 0.06, 2.40),
     "gpt-4o-realtime-preview": ModelPricing(5.00, 2.50, 20.00),
-    "gpt-4o-mini-realtime-preview": ModelPricing(0.60, 0.30, 2.40),
+    "gpt-4o-mini-realtime-preview": ModelPricing(
+        0.60, 0.30, 2.40
+    ),
     # Audio Models
     "gpt-audio": ModelPricing(2.50, 0.0, 10.00),
     "gpt-audio-mini": ModelPricing(0.60, 0.0, 2.40),

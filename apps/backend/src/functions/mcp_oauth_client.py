@@ -732,7 +732,9 @@ async def oauth_exchange_code_for_token(
             final_client_id = (
                 function_input.client_id or fallback_client_id
             )
-            final_client_secret = client_secret or fallback_client_secret
+            final_client_secret = (
+                client_secret or fallback_client_secret
+            )
 
             result = TokenExchangeOutput(
                 access_token=tokens.access_token,

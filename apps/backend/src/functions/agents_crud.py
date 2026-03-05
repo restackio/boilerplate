@@ -46,7 +46,9 @@ class AgentCreateInput(BaseModel):
         default="interactive", pattern="^(interactive|pipeline)$"
     )
     # New GPT-5 model configuration fields
-    model: str = Field(default=DEFAULT_AGENT_MODEL, pattern=AGENT_MODEL_PATTERN)
+    model: str = Field(
+        default=DEFAULT_AGENT_MODEL, pattern=AGENT_MODEL_PATTERN
+    )
     reasoning_effort: str = Field(
         default="medium", pattern="^(none|low|medium|high)$"
     )
@@ -77,7 +79,9 @@ class AgentCloneInput(BaseModel):
         default="interactive", pattern="^(interactive|pipeline)$"
     )
     # New GPT-5 model configuration fields
-    model: str = Field(default=DEFAULT_AGENT_MODEL, pattern=AGENT_MODEL_PATTERN)
+    model: str = Field(
+        default=DEFAULT_AGENT_MODEL, pattern=AGENT_MODEL_PATTERN
+    )
     reasoning_effort: str = Field(
         default="medium", pattern="^(none|low|medium|high)$"
     )
@@ -216,8 +220,10 @@ def get_latest_agent_versions(
             # Sort by updated_at descending and take the first (latest)
             latest_agent = max(
                 group_agents,
-                key=lambda x: x.updated_at
-                or datetime.min.replace(tzinfo=UTC),
+                key=lambda x: (
+                    x.updated_at
+                    or datetime.min.replace(tzinfo=UTC)
+                ),
             )
 
             # Calculate version count
@@ -240,7 +246,8 @@ def get_latest_agent_versions(
                     if latest_agent.parent_agent_id
                     else None,
                     # New GPT-5 model configuration fields
-                    model=latest_agent.model or DEFAULT_AGENT_MODEL,
+                    model=latest_agent.model
+                    or DEFAULT_AGENT_MODEL,
                     reasoning_effort=latest_agent.reasoning_effort
                     or "medium",
                     created_at=latest_agent.created_at.isoformat()
@@ -428,16 +435,18 @@ def _process_agent_group(
     if published_agents:
         published_agent = max(
             published_agents,
-            key=lambda x: x.updated_at
-            or datetime.min.replace(tzinfo=UTC),
+            key=lambda x: (
+                x.updated_at or datetime.min.replace(tzinfo=UTC)
+            ),
         )
 
     # Determine which agent to show in the table
     # Priority: latest published version, fallback to latest overall if no published version
     display_agent = published_agent or max(
         group_agents,
-        key=lambda x: x.updated_at
-        or datetime.min.replace(tzinfo=UTC),
+        key=lambda x: (
+            x.updated_at or datetime.min.replace(tzinfo=UTC)
+        ),
     )
 
     # Create short UUID for published version
@@ -451,8 +460,9 @@ def _process_agent_group(
     if draft_agents:
         latest_draft_agent = max(
             draft_agents,
-            key=lambda x: x.updated_at
-            or datetime.min.replace(tzinfo=UTC),
+            key=lambda x: (
+                x.updated_at or datetime.min.replace(tzinfo=UTC)
+            ),
         )
         latest_draft_version_short = str(latest_draft_agent.id)[
             -5:
