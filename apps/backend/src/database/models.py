@@ -240,7 +240,6 @@ class Agent(Base):
             type.in_(["interactive", "pipeline"]),
             name="valid_type",
         ),
-        # Relaxed check: allow any non-empty model ID (length 1–100). App validates allowed list.
         CheckConstraint(
             "length(model) > 0 AND length(model) <= 100",
             name="valid_model",

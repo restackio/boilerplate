@@ -9,7 +9,9 @@ from .llm_response_stream import LlmResponseInput, Message
 # and emits a compaction item in the stream. Use 0 or unset to disable.
 # See https://developers.openai.com/api/docs/guides/compaction#server-side-compaction
 COMPACT_THRESHOLD_ENV = "OPENAI_COMPACT_THRESHOLD"
-DEFAULT_COMPACT_THRESHOLD = 200_000  # tokens (e.g. ~150k context before compacting)
+DEFAULT_COMPACT_THRESHOLD = (
+    200_000  # tokens (e.g. ~150k context before compacting)
+)
 
 
 def _get_compact_threshold() -> int | None:
@@ -55,8 +57,7 @@ async def llm_prepare_response(
         "input": input_data,
         "tool_choice": "auto",
         "reasoning": {
-            "effort": function_input.reasoning_effort
-            or "none",
+            "effort": function_input.reasoning_effort or "none",
             "summary": "detailed",
         },
         "text": {
@@ -84,7 +85,10 @@ async def llm_prepare_response(
     compact_threshold = _get_compact_threshold()
     if compact_threshold is not None:
         create_params["context_management"] = [
-            {"type": "compaction", "compact_threshold": compact_threshold}
+            {
+                "type": "compaction",
+                "compact_threshold": compact_threshold,
+            }
         ]
 
     return LlmResponseInput(
