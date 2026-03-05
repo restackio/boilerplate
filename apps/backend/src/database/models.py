@@ -212,7 +212,7 @@ class Agent(Base):
         String(20), nullable=False, default="interactive"
     )
     # New GPT-5 model configuration fields
-    model = Column(String(100), nullable=False, default="gpt-5.2")
+    model = Column(String(100), nullable=False, default="gpt-5.4")
     reasoning_effort = Column(
         String(20), nullable=False, default="medium"
     )

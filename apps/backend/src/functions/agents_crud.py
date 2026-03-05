@@ -11,10 +11,10 @@ from src.database.models import Agent, AgentSubagent, AgentTool
 
 # Allowed OpenAI model IDs (must match DB constraint and dropdowns)
 AGENT_MODEL_PATTERN = (
-    r"^(gpt-5.3-chat-latest|gpt-5.2|gpt-5.1|gpt-5|gpt-5-mini|gpt-5-nano|"
+    r"^(gpt-5.4|gpt-5.3-chat-latest|gpt-5.2|gpt-5.1|gpt-5|gpt-5-mini|gpt-5-nano|"
     r"o3-deep-research|o4-mini-deep-research)$"
 )
-DEFAULT_AGENT_MODEL = "gpt-5.2"
+DEFAULT_AGENT_MODEL = "gpt-5.4"
 
 
 def _raise_source_agent_not_found_error(
@@ -50,7 +50,7 @@ class AgentCreateInput(BaseModel):
         default=DEFAULT_AGENT_MODEL, pattern=AGENT_MODEL_PATTERN
     )
     reasoning_effort: str = Field(
-        default="medium", pattern="^(none|low|medium|high)$"
+        default="medium", pattern="^(none|low|medium|high|xhigh)$"
     )
     team_id: str | None = Field(
         default=None,
@@ -83,7 +83,7 @@ class AgentCloneInput(BaseModel):
         default=DEFAULT_AGENT_MODEL, pattern=AGENT_MODEL_PATTERN
     )
     reasoning_effort: str = Field(
-        default="medium", pattern="^(none|low|medium|high)$"
+        default="medium", pattern="^(none|low|medium|high|xhigh)$"
     )
 
 
@@ -108,7 +108,7 @@ class AgentUpdateInput(BaseModel):
     # New GPT-5 model configuration fields
     model: str | None = Field(None, pattern=AGENT_MODEL_PATTERN)
     reasoning_effort: str | None = Field(
-        None, pattern="^(none|low|medium|high)$"
+        None, pattern="^(none|low|medium|high|xhigh)$"
     )
     is_public: bool | None = None
 

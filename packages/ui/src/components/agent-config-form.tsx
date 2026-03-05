@@ -66,8 +66,9 @@ interface PromptTemplate {
   category?: string;
 }
 
-// Default model options (latest OpenAI models per https://developers.openai.com/api/docs/changelog/)
+// Default model options (latest OpenAI models per https://developers.openai.com/api/docs/guides/latest-model)
 export const DEFAULT_MODEL_OPTIONS = [
+  { value: "gpt-5.4", label: "GPT-5.4" },
   { value: "gpt-5.3-chat-latest", label: "GPT-5.3 Chat" },
   { value: "gpt-5.2", label: "GPT-5.2" },
   { value: "gpt-5.1", label: "GPT-5.1" },
@@ -78,12 +79,13 @@ export const DEFAULT_MODEL_OPTIONS = [
   { value: "o4-mini-deep-research", label: "O4 Mini Deep Research" },
 ];
 
-// Default reasoning effort options
+// Default reasoning effort options (GPT-5.4 supports xhigh)
 export const DEFAULT_REASONING_EFFORT_OPTIONS = [
   { value: "none", label: "None" },
   { value: "low", label: "Low" },
   { value: "medium", label: "Medium" },
   { value: "high", label: "High" },
+  { value: "xhigh", label: "Extra High" },
 ];
 
 // Default instructions template
@@ -126,7 +128,7 @@ export const AgentConfigForm = forwardRef<
     const [instructions, setInstructions] = useState(
       initialData?.instructions || DEFAULT_INSTRUCTIONS,
     );
-    const [model, setModel] = useState(initialData?.model || "gpt-5.2");
+    const [model, setModel] = useState(initialData?.model || "gpt-5.4");
     const [reasoningEffort, setReasoningEffort] = useState(
       initialData?.reasoning_effort || "medium",
     );
@@ -475,7 +477,7 @@ export function useAgentConfig(initialData?: Partial<AgentConfigData>) {
     name: initialData?.name || "",
     description: initialData?.description || "",
     instructions: initialData?.instructions || DEFAULT_INSTRUCTIONS,
-    model: initialData?.model || "gpt-5.2",
+    model: initialData?.model || "gpt-5.4",
     reasoning_effort: initialData?.reasoning_effort || "medium",
   });
 
@@ -512,7 +514,7 @@ export function useAgentConfig(initialData?: Partial<AgentConfigData>) {
       name: "",
       description: "",
       instructions: DEFAULT_INSTRUCTIONS,
-      model: "gpt-5.2",
+      model: "gpt-5.4",
       reasoning_effort: "medium",
     });
     setErrors({});
