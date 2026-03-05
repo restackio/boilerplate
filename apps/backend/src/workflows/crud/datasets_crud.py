@@ -287,8 +287,8 @@ class AddFilesToDatasetWorkflow:
                         event_name="PDF Chunk",
                         tags=["pdf", "embed_anything"],
                     ),
-                    start_to_close_timeout=timedelta(seconds=300),
-                    heartbeat_timeout=timedelta(seconds=60),
+                    start_to_close_timeout=timedelta(minutes=15),
+                    heartbeat_timeout=timedelta(minutes=2),
                     task_queue=TASK_QUEUE,
                 )
             except Exception as e:  # noqa: BLE001
