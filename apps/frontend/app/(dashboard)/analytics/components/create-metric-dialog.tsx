@@ -57,7 +57,9 @@ export function CreateMetricDialog({
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [category] = useState("quality");
-  const [metricType, setMetricType] = useState<"llm_judge" | "python_code" | "formula">("llm_judge");
+  const [metricType, setMetricType] = useState<
+    "llm_judge" | "python_code" | "formula"
+  >("llm_judge");
 
   // LLM Judge config
   const [judgePrompt, setJudgePrompt] = useState("");
@@ -71,7 +73,9 @@ export function CreateMetricDialog({
   const [formulaVariables, setFormulaVariables] = useState<string[]>([]);
 
   // Parent agents selection
-  const [selectedParentAgentIds, setSelectedParentAgentIds] = useState<string[]>([]);
+  const [selectedParentAgentIds, setSelectedParentAgentIds] = useState<
+    string[]
+  >([]);
   const [agentSearchQuery, setAgentSearchQuery] = useState("");
   const { agents, fetchAgents } = useWorkspaceScopedActions();
 
@@ -92,16 +96,16 @@ export function CreateMetricDialog({
     if (open && feedbackContext) {
       const feedbackType = feedbackContext.isPositive ? "positive" : "negative";
       const feedbackText = feedbackContext.feedbackText;
-      
+
       const suggestedPrompt = feedbackText
         ? `Evaluate if the response addresses the following concern from ${feedbackType} user feedback: "${feedbackText}".`
         : `Evaluate if the response would receive ${feedbackType} feedback from users.`;
-      
+
       setJudgePrompt(suggestedPrompt);
       setName(`feedback_${feedbackType}_check`);
       setDescription(`Metric based on ${feedbackType} user feedback`);
     }
-    
+
     // Pre-fill associated agents when provided
     if (open && defaultParentAgentIds && defaultParentAgentIds.length > 0) {
       setSelectedParentAgentIds(defaultParentAgentIds);
@@ -154,7 +158,7 @@ export function CreateMetricDialog({
       if (runRetroactive) {
         const now = new Date();
         const weeksAgo = new Date(now);
-        weeksAgo.setDate(weeksAgo.getDate() - (retroactiveWeeks * 7));
+        weeksAgo.setDate(weeksAgo.getDate() - retroactiveWeeks * 7);
         retroactiveDateFrom = weeksAgo.toISOString();
         retroactiveDateTo = now.toISOString();
       }
@@ -168,18 +172,23 @@ export function CreateMetricDialog({
         config,
         is_active: true,
         created_by: userId || undefined,
-        parent_agent_ids: selectedParentAgentIds.length > 0 ? selectedParentAgentIds : undefined,
+        parent_agent_ids:
+          selectedParentAgentIds.length > 0
+            ? selectedParentAgentIds
+            : undefined,
         run_retroactive: runRetroactive,
         retroactive_date_from: retroactiveDateFrom,
         retroactive_date_to: retroactiveDateTo,
-        retroactive_sample_percentage: runRetroactive ? samplePercentage / 100 : undefined,
+        retroactive_sample_percentage: runRetroactive
+          ? samplePercentage / 100
+          : undefined,
       });
 
       if (result.success) {
         setSuccess(
           runRetroactive
             ? `${name} created and retroactive evaluation started on ${samplePercentage}% of traces from last ${retroactiveWeeks} weeks`
-            : `${name} created successfully. It will run on all new tasks.`
+            : `${name} created successfully. It will run on all new tasks.`,
         );
 
         // Reset form after a brief delay to show success message
@@ -202,7 +211,9 @@ export function CreateMetricDialog({
         setError(result.error || "Failed to create metric");
       }
     } catch (error) {
-      setError(error instanceof Error ? error.message : "Failed to create metric");
+      setError(
+        error instanceof Error ? error.message : "Failed to create metric",
+      );
     } finally {
       setLoading(false);
     }
@@ -223,7 +234,8 @@ export function CreateMetricDialog({
           <DialogHeader>
             <DialogTitle>Create metric</DialogTitle>
             <DialogDescription>
-              Create a new metric to evaluate agent responses. Optionally run it on historical data.
+              Create a new metric to evaluate agent responses. Optionally run it
+              on historical data.
             </DialogDescription>
           </DialogHeader>
 
@@ -233,8 +245,10 @@ export function CreateMetricDialog({
               <div className="bg-muted/50 rounded-lg p-3 text-sm border">
                 <p className="font-semibold mb-1">Based on feedback:</p>
                 <p className="text-muted-foreground">
-                  {feedbackContext.isPositive ? "Positive" : "Negative"} feedback
-                  {feedbackContext.feedbackText && `: "${feedbackContext.feedbackText}"`}
+                  {feedbackContext.isPositive ? "Positive" : "Negative"}{" "}
+                  feedback
+                  {feedbackContext.feedbackText &&
+                    `: "${feedbackContext.feedbackText}"`}
                 </p>
               </div>
             )}
@@ -263,124 +277,151 @@ export function CreateMetricDialog({
               />
             </div>
 
-              {/* Parent Agents Selection */}
+            {/* Parent Agents Selection */}
+            <div className="space-y-2">
+              <Label>Associated agents</Label>
+              <p className="text-xs text-muted-foreground">
+                Select parent agents to evaluate. The metric will run on all
+                versions of these agents. Leave empty to run for all agents.
+              </p>
+
+              {/* Selected agents badges */}
+              {selectedParentAgentIds.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {selectedParentAgentIds.map((agentId) => {
+                    // Since we're fetching parent agents only, find the agent directly
+                    const agent = agents.find((a) => a.id === agentId);
+                    if (!agent) return null;
+                    return (
+                      <Badge key={agentId} className="gap-1.5 pr-1">
+                        <span className="max-w-[200px] truncate">
+                          {agent.name}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-4 w-4 p-0 hover:bg-transparent"
+                          onClick={() =>
+                            setSelectedParentAgentIds(
+                              selectedParentAgentIds.filter(
+                                (id) => id !== agentId,
+                              ),
+                            )
+                          }
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </Badge>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Agent search and selection */}
               <div className="space-y-2">
-                <Label>Associated agents</Label>
-                <p className="text-xs text-muted-foreground">
-                  Select parent agents to evaluate. The metric will run on all versions of these agents. Leave empty to run for all agents.
-                </p>
-                
-                {/* Selected agents badges */}
-                {selectedParentAgentIds.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-2">
-                    {selectedParentAgentIds.map((agentId) => {
-                      // Since we're fetching parent agents only, find the agent directly
-                      const agent = agents.find((a) => a.id === agentId);
-                      if (!agent) return null;
-                      return (
-                        <Badge key={agentId} className="gap-1.5 pr-1">
-                          <span className="max-w-[200px] truncate">{agent.name}</span>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-4 w-4 p-0 hover:bg-transparent"
-                            onClick={() => setSelectedParentAgentIds(selectedParentAgentIds.filter((id) => id !== agentId))}
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
-                        </Badge>
-                      );
-                    })}
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Search agents to add..."
+                    value={agentSearchQuery}
+                    onChange={(e) => setAgentSearchQuery(e.target.value)}
+                    className="h-8 pl-8 text-sm"
+                  />
+                </div>
+
+                {agentSearchQuery && (
+                  <div className="max-h-40 overflow-y-auto rounded-md border">
+                    {agents
+                      .filter(
+                        (agent) =>
+                          // Since we're fetching parent agents only, no need to filter by parent_agent_id
+                          !selectedParentAgentIds.includes(agent.id) &&
+                          (agent.name
+                            .toLowerCase()
+                            .includes(agentSearchQuery.toLowerCase()) ||
+                            agent.description
+                              ?.toLowerCase()
+                              .includes(agentSearchQuery.toLowerCase())),
+                      )
+                      .map((agent) => (
+                        <div
+                          key={agent.id}
+                          className="flex items-center justify-between p-2 hover:bg-muted cursor-pointer"
+                          onClick={() => {
+                            setSelectedParentAgentIds([
+                              ...selectedParentAgentIds,
+                              agent.id,
+                            ]);
+                            setAgentSearchQuery("");
+                          }}
+                        >
+                          <div>
+                            <p className="text-sm font-medium">{agent.name}</p>
+                            {agent.description && (
+                              <p className="text-xs text-muted-foreground truncate max-w-xs">
+                                {agent.description}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    {agents.filter(
+                      (agent) =>
+                        // Only show parent agents (not versions)
+                        !agent.parent_agent_id &&
+                        !selectedParentAgentIds.includes(agent.id) &&
+                        (agent.name
+                          .toLowerCase()
+                          .includes(agentSearchQuery.toLowerCase()) ||
+                          agent.description
+                            ?.toLowerCase()
+                            .includes(agentSearchQuery.toLowerCase())),
+                    ).length === 0 && (
+                      <p className="p-2 text-sm text-muted-foreground">
+                        No agents found
+                      </p>
+                    )}
                   </div>
                 )}
-
-                {/* Agent search and selection */}
-                <div className="space-y-2">
-                  <div className="relative">
-                    <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      placeholder="Search agents to add..."
-                      value={agentSearchQuery}
-                      onChange={(e) => setAgentSearchQuery(e.target.value)}
-                      className="h-8 pl-8 text-sm"
-                    />
-                  </div>
-
-                  {agentSearchQuery && (
-                    <div className="max-h-40 overflow-y-auto rounded-md border">
-                      {agents
-                        .filter(
-                          (agent) =>
-                            // Since we're fetching parent agents only, no need to filter by parent_agent_id
-                            !selectedParentAgentIds.includes(agent.id) &&
-                            (agent.name.toLowerCase().includes(agentSearchQuery.toLowerCase()) ||
-                              agent.description?.toLowerCase().includes(agentSearchQuery.toLowerCase()))
-                        )
-                        .map((agent) => (
-                          <div
-                            key={agent.id}
-                            className="flex items-center justify-between p-2 hover:bg-muted cursor-pointer"
-                            onClick={() => {
-                              setSelectedParentAgentIds([...selectedParentAgentIds, agent.id]);
-                              setAgentSearchQuery("");
-                            }}
-                          >
-                            <div>
-                              <p className="text-sm font-medium">{agent.name}</p>
-                              {agent.description && (
-                                <p className="text-xs text-muted-foreground truncate max-w-xs">
-                                  {agent.description}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      {agents.filter(
-                        (agent) =>
-                          // Only show parent agents (not versions)
-                          !agent.parent_agent_id &&
-                          !selectedParentAgentIds.includes(agent.id) &&
-                          (agent.name.toLowerCase().includes(agentSearchQuery.toLowerCase()) ||
-                            agent.description?.toLowerCase().includes(agentSearchQuery.toLowerCase()))
-                      ).length === 0 && (
-                        <p className="p-2 text-sm text-muted-foreground">No agents found</p>
-                      )}
-                    </div>
-                  )}
-                </div>
               </div>
+            </div>
 
             <div className="grid grid-cols-2 gap-4">
-            {/* Metric Type */}
-            <div className="space-y-2">
-              <Label htmlFor="type">Type</Label>
-              <Select value={metricType} onValueChange={(v: "llm_judge" | "python_code" | "formula") => setMetricType(v)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="llm_judge">LLM as judge</SelectItem>
-                  <SelectItem value="python_code">Python Code</SelectItem>
-                  <SelectItem value="formula">Formula</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {metricType === "llm_judge" && (
+              {/* Metric Type */}
               <div className="space-y-2">
-                <Label htmlFor="judgeModel">Model</Label>
-                <Select value={judgeModel} onValueChange={setJudgeModel}>
+                <Label htmlFor="type">Type</Label>
+                <Select
+                  value={metricType}
+                  onValueChange={(v: "llm_judge" | "python_code" | "formula") =>
+                    setMetricType(v)
+                  }
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="gpt-5-nano">GPT-5 Nano</SelectItem>
-                    <SelectItem value="gpt-5-mini">GPT-5 Mini</SelectItem>
-                    <SelectItem value="gpt-5">GPT-5</SelectItem>
-                    <SelectItem value="gpt-5.2">GPT-5.2</SelectItem>
+                    <SelectItem value="llm_judge">LLM as judge</SelectItem>
+                    <SelectItem value="python_code">Python Code</SelectItem>
+                    <SelectItem value="formula">Formula</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-            )}
+              {metricType === "llm_judge" && (
+                <div className="space-y-2">
+                  <Label htmlFor="judgeModel">Model</Label>
+                  <Select value={judgeModel} onValueChange={setJudgeModel}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="gpt-5-nano">GPT-5 Nano</SelectItem>
+                      <SelectItem value="gpt-5-mini">GPT-5 Mini</SelectItem>
+                      <SelectItem value="gpt-5">GPT-5</SelectItem>
+                      <SelectItem value="gpt-5.2">GPT-5.2</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
 
             {/* LLM Judge Config */}
@@ -389,14 +430,17 @@ export function CreateMetricDialog({
                 <Label htmlFor="judgePrompt">Prompt</Label>
                 <Textarea
                   id="judgePrompt"
-                  placeholder={'Example:\n"Evaluate if this response is helpful and answers the user\'s question clearly. Consider accuracy, completeness, and tone.'}
+                  placeholder={
+                    "Example:\n\"Evaluate if this response is helpful and answers the user's question clearly. Consider accuracy, completeness, and tone."
+                  }
                   value={judgePrompt}
                   onChange={(e) => setJudgePrompt(e.target.value)}
                   rows={6}
                   required
                 />
                 <p className="text-xs text-muted-foreground">
-                  LLM will receive the task input and output, and evaluate based on your prompt.
+                  LLM will receive the task input and output, and evaluate based
+                  on your prompt.
                 </p>
               </div>
             )}
@@ -407,7 +451,9 @@ export function CreateMetricDialog({
                 <Label htmlFor="pythonCode">Python Code</Label>
                 <Textarea
                   id="pythonCode"
-                  placeholder={'def evaluate(task_input, task_output, performance):\n    # Your evaluation logic here\n    # Available variables:\n    # - task_input: str\n    # - task_output: str\n    # - performance: dict with duration_ms, input_tokens, output_tokens, status\n    \n    # Return boolean or dict:\n    return {\n        "passed": True,\n        "score": 85.0,  # optional\n        "reasoning": "Response meets criteria"  # optional\n    }'}
+                  placeholder={
+                    'def evaluate(task_input, task_output, performance):\n    # Your evaluation logic here\n    # Available variables:\n    # - task_input: str\n    # - task_output: str\n    # - performance: dict with duration_ms, input_tokens, output_tokens, status\n    \n    # Return boolean or dict:\n    return {\n        "passed": True,\n        "score": 85.0,  # optional\n        "reasoning": "Response meets criteria"  # optional\n    }'
+                  }
                   value={pythonCode}
                   onChange={(e) => setPythonCode(e.target.value)}
                   rows={12}
@@ -415,8 +461,14 @@ export function CreateMetricDialog({
                   required
                 />
                 <p className="text-xs text-muted-foreground">
-                  Define an <code className="bg-muted px-1 rounded">evaluate(task_input, task_output, performance)</code> function. 
-                  Return a boolean or dict with <code className="bg-muted px-1 rounded">passed</code>, <code className="bg-muted px-1 rounded">score</code>, and <code className="bg-muted px-1 rounded">reasoning</code>.
+                  Define an{" "}
+                  <code className="bg-muted px-1 rounded">
+                    evaluate(task_input, task_output, performance)
+                  </code>{" "}
+                  function. Return a boolean or dict with{" "}
+                  <code className="bg-muted px-1 rounded">passed</code>,{" "}
+                  <code className="bg-muted px-1 rounded">score</code>, and{" "}
+                  <code className="bg-muted px-1 rounded">reasoning</code>.
                 </p>
               </div>
             )}
@@ -435,26 +487,41 @@ export function CreateMetricDialog({
                     required
                   />
                   <p className="text-xs text-muted-foreground">
-                    Boolean expression using performance variables. Available: <code className="bg-muted px-1 rounded">duration_ms</code>, <code className="bg-muted px-1 rounded">input_tokens</code>, <code className="bg-muted px-1 rounded">output_tokens</code>, <code className="bg-muted px-1 rounded">cost_usd</code>
+                    Boolean expression using performance variables. Available:{" "}
+                    <code className="bg-muted px-1 rounded">duration_ms</code>,{" "}
+                    <code className="bg-muted px-1 rounded">input_tokens</code>,{" "}
+                    <code className="bg-muted px-1 rounded">output_tokens</code>
+                    , <code className="bg-muted px-1 rounded">cost_usd</code>
                   </p>
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="formulaVariables">Variables</Label>
                   <div className="flex gap-2 flex-wrap">
-                    {["duration_ms", "input_tokens", "output_tokens", "cost_usd"].map((variable) => {
+                    {[
+                      "duration_ms",
+                      "input_tokens",
+                      "output_tokens",
+                      "cost_usd",
+                    ].map((variable) => {
                       const isSelected = formulaVariables.includes(variable);
                       const variant = isSelected ? "default" : "outline";
                       return (
                         <Badge
                           key={variable}
-                          variant={variant as "default" | "secondary" | "destructive" | "outline"}
+                          variant={
+                            variant as
+                              | "default"
+                              | "secondary"
+                              | "destructive"
+                              | "outline"
+                          }
                           className="cursor-pointer"
                           onClick={() => {
                             setFormulaVariables((prev) =>
                               prev.includes(variable)
                                 ? prev.filter((v) => v !== variable)
-                                : [...prev, variable]
+                                : [...prev, variable],
                             );
                           }}
                         >
@@ -494,7 +561,8 @@ export function CreateMetricDialog({
                     <div className="flex items-center justify-between">
                       <Label>Time range</Label>
                       <span className="text-sm font-medium">
-                        Last {retroactiveWeeks} {retroactiveWeeks === 1 ? "week" : "weeks"}
+                        Last {retroactiveWeeks}{" "}
+                        {retroactiveWeeks === 1 ? "week" : "weeks"}
                       </span>
                     </div>
                     <Slider
@@ -506,7 +574,8 @@ export function CreateMetricDialog({
                       className="w-full"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Evaluate tasks from the last {retroactiveWeeks} {retroactiveWeeks === 1 ? "week" : "weeks"}
+                      Evaluate tasks from the last {retroactiveWeeks}{" "}
+                      {retroactiveWeeks === 1 ? "week" : "weeks"}
                     </p>
                   </div>
 
@@ -528,13 +597,16 @@ export function CreateMetricDialog({
                     />
                     <p className="text-xs text-muted-foreground">
                       Randomly sample {samplePercentage}% of tasks
-                      {samplePercentage < 100 && " (recommended for large datasets)"}
+                      {samplePercentage < 100 &&
+                        " (recommended for large datasets)"}
                     </p>
                   </div>
 
                   <div className="bg-neutral-50 dark:bg-neutral-950/20 rounded-lg p-3 text-sm">
                     <p className="text-neutral-900 dark:text-neutral-100">
-                      💡 <strong>Tip:</strong> Start with a small sample (10-20%) to validate your metric works correctly before running on 100%.
+                      💡 <strong>Tip:</strong> Start with a small sample
+                      (10-20%) to validate your metric works correctly before
+                      running on 100%.
                     </p>
                   </div>
                 </div>
@@ -573,10 +645,8 @@ export function CreateMetricDialog({
                   Creating...
                 </>
               ) : runRetroactive ? (
-                <>
-                  Create & evaluate
-                </>
-              ) : ( 
+                <>Create & evaluate</>
+              ) : (
                 "Create"
               )}
             </Button>

@@ -239,6 +239,14 @@ async function executeWorkflow<T>(
         };
       }
       
+      // For dataset files list (ListDatasetFilesWorkflow returns { success, files })
+      if ('files' in result && Array.isArray(result.files)) {
+        return {
+          success: Boolean((result as { success?: boolean }).success),
+          data: result as T,
+        };
+      }
+      
       // For OAuth responses (e.g., McpOAuthInitializeWorkflow returns { success: true, authorization_url: "..." })
       if ('success' in result && 'authorization_url' in result) {
         return {

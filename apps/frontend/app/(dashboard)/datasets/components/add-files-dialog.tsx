@@ -112,7 +112,7 @@ export function AddFilesDialog({ datasetId, onSeeded }: AddFilesDialogProps) {
         title="Add files to dataset"
         description="Upload PDFs, text, markdown, or images. The backend will extract content, generate embeddings, and store them in this dataset."
         onPrimaryAction={handleAddFiles}
-        primaryActionLabel="Upload and ingest"
+        primaryActionLabel="Add files"
         primaryActionIcon={FileUp}
         isLoading={isLoading}
         closeOnSuccess

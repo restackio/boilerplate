@@ -52,6 +52,7 @@ interface AgentConfigurationFormProps {
 
 // Model options - centralized (latest OpenAI models per https://developers.openai.com/api/docs/changelog/)
 export const MODEL_OPTIONS = [
+  { value: "gpt-5.3-chat-latest", label: "GPT-5.3 Chat" },
   { value: "gpt-5.2", label: "GPT-5.2" },
   { value: "gpt-5.1", label: "GPT-5.1" },
   { value: "gpt-5", label: "GPT-5" },

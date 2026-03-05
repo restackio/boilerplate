@@ -21,11 +21,17 @@ with import_functions():
         DatasetGetByWorkspaceInput,
         DatasetListOutput,
         DatasetSingleOutput,
+        DeleteDatasetEventsBySourceInput,
+        DeleteDatasetEventsBySourceOutput,
+        ListDatasetFilesInput,
+        ListDatasetFilesOutput,
         QueryDatasetEventsInput,
         QueryDatasetEventsOutput,
         datasets_create,
         datasets_get_by_id,
         datasets_read,
+        delete_dataset_events_by_source,
+        list_dataset_files,
         query_dataset_events,
     )
     from src.functions.embed_anything_ingestion import (
@@ -145,6 +151,52 @@ class QueryDatasetEventsWorkflow:
             return step_result
 
 
+@workflow.defn()
+class ListDatasetFilesWorkflow:
+    """List unique file sources (raw_data.source) in a dataset with chunk counts."""
+
+    @workflow.run
+    async def run(
+        self, function_input: ListDatasetFilesInput
+    ) -> ListDatasetFilesOutput:
+        log.info("ListDatasetFilesWorkflow started")
+        try:
+            return await workflow.step(
+                function=list_dataset_files,
+                function_input=function_input,
+                start_to_close_timeout=timedelta(seconds=30),
+                task_queue=TASK_QUEUE,
+            )
+        except Exception as e:
+            log.error("Error during list_dataset_files: %s", e)
+            raise NonRetryableError(
+                message=f"Error during list_dataset_files: {e}"
+            ) from e
+
+
+@workflow.defn()
+class DeleteDatasetEventsBySourceWorkflow:
+    """Delete all events (chunks) in a dataset for a given file source."""
+
+    @workflow.run
+    async def run(
+        self, function_input: DeleteDatasetEventsBySourceInput
+    ) -> DeleteDatasetEventsBySourceOutput:
+        log.info("DeleteDatasetEventsBySourceWorkflow started")
+        try:
+            return await workflow.step(
+                function=delete_dataset_events_by_source,
+                function_input=function_input,
+                start_to_close_timeout=timedelta(seconds=60),
+                task_queue=TASK_QUEUE,
+            )
+        except Exception as e:
+            log.error("Error during delete_dataset_events_by_source: %s", e)
+            raise NonRetryableError(
+                message=f"Error during delete_dataset_events_by_source: {e}"
+            ) from e
+
+
 # --- Seed dataset from PDFs (EmbedAnything: one workflow, no API key) ---
 
 
@@ -235,7 +287,8 @@ class AddFilesToDatasetWorkflow:
                         event_name="PDF Chunk",
                         tags=["pdf", "embed_anything"],
                     ),
-                    start_to_close_timeout=timedelta(seconds=300),
+                    start_to_close_timeout=timedelta(minutes=15),
+                    heartbeat_timeout=timedelta(minutes=2),
                     task_queue=TASK_QUEUE,
                 )
             except Exception as e:  # noqa: BLE001
