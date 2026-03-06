@@ -1,7 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { use, useCallback, useEffect, useState } from "react";
 import {
   getPublicAgent,
   createTaskForPublicAgent,
@@ -81,9 +80,12 @@ function PublicChatInner({ task }: { task: PublicTask }) {
   );
 }
 
-export default function PublicChatPage() {
-  const params = useParams();
-  const agentId = params?.agentId as string;
+export default function PublicChatPage({
+  params,
+}: {
+  params: Promise<{ agentId: string }>;
+}) {
+  const { agentId } = use(params);
   const [agent, setAgent] = useState<PublicAgent | null | undefined>(undefined);
   const [task, setTask] = useState<PublicTask | null>(null);
   const [loading, setLoading] = useState(true);
