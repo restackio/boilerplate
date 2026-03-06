@@ -1,8 +1,8 @@
 """ClickHouse adapter for EmbedAnything: stream embeddings directly to pipeline_events.
 
 Uses AsyncClient only; embed_file runs in a thread and upsert() bridges to async insert
-via the thread's event loop. One embed batch = one bulk insert (set batch_size to 1000+
-in embed_model_loader). Vector streaming avoids accumulating all chunks in RAM.
+via the thread's event loop. One embed batch = one bulk insert; batch size is aligned with
+embed_model_loader (1k+ rows recommended by ClickHouse: https://clickhouse.com/docs/optimize/bulk-inserts).
 See: https://github.com/StarlightSearch/EmbedAnything (memory_leak blog).
 """
 
@@ -76,9 +76,13 @@ class ClickHouseEmbedAdapter(Adapter):
 
     def delete_index(self, _index_name: str) -> None:
         """Not supported for pipeline_events (shared table)."""
-        logger.warning("ClickHouseEmbedAdapter.delete_index is a no-op")
+        logger.warning(
+            "ClickHouseEmbedAdapter.delete_index is a no-op"
+        )
 
-    def convert(self, embeddings: list[EmbedData]) -> list[dict[str, Any]]:
+    def convert(
+        self, embeddings: list[EmbedData]
+    ) -> list[dict[str, Any]]:
         """Map a batch of EmbedData (or dicts from library) to pipeline_events row dicts."""
         rows = []
         event_ts = datetime.now(tz=UTC)
@@ -93,7 +97,9 @@ class ClickHouseEmbedAdapter(Adapter):
                 emb = getattr(item, "embedding", None)
                 meta = getattr(item, "metadata", None) or {}
             if not isinstance(meta, dict):
-                meta = {} if meta is None else {"value": str(meta)}
+                meta = (
+                    {} if meta is None else {"value": str(meta)}
+                )
             if emb is not None and not isinstance(emb, list):
                 try:
                     emb = list(emb)
@@ -122,7 +128,9 @@ class ClickHouseEmbedAdapter(Adapter):
             rows.append(row)
         return rows
 
-    async def _insert_batch_async(self, formatted: list[list[Any]]) -> None:
+    async def _insert_batch_async(
+        self, formatted: list[list[Any]]
+    ) -> None:
         """One bulk insert via AsyncClient."""
         if not formatted:
             return
@@ -143,7 +151,12 @@ class ClickHouseEmbedAdapter(Adapter):
         if not data:
             return
         rows = self.convert(data)
-        formatted = [[r[col] for col in PIPELINE_EVENTS_COLUMNS] for r in rows]
+        formatted = [
+            [r[col] for col in PIPELINE_EVENTS_COLUMNS]
+            for r in rows
+        ]
         self._chunk_offset += len(rows)
         loop = asyncio.get_event_loop()
-        loop.run_until_complete(self._insert_batch_async(formatted))
+        loop.run_until_complete(
+            self._insert_batch_async(formatted)
+        )

@@ -192,7 +192,10 @@ class DeleteDatasetEventsBySourceWorkflow:
                 task_queue=TASK_QUEUE,
             )
         except Exception as e:
-            log.error("Error during delete_dataset_events_by_source: %s", e)
+            log.error(
+                "Error during delete_dataset_events_by_source: %s",
+                e,
+            )
             raise NonRetryableError(
                 message=f"Error during delete_dataset_events_by_source: {e}"
             ) from e
@@ -260,8 +263,12 @@ class AddFilesToDatasetWorkflow:
         for item in workflow_input.files_with_content:
             filename = item.get("filename") or "document"
             content_b64 = item.get("content_base64") or ""
-            size_bytes = len(content_b64) * 3 // 4 if content_b64 else 0
-            size_mb = (size_bytes / (1024 * 1024)) if size_bytes else 0
+            size_bytes = (
+                len(content_b64) * 3 // 4 if content_b64 else 0
+            )
+            size_mb = (
+                (size_bytes / (1024 * 1024)) if size_bytes else 0
+            )
             log.info(
                 f"[AddFilesToDataset] file={filename} size={size_bytes} ({size_mb:.2f} MB) → processing"
             )
@@ -321,7 +328,9 @@ class AddFilesToDatasetWorkflow:
                 errors.append(f"{filename}: {to_err}")
                 continue
             # Ingest is done via ClickHouse adapter inside embed_anything_pdf_to_events
-            chunks_count = getattr(to_events_result, "chunks_count", 0) or (
+            chunks_count = getattr(
+                to_events_result, "chunks_count", 0
+            ) or (
                 to_events_result.get("chunks_count", 0)
                 if isinstance(to_events_result, dict)
                 else 0

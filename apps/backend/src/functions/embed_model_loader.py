@@ -18,7 +18,9 @@ CHUNK_SIZE = 1200
 BATCH_SIZE = 1000
 BUFFER_SIZE = 8
 
-_IMPORT_ERR_MSG = "embed-anything not installed. pip install embed-anything"
+_IMPORT_ERR_MSG = (
+    "embed-anything not installed. pip install embed-anything"
+)
 
 
 def _embed_config_values() -> tuple[int, int, int]:
@@ -44,7 +46,9 @@ def _load_embed_model_and_config() -> None:
         f"embed_model_loader: loading HuggingFace model {DEFAULT_MODEL_ID} "
         f"(chunk={chunk_size} batch={batch_size} buffer={buffer_size})"
     )
-    _embed_model = EmbeddingModel.from_pretrained_hf(model_id=DEFAULT_MODEL_ID)
+    _embed_model = EmbeddingModel.from_pretrained_hf(
+        model_id=DEFAULT_MODEL_ID
+    )
     log.info("embed_model_loader: model loaded")
     _embed_config = TextEmbedConfig(
         chunk_size=chunk_size,
