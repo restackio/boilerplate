@@ -35,6 +35,10 @@ with import_functions():
         EmbedAnythingPdfInput,
         embed_anything_pdf_to_events,
     )
+    from src.functions.embed_model_loader import (
+        EnsureEmbedModelInput,
+        ensure_embed_model_loaded,
+    )
 
 
 @workflow.defn()
@@ -244,6 +248,23 @@ class AddFilesToDatasetWorkflow:
         log.info(
             f"AddFilesToDatasetWorkflow started: dataset_id={workflow_input.dataset_id}, files={len(workflow_input.files_with_content)}"
         )
+
+        # Ensure embed model is loaded on this worker (once per worker; later steps reuse)
+        await workflow.step(
+            function=ensure_embed_model_loaded,
+            function_input=EnsureEmbedModelInput(),
+            start_to_close_timeout=timedelta(minutes=5),
+            task_queue=TASK_QUEUE,
+        )
+
+        for item in workflow_input.files_with_content:
+            filename = item.get("filename") or "document"
+            content_b64 = item.get("content_base64") or ""
+            size_bytes = len(content_b64) * 3 // 4 if content_b64 else 0
+            size_mb = (size_bytes / (1024 * 1024)) if size_bytes else 0
+            log.info(
+                f"[AddFilesToDataset] file={filename} size={size_bytes} ({size_mb:.2f} MB) → processing"
+            )
 
         # Ensure dataset exists (by id)
         get_result = await workflow.step(

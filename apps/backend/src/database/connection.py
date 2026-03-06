@@ -88,10 +88,7 @@ async def close_async_db() -> None:
 
 
 def _parse_clickhouse_url(url: str) -> dict:
-    """Parse a ClickHouse URL into connection parameters.
-
-    Supports both local (http) and ClickHouse Cloud (https) URLs.
-    """
+    """Parse a ClickHouse URL into connection parameters (http/https)."""
     parsed = urlparse(url)
     secure = parsed.scheme == "https"
     return {
@@ -104,35 +101,12 @@ def _parse_clickhouse_url(url: str) -> dict:
     }
 
 
-def get_clickhouse_client() -> clickhouse_connect.driver.Client:
-    """Get ClickHouse client connection (synchronous - use for compatibility only).
-
-    Requires CLICKHOUSE_URL environment variable in format:
-    - http://user:password@host:port/database (for local/insecure)
-    - https://user:password@host:port/database (for ClickHouse Cloud)
-    """
-    clickhouse_url = os.getenv(
-        "CLICKHOUSE_URL",
-        "http://clickhouse:clickhouse@localhost:8123/boilerplate_clickhouse",
-    )
-    conn_params = _parse_clickhouse_url(clickhouse_url)
-    return clickhouse_connect.get_client(**conn_params)
-
-
 async def get_clickhouse_async_client() -> (
     clickhouse_connect.driver.AsyncClient
 ):
-    """Get async ClickHouse client connection.
-
-    Requires CLICKHOUSE_URL environment variable in format:
-    - http://user:password@host:port/database (for local/insecure)
-    - https://user:password@host:port/database (for ClickHouse Cloud)
-    """
-    clickhouse_url = os.getenv(
+    """Get async ClickHouse client. Requires CLICKHOUSE_URL."""
+    url = os.getenv(
         "CLICKHOUSE_URL",
         "http://clickhouse:clickhouse@localhost:8123/boilerplate_clickhouse",
     )
-    conn_params = _parse_clickhouse_url(clickhouse_url)
-    return await clickhouse_connect.get_async_client(
-        **conn_params
-    )
+    return await clickhouse_connect.get_async_client(**_parse_clickhouse_url(url))

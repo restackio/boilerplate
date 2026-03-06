@@ -56,6 +56,9 @@ from src.functions.datasets_crud import (
 from src.functions.embed_anything_ingestion import (
     embed_anything_pdf_to_events,
 )
+from src.functions.embed_model_loader import (
+    ensure_embed_model_loaded,
+)
 from src.functions.feedback_metrics import (
     get_detailed_feedbacks,
     get_feedback_analytics,
@@ -493,6 +496,7 @@ async def run_restack_service() -> None:
             ingest_pipeline_events,
             query_clickhouse_data,
             embed_anything_pdf_to_events,
+            ensure_embed_model_loaded,
             mcp_servers_read,
             mcp_servers_create,
             mcp_servers_update,

@@ -1,9 +1,12 @@
 """ClickHouse adapter for EmbedAnything: stream embeddings directly to pipeline_events.
 
-Uses vector streaming so embeddings are written to ClickHouse in batches instead of
-accumulating in RAM. See: https://github.com/StarlightSearch/EmbedAnything (memory_leak blog).
+Uses AsyncClient only; embed_file runs in a thread and upsert() bridges to async insert
+via the thread's event loop. One embed batch = one bulk insert (set batch_size to 1000+
+in embed_model_loader). Vector streaming avoids accumulating all chunks in RAM.
+See: https://github.com/StarlightSearch/EmbedAnything (memory_leak blog).
 """
 
+import asyncio
 import logging
 import uuid
 from datetime import UTC, datetime
@@ -31,16 +34,16 @@ PIPELINE_EVENTS_COLUMNS = [
 
 
 class ClickHouseEmbedAdapter(Adapter):
-    """Adapter that streams EmbedAnything output directly to ClickHouse pipeline_events.
+    """Adapter that streams EmbedAnything output to ClickHouse via AsyncClient.
 
-    Uses sync ClickHouse client (embed_file runs in a thread). Each upsert() call
-    receives a batch of EmbedData; we convert to pipeline_events rows and insert
-    immediately, then discard the batch to limit RAM usage.
+    Use from the thread that runs embed_file after asyncio.set_event_loop(loop);
+    upsert() (sync) uses get_event_loop() and run_until_complete for the insert.
+    Each batch is converted to pipeline_events rows and inserted, then discarded.
     """
 
     def __init__(  # noqa: PLR0913
         self,
-        client: Any,  # clickhouse_connect.driver.Client (sync)
+        client: Any,  # clickhouse_connect.driver.AsyncClient
         *,
         agent_id: str,
         workspace_id: str,
@@ -119,21 +122,28 @@ class ClickHouseEmbedAdapter(Adapter):
             rows.append(row)
         return rows
 
+    async def _insert_batch_async(self, formatted: list[list[Any]]) -> None:
+        """One bulk insert via AsyncClient."""
+        if not formatted:
+            return
+        await self.client.insert(
+            table=self.table_name,
+            data=formatted,
+            column_names=PIPELINE_EVENTS_COLUMNS,
+        )
+        self.insert_count += len(formatted)
+        logger.debug(
+            "ClickHouseEmbedAdapter: inserted %d rows (total %d)",
+            len(formatted),
+            self.insert_count,
+        )
+
     def upsert(self, data: list[EmbedData]) -> None:
-        """Convert batch to rows and insert into ClickHouse; update counts."""
+        """Convert batch to rows and bulk insert via AsyncClient."""
         if not data:
             return
         rows = self.convert(data)
         formatted = [[r[col] for col in PIPELINE_EVENTS_COLUMNS] for r in rows]
-        self.client.insert(
-            self.table_name,
-            formatted,
-            column_names=PIPELINE_EVENTS_COLUMNS,
-        )
-        self.insert_count += len(rows)
         self._chunk_offset += len(rows)
-        logger.debug(
-            "ClickHouseEmbedAdapter: inserted %d rows (total %d)",
-            len(rows),
-            self.insert_count,
-        )
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(self._insert_batch_async(formatted))
