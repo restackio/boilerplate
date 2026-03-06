@@ -12,9 +12,6 @@ from restack_ai.workflow import (
 from src.constants import TASK_QUEUE
 
 with import_functions():
-    from src.functions.data_ingestion import (
-        ingest_pipeline_events,
-    )
     from src.functions.datasets_crud import (
         DatasetCreateInput,
         DatasetGetByIdInput,
@@ -232,7 +229,7 @@ class AddFilesToDatasetWorkflow:
     """Files → extract/chunk/embed (EmbedAnything) → ingest into ClickHouse."""
 
     @workflow.run
-    async def run(  # noqa: C901
+    async def run(
         self, workflow_input: AddFilesToDatasetInput
     ) -> AddFilesToDatasetOutput:
         errors: list[str] = []
@@ -302,50 +299,14 @@ class AddFilesToDatasetWorkflow:
             if to_err:
                 errors.append(f"{filename}: {to_err}")
                 continue
-            events = (
-                getattr(to_events_result, "events", None)
-                or (
-                    to_events_result.get("events")
-                    if isinstance(to_events_result, dict)
-                    else []
-                )
-                or []
+            # Ingest is done via ClickHouse adapter inside embed_anything_pdf_to_events
+            chunks_count = getattr(to_events_result, "chunks_count", 0) or (
+                to_events_result.get("chunks_count", 0)
+                if isinstance(to_events_result, dict)
+                else 0
             )
-            if not events:
-                continue
-            try:
-                ingest_result = await workflow.step(
-                    function=ingest_pipeline_events,
-                    function_input=events,
-                    start_to_close_timeout=timedelta(seconds=120),
-                    task_queue=TASK_QUEUE,
-                )
-            except Exception as e:  # noqa: BLE001
-                errors.append(f"{filename} ingest: {e}")
-                continue
-            ingest_ok = getattr(ingest_result, "success", None)
-            if ingest_ok is None and isinstance(
-                ingest_result, dict
-            ):
-                ingest_ok = ingest_result.get("success")
-            if ingest_ok:
-                files_processed += 1
-                total_chunks += getattr(
-                    ingest_result, "inserted_rows", None
-                ) or (
-                    ingest_result.get("inserted_rows", 0)
-                    if isinstance(ingest_result, dict)
-                    else 0
-                )
-            else:
-                err_msg = getattr(
-                    ingest_result, "error", None
-                ) or (
-                    ingest_result.get("error", "ingest failed")
-                    if isinstance(ingest_result, dict)
-                    else "ingest failed"
-                )
-                errors.append(f"{filename}: {err_msg}")
+            files_processed += 1
+            total_chunks += chunks_count
 
         return AddFilesToDatasetOutput(
             success=len(errors) == 0,

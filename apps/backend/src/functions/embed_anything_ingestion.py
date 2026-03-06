@@ -1,37 +1,52 @@
 """PDF → extract (OCR), chunk, embed → pipeline events using EmbedAnything.
 
 Single activity: receives PDF base64; EmbedAnything does extract/OCR, chunking, and
-embeddings; returns events (metadata + embedding) for ClickHouse. No OpenAI, no API key.
+embeddings. Uses a ClickHouse adapter to stream embeddings directly to pipeline_events
+(vector streaming), avoiding high RAM from accumulating all chunks in memory.
 PDF splitting for the 4 MB gRPC limit is done in the frontend; each payload is one part.
-See https://github.com/StarlightSearch/EmbedAnything
+See https://github.com/StarlightSearch/EmbedAnything and memory_leak blog (vector streaming).
+
+Temp file: embed_file() only accepts a file path, so we write decoded PDF to a temp file
+then delete it in finally. Defaults tuned for low RAM; override with EMBED_* env vars.
 """
 
+import asyncio
 import base64
 import contextlib
+import os
 import tempfile
 from pathlib import Path
 from typing import Any
 
-import anyio
 from pydantic import BaseModel, Field
 from restack_ai.function import function, heartbeat, log
 
-from src.functions.data_ingestion import PipelineEventInput
+from src.adapters.clickhouse_embed_adapter import (
+    ClickHouseEmbedAdapter,
+)
+from src.database.connection import get_clickhouse_client
 
 # Lazy-loaded EmbedAnything model (text chunking only)
 _embed_model: Any = None
 _embed_config: Any = None
 
-# Default: small HF model, no GPU required
-DEFAULT_MODEL_ID = "sentence-transformers/all-MiniLM-L12-v2"
+# Small HF model, no GPU. Override with EMBED_MODEL_ID if needed.
+DEFAULT_MODEL_ID = "sentence-transformers/all-MiniLM-L6-v2"
 
-# Tuned for large PDFs (e.g. 3.5MB): fewer chunks, bigger batches, streaming buffer
+# Optimised for low RAM: small buffer/batch so few chunks + embeddings in memory at once
 CHUNK_SIZE = 1200
-BATCH_SIZE = 128
-BUFFER_SIZE = 64
+BATCH_SIZE = 16
+BUFFER_SIZE = 8
 
-# Throttle heartbeat for large doc (every N chunks) to reduce overhead
-HEARTBEAT_EVERY_N_CHUNKS = 50
+
+def _embed_config_values() -> tuple[int, int, int]:
+    """Chunk size, batch size, buffer size (env overrides optional)."""
+    return (
+        int(os.environ.get("EMBED_CHUNK_SIZE", CHUNK_SIZE)),
+        int(os.environ.get("EMBED_BATCH_SIZE", BATCH_SIZE)),
+        int(os.environ.get("EMBED_BUFFER_SIZE", BUFFER_SIZE)),
+    )
+
 # Send heartbeat every N seconds during long-running embed_file (activity heartbeat_timeout is 2 min)
 HEARTBEAT_INTERVAL_SECONDS = 45
 
@@ -52,17 +67,19 @@ def _get_embed_model_and_config() -> tuple[Any, Any]:
         from embed_anything import EmbeddingModel, TextEmbedConfig
     except ImportError as e:
         raise ImportError(_IMPORT_ERR_MSG) from e
+    chunk_size, batch_size, buffer_size = _embed_config_values()
     log.info(
-        f"embed_anything: loading HuggingFace model {DEFAULT_MODEL_ID}"
+        f"embed_anything: loading HuggingFace model {DEFAULT_MODEL_ID} "
+        f"(chunk={chunk_size} batch={batch_size} buffer={buffer_size})"
     )
     _embed_model = EmbeddingModel.from_pretrained_hf(
         model_id=DEFAULT_MODEL_ID
     )
     log.info("embed_anything: model loaded")
     _embed_config = TextEmbedConfig(
-        chunk_size=CHUNK_SIZE,
-        batch_size=BATCH_SIZE,
-        buffer_size=BUFFER_SIZE,
+        chunk_size=chunk_size,
+        batch_size=batch_size,
+        buffer_size=buffer_size,
         splitting_strategy="sentence",
     )
     return _embed_model, _embed_config
@@ -94,61 +111,15 @@ class EmbedAnythingPdfInput(BaseModel):
     )
 
 
-def _chunk_embed_data_to_events(
-    data: list,
-    input_data: EmbedAnythingPdfInput,
-) -> list[dict[str, Any]]:
-    """Map EmbedData list (from embed_file text chunking) to pipeline events."""
-    events = []
-    total = len(data)
-    if total == 0:
-        log.warning(
-            "embed_anything: embed_file returned 0 chunks"
-        )
-    for i, item in enumerate(data):
-        if i % HEARTBEAT_EVERY_N_CHUNKS == 0 or i == total - 1:
-            log.info(
-                f"embed_anything: processing chunk {i + 1}/{total}"
-            )
-            heartbeat(
-                f"embed_anything: processing chunk {i + 1}/{total}"
-            )
-        text = getattr(item, "text", "") or ""
-        emb = getattr(item, "embedding", None)
-        meta = getattr(item, "metadata", None) or {}
-        if not isinstance(meta, dict):
-            meta = {} if meta is None else {"value": str(meta)}
-        if not isinstance(emb, list):
-            try:
-                emb = list(emb) if emb is not None else []
-            except (TypeError, ValueError):
-                emb = []
-        event = PipelineEventInput(
-            agent_id=input_data.agent_id or DATASET_ONLY_AGENT_ID,
-            task_id=input_data.task_id,
-            workspace_id=input_data.workspace_id,
-            dataset_id=input_data.dataset_id,
-            event_name=input_data.event_name,
-            raw_data={
-                "text": text,
-                "source": input_data.filename,
-                "chunk_index": i,
-                "metadata": meta,
-            },
-            transformed_data=None,
-            tags=(input_data.tags or []) + [f"chunk_{i}"],
-            embedding=emb or None,
-            event_timestamp=None,
-        )
-        events.append(event.model_dump())
-    return events
-
-
 class EmbedAnythingPdfOutput(BaseModel):
-    """Output: pipeline events (raw_data + embedding) ready for ingest."""
+    """Output: when using adapter, events=[] and ingested_via_adapter=True."""
 
     events: list[dict[str, Any]] = Field(default_factory=list)
     chunks_count: int = 0
+    ingested_via_adapter: bool = Field(
+        default=False,
+        description="True when ClickHouse adapter was used (events already in DB).",
+    )
     error: str | None = None
 
 
@@ -156,10 +127,11 @@ class EmbedAnythingPdfOutput(BaseModel):
 async def embed_anything_pdf_to_events(
     input_data: EmbedAnythingPdfInput,
 ) -> EmbedAnythingPdfOutput:
-    """PDF → extract, chunk, embed in one step (EmbedAnything); return pipeline events.
+    """PDF → extract, chunk, embed; stream directly to ClickHouse via adapter (low RAM).
 
-    No OpenAI, no NeMo: local model. Writes temp file, runs embed_file, maps to
-    PipelineEventInput and returns event dicts for ingest_pipeline_events.
+    Uses EmbedAnything with a ClickHouse adapter so embeddings are written in batches
+    instead of accumulated in memory. Returns chunks_count and ingested_via_adapter=True;
+    caller should skip ingest_pipeline_events.
     """
     log.info(
         f"embed_anything: start filename={input_data.filename}"
@@ -189,6 +161,7 @@ async def embed_anything_pdf_to_events(
     ) as tmp:
         tmp.write(content)
         path = tmp.name
+    del content  # Free decoded PDF so we don't hold it during embed_file (<1GiB friendly)
     log.info(f"embed_anything: temp file written path={path}")
 
     try:
@@ -197,50 +170,48 @@ async def embed_anything_pdf_to_events(
         log.info("embed_anything: loading model and config")
         model, config = _get_embed_model_and_config()
 
-        # Run blocking embed_file in a thread while sending heartbeats so the activity
-        # does not hit heartbeat_timeout (2 min) and cause "Connection lost".
-        done = anyio.Event()
-        result_holder: list[Any] = []
+        client = get_clickhouse_client()
+        adapter = ClickHouseEmbedAdapter(
+            client,
+            agent_id=input_data.agent_id or DATASET_ONLY_AGENT_ID,
+            task_id=input_data.task_id,
+            workspace_id=input_data.workspace_id,
+            dataset_id=input_data.dataset_id,
+            event_name=input_data.event_name,
+            source_filename=input_data.filename,
+            tags=input_data.tags or ["pdf", "embed_anything"],
+        )
 
-        async def run_embed_in_thread() -> None:
-            try:
-                r = await anyio.to_thread.run_sync(
-                    lambda: embed_anything.embed_file(
-                        path,
-                        embedder=model,
-                        config=config,
-                    ),
-                )
-                result_holder.append(r)
-            finally:
-                done.set()
+        def run_embed() -> None:
+            embed_anything.embed_file(
+                path,
+                embedder=model,
+                config=config,
+                adapter=adapter,
+            )
 
-        async def heartbeat_loop() -> None:
+        async def send_heartbeats() -> None:
             while True:
-                await anyio.sleep(HEARTBEAT_INTERVAL_SECONDS)
-                if done.is_set():
-                    break
+                await asyncio.sleep(HEARTBEAT_INTERVAL_SECONDS)
                 heartbeat("embed_anything: processing...")
 
-        async with anyio.create_task_group() as tg:
-            tg.start_soon(run_embed_in_thread)
-            tg.start_soon(heartbeat_loop)
+        heartbeat_task = asyncio.create_task(send_heartbeats())
+        try:
+            await asyncio.to_thread(run_embed)
+        finally:
+            heartbeat_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await heartbeat_task
 
-        data = result_holder[0] if result_holder else []
-
-        num_chunks = len(data) if data else 0
+        chunks_count = adapter.insert_count
         log.info(
-            f"embed_anything: total {num_chunks} chunks for "
+            f"embed_anything: streamed {chunks_count} chunks to ClickHouse for "
             f"{input_data.filename}"
         )
-
-        events = _chunk_embed_data_to_events(data, input_data)
-        log.info(
-            f"embed_anything: produced {len(events)} events for {input_data.filename}"
-        )
         return EmbedAnythingPdfOutput(
-            events=events,
-            chunks_count=len(events),
+            events=[],
+            chunks_count=chunks_count,
+            ingested_via_adapter=True,
         )
     except (OSError, ValueError, TypeError, AttributeError) as e:
         err_type = type(e).__name__
@@ -251,4 +222,4 @@ async def embed_anything_pdf_to_events(
         return EmbedAnythingPdfOutput(error=str(e))
     finally:
         with contextlib.suppress(OSError):
-            await anyio.Path(path).unlink(missing_ok=True)
+            await asyncio.to_thread(lambda: Path(path).unlink(missing_ok=True))
