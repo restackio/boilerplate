@@ -258,6 +258,7 @@ class AddFilesToDatasetWorkflow:
             function_input=EnsureEmbedModelInput(),
             start_to_close_timeout=timedelta(minutes=5),
             task_queue=TASK_QUEUE,
+            max_attempts=2,
         )
 
         for item in workflow_input.files_with_content:
