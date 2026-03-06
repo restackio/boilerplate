@@ -5,10 +5,12 @@ import subprocess
 import webbrowser
 from pathlib import Path
 
+from restack_ai.restack import ServiceOptions
 from watchfiles import run_process
 
 from src.agents.agent_task import AgentTask
 from src.client import client
+from src.constants import TASK_QUEUE, TASK_QUEUE_EMBED
 from src.database.connection import init_async_db
 from src.functions.agent_subagents_crud import (
     agent_subagents_create,
@@ -45,6 +47,8 @@ from src.functions.data_ingestion import (
     ingest_pipeline_events,
     query_clickhouse_data,
 )
+from src.functions.embed_anything_ingestion import embed_anything_pdf_to_events
+from src.functions.embed_model_loader import ensure_embed_model_loaded
 from src.functions.datasets_crud import (
     datasets_create,
     datasets_get_by_id,
@@ -52,12 +56,6 @@ from src.functions.datasets_crud import (
     delete_dataset_events_by_source,
     list_dataset_files,
     query_dataset_events,
-)
-from src.functions.embed_anything_ingestion import (
-    embed_anything_pdf_to_events,
-)
-from src.functions.embed_model_loader import (
-    ensure_embed_model_loaded,
 )
 from src.functions.feedback_metrics import (
     get_detailed_feedbacks,
@@ -318,9 +316,7 @@ logger = logging.getLogger(__name__)
 
 
 async def run_restack_service() -> None:
-    """Run the Restack service."""
-    from src.constants import TASK_QUEUE
-
+    """Run the main Restack service."""
     await client.start_service(
         task_queue=TASK_QUEUE,
         agents=[AgentTask],
@@ -376,7 +372,6 @@ async def run_restack_service() -> None:
             QueryDatasetEventsWorkflow,
             ListDatasetFilesWorkflow,
             DeleteDatasetEventsBySourceWorkflow,
-            AddFilesToDatasetWorkflow,
             McpServersReadWorkflow,
             McpServersCreateWorkflow,
             McpServersUpdateWorkflow,
@@ -495,8 +490,6 @@ async def run_restack_service() -> None:
             # Data ingestion functions
             ingest_pipeline_events,
             query_clickhouse_data,
-            embed_anything_pdf_to_events,
-            ensure_embed_model_loaded,
             mcp_servers_read,
             mcp_servers_create,
             mcp_servers_update,
@@ -558,6 +551,22 @@ async def run_restack_service() -> None:
             get_feedback_analytics,
             get_detailed_feedbacks,
         ],
+    )
+
+
+async def run_embed_service() -> None:
+    """Run the embedding service."""
+    await client.start_service(
+        task_queue=TASK_QUEUE_EMBED,
+        workflows=[AddFilesToDatasetWorkflow],
+        functions=[
+            ensure_embed_model_loaded,
+            embed_anything_pdf_to_events,
+        ],
+        options=ServiceOptions(
+            rate_limit=1,
+            max_concurrent_function_runs=1,
+        ),
     )
 
 
@@ -731,7 +740,7 @@ async def main() -> None:
     logger.info(
         "Starting Restack services on default port (5233)"
     )
-    await run_restack_service()
+    await asyncio.gather(run_restack_service(), run_embed_service())
 
 
 def start() -> None:
