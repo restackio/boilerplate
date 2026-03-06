@@ -76,7 +76,7 @@ async def run_restack_service() -> None:
             cockroachdb_list_databases,
             cockroachdb_list_tables,
             cockroachdb_run_select_query,
-            update_todos,      
+            update_todos,
         ],
     )
 
