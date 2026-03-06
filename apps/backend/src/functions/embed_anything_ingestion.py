@@ -156,6 +156,7 @@ async def embed_anything_pdf_to_events(
             heartbeat_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await heartbeat_task
+
         log.info(
             f"embed_anything: streamed {chunks_count} chunks to ClickHouse for "
             f"{input_data.filename}"

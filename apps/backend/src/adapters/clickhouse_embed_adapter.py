@@ -2,7 +2,8 @@
 
 Uses AsyncClient only; embed_file runs in a thread and upsert() bridges to async insert
 via the thread's event loop. One embed batch = one bulk insert (set batch_size to 1000+
-in embed_model_loader).
+in embed_model_loader). Vector streaming avoids accumulating all chunks in RAM.
+See: https://github.com/StarlightSearch/EmbedAnything (memory_leak blog).
 """
 
 import asyncio
@@ -37,6 +38,7 @@ class ClickHouseEmbedAdapter(Adapter):
 
     Use from the thread that runs embed_file after asyncio.set_event_loop(loop);
     upsert() (sync) uses get_event_loop() and run_until_complete for the insert.
+    Each batch is converted to pipeline_events rows and inserted, then discarded.
     """
 
     def __init__(  # noqa: PLR0913
