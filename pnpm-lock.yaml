@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@restackio/ai':
-        specifier: ^0.0.149
-        version: 0.0.149(@swc/core@1.13.1)
+        specifier: ^0.0.151
+        version: 0.0.151(@swc/core@1.13.1)
     devDependencies:
       '@workspace/eslint-config':
         specifier: workspace:*
@@ -36,8 +36,8 @@ importers:
         specifier: ^1.2.2
         version: 1.2.2(@types/react@19.1.7)(react@19.1.0)
       '@restackio/ai':
-        specifier: ^0.0.149
-        version: 0.0.149(@swc/core@1.13.1)
+        specifier: ^0.0.151
+        version: 0.0.151(@swc/core@1.13.1)
       '@restackio/react':
         specifier: ^0.10.18
         version: 0.10.18(@types/react@19.1.7)(react@19.1.0)
@@ -1534,8 +1534,8 @@ packages:
   '@radix-ui/rect@1.1.1':
     resolution: {integrity: sha512-HPwpGIzkl28mWyZqG52jiqDJ12waP11Pa1lGoiyUkIEuMLBP0oeK/C89esbXrxsky5we7dfd8U58nm0SgAWpVw==}
 
-  '@restackio/ai@0.0.149':
-    resolution: {integrity: sha512-qnMset3eaciDhDsMerlin4/mAgSpRj3h44rfXFIMBaQQ9Eo2U1rKWYWI1WXoaBjaK+3yzPUb8/TkfehWskqbcQ==}
+  '@restackio/ai@0.0.151':
+    resolution: {integrity: sha512-B6YHpKA8Bn51KzLQleCaZPZ7xTX0ASPC8wTric1yEF33P1kJ++Jxm2sgD6prI0kcdeWDVdR8SAKJKFDnl10o0g==}
     engines: {node: '>=20'}
 
   '@restackio/react@0.10.18':
@@ -6133,7 +6133,7 @@ snapshots:
 
   '@radix-ui/rect@1.1.1': {}
 
-  '@restackio/ai@0.0.149(@swc/core@1.13.1)':
+  '@restackio/ai@0.0.151(@swc/core@1.13.1)':
     dependencies:
       '@temporalio/activity': 1.12.1
       '@temporalio/client': 1.12.1
