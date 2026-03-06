@@ -47,8 +47,6 @@ from src.functions.data_ingestion import (
     ingest_pipeline_events,
     query_clickhouse_data,
 )
-from src.functions.embed_anything_ingestion import embed_anything_pdf_to_events
-from src.functions.embed_model_loader import ensure_embed_model_loaded
 from src.functions.datasets_crud import (
     datasets_create,
     datasets_get_by_id,
@@ -56,6 +54,12 @@ from src.functions.datasets_crud import (
     delete_dataset_events_by_source,
     list_dataset_files,
     query_dataset_events,
+)
+from src.functions.embed_anything_ingestion import (
+    embed_anything_pdf_to_events,
+)
+from src.functions.embed_model_loader import (
+    ensure_embed_model_loaded,
 )
 from src.functions.feedback_metrics import (
     get_detailed_feedbacks,
@@ -740,7 +744,9 @@ async def main() -> None:
     logger.info(
         "Starting Restack services on default port (5233)"
     )
-    await asyncio.gather(run_restack_service(), run_embed_service())
+    await asyncio.gather(
+        run_restack_service(), run_embed_service()
+    )
 
 
 def start() -> None:
