@@ -15,12 +15,12 @@ from src.functions.cockroachdb_crud import (
     cockroachdb_list_tables,
     cockroachdb_run_select_query,
 )
-from src.functions.zendesk import search_zendesk_tickets
 from src.functions.llm_response import llm_response
 from src.functions.template_from_sample import (
     template_from_sample,
 )
 from src.functions.update_todos import update_todos
+from src.functions.zendesk import search_zendesk_tickets
 from src.workflows.tools.clickhouse_crud import (
     ClickHouseListDatabases,
     ClickHouseListTables,
@@ -44,7 +44,9 @@ from src.workflows.tools.transform_data import (
     TransformData,
 )
 from src.workflows.tools.update_todos import UpdateTodos
-from src.workflows.tools.zendesk import SearchZendeskTicketsWorkflow
+from src.workflows.tools.zendesk import (
+    SearchZendeskTicketsWorkflow,
+)
 
 # Create logger for this module
 logger = logging.getLogger(__name__)

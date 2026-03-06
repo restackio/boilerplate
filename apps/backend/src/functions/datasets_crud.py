@@ -503,20 +503,18 @@ async def datasets_create(
 
         # Set up default storage config based on storage type
         storage_config = function_input.storage_config.copy()
-        if function_input.storage_type == "clickhouse":
-            if not storage_config:
-                storage_config = {
-                    "database": "boilerplate_clickhouse",
-                    "table": "pipeline_events",
-                    "filter": {},
-                }
-        elif function_input.storage_type == "cockroachdb":
-            if not storage_config:
-                storage_config = {
-                    "database": "boilerplate_cockroachdb",
-                    "table": "pipeline_events",
-                    "filter": {},
-                }
+        if function_input.storage_type == "clickhouse" and not storage_config:
+            storage_config = {
+                "database": "boilerplate_clickhouse",
+                "table": "pipeline_events",
+                "filter": {},
+            }
+        elif function_input.storage_type == "cockroachdb" and not storage_config:
+            storage_config = {
+                "database": "boilerplate_cockroachdb",
+                "table": "pipeline_events",
+                "filter": {},
+            }
 
         # Scope queries to this dataset's events (by UUID)
         storage_config["dataset_id"] = dataset_id

@@ -173,7 +173,7 @@ class LoadIntoDataset:
         raise NonRetryableError(error_message)
 
     @workflow.run
-    async def run(
+    async def run(  # noqa: C901
         self, workflow_input: LoadIntoDatasetInput
     ) -> LoadIntoDatasetOutput:
         """Load data into dataset."""

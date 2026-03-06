@@ -304,9 +304,8 @@ async def _insert_data_to_cockroachdb(
             ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
     """
 
-    records = []
-    for row in data_rows:
-        records.append((
+    records = [
+        (
             row["id"],
             row["agent_id"],
             row["task_id"],
@@ -319,7 +318,9 @@ async def _insert_data_to_cockroachdb(
             row["embedding"] or [],
             row["event_timestamp"],
             row["ingested_at"],
-        ))
+        )
+        for row in data_rows
+    ]
 
     async with pool.acquire() as conn:
         await conn.executemany(insert_sql, records)

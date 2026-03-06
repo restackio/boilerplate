@@ -110,8 +110,9 @@ async def get_clickhouse_async_client() -> (
         "CLICKHOUSE_URL",
         "http://clickhouse:clickhouse@localhost:8123/boilerplate_clickhouse",
     )
-    conn_params = _parse_clickhouse_url(clickhouse_url)
-    return await clickhouse_connect.get_async_client(**conn_params)
+    return await clickhouse_connect.get_async_client(
+        **_parse_clickhouse_url(url)
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -156,6 +157,3 @@ async def close_cockroachdb_pool() -> None:
     if _cockroachdb_pool and not _cockroachdb_pool._closed:  # noqa: SLF001
         await _cockroachdb_pool.close()
         _cockroachdb_pool = None
-    return await clickhouse_connect.get_async_client(
-        **_parse_clickhouse_url(url)
-    )
