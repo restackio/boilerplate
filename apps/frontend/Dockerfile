@@ -12,7 +12,7 @@ RUN apt-get update \
     && npm config set update-notifier false \
     && npm config set fund false \
     && npm config set audit false \
-    && npm install -g pnpm@10.15.1 turbo@2.5.6 \
+    && npm install -g pnpm@10.30.3 turbo@2.8.13 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

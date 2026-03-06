@@ -1,5 +1,5 @@
 {
-  "$schema": "https://turbo.build/schema.json",
+  "$schema": "https://v2-8-13.turborepo.dev/schema.json",
   "ui": "stream",
   "globalEnv": ["RESTACK_ENGINE_ID", "RESTACK_ENGINE_ADDRESS", "RESTACK_ENGINE_API_ADDRESS", "RESTACK_ENGINE_API_KEY", "NODE_ENV", "DATABASE_URL", "CLICKHOUSE_URL", "OPENAI_API_KEY", "PASSWORD_SALT", "RESTACK_ENGINE_MCP_ADDRESS"],
   "tasks": {
