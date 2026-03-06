@@ -2,6 +2,7 @@
 import { client } from "./client";
 
 const BACKEND_TASK_QUEUE = "backend";
+const BACKEND_EMBED_TASK_QUEUE = "backend-embed";
 
 export async function runWorkflow({
   workflowName = "workflowFlow",
@@ -478,7 +479,7 @@ export async function scheduleAddFilesToDatasetWorkflow(params: {
     const { workflowId, runId } = await runWorkflow({
       workflowName: "AddFilesToDatasetWorkflow",
       input,
-      taskQueue: BACKEND_TASK_QUEUE,
+      taskQueue: BACKEND_EMBED_TASK_QUEUE,
     });
     if (process.env.NODE_ENV === "development") {
       console.log(

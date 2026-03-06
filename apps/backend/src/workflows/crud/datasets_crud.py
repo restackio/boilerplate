@@ -9,7 +9,7 @@ from restack_ai.workflow import (
     workflow,
 )
 
-from src.constants import TASK_QUEUE
+from src.constants import TASK_QUEUE, TASK_QUEUE_EMBED
 
 with import_functions():
     from src.functions.datasets_crud import (
@@ -257,7 +257,7 @@ class AddFilesToDatasetWorkflow:
             function=ensure_embed_model_loaded,
             function_input=EnsureEmbedModelInput(),
             start_to_close_timeout=timedelta(minutes=5),
-            task_queue=TASK_QUEUE,
+            task_queue=TASK_QUEUE_EMBED,
             max_attempts=2,
         )
 
@@ -315,7 +315,7 @@ class AddFilesToDatasetWorkflow:
                     ),
                     start_to_close_timeout=timedelta(minutes=15),
                     heartbeat_timeout=timedelta(minutes=2),
-                    task_queue=TASK_QUEUE,
+                    task_queue=TASK_QUEUE_EMBED,
                 )
             except Exception as e:  # noqa: BLE001
                 errors.append(f"{filename}: {e}")
