@@ -1162,7 +1162,9 @@ async def agents_update_status(
                         Agent.status == "published",
                     )
                 )
-                published_result = await db.execute(published_query)
+                published_result = await db.execute(
+                    published_query
+                )
                 currently_published_list = list(
                     published_result.scalars().all()
                 )
@@ -1174,11 +1176,15 @@ async def agents_update_status(
                             UTC
                         ).replace(tzinfo=None)
                         if archived_agent_id is None:
-                            archived_agent_id = str(published_agent.id)
+                            archived_agent_id = str(
+                                published_agent.id
+                            )
 
             # Update the target agent status
             agent.status = function_input.status
-            agent.updated_at = datetime.now(UTC).replace(tzinfo=None)
+            agent.updated_at = datetime.now(UTC).replace(
+                tzinfo=None
+            )
 
             await db.commit()
             # Build response from in-memory state (avoid refresh to prevent

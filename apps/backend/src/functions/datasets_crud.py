@@ -74,7 +74,9 @@ class DeleteDatasetEventsBySourceInput(BaseModel):
 
     workspace_id: str = Field(..., min_length=1)
     dataset_id: str = Field(..., min_length=1)
-    source: str = Field(..., min_length=1, max_length=MAX_SOURCE_LENGTH)
+    source: str = Field(
+        ..., min_length=1, max_length=MAX_SOURCE_LENGTH
+    )
 
 
 class DeleteDatasetEventsBySourceOutput(BaseModel):
@@ -745,10 +747,16 @@ async def list_dataset_files(
             function_input.workspace_id,
             function_input.dataset_id,
         )
-        where_conditions.extend(_build_tag_filters(storage_config))
-        where_conditions.extend(_build_other_storage_filters(storage_config))
+        where_conditions.extend(
+            _build_tag_filters(storage_config)
+        )
+        where_conditions.extend(
+            _build_other_storage_filters(storage_config)
+        )
         where_clause = " AND ".join(where_conditions)
-        table_name = storage_config.get("table", "pipeline_events")
+        table_name = storage_config.get(
+            "table", "pipeline_events"
+        )
         _validate_table_name(table_name)
         # Only consider events that have raw_data.source (file chunks).
         # Use raw_data.source (dot notation) for Dynamic/JSON column; avoid ORDER BY raw_data.* per ClickHouse docs.
@@ -766,7 +774,9 @@ async def list_dataset_files(
         """  # noqa: S608
         result = await client.query(files_query)
         files = [
-            DatasetFileSummary(source=row[0] or "", chunk_count=row[1] or 0)
+            DatasetFileSummary(
+                source=row[0] or "", chunk_count=row[1] or 0
+            )
             for row in (result.result_rows or [])
         ]
         return ListDatasetFilesOutput(success=True, files=files)
@@ -800,7 +810,9 @@ async def delete_dataset_events_by_source(
                 success=False,
                 error="Delete by source is only supported for clickhouse storage",
             )
-        source_safe = _sanitize_source_for_sql(function_input.source)
+        source_safe = _sanitize_source_for_sql(
+            function_input.source
+        )
         if not source_safe and function_input.source:
             return DeleteDatasetEventsBySourceOutput(
                 success=False,
@@ -813,9 +825,15 @@ async def delete_dataset_events_by_source(
             function_input.workspace_id,
             function_input.dataset_id,
         )
-        where_conditions.extend(_build_tag_filters(storage_config))
-        where_conditions.extend(_build_other_storage_filters(storage_config))
-        table_name = storage_config.get("table", "pipeline_events")
+        where_conditions.extend(
+            _build_tag_filters(storage_config)
+        )
+        where_conditions.extend(
+            _build_other_storage_filters(storage_config)
+        )
+        table_name = storage_config.get(
+            "table", "pipeline_events"
+        )
         _validate_table_name(table_name)
         delete_where = " AND ".join(where_conditions)
         # Use ALTER TABLE DELETE; match source (dot notation for Dynamic/JSON column)
@@ -825,7 +843,9 @@ async def delete_dataset_events_by_source(
           AND toString(raw_data.source) = '{source_safe}'
         """
         await client.command(delete_query)
-        return DeleteDatasetEventsBySourceOutput(success=True, deleted_count=-1)
+        return DeleteDatasetEventsBySourceOutput(
+            success=True, deleted_count=-1
+        )
     except (ValueError, TypeError, ConnectionError) as e:
         return DeleteDatasetEventsBySourceOutput(
             success=False,

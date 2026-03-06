@@ -5,9 +5,9 @@
 
 import { PDFDocument } from "pdf-lib";
 
-/** Temporal Cloud gRPC per-message limit (4 MB). We use 3.5 MB to leave room for JSON wrapper. */
+/** Temporal Cloud gRPC per-message limit (4 MB). We use 1 MB to leave room for JSON wrapper. */
 export const GRPC_MESSAGE_LIMIT_BYTES = 4 * 1024 * 1024;
-export const SAFE_PAYLOAD_BYTES = Math.floor(2 * 1024 * 1024);
+export const SAFE_PAYLOAD_BYTES = Math.floor(1 * 1024 * 1024);
 
 export interface FilePart {
   filename: string;
@@ -27,7 +27,7 @@ export async function splitPdfIntoParts(
   const fileSize = file.size;
   const sizeMB = (fileSize / (1024 * 1024)).toFixed(2);
   console.log(
-    `${SPLIT_LOG_PREFIX} start "${baseFilename}" size=${fileSize} (${sizeMB} MB) SAFE_PAYLOAD_BYTES=${SAFE_PAYLOAD_BYTES}`
+    `${SPLIT_LOG_PREFIX} start "${baseFilename}" size=${fileSize} (${sizeMB} MB) SAFE_PAYLOAD_BYTES=${SAFE_PAYLOAD_BYTES}`,
   );
   const arrayBuffer = await file.arrayBuffer();
   const sourcePdf = await PDFDocument.load(arrayBuffer);
@@ -44,7 +44,7 @@ export async function splitPdfIntoParts(
     Math.floor(SAFE_PAYLOAD_BYTES / avgBytesPerPage),
   );
   console.log(
-    `${SPLIT_LOG_PREFIX} "${baseFilename}" pages=${numPages} avgBytesPerPage=${Math.round(avgBytesPerPage)} pagesPerPart=${pagesPerPart}`
+    `${SPLIT_LOG_PREFIX} "${baseFilename}" pages=${numPages} avgBytesPerPage=${Math.round(avgBytesPerPage)} pagesPerPart=${pagesPerPart}`,
   );
 
   const parts: FilePart[] = [];
@@ -76,11 +76,11 @@ export async function splitPdfIntoParts(
     }
 
     const content_base64 = await blobToBase64(
-      new Blob([new Uint8Array(partBytes)])
+      new Blob([new Uint8Array(partBytes)]),
     );
     const partMB = (partSize / (1024 * 1024)).toFixed(2);
     console.log(
-      `${SPLIT_LOG_PREFIX} part ${parts.length + 1} pages ${pageIndex + 1}-${pageIndex + chunkSize} size=${partSize} (${partMB} MB)`
+      `${SPLIT_LOG_PREFIX} part ${parts.length + 1} pages ${pageIndex + 1}-${pageIndex + chunkSize} size=${partSize} (${partMB} MB)`,
     );
     parts.push({
       filename: baseFilename,
@@ -90,7 +90,7 @@ export async function splitPdfIntoParts(
   }
 
   console.log(
-    `${SPLIT_LOG_PREFIX} done "${baseFilename}" → ${parts.length} part(s)`
+    `${SPLIT_LOG_PREFIX} done "${baseFilename}" → ${parts.length} part(s)`,
   );
   return parts;
 }

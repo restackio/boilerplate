@@ -6,8 +6,9 @@ embeddings. Uses a ClickHouse adapter to stream embeddings directly to pipeline_
 PDF splitting for the 4 MB gRPC limit is done in the frontend; each payload is one part.
 See https://github.com/StarlightSearch/EmbedAnything and memory_leak blog (vector streaming).
 
-Temp file: embed_file() only accepts a file path, so we write decoded PDF to a temp file
-then delete it in finally. Defaults tuned for low RAM; override with EMBED_* env vars.
+We stream-decode base64 to a temp file so the full decoded PDF is never held in RAM
+(OOM-safe for large files). Chunk/batch sizes in embed_model_loader are tuned so only
+a small number of chunks are in memory at once. Override with EMBED_* env vars.
 """
 
 import asyncio
@@ -123,16 +124,20 @@ async def embed_anything_pdf_to_events(
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             try:
-                client = loop.run_until_complete(get_clickhouse_async_client())
+                client = loop.run_until_complete(
+                    get_clickhouse_async_client()
+                )
                 adapter = ClickHouseEmbedAdapter(
                     client,
-                    agent_id=input_data.agent_id or DATASET_ONLY_AGENT_ID,
+                    agent_id=input_data.agent_id
+                    or DATASET_ONLY_AGENT_ID,
                     task_id=input_data.task_id,
                     workspace_id=input_data.workspace_id,
                     dataset_id=input_data.dataset_id,
                     event_name=input_data.event_name,
                     source_filename=input_data.filename,
-                    tags=input_data.tags or ["pdf", "embed_anything"],
+                    tags=input_data.tags
+                    or ["pdf", "embed_anything"],
                 )
                 embed_anything.embed_file(
                     path,
@@ -175,4 +180,6 @@ async def embed_anything_pdf_to_events(
         return EmbedAnythingPdfOutput(error=str(e))
     finally:
         with contextlib.suppress(OSError):
-            await asyncio.to_thread(lambda: Path(path).unlink(missing_ok=True))
+            await asyncio.to_thread(
+                lambda: Path(path).unlink(missing_ok=True)
+            )
