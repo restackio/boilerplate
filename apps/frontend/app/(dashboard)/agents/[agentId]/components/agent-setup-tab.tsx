@@ -3,7 +3,10 @@
 import { useState, useCallback } from "react";
 import { Label } from "@workspace/ui/components/ui/label";
 import { AgentToolsManager } from "./agent-tools-manager";
-import { AgentConfigurationForm, type AgentConfigData } from "./agent-configuration-form";
+import {
+  AgentConfigurationForm,
+  type AgentConfigData,
+} from "./agent-configuration-form";
 
 interface Agent {
   id?: string;
@@ -21,22 +24,27 @@ interface AgentSetupTabProps {
   onChange: (draft: Partial<AgentConfigData>) => void;
   isSaving: boolean;
   workspaceId: string;
+  onAgentUpdated?: () => void;
 }
 
-export function AgentSetupTab({ agent, draft, onChange, workspaceId }: AgentSetupTabProps) {
+export function AgentSetupTab({
+  agent,
+  draft,
+  onChange,
+  workspaceId,
+}: AgentSetupTabProps) {
   const [nameError, setNameError] = useState("");
-  
-  // Check if agent is published (read-only)
   const isReadOnly = agent?.status === "published";
 
-  // Handle name validation
-  const handleNameValidation = useCallback((isValid: boolean, error: string) => {
-    setNameError(error);
-  }, []);
+  const handleNameValidation = useCallback(
+    (isValid: boolean, error: string) => {
+      setNameError(error);
+    },
+    [],
+  );
 
   return (
     <div className="space-y-6">
-      {/* Agent Configuration Form */}
       <AgentConfigurationForm
         data={draft}
         onChange={onChange}
@@ -55,10 +63,13 @@ export function AgentSetupTab({ agent, draft, onChange, workspaceId }: AgentSetu
       <div className="space-y-4">
         <Label>Tools</Label>
         {agent?.id && (
-          <AgentToolsManager agentId={agent.id} workspaceId={workspaceId} agent={agent} />
+          <AgentToolsManager
+            agentId={agent.id}
+            workspaceId={workspaceId}
+            agent={agent}
+          />
         )}
       </div>
-
     </div>
   );
-} 
+}

@@ -22,7 +22,9 @@ ON CONFLICT (id) DO NOTHING;
 -- Insert single dataset representing all pipeline events
 INSERT INTO datasets (id, workspace_id, name, description, storage_type, storage_config) VALUES
 ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'pipeline_events', 'All pipeline events from ClickHouse - unified event storage', 'clickhouse', 
- '{"database": "boilerplate_clickhouse", "table": "pipeline_events"}')
+ '{"database": "boilerplate_clickhouse", "table": "pipeline_events"}'),
+('b0000000-0000-0000-0000-00000000000b', 'c926e979-1f16-46bf-a7cc-8aab70162d65', 'files', 'Uploaded files (PDF, text, images) - use Add files to ingest. Chat with chat-dataset agent to query.', 'clickhouse',
+ '{"database": "boilerplate_clickhouse", "table": "pipeline_events", "dataset_id": "b0000000-0000-0000-0000-00000000000b"}')
 ON CONFLICT (id) DO NOTHING;
 -- Agents and completed tasks seed data
 -- This file creates demo agents and completed tasks with realistic conversation history
@@ -96,8 +98,42 @@ Search and retrieve technical documentation from internal knowledge bases to pro
 This is a pipeline agent that focuses on efficient data retrieval.$$,
     'pipeline',
     'published',
-    'gpt-5-mini',
+    'gpt-5.2',
     'low'
+)
+ON CONFLICT (id) DO NOTHING;
+
+-- Chat with dataset agent - "chat with my data": queries the "files" dataset via ClickHouse (public)
+INSERT INTO agents (id, workspace_id, team_id, name, description, instructions, type, status, model, reasoning_effort, is_public)
+VALUES (
+    'd0000000-0000-0000-0000-00000000000d',
+    'c926e979-1f16-46bf-a7cc-8aab70162d65',
+    '55555555-5555-5555-5555-555555555555',
+    'chat-dataset',
+    'Chat with your uploaded files. Use Add files on the Context > files dataset, then ask questions here.',
+    $$You are a helpful assistant that answers questions using the content of files uploaded by the user.
+
+## Data source
+- Use **clickhouselisttables** to discover tables if needed.
+- Use **clickhouserunselectquery** to query the pipeline_events table in database boilerplate_clickhouse.
+- Events for the "files" dataset have dataset_id = 'b0000000-0000-0000-0000-00000000000b'. Always filter by that when querying: WHERE dataset_id = 'b0000000-0000-0000-0000-00000000000b'.
+- Each row has raw_data (JSON) with "text", "source" (filename), "chunk_index". Use these to answer questions.
+
+## ClickHouse query rules (must follow to avoid errors)
+- **Do not use ORDER BY on raw_data columns** (e.g. raw_data.source, raw_data.chunk_index, raw_data.text). ClickHouse does not allow Dynamic/JSON columns in ORDER BY. Use only WHERE, SELECT, and LIMIT; omit ORDER BY or use a non-JSON column (e.g. event_timestamp) if ordering is required.
+- **Do not cast raw_data fields** with toInt64OrNull() or similar—raw_data.chunk_index can be numeric already and conversion functions expect String. Select raw_data.chunk_index and raw_data.source as-is.
+- **For text search** use positionCaseInsensitive(raw_data.text, 'your phrase') > 0 or lower(raw_data.text) LIKE '%term%' in WHERE. Do not use raw_data columns in ORDER BY.
+- **Safe query pattern**: SELECT raw_data.text AS text, raw_data.source AS source, raw_data.chunk_index AS chunk_index FROM pipeline_events WHERE dataset_id = 'b0000000-0000-0000-0000-00000000000b' AND positionCaseInsensitive(raw_data.text, 'search term') > 0 LIMIT 50;
+
+## Instructions
+1. Run a SELECT to get relevant chunks (filter by dataset_id, optionally search in raw_data.text using positionCaseInsensitive or LIKE; never ORDER BY raw_data columns).
+2. Summarize or quote from the retrieved text to answer the user.
+3. Cite the source filename when possible.$$,
+    'interactive',
+    'published',
+    'gpt-5.2',
+    'low',
+    TRUE
 )
 ON CONFLICT (id) DO NOTHING;
 
@@ -163,7 +199,7 @@ Use FailingMcpTest with:
 Focus on thorough testing and clear documentation of error handling behavior.$$,
     'interactive',
     'published',
-    'gpt-5',
+    'gpt-5.2',
     'low'
 )
 ON CONFLICT (id) DO NOTHING;
@@ -230,7 +266,7 @@ When a member asks about coverage:
 Your goal is to help members understand their policy coverage.$$,
     'interactive',
     'published',
-    'gpt-5',
+    'gpt-5.2',
     'medium',
     NOW() - INTERVAL '7 days'
 )
@@ -288,7 +324,7 @@ Surface signals from tech leaders' social media profiles to understand what's ha
 Your role is to surface product intelligence from tech leaders to inform our product strategy and content.$$,
     'pipeline',
     'published',
-    'gpt-5',
+    'gpt-5.2',
     'medium'
 )
 ON CONFLICT (id) DO NOTHING;
@@ -330,7 +366,7 @@ Store data with:
 This is a deterministic pipeline focused on efficient data extraction and storage.$$,
     'pipeline',
     'published',
-    'gpt-5-mini',
+    'gpt-5.2',
     'low'
 )
 ON CONFLICT (id) DO NOTHING;
@@ -400,7 +436,7 @@ Analyze signals from tech leaders in the context store and identify 10 product f
 Your role is to identify product intelligence opportunities that help us understand what's happening in the tech world and share our informed perspective.$$,
     'interactive',
     'published',
-    'gpt-5',
+    'gpt-5.2',
     'high'
 )
 ON CONFLICT (id) DO NOTHING;
@@ -464,7 +500,7 @@ Create compelling, technically-informed posts on product topics by researching o
 Your role is to craft technically-informed, opinionated content that showcases our product expertise and unique perspective.$$,
     'interactive',
     'published',
-    'gpt-5',
+    'gpt-5.2',
     'high'
 )
 ON CONFLICT (id) DO NOTHING;
@@ -502,7 +538,7 @@ For a given contact (contact_id), fetch CRM activities from Salesforce and ERP a
 Your goal is to produce a single, reconciled view of that contact across CRM and ERP.$$,
     'pipeline',
     'published',
-    'gpt-5-mini',
+    'gpt-5.2',
     'low'
 )
 ON CONFLICT (id) DO NOTHING;
@@ -534,7 +570,7 @@ Fetch all contacts from Salesforce (CRM), then for each contact create a subtask
 Your role is to sync customer data from CRM to reconciled contact context in the context store.$$,
     'pipeline',
     'published',
-    'gpt-5',
+    'gpt-5.2',
     'medium'
 )
 ON CONFLICT (id) DO NOTHING;
@@ -572,7 +608,7 @@ When the user provides a contact-id, retrieve that contact's reconciled context 
 Your goal is to produce accurate, context-aware quotes that leverage both CRM and ERP data from the context store.$$,
     'interactive',
     'published',
-    'gpt-5',
+    'gpt-5.2',
     'medium'
 )
 ON CONFLICT (id) DO NOTHING;
@@ -625,7 +661,11 @@ INSERT INTO agent_tools (id, agent_id, tool_type, mcp_server_id, tool_name, cust
 ('a0000055-0055-0055-0055-000000000055', '60000000-0000-0000-0000-000000000006', 'mcp', 'c0000000-0000-0000-0000-000000000001', 'updatetodos', 'Track customer-sync workflow: fetch contacts, create contact-context subtasks', FALSE, TRUE),
 
 -- Contact-quote tools (interactive sales assistant)
-('a0000056-0056-0056-0056-000000000056', '70000000-0000-0000-0000-000000000007', 'mcp', 'c0000000-0000-0000-0000-000000000001', 'clickhouserunselectquery', 'Query context store for contact context (CRM + ERP) needed to draft quote', FALSE, TRUE)
+('a0000056-0056-0056-0056-000000000056', '70000000-0000-0000-0000-000000000007', 'mcp', 'c0000000-0000-0000-0000-000000000001', 'clickhouserunselectquery', 'Query context store for contact context (CRM + ERP) needed to draft quote', FALSE, TRUE),
+
+-- Chat-dataset tools (chat with files - public agent)
+('a0000060-0060-0060-0060-000000000060', 'd0000000-0000-0000-0000-00000000000d', 'mcp', 'c0000000-0000-0000-0000-000000000001', 'clickhouselisttables', 'List ClickHouse tables to discover pipeline_events', FALSE, TRUE),
+('a0000061-0061-0061-0061-000000000061', 'd0000000-0000-0000-0000-00000000000d', 'mcp', 'c0000000-0000-0000-0000-000000000001', 'clickhouserunselectquery', 'Query pipeline_events for files dataset (dataset_id b0000000-0000-0000-0000-00000000000b) to answer user questions', FALSE, TRUE)
 ON CONFLICT (id) DO NOTHING;
 
 -- Insert agent subagent relationships (agents that can be delegated to via createsubtask)
@@ -1527,7 +1567,7 @@ When a member asks about coverage:
 Your goal is to provide accurate, validated coverage information.$$,
     'interactive',
     'published',
-    'gpt-5',
+    'gpt-5.2',
     'medium',
     'cccccccc-dddd-eeee-ffff-333333333333',
     NOW() - INTERVAL '3 days'
@@ -1615,7 +1655,7 @@ INSERT INTO tasks (id, workspace_id, team_id, title, description, status, agent_
           "response": {
             "id": "resp_001",
             "status": "in_progress",
-            "model": "gpt-5",
+            "model": "gpt-5.2",
             "tools": [
               {
                 "type": "mcp",

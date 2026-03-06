@@ -114,7 +114,7 @@ export function QuickActionDialog({
 }: QuickActionDialogProps) {
   const [formData, setFormData] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {};
-    fields.forEach(field => {
+    fields.forEach((field) => {
       initial[field.key] = field.defaultValue || "";
     });
     return initial;
@@ -133,11 +133,11 @@ export function QuickActionDialog({
 
   // Field change handler
   const handleFieldChange = (key: string, value: string) => {
-    setFormData(prev => ({ ...prev, [key]: value }));
-    
+    setFormData((prev) => ({ ...prev, [key]: value }));
+
     // Clear field error if it exists
     if (fieldErrors[key]) {
-      setFieldErrors(prev => {
+      setFieldErrors((prev) => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { [key]: _removed, ...rest } = prev;
         return rest;
@@ -149,9 +149,9 @@ export function QuickActionDialog({
   const validateForm = (): boolean => {
     const errors: Record<string, string> = {};
 
-    fields.forEach(field => {
+    fields.forEach((field) => {
       const value = formData[field.key] || "";
-      
+
       // Required field validation
       if (field.required && !value.trim()) {
         errors[field.key] = `${field.label} is required`;
@@ -180,13 +180,14 @@ export function QuickActionDialog({
     try {
       setInternalLoading(true);
       await action.onClick?.(formData);
-      
+
       if (closeOnSuccess) {
         handleClose();
       }
       onSuccess?.();
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Action failed";
+      const errorMessage =
+        error instanceof Error ? error.message : "Action failed";
       onError?.(errorMessage);
     } finally {
       setInternalLoading(false);
@@ -200,13 +201,14 @@ export function QuickActionDialog({
     try {
       setInternalLoading(true);
       await onPrimaryAction?.(formData);
-      
+
       if (closeOnSuccess) {
         handleClose();
       }
       onSuccess?.();
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Action failed";
+      const errorMessage =
+        error instanceof Error ? error.message : "Action failed";
       onError?.(errorMessage);
     } finally {
       setInternalLoading(false);
@@ -220,7 +222,7 @@ export function QuickActionDialog({
       if (onPrimaryAction) {
         handlePrimaryAction();
       } else if (actions.length > 0) {
-        const primaryAction = actions.find(a => a.isPrimary) || actions[0];
+        const primaryAction = actions.find((a) => a.isPrimary) || actions[0];
         handleAction(primaryAction);
       }
     }
@@ -231,7 +233,7 @@ export function QuickActionDialog({
     if (!isLoading && !internalLoading) {
       // Reset form data
       const initial: Record<string, string> = {};
-      fields.forEach(field => {
+      fields.forEach((field) => {
         initial[field.key] = field.defaultValue || "";
       });
       setFormData(initial);
@@ -241,12 +243,14 @@ export function QuickActionDialog({
   };
 
   const isFormLoading = isLoading || internalLoading;
-  const primaryAction = actions.find(a => a.isPrimary);
-  const secondaryActions = actions.filter(a => !a.isPrimary);
+  const primaryAction = actions.find((a) => a.isPrimary);
+  const secondaryActions = actions.filter((a) => !a.isPrimary);
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className={cn(sizeClasses[size], "max-h-[90vh] flex flex-col")}>
+      <DialogContent
+        className={cn(sizeClasses[size], "max-h-[90vh] flex flex-col")}
+      >
         <DialogHeader className="flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex-1 min-w-0">
@@ -283,7 +287,9 @@ export function QuickActionDialog({
                 onChange={(value) => handleFieldChange(field.key, value)}
                 error={fieldErrors[field.key]}
                 disabled={isFormLoading}
-                onKeyDown={field.type === "textarea" ? handleKeyDown : undefined}
+                onKeyDown={
+                  field.type === "textarea" ? handleKeyDown : undefined
+                }
               />
             ))}
           </div>
@@ -297,8 +303,9 @@ export function QuickActionDialog({
               <div className="flex space-x-2">
                 {secondaryActions.map((action) => {
                   const Icon = action.icon;
-                  const isActionLoading = loadingStates[action.key] || isFormLoading;
-                  
+                  const isActionLoading =
+                    loadingStates[action.key] || isFormLoading;
+
                   return (
                     <Button
                       key={action.key}
@@ -317,7 +324,7 @@ export function QuickActionDialog({
                   );
                 })}
               </div>
-              
+
               {/* Primary actions */}
               <div className="flex space-x-2">
                 <Button
@@ -327,7 +334,7 @@ export function QuickActionDialog({
                 >
                   Cancel
                 </Button>
-                
+
                 {primaryAction ? (
                   <Button
                     onClick={() => handleAction(primaryAction)}
@@ -337,23 +344,30 @@ export function QuickActionDialog({
                     {loadingStates[primaryAction.key] || isFormLoading ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
-                      primaryAction.icon && <primaryAction.icon className="h-4 w-4" />
+                      primaryAction.icon && (
+                        <primaryAction.icon className="h-4 w-4" />
+                      )
                     )}
                     <span>{primaryAction.label}</span>
                   </Button>
-                ) : onPrimaryAction && (
-                  <Button
-                    onClick={handlePrimaryAction}
-                    disabled={isFormLoading}
-                    className="flex items-center space-x-2"
-                  >
-                    {isFormLoading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      primaryActionIcon && React.createElement(primaryActionIcon, { className: "h-4 w-4" })
-                    )}
-                    <span>{primaryActionLabel}</span>
-                  </Button>
+                ) : (
+                  onPrimaryAction && (
+                    <Button
+                      onClick={handlePrimaryAction}
+                      disabled={isFormLoading}
+                      className="flex items-center space-x-2"
+                    >
+                      {isFormLoading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        primaryActionIcon &&
+                        React.createElement(primaryActionIcon, {
+                          className: "h-4 w-4",
+                        })
+                      )}
+                      <span>{primaryActionLabel}</span>
+                    </Button>
+                  )
                 )}
               </div>
             </div>
@@ -388,7 +402,7 @@ function FormField({
         {field.label}
         {field.required && <span className="text-destructive ml-1">*</span>}
       </Label>
-      
+
       {field.type === "textarea" ? (
         <Textarea
           id={field.key}
@@ -398,7 +412,7 @@ function FormField({
           className={cn(
             "resize-none",
             error && "border-destructive",
-            field.maxRows && "max-h-[200px]"
+            field.maxRows && "max-h-[200px]",
           )}
           rows={field.rows || 4}
           disabled={disabled}
@@ -415,15 +429,11 @@ function FormField({
           disabled={disabled}
         />
       )}
-      
-      {error && (
-        <p className="text-sm text-destructive">{error}</p>
-      )}
-      
+
+      {error && <p className="text-sm text-destructive">{error}</p>}
+
       {field.description && !error && (
-        <p className="text-xs text-muted-foreground">
-          {field.description}
-        </p>
+        <p className="text-xs text-muted-foreground">{field.description}</p>
       )}
     </div>
   );
@@ -481,10 +491,10 @@ export const commonFields = {
     placeholder: "Enter a title...",
     required,
   }),
-  
+
   description: (required = false): QuickActionField => ({
     key: "description",
-    label: "Description", 
+    label: "Description",
     type: "textarea",
     placeholder: "Enter a description...",
     required,
@@ -494,7 +504,7 @@ export const commonFields = {
   message: (required = true): QuickActionField => ({
     key: "message",
     label: "Message",
-    type: "textarea", 
+    type: "textarea",
     placeholder: "Enter your message...",
     required,
     rows: 6,
@@ -508,7 +518,9 @@ export const commonFields = {
     required,
     validate: (value) => {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      return emailRegex.test(value) ? null : "Please enter a valid email address";
+      return emailRegex.test(value)
+        ? null
+        : "Please enter a valid email address";
     },
   }),
 

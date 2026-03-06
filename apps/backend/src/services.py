@@ -50,7 +50,15 @@ from src.functions.datasets_crud import (
     datasets_create,
     datasets_get_by_id,
     datasets_read,
+    delete_dataset_events_by_source,
+    list_dataset_files,
     query_dataset_events,
+)
+from src.functions.embed_anything_ingestion import (
+    embed_anything_pdf_to_events,
+)
+from src.functions.embed_model_loader import (
+    ensure_embed_model_loaded,
 )
 from src.functions.feedback_metrics import (
     get_detailed_feedbacks,
@@ -209,9 +217,12 @@ from src.workflows.crud.auth_crud import (
     UserSignupWorkflow,
 )
 from src.workflows.crud.datasets_crud import (
+    AddFilesToDatasetWorkflow,
     DatasetsCreateWorkflow,
     DatasetsGetByIdWorkflow,
     DatasetsReadWorkflow,
+    DeleteDatasetEventsBySourceWorkflow,
+    ListDatasetFilesWorkflow,
     QueryDatasetEventsWorkflow,
 )
 from src.workflows.crud.mcp_oauth_sdk import (
@@ -364,6 +375,9 @@ async def run_restack_service() -> None:
             DatasetsCreateWorkflow,
             DatasetsGetByIdWorkflow,
             QueryDatasetEventsWorkflow,
+            ListDatasetFilesWorkflow,
+            DeleteDatasetEventsBySourceWorkflow,
+            AddFilesToDatasetWorkflow,
             McpServersReadWorkflow,
             McpServersCreateWorkflow,
             McpServersUpdateWorkflow,
@@ -476,11 +490,15 @@ async def run_restack_service() -> None:
             datasets_read,
             datasets_get_by_id,
             query_dataset_events,
+            list_dataset_files,
+            delete_dataset_events_by_source,
             datasets_create,
             # Data ingestion functions
             ingest_pipeline_events,
             ingest_pipeline_events_cockroachdb,
             query_clickhouse_data,
+            embed_anything_pdf_to_events,
+            ensure_embed_model_loaded,
             mcp_servers_read,
             mcp_servers_create,
             mcp_servers_update,
@@ -578,6 +596,12 @@ def init_tracing() -> None:
                 "Tracing initialized: ClickHouse (development mode)"
             )
 
+    except (ImportError, ModuleNotFoundError) as e:
+        logger.info(
+            "Tracing SDK not available (install openai-agents for tracing): %s",
+            e,
+        )
+        logger.info("Continuing without tracing...")
     except (
         ValueError,
         TypeError,

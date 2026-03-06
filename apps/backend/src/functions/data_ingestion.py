@@ -193,6 +193,13 @@ async def ingest_pipeline_events(
 ) -> DataIngestionOutput:
     """Ingest ANY type of event from pipeline agents with vector embeddings for semantic search."""
     try:
+        # Normalize to PipelineEventInput (e.g. when received as dicts from workflows)
+        events = [
+            PipelineEventInput(
+                **(e if isinstance(e, dict) else e.model_dump())
+            )
+            for e in events
+        ]
         logger.debug(
             "ingest_pipeline_events called with %d events",
             len(events),

@@ -9,9 +9,8 @@ dependencies = [
     "pydantic[email]>=2.11.7",
     "watchfiles>=1.1.0",
     "python-dotenv>=1.1.1",
-    "openai[aiohttp]==1.107.1",
-    "openai-agents>=0.3.3",
-    "restack-ai>=0.0.115",
+    "openai[aiohttp]>=1.107.1",
+    "restack-ai>=0.0.117",
     "psycopg2-binary>=2.9.9",
     "asyncpg>=0.29.0",
     "sqlalchemy>=2.0.43",
@@ -21,6 +20,8 @@ dependencies = [
     "mcp>=1.13.1",
     "cryptography>=45.0.7",
     "clickhouse-connect>=0.9.0",
+    "embed-anything>=0.7.0",
+    "pypdf>=5.0.0",
     "ruff>=0.13.0",
 ]
 
@@ -45,10 +46,14 @@ line-length = 66
 [tool.ruff.lint]
 extend-select = ["ALL"]
 ignore = [
-    "ANN401", "E501", "D100", "D101", "D102", "D103", "D107", 
+    "ANN401", "E501", "D100", "D101", "D102", "D103", "D107",
     "TRY002", "D213", "D203", "COM812", "D104", "INP001", "PLC0415",
     "ISC001",  # Conflicts with formatter
 ]
+
+# SQLAlchemy models: column names "type" and "id" match DB; A003 (builtin shadow) intentional
+[tool.ruff.lint.per-file-ignores]
+"src/database/models.py" = ["A003"]
 
 [tool.ruff.format]
 quote-style = "double"

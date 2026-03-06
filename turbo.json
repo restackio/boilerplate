@@ -1,31 +1,31 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "ui": "stream",
-  "globalEnv": ["RESTACK_ENGINE_ID", "RESTACK_ENGINE_ADDRESS", "RESTACK_ENGINE_API_KEY", "NODE_ENV", "DATABASE_URL", "CLICKHOUSE_URL", "OPENAI_API_KEY", "PASSWORD_SALT", "RESTACK_ENGINE_MCP_ADDRESS"],
+  "globalEnv": ["RESTACK_ENGINE_ID", "RESTACK_ENGINE_ADDRESS", "RESTACK_ENGINE_API_ADDRESS", "RESTACK_ENGINE_API_KEY", "NODE_ENV", "DATABASE_URL", "CLICKHOUSE_URL", "OPENAI_API_KEY", "PASSWORD_SALT", "RESTACK_ENGINE_MCP_ADDRESS"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
       "outputs": [".next/**", "!.next/cache/**", ".venv/**", "uv.lock"],
-      "env": ["RESTACK_ENGINE_ID", "RESTACK_ENGINE_ADDRESS", "RESTACK_ENGINE_API_KEY", "NODE_ENV"]
+      "env": ["RESTACK_ENGINE_ID", "RESTACK_ENGINE_ADDRESS", "RESTACK_ENGINE_API_ADDRESS", "RESTACK_ENGINE_API_KEY", "NODE_ENV"]
     },
     "lint": {
       "dependsOn": ["^lint"],
-      "env": ["RESTACK_ENGINE_ID", "RESTACK_ENGINE_ADDRESS", "RESTACK_ENGINE_API_KEY", "NODE_ENV"]
+      "env": ["RESTACK_ENGINE_ID", "RESTACK_ENGINE_ADDRESS", "RESTACK_ENGINE_API_ADDRESS", "RESTACK_ENGINE_API_KEY", "NODE_ENV"]
     },
     "type-check": {
       "dependsOn": ["^type-check"],
-      "env": ["RESTACK_ENGINE_ID", "RESTACK_ENGINE_ADDRESS", "RESTACK_ENGINE_API_KEY", "NODE_ENV"]
+      "env": ["RESTACK_ENGINE_ID", "RESTACK_ENGINE_ADDRESS", "RESTACK_ENGINE_API_ADDRESS", "RESTACK_ENGINE_API_KEY", "NODE_ENV"]
     },
     "dev": {
       "cache": false,
       "persistent": true,
-      "env": ["RESTACK_ENGINE_ID", "RESTACK_ENGINE_ADDRESS", "RESTACK_ENGINE_API_KEY", "NODE_ENV"]
+      "env": ["RESTACK_ENGINE_ID", "RESTACK_ENGINE_ADDRESS", "RESTACK_ENGINE_API_ADDRESS", "RESTACK_ENGINE_API_KEY", "NODE_ENV"]
     },
     "start": {
       "cache": false,
       "persistent": true,
-      "env": ["RESTACK_ENGINE_ID", "RESTACK_ENGINE_ADDRESS", "RESTACK_ENGINE_API_KEY", "NODE_ENV"]
+      "env": ["RESTACK_ENGINE_ID", "RESTACK_ENGINE_ADDRESS", "RESTACK_ENGINE_API_ADDRESS", "RESTACK_ENGINE_API_KEY", "NODE_ENV"]
     },
     "install": {
       "cache": false

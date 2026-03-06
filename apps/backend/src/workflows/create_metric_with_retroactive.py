@@ -257,5 +257,5 @@ class CreateMetricWithRetroactiveWorkflow:
             metric_name=workflow_input.name,
             created=True,
             retroactive_evaluation=retroactive_result,
-            errors=errors if errors else None,
+            errors=errors or None,
         )

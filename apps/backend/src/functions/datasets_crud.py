@@ -14,6 +14,9 @@ from src.database.connection import (
     get_cockroachdb_pool,
 )
 
+# Max length for file source identifiers (raw_data.source); must match DB/API limits.
+MAX_SOURCE_LENGTH = 500
+
 
 # Input models
 class DatasetGetByWorkspaceInput(BaseModel):
@@ -43,6 +46,46 @@ class QueryDatasetEventsInput(BaseModel):
     search_query: str | None = None
     limit: int = 100
     offset: int = 0
+
+
+class ListDatasetFilesInput(BaseModel):
+    """Input for listing unique file sources (raw_data.source) in a dataset."""
+
+    workspace_id: str = Field(..., min_length=1)
+    dataset_id: str = Field(..., min_length=1)
+
+
+class DatasetFileSummary(BaseModel):
+    """One file (source) with its chunk count."""
+
+    source: str
+    chunk_count: int
+
+
+class ListDatasetFilesOutput(BaseModel):
+    """List of files (sources) with chunk counts."""
+
+    success: bool
+    files: list[DatasetFileSummary] = Field(default_factory=list)
+    error: str | None = None
+
+
+class DeleteDatasetEventsBySourceInput(BaseModel):
+    """Input for deleting all events (chunks) for a given file source."""
+
+    workspace_id: str = Field(..., min_length=1)
+    dataset_id: str = Field(..., min_length=1)
+    source: str = Field(
+        ..., min_length=1, max_length=MAX_SOURCE_LENGTH
+    )
+
+
+class DeleteDatasetEventsBySourceOutput(BaseModel):
+    """Result of delete by source."""
+
+    success: bool
+    deleted_count: int = 0
+    error: str | None = None
 
 
 # Output models
@@ -81,16 +124,13 @@ class QueryDatasetEventsOutput(BaseModel):
 
 
 def _build_where_conditions(
-    storage_config: dict, workspace_id: str
+    storage_config: dict, workspace_id: str, dataset_id: str
 ) -> list[str]:
-    """Build WHERE clause conditions based on storage config."""
-    where_conditions = [f"workspace_id = '{workspace_id}'"]
-
-    # Handle dataset_id filter if specified
-    if "dataset_id" in storage_config:
-        where_conditions.append(
-            f"dataset_id = '{storage_config['dataset_id']}'"
-        )
+    """Build WHERE clause conditions: scope by workspace and dataset id."""
+    where_conditions = [
+        f"workspace_id = '{workspace_id}'",
+        f"dataset_id = '{dataset_id}'",
+    ]
 
     # Handle tag-based filtering
     if (
@@ -118,14 +158,14 @@ def _build_where_conditions(
 
 
 async def _get_clickhouse_stats(
-    storage_config: dict, workspace_id: str
+    storage_config: dict, workspace_id: str, dataset_id: str
 ) -> dict:
     """Get real-time statistics from ClickHouse for a dataset."""
     try:
         client = await get_clickhouse_async_client()
 
         where_conditions = _build_where_conditions(
-            storage_config, workspace_id
+            storage_config, workspace_id, dataset_id
         )
 
         # Additional filtering is handled in _build_where_conditions helper
@@ -286,6 +326,7 @@ async def datasets_read(
                         stats = await _get_clickhouse_stats(
                             row.storage_config,
                             function_input.workspace_id,
+                            str(row.id),
                         )
                     elif row.storage_type == "cockroachdb":
                         stats = await _get_cockroachdb_stats(
@@ -477,6 +518,9 @@ async def datasets_create(
                     "filter": {},
                 }
 
+        # Scope queries to this dataset's events (by UUID)
+        storage_config["dataset_id"] = dataset_id
+
         # Add tag-based filtering if tags are provided (applies to all storage types)
         if function_input.tags and storage_config is not None:
             if "filter" not in storage_config:
@@ -661,17 +705,13 @@ async def _query_cockroachdb_events(
 
 
 def _build_dataset_filters(
-    storage_config: dict, workspace_id: str
+    _storage_config: dict, workspace_id: str, dataset_id: str
 ) -> list[str]:
-    """Build WHERE conditions from dataset storage config."""
-    conditions = [f"workspace_id = '{workspace_id}'"]
-
-    if "dataset_id" in storage_config:
-        conditions.append(
-            f"dataset_id = '{storage_config['dataset_id']}'"
-        )
-
-    return conditions
+    """Build WHERE conditions: always scope by workspace and requested dataset id."""
+    return [
+        f"workspace_id = '{workspace_id}'",
+        f"dataset_id = '{dataset_id}'",
+    ]
 
 
 def _build_tag_filters(storage_config: dict) -> list[str]:
@@ -788,7 +828,9 @@ async def _query_clickhouse_events(
         where_conditions = []
         where_conditions.extend(
             _build_dataset_filters(
-                storage_config, function_input.workspace_id
+                storage_config,
+                function_input.workspace_id,
+                function_input.dataset_id,
             )
         )
         where_conditions.extend(
@@ -881,4 +923,147 @@ async def _query_clickhouse_events(
             total_count=0,
             limit=function_input.limit,
             offset=function_input.offset,
+        )
+
+
+def _sanitize_source_for_sql(source: str) -> str:
+    """Escape single quotes in source to prevent SQL injection."""
+    if not source or len(source) > MAX_SOURCE_LENGTH:
+        return ""
+    return source.replace("'", "''")
+
+
+@function.defn()
+async def list_dataset_files(
+    function_input: ListDatasetFilesInput,
+) -> ListDatasetFilesOutput:
+    """List unique file sources (raw_data.source) in a dataset with chunk counts."""
+    try:
+        dataset_result = await datasets_get_by_id(
+            DatasetGetByIdInput(
+                dataset_id=function_input.dataset_id,
+                workspace_id=function_input.workspace_id,
+            )
+        )
+        if not dataset_result.dataset:
+            return ListDatasetFilesOutput(
+                success=False,
+                error=f"Dataset {function_input.dataset_id} not found",
+            )
+        dataset = dataset_result.dataset
+        if dataset.storage_type != "clickhouse":
+            return ListDatasetFilesOutput(
+                success=False,
+                error="Listing files by source is only supported for clickhouse storage",
+            )
+        client = await get_clickhouse_async_client()
+        storage_config = dataset.storage_config
+        where_conditions = _build_dataset_filters(
+            storage_config,
+            function_input.workspace_id,
+            function_input.dataset_id,
+        )
+        where_conditions.extend(
+            _build_tag_filters(storage_config)
+        )
+        where_conditions.extend(
+            _build_other_storage_filters(storage_config)
+        )
+        where_clause = " AND ".join(where_conditions)
+        table_name = storage_config.get(
+            "table", "pipeline_events"
+        )
+        _validate_table_name(table_name)
+        # Only consider events that have raw_data.source (file chunks).
+        # Use raw_data.source (dot notation) for Dynamic/JSON column; avoid ORDER BY raw_data.* per ClickHouse docs.
+        source_expr = "toString(raw_data.source)"
+        # table_name and where_clause come from validated storage_config, not user input
+        files_query = f"""
+        SELECT
+            {source_expr} AS source,
+            count() AS chunk_count
+        FROM {table_name}
+        WHERE {where_clause}
+          AND length({source_expr}) > 0
+        GROUP BY {source_expr}
+        ORDER BY chunk_count DESC
+        """  # noqa: S608
+        result = await client.query(files_query)
+        files = [
+            DatasetFileSummary(
+                source=row[0] or "", chunk_count=row[1] or 0
+            )
+            for row in (result.result_rows or [])
+        ]
+        return ListDatasetFilesOutput(success=True, files=files)
+    except (ValueError, TypeError, ConnectionError) as e:
+        return ListDatasetFilesOutput(
+            success=False,
+            error=str(e),
+        )
+
+
+@function.defn()
+async def delete_dataset_events_by_source(
+    function_input: DeleteDatasetEventsBySourceInput,
+) -> DeleteDatasetEventsBySourceOutput:
+    """Delete all events (chunks) in a dataset that have the given raw_data.source."""
+    try:
+        dataset_result = await datasets_get_by_id(
+            DatasetGetByIdInput(
+                dataset_id=function_input.dataset_id,
+                workspace_id=function_input.workspace_id,
+            )
+        )
+        if not dataset_result.dataset:
+            return DeleteDatasetEventsBySourceOutput(
+                success=False,
+                error=f"Dataset {function_input.dataset_id} not found",
+            )
+        dataset = dataset_result.dataset
+        if dataset.storage_type != "clickhouse":
+            return DeleteDatasetEventsBySourceOutput(
+                success=False,
+                error="Delete by source is only supported for clickhouse storage",
+            )
+        source_safe = _sanitize_source_for_sql(
+            function_input.source
+        )
+        if not source_safe and function_input.source:
+            return DeleteDatasetEventsBySourceOutput(
+                success=False,
+                error="Invalid source value",
+            )
+        client = await get_clickhouse_async_client()
+        storage_config = dataset.storage_config
+        where_conditions = _build_dataset_filters(
+            storage_config,
+            function_input.workspace_id,
+            function_input.dataset_id,
+        )
+        where_conditions.extend(
+            _build_tag_filters(storage_config)
+        )
+        where_conditions.extend(
+            _build_other_storage_filters(storage_config)
+        )
+        table_name = storage_config.get(
+            "table", "pipeline_events"
+        )
+        _validate_table_name(table_name)
+        delete_where = " AND ".join(where_conditions)
+        # Use ALTER TABLE DELETE; match source (dot notation for Dynamic/JSON column)
+        delete_query = f"""
+        ALTER TABLE {table_name}
+        DELETE WHERE {delete_where}
+          AND toString(raw_data.source) = '{source_safe}'
+        """
+        await client.command(delete_query)
+        return DeleteDatasetEventsBySourceOutput(
+            success=True, deleted_count=-1
+        )
+    except (ValueError, TypeError, ConnectionError) as e:
+        return DeleteDatasetEventsBySourceOutput(
+            success=False,
+            error=str(e),
         )

@@ -7,7 +7,7 @@ from pydantic import (
     ValidationInfo,
     field_validator,
 )
-from restack_ai.function import function
+from restack_ai.function import function, log
 
 from src.client import mcp_address
 
@@ -408,6 +408,8 @@ async def mcp_tools_list_direct(
             local=function_input.local,
             server_url=function_input.server_url,
         )
+
+        log.info(f"Effective URL: {effective_url}")
 
         async with aiohttp.ClientSession() as session:
             request_headers = function_input.headers or {}
