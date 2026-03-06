@@ -1,29 +1,28 @@
 "use client";
 
+import { Suspense, useState, useEffect } from "react";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import {
   SidebarInset,
   SidebarProvider,
 } from "@workspace/ui/components/ui/sidebar";
 import { usePathname } from "next/navigation";
-import { useState, useEffect } from "react";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { WorkspaceGuard } from "@/components/auth/workspace-guard";
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   // Check if we're on a detail page or playground page to minify sidebar by default
   const isTaskDetailPage =
     pathname.startsWith("/tasks/") && pathname.split("/").length === 3;
   const isDatasetDetailPage =
-    pathname.startsWith("/datasets/") && pathname.split("/").length === 3 && pathname.split("/")[2] !== "new";
+    pathname.startsWith("/datasets/") &&
+    pathname.split("/").length === 3 &&
+    pathname.split("/")[2] !== "new";
   const isPlaygroundPage = pathname === "/playground";
-  
-  const shouldMinimizeSidebar = isTaskDetailPage || isDatasetDetailPage || isPlaygroundPage;
+
+  const shouldMinimizeSidebar =
+    isTaskDetailPage || isDatasetDetailPage || isPlaygroundPage;
 
   // Controlled sidebar state that responds to pathname changes
   const [sidebarOpen, setSidebarOpen] = useState(!shouldMinimizeSidebar);
@@ -45,5 +44,17 @@ export default function DashboardLayout({
         </SidebarProvider>
       </WorkspaceGuard>
     </AuthGuard>
+  );
+}
+
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <Suspense fallback={null}>
+      <DashboardLayoutInner>{children}</DashboardLayoutInner>
+    </Suspense>
   );
 }
