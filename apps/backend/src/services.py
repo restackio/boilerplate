@@ -43,6 +43,7 @@ from src.functions.analytics_metrics import get_analytics_metrics
 from src.functions.auth_crud import user_login, user_signup
 from src.functions.data_ingestion import (
     ingest_pipeline_events,
+    ingest_pipeline_events_cockroachdb,
     query_clickhouse_data,
 )
 from src.functions.datasets_crud import (
@@ -494,6 +495,7 @@ async def run_restack_service() -> None:
             datasets_create,
             # Data ingestion functions
             ingest_pipeline_events,
+            ingest_pipeline_events_cockroachdb,
             query_clickhouse_data,
             embed_anything_pdf_to_events,
             ensure_embed_model_loaded,

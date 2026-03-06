@@ -5,11 +5,15 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
+import asyncpg
 import clickhouse_connect
 from pydantic import BaseModel, Field
 from restack_ai.function import function
 
-from src.database.connection import get_clickhouse_async_client
+from src.database.connection import (
+    get_clickhouse_async_client,
+    get_cockroachdb_pool,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -275,6 +279,111 @@ async def ingest_pipeline_events(
         if hasattr(e, "args") and e.args:
             error_msg += f" (Args: {e.args})"
 
+        return DataIngestionOutput(
+            success=False,
+            inserted_rows=0,
+            table_name="pipeline_events",
+            execution_time_ms=0,
+            error=error_msg,
+        )
+
+
+async def _insert_data_to_cockroachdb(
+    pool: asyncpg.Pool,
+    data_rows: list[dict],
+) -> None:
+    """Insert data rows into CockroachDB pipeline_events table."""
+    import json as _json
+
+    insert_sql = """
+        INSERT INTO pipeline_events
+            (id, agent_id, task_id, workspace_id, dataset_id,
+             event_name, raw_data, transformed_data, tags, embedding,
+             event_timestamp, ingested_at)
+        VALUES
+            ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+    """
+
+    records = [
+        (
+            row["id"],
+            row["agent_id"],
+            row["task_id"],
+            row["workspace_id"],
+            row["dataset_id"],
+            row["event_name"],
+            _json.dumps(row["raw_data"]),
+            _json.dumps(row["transformed_data"]) if row["transformed_data"] is not None else None,
+            row["tags"] or [],
+            row["embedding"] or [],
+            row["event_timestamp"],
+            row["ingested_at"],
+        )
+        for row in data_rows
+    ]
+
+    async with pool.acquire() as conn:
+        await conn.executemany(insert_sql, records)
+
+    logger.info(
+        "Successfully inserted %d rows into CockroachDB", len(records)
+    )
+
+
+@function.defn()
+async def ingest_pipeline_events_cockroachdb(
+    events: list[PipelineEventInput],
+) -> DataIngestionOutput:
+    """Ingest pipeline events into CockroachDB (used when dataset storage_type='cockroachdb')."""
+    try:
+        logger.debug(
+            "ingest_pipeline_events_cockroachdb called with %d events",
+            len(events),
+        )
+
+        pool = await get_cockroachdb_pool()
+        start_time = datetime.now(tz=UTC)
+
+        data_rows = []
+        for i, event in enumerate(events):
+            if event.event_timestamp:
+                dt = datetime.fromisoformat(
+                    event.event_timestamp.rstrip("Z")
+                )
+                event_ts = (
+                    dt if dt.tzinfo else dt.replace(tzinfo=UTC)
+                )
+            else:
+                event_ts = datetime.now(tz=UTC)
+
+            agent_uuid, task_uuid, workspace_uuid = (
+                _process_event_uuids(event, i)
+            )
+            row = _create_event_row(
+                event,
+                agent_uuid,
+                task_uuid,
+                workspace_uuid,
+                event_ts,
+            )
+            data_rows.append(row)
+
+        await _insert_data_to_cockroachdb(pool, data_rows)
+
+        execution_time = int(
+            (datetime.now(tz=UTC) - start_time).total_seconds() * 1000
+        )
+
+        return DataIngestionOutput(
+            success=True,
+            inserted_rows=len(data_rows),
+            table_name="pipeline_events",
+            execution_time_ms=execution_time,
+        )
+
+    except (ValueError, TypeError, ConnectionError, OSError) as e:
+        logger.exception("Exception in ingest_pipeline_events_cockroachdb")
+        error_msg = f"{type(e).__name__}: {e!s}"
         return DataIngestionOutput(
             success=False,
             inserted_rows=0,

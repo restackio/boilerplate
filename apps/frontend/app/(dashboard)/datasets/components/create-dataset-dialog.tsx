@@ -22,7 +22,11 @@ const STORAGE_TYPES = [
     name: "ClickHouse",
     description: "High-performance columnar database for analytics and real-time queries",
   },
-  // Future storage types can be added here
+  {
+    id: "cockroachdb",
+    name: "CockroachDB",
+    description: "Distributed SQL database with PostgreSQL compatibility and strong consistency",
+  },
 ];
 
 export function CreateDatasetDialog({ onDatasetCreated }: CreateDatasetDialogProps) {
