@@ -13,7 +13,6 @@ then delete it in finally. Defaults tuned for low RAM; override with EMBED_* env
 import asyncio
 import base64
 import contextlib
-import os
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -24,65 +23,16 @@ from restack_ai.function import function, heartbeat, log
 from src.adapters.clickhouse_embed_adapter import (
     ClickHouseEmbedAdapter,
 )
-from src.database.connection import get_clickhouse_client
-
-# Lazy-loaded EmbedAnything model (text chunking only)
-_embed_model: Any = None
-_embed_config: Any = None
-
-# Small HF model, no GPU. Override with EMBED_MODEL_ID if needed.
-DEFAULT_MODEL_ID = "sentence-transformers/all-MiniLM-L6-v2"
-
-# Optimised for low RAM: small buffer/batch so few chunks + embeddings in memory at once
-CHUNK_SIZE = 1200
-BATCH_SIZE = 16
-BUFFER_SIZE = 8
-
-
-def _embed_config_values() -> tuple[int, int, int]:
-    """Chunk size, batch size, buffer size (env overrides optional)."""
-    return (
-        int(os.environ.get("EMBED_CHUNK_SIZE", CHUNK_SIZE)),
-        int(os.environ.get("EMBED_BATCH_SIZE", BATCH_SIZE)),
-        int(os.environ.get("EMBED_BUFFER_SIZE", BUFFER_SIZE)),
-    )
+from src.database.connection import get_clickhouse_async_client
+from src.functions.embed_model_loader import (
+    get_embed_model_and_config_once,
+)
 
 # Send heartbeat every N seconds during long-running embed_file (activity heartbeat_timeout is 2 min)
 HEARTBEAT_INTERVAL_SECONDS = 45
 
 # Sentinel UUID when ingestion is dataset-only (no agent context)
 DATASET_ONLY_AGENT_ID = "00000000-0000-0000-0000-000000000000"
-
-_IMPORT_ERR_MSG = (
-    "embed-anything not installed. pip install embed-anything"
-)
-
-
-def _get_embed_model_and_config() -> tuple[Any, Any]:
-    """Lazy-load EmbedAnything HuggingFace model and config (text chunking)."""
-    global _embed_model, _embed_config  # noqa: PLW0603
-    if _embed_model is not None:
-        return _embed_model, _embed_config
-    try:
-        from embed_anything import EmbeddingModel, TextEmbedConfig
-    except ImportError as e:
-        raise ImportError(_IMPORT_ERR_MSG) from e
-    chunk_size, batch_size, buffer_size = _embed_config_values()
-    log.info(
-        f"embed_anything: loading HuggingFace model {DEFAULT_MODEL_ID} "
-        f"(chunk={chunk_size} batch={batch_size} buffer={buffer_size})"
-    )
-    _embed_model = EmbeddingModel.from_pretrained_hf(
-        model_id=DEFAULT_MODEL_ID
-    )
-    log.info("embed_anything: model loaded")
-    _embed_config = TextEmbedConfig(
-        chunk_size=chunk_size,
-        batch_size=batch_size,
-        buffer_size=buffer_size,
-        splitting_strategy="sentence",
-    )
-    return _embed_model, _embed_config
 
 
 class EmbedAnythingPdfInput(BaseModel):
@@ -167,28 +117,32 @@ async def embed_anything_pdf_to_events(
     try:
         import embed_anything
 
-        log.info("embed_anything: loading model and config")
-        model, config = _get_embed_model_and_config()
+        model, config = await get_embed_model_and_config_once()
 
-        client = get_clickhouse_client()
-        adapter = ClickHouseEmbedAdapter(
-            client,
-            agent_id=input_data.agent_id or DATASET_ONLY_AGENT_ID,
-            task_id=input_data.task_id,
-            workspace_id=input_data.workspace_id,
-            dataset_id=input_data.dataset_id,
-            event_name=input_data.event_name,
-            source_filename=input_data.filename,
-            tags=input_data.tags or ["pdf", "embed_anything"],
-        )
-
-        def run_embed() -> None:
-            embed_anything.embed_file(
-                path,
-                embedder=model,
-                config=config,
-                adapter=adapter,
-            )
+        def run_embed() -> int:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                client = loop.run_until_complete(get_clickhouse_async_client())
+                adapter = ClickHouseEmbedAdapter(
+                    client,
+                    agent_id=input_data.agent_id or DATASET_ONLY_AGENT_ID,
+                    task_id=input_data.task_id,
+                    workspace_id=input_data.workspace_id,
+                    dataset_id=input_data.dataset_id,
+                    event_name=input_data.event_name,
+                    source_filename=input_data.filename,
+                    tags=input_data.tags or ["pdf", "embed_anything"],
+                )
+                embed_anything.embed_file(
+                    path,
+                    embedder=model,
+                    config=config,
+                    adapter=adapter,
+                )
+                return adapter.insert_count
+            finally:
+                loop.close()
 
         async def send_heartbeats() -> None:
             while True:
@@ -197,13 +151,11 @@ async def embed_anything_pdf_to_events(
 
         heartbeat_task = asyncio.create_task(send_heartbeats())
         try:
-            await asyncio.to_thread(run_embed)
+            chunks_count = await asyncio.to_thread(run_embed)
         finally:
             heartbeat_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await heartbeat_task
-
-        chunks_count = adapter.insert_count
         log.info(
             f"embed_anything: streamed {chunks_count} chunks to ClickHouse for "
             f"{input_data.filename}"
