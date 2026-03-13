@@ -261,15 +261,6 @@ export function QuickActionDialog({
                 </DialogDescription>
               )}
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleClose}
-              disabled={isFormLoading}
-              className="h-6 w-6 p-0 flex-shrink-0 ml-4"
-            >
-              <X className="h-4 w-4" />
-            </Button>
           </div>
         </DialogHeader>
 

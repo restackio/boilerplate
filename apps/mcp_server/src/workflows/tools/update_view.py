@@ -50,7 +50,7 @@ class UpdateViewOutput(BaseModel):
 
 
 @workflow.defn(
-    description="Update an existing view on the current Build task. Pass task_id from meta_info, view_id to update, and the full updated view spec.",
+    description="Create or update a view on the Build task. Pass task_id from meta_info and the view spec (id, name, columns, dataset_id). If view_id matches an existing view it is updated; otherwise the view is added. Use this single tool for both creating and updating views.",
 )
 class UpdateView:
     """Workflow to replace a view spec in the task's view_specs JSON."""

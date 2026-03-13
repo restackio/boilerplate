@@ -31,6 +31,14 @@ with import_functions():
         list_dataset_files,
         query_dataset_events,
     )
+    from src.functions.tasks_crud import (
+        GetViewInput,
+        GetViewOutput,
+        ListViewsForDatasetInput,
+        ListViewsForDatasetOutput,
+        tasks_get_view_by_id,
+        tasks_list_views_for_dataset,
+    )
     from src.functions.embed_anything_ingestion import (
         EmbedAnythingPdfInput,
         embed_anything_pdf_to_events,
@@ -198,6 +206,50 @@ class DeleteDatasetEventsBySourceWorkflow:
             )
             raise NonRetryableError(
                 message=f"Error during delete_dataset_events_by_source: {e}"
+            ) from e
+
+
+@workflow.defn()
+class ListViewsForDatasetWorkflow:
+    """List view specs that reference the given dataset (from tasks.view_specs)."""
+
+    @workflow.run
+    async def run(
+        self, function_input: ListViewsForDatasetInput
+    ) -> ListViewsForDatasetOutput:
+        log.info("ListViewsForDatasetWorkflow started")
+        try:
+            return await workflow.step(
+                function=tasks_list_views_for_dataset,
+                function_input=function_input,
+                start_to_close_timeout=timedelta(seconds=30),
+                task_queue=TASK_QUEUE,
+            )
+        except Exception as e:
+            log.error("Error during tasks_list_views_for_dataset: %s", e)
+            raise NonRetryableError(
+                message=f"Error during tasks_list_views_for_dataset: {e}"
+            ) from e
+
+
+@workflow.defn()
+class GetViewWorkflow:
+    """Get a single view spec by id for the given dataset."""
+
+    @workflow.run
+    async def run(self, function_input: GetViewInput) -> GetViewOutput:
+        log.info("GetViewWorkflow started")
+        try:
+            return await workflow.step(
+                function=tasks_get_view_by_id,
+                function_input=function_input,
+                start_to_close_timeout=timedelta(seconds=30),
+                task_queue=TASK_QUEUE,
+            )
+        except Exception as e:
+            log.error("Error during tasks_get_view_by_id: %s", e)
+            raise NonRetryableError(
+                message=f"Error during tasks_get_view_by_id: {e}"
             ) from e
 
 

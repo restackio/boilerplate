@@ -35,7 +35,7 @@ export function AddOpenAITokenDialog({
   const { currentUser } = useDatabaseWorkspace();
   const { startOAuthFlow } = useOAuthFlow();
 
-  // When dialog opens, ensure we have fresh MCP server list (parent may not have fetched yet)
+  // When dialog opens, ensure we have fresh MCP server list (parent may not have fetched)
   useEffect(() => {
     if (open) {
       fetchMcpServers();

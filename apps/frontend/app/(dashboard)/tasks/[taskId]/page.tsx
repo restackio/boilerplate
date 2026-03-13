@@ -125,6 +125,8 @@ function TaskDetailContentInner({
           agentId={task.agent_id}
           workspaceId={currentWorkspaceId || undefined}
           onFilesAdded={handleFilesAdded}
+          filesRefreshTrigger={filesRefreshTrigger}
+          onRefreshTask={onRefetch}
         />
 
         <TaskSplitView
@@ -136,8 +138,6 @@ function TaskDetailContentInner({
           task={task}
           onUpdateTask={handleUpdateTask}
           isUpdating={isUpdating}
-          filesRefreshTrigger={filesRefreshTrigger}
-          isBuildTask={isBuildTask}
         />
       </div>
 

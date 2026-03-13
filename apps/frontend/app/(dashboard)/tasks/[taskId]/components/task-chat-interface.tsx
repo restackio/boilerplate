@@ -1,4 +1,5 @@
 import { useRef, useMemo, useState } from "react";
+import type { Task } from "@/hooks/use-workspace-scoped-actions";
 import { ConversationItem } from "../types";
 import { EmptyState } from "@workspace/ui/components/empty-state";
 import { PromptInput } from "@workspace/ui/components/ai-elements/prompt-input";
@@ -17,6 +18,8 @@ import {
 import { useConversationItem } from "../hooks/use-conversation-item";
 import { TaskTodosList } from "./task-todos-list";
 import { TaskSubtasksList } from "./task-subtasks-list";
+import { TaskCreatedList } from "./task-created-list";
+import { TaskFilesList } from "./task-files-list";
 import { FeedbackButtons } from "./feedback-buttons";
 import {
   DropdownMenu,
@@ -53,18 +56,15 @@ interface TaskChatInterfaceProps {
   /** When true, chat fills its container (no max-width/center). Use on build page. */
   fillContainer?: boolean;
   responseState?: unknown; // Agent state for real-time updates (while task running)
-  task?: {
-    status?: string;
-    agent_state?: {
-      todos?: unknown[];
-      subtasks?: unknown[];
-      [key: string]: unknown;
-    };
-  }; // Task from database (for completed tasks)
+  task?: Task;
   taskId?: string;
   agentId?: string;
   workspaceId?: string;
   onFilesAdded?: () => void;
+  /** Increment to refresh the Files list (e.g. after adding files). */
+  filesRefreshTrigger?: number;
+  /** Callback to refetch task (so Created list shows latest agents, datasets, views). */
+  onRefreshTask?: () => void | Promise<void>;
 }
 
 export function TaskChatInterface({
@@ -84,6 +84,8 @@ export function TaskChatInterface({
   agentId,
   workspaceId,
   onFilesAdded,
+  filesRefreshTrigger,
+  onRefreshTask,
 }: TaskChatInterfaceProps) {
   const conversationEndRef = useRef<HTMLDivElement>(null);
   const [addFilesDialogOpen, setAddFilesDialogOpen] = useState(false);
@@ -127,10 +129,7 @@ export function TaskChatInterface({
     >
       <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
         {conversation.length === 0 ? (
-          <EmptyState
-            title="No messages yet"
-            description="Start a conversation!"
-          />
+          <EmptyState title="No messages" description="Start a conversation!" />
         ) : (
           <>
             {/* Render conversation items from RxJS store */}
@@ -166,40 +165,20 @@ export function TaskChatInterface({
           {/* Persistent Subtasks List above input - real-time from agent state */}
           {subtasks && <TaskSubtasksList subtasks={subtasks} />}
 
+          {/* Created (agents, datasets, views) - build task */}
+          {task && <TaskCreatedList task={task} onRefresh={onRefreshTask} />}
+
+          {/* Files uploaded to this task */}
+          {taskId && (
+            <TaskFilesList
+              taskId={taskId}
+              refreshTrigger={filesRefreshTrigger}
+            />
+          )}
+
           {/* Persistent Todo List above input */}
           {todos && <TaskTodosList todos={todos} />}
         </div>
-
-        {/* + button with dropdown: Add files, etc. */}
-        {workspaceId && taskId && (
-          <div className="flex items-center gap-1 mb-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon" className="h-8 w-8">
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                <DropdownMenuItem
-                  onSelect={(e) => {
-                    e.preventDefault();
-                    setAddFilesDialogOpen(true);
-                  }}
-                >
-                  <FileUp className="h-4 w-4 mr-2" />
-                  Add files
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <AddTaskFilesDialog
-              workspaceId={workspaceId}
-              taskId={taskId}
-              open={addFilesDialogOpen}
-              onOpenChange={setAddFilesDialogOpen}
-              onFilesAdded={onFilesAdded}
-            />
-          </div>
-        )}
 
         <PromptInput
           prompt={chatMessage}
@@ -210,6 +189,42 @@ export function TaskChatInterface({
           placeholder="Request changes or ask a question"
           loadingPlaceholder="Agent is processing..."
           initializingPlaceholder="Waiting for agent to be ready..."
+          leadingActions={
+            workspaceId && taskId ? (
+              <>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 shrink-0"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    <DropdownMenuItem
+                      onSelect={(e) => {
+                        e.preventDefault();
+                        setAddFilesDialogOpen(true);
+                      }}
+                    >
+                      <FileUp className="h-4 w-4 mr-2" />
+                      Add files
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <AddTaskFilesDialog
+                  workspaceId={workspaceId}
+                  taskId={taskId}
+                  open={addFilesDialogOpen}
+                  onOpenChange={setAddFilesDialogOpen}
+                  onFilesAdded={onFilesAdded}
+                />
+              </>
+            ) : undefined
+          }
         />
       </div>
     </div>

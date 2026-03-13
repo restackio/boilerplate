@@ -33,6 +33,8 @@ export interface PromptInputProps {
   maxHeight?: string;
   /** Show AI indicator icon */
   showAIIndicator?: boolean;
+  /** Optional actions rendered inside the input area (e.g. Add files), to the left of the textarea */
+  leadingActions?: React.ReactNode;
 }
 
 export function PromptInput({
@@ -48,6 +50,7 @@ export function PromptInput({
   className = "",
   minHeight = "min-h-[40px]",
   maxHeight = "max-h-[80px]",
+  leadingActions,
 }: PromptInputProps) {
   const isDisabled = disabled || isLoading || isInitializing;
 
@@ -70,7 +73,8 @@ export function PromptInput({
     <div
       className={`max-w-4xl mx-auto border border-border/40 p-2 rounded-lg space-y-2 bg-muted/90 mb-4 ${className} `}
     >
-      <div className="flex space-x-2">
+      <div className="flex items-center gap-2">
+        {leadingActions}
         <Textarea
           placeholder={getPlaceholder()}
           value={prompt}

@@ -109,7 +109,7 @@ def _merge_quality_metrics(
     """Merge metric definitions with actual results.
 
     Ensures all active quality metrics appear in the summary,
-    even if they have no evaluation data yet. Also enriches with metric_id.
+    even if they have no evaluation data. Also enriches with metric_id.
     """
     existing_summary = quality_data.get("summary", [])
 
@@ -138,7 +138,7 @@ def _merge_quality_metrics(
 
         enriched_summary.append(metric)
 
-    # Add metrics that don't have data yet
+    # Add metrics that don't have data
     for definition in definitions:
         metric_name = definition["name"]
         if metric_name not in existing_names:

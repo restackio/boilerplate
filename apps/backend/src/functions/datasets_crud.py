@@ -37,6 +37,13 @@ class DatasetCreateInput(BaseModel):
     tags: list[str] | None = None
 
 
+class DatasetUpdateInput(BaseModel):
+    dataset_id: str = Field(..., min_length=1)
+    workspace_id: str = Field(..., min_length=1)
+    name: str | None = Field(None, min_length=1, max_length=255)
+    description: str | None = None
+
+
 class QueryDatasetEventsInput(BaseModel):
     workspace_id: str = Field(..., min_length=1)
     dataset_id: str = Field(..., min_length=1)
@@ -595,6 +602,65 @@ async def datasets_create(
 
 
 @function.defn()
+async def datasets_update(
+    function_input: DatasetUpdateInput,
+) -> DatasetSingleOutput:
+    """Update an existing dataset (name, description)."""
+    try:
+        async for db in get_async_db():
+            existing = await db.execute(
+                text("""
+                    SELECT id, workspace_id FROM datasets
+                    WHERE id = :dataset_id AND workspace_id = :workspace_id
+                    LIMIT 1
+                """),
+                {
+                    "dataset_id": function_input.dataset_id,
+                    "workspace_id": function_input.workspace_id,
+                },
+            )
+            row = existing.mappings().first()
+            if row is None:
+                raise NonRetryableError(
+                    message=f"Dataset {function_input.dataset_id} not found in workspace"
+                )
+            updates = []
+            params = {"dataset_id": function_input.dataset_id}
+            if function_input.name is not None:
+                updates.append("name = :name")
+                params["name"] = function_input.name
+            if function_input.description is not None:
+                updates.append("description = :description")
+                params["description"] = function_input.description
+            if not updates:
+                return await datasets_get_by_id(
+                    DatasetGetByIdInput(
+                        dataset_id=function_input.dataset_id,
+                        workspace_id=function_input.workspace_id,
+                    )
+                )
+            await db.execute(
+                text(
+                    "UPDATE datasets SET "
+                    + ", ".join(updates)
+                    + ", updated_at = NOW() WHERE id = :dataset_id"
+                ),
+                params,
+            )
+            await db.commit()
+            return await datasets_get_by_id(
+                DatasetGetByIdInput(
+                    dataset_id=function_input.dataset_id,
+                    workspace_id=function_input.workspace_id,
+                )
+            )
+    except (ValueError, TypeError, ConnectionError) as e:
+        msg = f"Failed to update dataset: {e!s}"
+        raise NonRetryableError(msg) from e
+    return None
+
+
+@function.defn()
 async def query_dataset_events(
     function_input: QueryDatasetEventsInput,
 ) -> QueryDatasetEventsOutput:
@@ -631,7 +697,7 @@ async def query_dataset_events(
             )
         return QueryDatasetEventsOutput(
             success=False,
-            error=f"Storage type {dataset.storage_type} not yet supported",
+            error=f"Storage type {dataset.storage_type} not supported",
             events=[],
             total_count=0,
             limit=function_input.limit,

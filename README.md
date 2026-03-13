@@ -70,7 +70,7 @@ pnpm dev
 The admin seed creates a single platform user you can log in with:
 
 - **Email:** `admin@example.com`
-- **Password:** Generated when the admin workspace is first created; it is **printed once** in the terminal when you run `pnpm db:admin:insert` and the admin workspace does not exist yet.
+- **Password:** Generated when the admin workspace is first created; it is **printed once** in the terminal when you run `pnpm db:admin:insert` and the admin workspace does not exist.
 
 If you never saw the password (e.g. you ran `db:admin:insert` after the workspace already existed), or you get errors like “no admin in the db” when creating users or using the app:
 

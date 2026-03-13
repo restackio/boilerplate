@@ -11,7 +11,7 @@ import {
 import { Button } from "@workspace/ui/components/ui/button";
 import { Cloud, ExternalLink, Server, Container } from "lucide-react";
 
-const RESTACK_CONSOLE_URL = "https://console.restack.io";
+const RESTACK_CONSOLE_URL = "https://console.restack.io/starter";
 const RESTACK_HELM_URL = "https://github.com/restackio/helm";
 
 interface DeployAgentDialogProps {
@@ -40,15 +40,10 @@ export function DeployAgentDialog({
           <div className="flex flex-col gap-3">
             <OptionCard
               icon={<Cloud className="h-5 w-5" />}
-              title="Deploy on Restack Cloud"
-              description="Add your OpenAI key to the workspace and run agents as usual. No infrastructure to manage."
+              title="Deploy instantly"
+              description="Run this agent without any infrastructure to manage."
               action={
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                  <Link href="/integrations" onClick={onClose}>
-                    <Button variant="outline" size="sm">
-                      Add OpenAI key
-                    </Button>
-                  </Link>
                   <Button
                     size="sm"
                     onClick={async () => {
@@ -65,7 +60,7 @@ export function DeployAgentDialog({
             <OptionCard
               icon={<Server className="h-5 w-5" />}
               title="Deploy on your Cloud"
-              description="Use Restack in your own cloud (AWS, GCP, Azure)."
+              description="Bring your own cloud like AWS, GCP or Azure."
               action={
                 <a
                   href={RESTACK_CONSOLE_URL}
@@ -82,8 +77,8 @@ export function DeployAgentDialog({
             />
             <OptionCard
               icon={<Container className="h-5 w-5" />}
-              title="Deploy yourself with Helm and Kubernetes"
-              description="Self-host with our Helm charts."
+              title="Deploy yourself on Kubernetes"
+              description="Self-host with our Helm chart."
               action={
                 <a
                   href={RESTACK_HELM_URL}
@@ -92,7 +87,7 @@ export function DeployAgentDialog({
                   onClick={onClose}
                 >
                   <Button variant="outline" size="sm">
-                    View Helm charts
+                    View Helm chart
                     <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
                   </Button>
                 </a>

@@ -21,6 +21,10 @@ from src.functions.template_from_sample import (
 )
 from src.functions.update_todos import update_todos
 from src.workflows.tools.add_agent_tool import AddAgentTool
+from src.workflows.tools.update_agent import UpdateAgent
+from src.workflows.tools.update_dataset import UpdateDataset
+from src.workflows.tools.update_integration import UpdateIntegration
+from src.workflows.tools.update_file import UpdateFile
 from src.workflows.tools.clickhouse_crud import (
     ClickHouseListDatabases,
     ClickHouseListTables,
@@ -68,8 +72,12 @@ async def run_restack_service() -> None:
         task_queue="mcp_server",
         workflows=[
             AddAgentTool,
-            CreateDataset,
+            UpdateAgent,
+            UpdateDataset,
+            UpdateIntegration,
+            UpdateFile,
             CreateAgent,
+            CreateDataset,
             CreateIntegrationFromRemoteMcp,
             CreateView,
             UpdateView,

@@ -114,6 +114,17 @@ class TaskGetByWorkspaceInput(BaseModel):
     )
 
 
+class ListViewsForDatasetInput(BaseModel):
+    workspace_id: str = Field(..., min_length=1)
+    dataset_id: str = Field(..., min_length=1)
+
+
+class GetViewInput(BaseModel):
+    workspace_id: str = Field(..., min_length=1)
+    dataset_id: str = Field(..., min_length=1)
+    view_id: str = Field(..., min_length=1)
+
+
 # Pydantic models for output serialization
 class TaskOutput(BaseModel):
     id: str
@@ -161,6 +172,18 @@ class TaskSingleOutput(BaseModel):
 
 class TaskDeleteOutput(BaseModel):
     success: bool
+
+
+class ListViewsForDatasetOutput(BaseModel):
+    success: bool = True
+    views: list[dict] = Field(default_factory=list)
+    error: str | None = None
+
+
+class GetViewOutput(BaseModel):
+    success: bool = True
+    view: dict | None = None
+    error: str | None = None
 
 
 class TaskStatsOutput(BaseModel):
@@ -711,6 +734,74 @@ async def tasks_get_by_id(
                 message=f"Failed to get task: {e!s}"
             ) from e
     return None
+
+
+def _view_specs_for_dataset(
+    view_specs: list | None, dataset_id: str
+) -> list[dict]:
+    """Return view specs that reference the given dataset_id."""
+    if not view_specs or not isinstance(view_specs, list):
+        return []
+    out = []
+    for v in view_specs:
+        if isinstance(v, dict) and v.get("dataset_id") == dataset_id:
+            out.append(v)
+    return out
+
+
+@function.defn()
+async def tasks_list_views_for_dataset(
+    function_input: ListViewsForDatasetInput,
+) -> ListViewsForDatasetOutput:
+    """List view specs that reference the given dataset (from tasks.view_specs)."""
+    if isinstance(function_input, dict):
+        function_input = ListViewsForDatasetInput.model_validate(function_input)
+    async for db in get_async_db():
+        try:
+            tasks_query = select(Task).where(
+                Task.workspace_id == uuid.UUID(function_input.workspace_id)
+            )
+            result = await db.execute(tasks_query)
+            tasks = result.scalars().all()
+            views: list[dict] = []
+            for task in tasks:
+                specs = getattr(task, "view_specs", None) or []
+                views.extend(
+                    _view_specs_for_dataset(specs, function_input.dataset_id)
+                )
+            return ListViewsForDatasetOutput(success=True, views=views)
+        except Exception as e:
+            log.error(f"tasks_list_views_for_dataset failed: {e!s}")
+            return ListViewsForDatasetOutput(
+                success=False, views=[], error=str(e)
+            )
+    return ListViewsForDatasetOutput(success=False, views=[], error="No db")
+
+
+@function.defn()
+async def tasks_get_view_by_id(
+    function_input: GetViewInput,
+) -> GetViewOutput:
+    """Get a single view spec by id that references the given dataset."""
+    if isinstance(function_input, dict):
+        function_input = GetViewInput.model_validate(function_input)
+    async for db in get_async_db():
+        try:
+            tasks_query = select(Task).where(
+                Task.workspace_id == uuid.UUID(function_input.workspace_id)
+            )
+            result = await db.execute(tasks_query)
+            tasks = result.scalars().all()
+            for task in tasks:
+                specs = getattr(task, "view_specs", None) or []
+                for v in _view_specs_for_dataset(specs, function_input.dataset_id):
+                    if isinstance(v, dict) and v.get("id") == function_input.view_id:
+                        return GetViewOutput(success=True, view=v)
+            return GetViewOutput(success=True, view=None)
+        except Exception as e:
+            log.error(f"tasks_get_view_by_id failed: {e!s}")
+            return GetViewOutput(success=False, view=None, error=str(e))
+    return GetViewOutput(success=False, view=None, error="No db")
 
 
 @function.defn()

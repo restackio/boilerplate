@@ -3,8 +3,6 @@ import { StatusIcon } from "@workspace/ui/components/status-indicators";
 import { ConversationItem } from "../types";
 import { TaskDetailsTab } from "./task-details-tab";
 import { TaskAnalyticsTab } from "./task-analytics-tab";
-import { TaskFilesPanel } from "./task-files-panel";
-import { TaskCreatedPanel } from "./task-created-panel";
 import { Task } from "@/hooks/use-workspace-scoped-actions";
 
 interface TaskSplitViewProps {
@@ -16,10 +14,6 @@ interface TaskSplitViewProps {
   task: Task;
   onUpdateTask: (updates: Partial<Task>) => Promise<void>;
   isUpdating: boolean;
-  /** Increment to refresh the Files panel (e.g. after adding files). */
-  filesRefreshTrigger?: number;
-  /** When true, show the "Created" tab (Build task). */
-  isBuildTask?: boolean;
 }
 
 export function TaskSplitView({
@@ -31,8 +25,6 @@ export function TaskSplitView({
   task,
   onUpdateTask,
   isUpdating,
-  filesRefreshTrigger = 0,
-  isBuildTask = false,
 }: TaskSplitViewProps) {
   // Custom detail renderer for conversation items
   const renderItemDetails = (item: ConversationItem) => (
@@ -240,7 +232,7 @@ export function TaskSplitView({
     </div>
   );
 
-  // Define tabs for the split view
+  // Define tabs for the split view (Created and Files are now lists above the chat input)
   const tabs = [
     ...(selectedCard
       ? [
@@ -248,22 +240,6 @@ export function TaskSplitView({
             id: "details",
             label: "Details",
             content: selectedCard ? renderItemDetails(selectedCard) : null,
-          },
-        ]
-      : []),
-    {
-      id: "files",
-      label: "Files",
-      content: (
-        <TaskFilesPanel taskId={task.id} refreshTrigger={filesRefreshTrigger} />
-      ),
-    },
-    ...(isBuildTask
-      ? [
-          {
-            id: "created",
-            label: "Created",
-            content: <TaskCreatedPanel task={task} />,
           },
         ]
       : []),

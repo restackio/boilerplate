@@ -42,7 +42,7 @@ export function TaskCreatedPanel({ task }: TaskCreatedPanelProps) {
 
       {!hasAny && (
         <div className="rounded-lg border border-dashed bg-muted/30 p-6 text-center text-sm text-muted-foreground">
-          Nothing created yet. As the builder creates agents, datasets,
+          Nothing created. As the builder creates agents, datasets,
           integrations, or views, they will appear here.
         </div>
       )}
