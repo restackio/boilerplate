@@ -127,10 +127,29 @@ interface TaskCreatedListProps {
   task: Task;
   /** Callback to refetch task (updates agent_state / view_specs so created items appear). */
   onRefresh?: () => void | Promise<void>;
+  /** Live agent state while task is in progress (so created list appears during build without refresh). */
+  responseState?: unknown;
 }
 
-export function TaskCreatedList({ task, onRefresh }: TaskCreatedListProps) {
+export function TaskCreatedList({
+  task,
+  onRefresh,
+  responseState,
+}: TaskCreatedListProps) {
   const viewSpecs = task.view_specs ?? [];
+  const isTaskActive = task?.status === "in_progress";
+  const liveState = useMemo(() => {
+    if (
+      isTaskActive &&
+      responseState &&
+      typeof responseState === "object" &&
+      Array.isArray((responseState as { events?: unknown[] }).events)
+    ) {
+      return { events: (responseState as { events: unknown[] }).events };
+    }
+    return null;
+  }, [isTaskActive, responseState]);
+
   const agentState = task.agent_state as
     | {
         events?: unknown[];
@@ -141,8 +160,9 @@ export function TaskCreatedList({ task, onRefresh }: TaskCreatedListProps) {
     | undefined;
 
   const derived = useMemo(
-    () => deriveCreatedFromEvents(task.agent_state),
-    [task.agent_state],
+    () =>
+      deriveCreatedFromEvents(liveState ?? task.agent_state),
+    [liveState, task.agent_state],
   );
 
   const createdAgents =

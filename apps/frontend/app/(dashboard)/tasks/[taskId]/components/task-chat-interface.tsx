@@ -171,7 +171,13 @@ export function TaskChatInterface({
           {subtasks && <TaskSubtasksList subtasks={subtasks} />}
 
           {/* Created (agents, datasets, views) - build task */}
-          {task && <TaskCreatedList task={task} onRefresh={onRefreshTask} />}
+          {task && (
+            <TaskCreatedList
+              task={task}
+              onRefresh={onRefreshTask}
+              responseState={responseState}
+            />
+          )}
 
           {/* Files uploaded to this task */}
           {taskId && (

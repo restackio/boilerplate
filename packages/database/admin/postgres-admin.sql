@@ -113,7 +113,7 @@ When presenting your design to the user, always output in this order:
 - Strict order: (1) updatedataset, (2) updateagent pipeline, (3) updateagent interactive parent, (4) addagenttool for parent: updatetodos then createsubtask, (5) updateview. Do not do updateview before adding parent tools.
 - Once approved, use tools in this order:
   1. `updatedataset` first for the context store (omit dataset_id to create). Use workspace_id from meta_info.
-  2. `updateagent` with type `pipeline` once, omit agent_id (start simple—one pipeline agent; the backend adds generatemock, transformdata, loadintodataset automatically). Record the returned pipeline agent_id. In the pipeline agent instructions, if it will use search or API tools, add: on timeout or 4xx, retry with a shorter query or report no results so the run can complete.
+  2. `updateagent` with type `pipeline` once, omit agent_id (start simple—one pipeline agent). Then add pipeline tools with `addagenttool`: generatemock, transformdata, loadintodataset, and completetask (completetask is required so the ETL can mark the task complete and the parent orchestrator knows when to continue). Record the returned pipeline agent_id. In the pipeline agent instructions, if it will use search or API tools, add: on timeout or 4xx, retry with a shorter query or report no results so the run can complete. In the pipeline instructions, add: when ETL is done (after loadintodataset or when no data to load), call completetask with task_id, temporal_agent_id, temporal_run_id from meta_info so the task completes and the parent can continue.
   3. `updateagent` with type `interactive` for the parent/orchestrator agent (omit agent_id). Set instructions that include the pipeline agent id. Then add tools to the parent—mandatory: (3a) `addagenttool` with tool_name `updatetodos`, (3b) `addagenttool` with tool_name `createsubtask`. Without both, the orchestrator cannot run.
   4. `updateview` so the user can see the data (omit view_id or use a new id to add). Use task_id from meta_info.
 - If the user wants changes after trying (e.g. tweak instructions, name, or view columns), use the same tools with the existing id: `updateagent` with agent_id, `updatedataset` with dataset_id, `updateview` with view_id, or `updateintegration` with mcp_server_id.
@@ -160,7 +160,7 @@ DELETE FROM agent_tools
 WHERE agent_id = 'e0000000-0000-0000-0000-00000000000e'::uuid AND tool_type = 'mcp'
   AND tool_name IN ('createagent', 'createdataset', 'createview', 'createintegrationfromremotemcp');
 
--- Build agent tools: updatetodos, updatedataset, updateagent, addagenttool, updateview, updatefile, createsubtask, searchremotemcpdirectory, updateintegration, listintegrationtools.
+-- Build agent tools: updatetodos, updatedataset, updateagent, addagenttool, updateview, updatefile, createsubtask, searchremotemcpdirectory, updateintegration, listintegrationtools. Pipeline agents must also get completetask (add via addagenttool) so they can mark the task complete when done.
 INSERT INTO agent_tools (id, agent_id, tool_type, mcp_server_id, tool_name, custom_description, require_approval, enabled)
 SELECT v.id, v.agent_id, 'mcp', 'c0000000-0000-0000-0000-000000000001'::uuid, v.tool_name, v.custom_description, false, true
 FROM (VALUES
@@ -176,3 +176,10 @@ FROM (VALUES
   ('e0000048-0048-0048-0048-000000000048'::uuid, 'e0000000-0000-0000-0000-00000000000e'::uuid, 'listintegrationtools'::varchar, 'List tool names for an integration. Use after updateintegration: pass mcp_server_id and workspace_id from meta_info. Returns tool names; call addagenttool once per tool with that mcp_server_id and agent_id.')
 ) AS v(id, agent_id, tool_name, custom_description)
 WHERE NOT EXISTS (SELECT 1 FROM agent_tools t WHERE t.agent_id = v.agent_id AND t.tool_type = 'mcp' AND t.tool_name = v.tool_name);
+
+-- Ensure required build tools are always present (updatetodos, updateview). Completetask is added to pipeline agents via addagenttool; the MCP server must expose it so addagenttool can attach it. If tools are missing in the session, re-run this upsert and ensure RESTACK_ENGINE_MCP_ADDRESS points to the MCP server that registers these workflows.
+INSERT INTO agent_tools (id, agent_id, tool_type, mcp_server_id, tool_name, custom_description, require_approval, enabled)
+VALUES
+  ('e0000040-0040-0040-0040-000000000040'::uuid, 'e0000000-0000-0000-0000-00000000000e'::uuid, 'mcp', 'c0000000-0000-0000-0000-000000000001'::uuid, 'updatetodos', 'Track plan and execution steps as todos (e.g. Clarify requirements, Design architecture, Create/update agents, datasets, views). Use at the start and as you complete each step.', false, true),
+  ('e0000043-0043-0043-0043-000000000043'::uuid, 'e0000000-0000-0000-0000-00000000000e'::uuid, 'mcp', 'c0000000-0000-0000-0000-000000000001'::uuid, 'updateview', 'Create or update a view on the Build task. Pass task_id and view spec (id, name, columns, dataset_id). If view id exists it is updated; otherwise the view is added. Use for both new views and changes after user feedback.', false, true)
+ON CONFLICT (agent_id, mcp_server_id, tool_name) DO UPDATE SET enabled = true, custom_description = EXCLUDED.custom_description;

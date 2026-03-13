@@ -60,6 +60,7 @@ class TaskUpdateInput(BaseModel):
     )
     temporal_schedule_id: str | None = None
     view_specs: list | None = None  # Build task view definitions
+    temporal_run_id: str | None = None  # For sending end event to the correct run
 
     @field_validator(
         "assigned_to_id",
@@ -417,9 +418,11 @@ async def tasks_update(
                 raise NonRetryableError(
                     message=f"Task with id {function_input.task_id} not found"
                 )
-            # Update fields (only non-None values, excluding task_id)
-            update_data = function_input.dict(
-                exclude_unset=True, exclude={"task_id"}
+            # Update fields (only non-None values, excluding task_id and temporal_run_id)
+            # temporal_run_id is only used by TasksUpdateWorkflow when sending end event
+            update_data = function_input.model_dump(
+                exclude_unset=True,
+                exclude={"task_id", "temporal_run_id"},
             )
             for key, value in update_data.items():
                 if hasattr(task, key) and value is not None:

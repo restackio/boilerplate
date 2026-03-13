@@ -19,6 +19,7 @@ dependencies = [
     "bcrypt>=4.0.1",
     "resend>=2.0.0",
     "mcp>=1.13.1",
+    "openai-agents>=0.12.0",
     "cryptography>=45.0.7",
     "clickhouse-connect>=0.9.0",
     "embed-anything>=0.7.0",

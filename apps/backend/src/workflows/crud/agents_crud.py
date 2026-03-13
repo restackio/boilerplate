@@ -115,6 +115,10 @@ class AgentsCreateWorkflow:
                         "tool_name": "loadintodataset",
                         "custom_description": "Load enriched data to dataset (Step 3: Load)",
                     },
+                    {
+                        "tool_name": "completetask",
+                        "custom_description": "Mark this task complete and stop. Call after loading data (or when done). Pass task_id, temporal_agent_id, temporal_run_id from meta_info.",
+                    },
                 ]
 
                 # Create each tool

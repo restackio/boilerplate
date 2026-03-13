@@ -136,6 +136,10 @@ export interface BuildSessionViewProps {
   /** Optional: called when user publishes from Deploy dialog (e.g. create/publish agent from build). */
   onPublish?: () => void | Promise<void>;
   isPublishing?: boolean;
+  /** Called when user clicks Delete (e.g. open delete confirmation dialog). */
+  onDelete?: () => void;
+  /** Called when user updates task (e.g. archive = status "closed", mark completed/failed). */
+  onUpdateTask?: (updates: Partial<Task>) => Promise<void>;
 }
 
 export function BuildSessionView({
@@ -143,6 +147,8 @@ export function BuildSessionView({
   onTaskRefetch,
   onPublish,
   isPublishing = false,
+  onDelete,
+  onUpdateTask,
 }: BuildSessionViewProps) {
   const [showDeployDialog, setShowDeployDialog] = useState(false);
   const [filesRefreshTrigger, setFilesRefreshTrigger] = useState(0);
@@ -171,8 +177,8 @@ export function BuildSessionView({
         breadcrumbs={buildBreadcrumbs}
         onDeploy={() => setShowDeployDialog(true)}
         isPublishing={isPublishing}
-        onDelete={() => {}}
-        onUpdateTask={async () => {}}
+        onDelete={onDelete ?? (() => {})}
+        onUpdateTask={onUpdateTask ?? (async () => {})}
         onOpenAnalytics={() => {}}
       />
       <DeployAgentDialog
