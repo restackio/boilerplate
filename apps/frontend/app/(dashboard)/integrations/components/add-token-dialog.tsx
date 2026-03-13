@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@workspace/ui/components/ui/button";
+import { Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -27,7 +28,7 @@ interface AddTokenDialogProps {
   onOpenChange: (open: boolean) => void;
   server: McpServer | null;
   onStartOAuth: () => void;
-  onSaveBearerToken: (token: string, name: string) => void;
+  onSaveBearerToken: (token: string, name: string) => void | Promise<void>;
   defaultTab?: "oauth" | "bearer";
 }
 
@@ -42,15 +43,21 @@ export function AddTokenDialog({
   const [bearerToken, setBearerToken] = useState("");
   const [tokenName, setTokenName] = useState("");
   const [activeTab, setActiveTab] = useState(defaultTab || "oauth");
+  const [saving, setSaving] = useState(false);
 
   if (!server) return null;
 
-  const handleBearerTokenSave = () => {
+  const handleBearerTokenSave = async () => {
     if (!bearerToken.trim()) return;
-    onSaveBearerToken(bearerToken, tokenName);
-    setBearerToken("");
-    setTokenName("");
-    onOpenChange(false);
+    setSaving(true);
+    try {
+      await onSaveBearerToken(bearerToken, tokenName);
+      setBearerToken("");
+      setTokenName("");
+      // Parent is responsible for closing the dialog on success (onOpenChange(false))
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleOAuthStart = () => {
@@ -166,9 +173,16 @@ export function AddTokenDialog({
               </Button>
               <Button
                 onClick={handleBearerTokenSave}
-                disabled={!bearerToken.trim()}
+                disabled={!bearerToken.trim() || saving}
               >
-                Save
+                {saving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Saving…
+                  </>
+                ) : (
+                  "Save"
+                )}
               </Button>
             </DialogFooter>
           </TabsContent>

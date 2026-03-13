@@ -47,8 +47,16 @@ export function CreateAgentDialog({
     hasWorkspaceOpenAIToken,
     fetchMcpServers,
   } = useWorkspaceScopedActions();
-  const { isOpen, open, close, isLoading, handleError, handleSuccess } =
-    useQuickActionDialog();
+  const {
+    isOpen,
+    open,
+    close,
+    isLoading,
+    startLoading,
+    stopLoading,
+    handleError,
+    handleSuccess,
+  } = useQuickActionDialog();
   const [selectedTeamId, setSelectedTeamId] = useState(teamId || "");
   const [addOpenAITokenDialogOpen, setAddOpenAITokenDialogOpen] =
     useState(false);
@@ -83,7 +91,7 @@ export function CreateAgentDialog({
     return true;
   };
 
-  const handleCreateAgent = async () => {
+  const handleCreateAgent = async (options?: { skipTokenCheck?: boolean }) => {
     // Validate inputs
     if (!validateAgentName(agentName)) {
       throw new Error("Please enter a valid agent name");
@@ -93,7 +101,7 @@ export function CreateAgentDialog({
       throw new Error("Please select an agent type");
     }
 
-    if (!hasWorkspaceOpenAIToken) {
+    if (!options?.skipTokenCheck && !hasWorkspaceOpenAIToken) {
       setAddOpenAITokenDialogOpen(true);
       throw new Error("OPENAI_TOKEN_REQUIRED");
     }
@@ -272,14 +280,16 @@ export function CreateAgentDialog({
         onOpenChange={setAddOpenAITokenDialogOpen}
         onTokenAdded={async () => {
           await fetchMcpServers();
-          setTimeout(async () => {
-            try {
-              await handleCreateAgent();
-              close();
-            } catch (e) {
-              handleError(e instanceof Error ? e.message : "Action failed");
-            }
-          }, 0);
+          startLoading();
+          try {
+            await handleCreateAgent({ skipTokenCheck: true });
+            handleSuccess();
+            close();
+          } catch (e) {
+            handleError(e instanceof Error ? e.message : "Action failed");
+          } finally {
+            stopLoading();
+          }
         }}
       />
     </>

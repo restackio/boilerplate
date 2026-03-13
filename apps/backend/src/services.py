@@ -43,7 +43,12 @@ from src.functions.agents_crud import (
     agents_update_status,
 )
 from src.functions.analytics_metrics import get_analytics_metrics
-from src.functions.auth_crud import user_login, user_signup
+from src.functions.auth_crud import (
+    request_password_reset,
+    reset_password,
+    user_login,
+    user_signup,
+)
 from src.functions.data_ingestion import (
     ingest_pipeline_events,
     ingest_pipeline_events_cockroachdb,
@@ -508,6 +513,8 @@ async def run_restack_service() -> None:
             user_workspaces_delete,
             user_signup,
             user_login,
+            request_password_reset,
+            reset_password,
             # Datasets functions
             datasets_read,
             datasets_get_by_id,

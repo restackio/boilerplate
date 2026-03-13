@@ -75,10 +75,13 @@ export default function NewAgentPage() {
   }, [teams, selectedTeamId]);
 
   const handleStartConversation = useCallback(
-    async (message: string) => {
+    async (
+      message: string,
+      options?: { skipTokenCheck?: boolean },
+    ) => {
       if (!currentWorkspaceId || !message.trim() || creating || !isReady)
         return;
-      if (!hasWorkspaceOpenAIToken) {
+      if (!options?.skipTokenCheck && !hasWorkspaceOpenAIToken) {
         setAddOpenAITokenDialogOpen(true);
         return;
       }
@@ -247,10 +250,9 @@ export default function NewAgentPage() {
       <AddOpenAITokenDialog
         open={addOpenAITokenDialogOpen}
         onOpenChange={setAddOpenAITokenDialogOpen}
-        onTokenAdded={() => {
-          fetchMcpServers().then(() => {
-            setTimeout(() => handleStartConversation(startMessage), 0);
-          });
+        onTokenAdded={async () => {
+          await fetchMcpServers();
+          await handleStartConversation(startMessage, { skipTokenCheck: true });
         }}
       />
     </div>
