@@ -26,7 +26,7 @@ from restack_ai.function import NonRetryableError, function, log
 from .mcp_oauth_crud import GetOAuthTokenInput
 
 # OAuth 2.0 token endpoint auth method (RFC 7591); not a secret.
-TOKEN_ENDPOINT_AUTH_METHOD_CLIENT_SECRET_POST = "client_secret_post"
+TOKEN_ENDPOINT_AUTH_METHOD_CLIENT_SECRET_POST = "client_secret_post"  # noqa: S105
 
 
 async def register_oauth_client(

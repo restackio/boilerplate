@@ -391,7 +391,7 @@ async def tasks_update(
             task = result.scalar_one_or_none()
 
             if not task:
-                raise NonRetryableError(  # noqa: TRY301
+                raise NonRetryableError(
                     message=f"Task with id {function_input.task_id} not found"
                 )
             # Update fields (only non-None values, excluding task_id)
@@ -530,7 +530,7 @@ async def tasks_save_agent_state(
             task = result.scalar_one_or_none()
 
             if not task:
-                raise NonRetryableError(  # noqa: TRY301
+                raise NonRetryableError(
                     message=f"Task with id {function_input.task_id} not found"
                 )
 
@@ -609,7 +609,7 @@ async def tasks_delete(
             task = result.scalar_one_or_none()
 
             if not task:
-                raise NonRetryableError(  # noqa: TRY301
+                raise NonRetryableError(
                     message=f"Task with id {function_input.task_id} not found"
                 )
             await db.delete(task)
@@ -653,7 +653,7 @@ async def tasks_get_by_id(
             task = result.scalar_one_or_none()
 
             if not task:
-                raise NonRetryableError(  # noqa: TRY301
+                raise NonRetryableError(
                     message=f"Task with id {function_input.task_id} not found"
                 )
             output_result = TaskOutput(
@@ -902,7 +902,7 @@ async def tasks_update_agent_task_id(
             task = result.scalar_one_or_none()
 
             if not task:
-                raise NonRetryableError(  # noqa: TRY301
+                raise NonRetryableError(
                     message=f"Task with id {function_input.task_id} not found"
                 )
             # Update the temporal_agent_id

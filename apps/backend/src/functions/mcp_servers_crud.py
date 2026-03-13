@@ -323,7 +323,7 @@ async def mcp_servers_update(
             mcp_server = result.scalar_one_or_none()
 
             if not mcp_server:
-                raise NonRetryableError(  # noqa: TRY301
+                raise NonRetryableError(
                     message=f"MCP server with id {function_input.mcp_server_id} not found"
                 )
             update_data = function_input.dict(
@@ -400,7 +400,7 @@ async def mcp_servers_delete(
             mcp_server = result.scalar_one_or_none()
 
             if not mcp_server:
-                raise NonRetryableError(  # noqa: TRY301
+                raise NonRetryableError(
                     message=f"MCP server with id {function_input.mcp_server_id} not found"
                 )
 
@@ -438,7 +438,7 @@ async def mcp_servers_get_by_id(
             mcp_server = result.scalar_one_or_none()
 
             if not mcp_server:
-                raise NonRetryableError(  # noqa: TRY301
+                raise NonRetryableError(
                     message=f"MCP server with id {function_input.mcp_server_id} not found"
                 )
             output_result = McpServerOutput(

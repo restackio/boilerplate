@@ -823,7 +823,7 @@ async def agents_update(
             agent = result.scalar_one_or_none()
 
             if not agent:
-                raise NonRetryableError(  # noqa: TRY301
+                raise NonRetryableError(
                     message=f"Agent with id {function_input.agent_id} not found"
                 )
             update_data = function_input.dict(
@@ -905,7 +905,7 @@ async def agents_delete(
             agent = result.scalar_one_or_none()
 
             if not agent:
-                raise NonRetryableError(  # noqa: TRY301
+                raise NonRetryableError(
                     message=f"Agent with id {function_input.agent_id} not found"
                 )
             # Determine the group key (parent_agent_id or agent's own id if it's a parent)
@@ -1235,7 +1235,7 @@ async def agents_update_status(
             agent = result.scalar_one_or_none()
 
             if not agent:
-                raise NonRetryableError(  # noqa: TRY301
+                raise NonRetryableError(
                     message="Agent not found"
                 )
 
@@ -1391,7 +1391,7 @@ async def agents_resolve_by_name(
             agent = result.scalars().first()
 
             if not agent:
-                raise NonRetryableError(  # noqa: TRY301
+                raise NonRetryableError(
                     message=f"Agent '{function_input.agent_name}' not found or not published in workspace"
                 )
 

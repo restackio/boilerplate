@@ -521,10 +521,11 @@ async def llm_response_stream(  # noqa: C901, PLR0915
             client = get_openai_client()
 
         if client is None:
-            raise ValueError(
+            msg = (
                 "OpenAI API key is not configured for this workspace. "
                 "Add your key in Integrations (OpenAI), or set OPENAI_API_KEY for development."
             )
+            raise ValueError(msg)
 
         # Check if tracing SDK is available
         try:

@@ -178,7 +178,7 @@ async def _get_clickhouse_stats(
         # Validate table name to prevent SQL injection
         def _raise_invalid_table_name() -> None:
             msg = "Invalid table name"
-            raise ValueError(msg)  # noqa: TRY301
+            raise ValueError(msg)
 
         if not table_name.replace("_", "").isalnum():
             _raise_invalid_table_name()
