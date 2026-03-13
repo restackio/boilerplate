@@ -66,7 +66,7 @@ interface PromptTemplate {
   category?: string;
 }
 
-// Default model options (latest OpenAI models per https://developers.openai.com/api/docs/guides/latest-model)
+// Default model options (OpenAI + early preview; per https://developers.openai.com/api/docs/guides/latest-model)
 export const DEFAULT_MODEL_OPTIONS = [
   { value: "gpt-5.4", label: "GPT-5.4" },
   { value: "gpt-5.3-chat-latest", label: "GPT-5.3 Chat" },
@@ -77,6 +77,9 @@ export const DEFAULT_MODEL_OPTIONS = [
   { value: "gpt-5-nano", label: "GPT-5 Nano" },
   { value: "o3-deep-research", label: "O3 Deep Research" },
   { value: "o4-mini-deep-research", label: "O4 Mini Deep Research" },
+  { value: "gemini", label: "Gemini" },
+  { value: "anthropic", label: "Anthropic" },
+  { value: "custom", label: "Custom model" },
 ];
 
 // Default reasoning effort options (GPT-5.4 supports xhigh)

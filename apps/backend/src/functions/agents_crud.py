@@ -15,10 +15,10 @@ from src.database.models import (
     Workspace,
 )
 
-# Allowed OpenAI model IDs (must match DB constraint and dropdowns)
+# Allowed model IDs (OpenAI + early preview / custom; must match frontend dropdowns)
 AGENT_MODEL_PATTERN = (
     r"^(gpt-5.4|gpt-5.3-chat-latest|gpt-5.2|gpt-5.1|gpt-5|gpt-5-mini|gpt-5-nano|"
-    r"o3-deep-research|o4-mini-deep-research)$"
+    r"o3-deep-research|o4-mini-deep-research|gemini|anthropic|custom)$"
 )
 DEFAULT_AGENT_MODEL = "gpt-5.4"
 

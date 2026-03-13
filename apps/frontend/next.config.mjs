@@ -3,11 +3,6 @@ const nextConfig = {
   transpilePackages: ["@workspace/ui", "shiki"],
   serverExternalPackages: ["@restackio/ai"],
 
-  // Allow large payloads for Add files (base64 file content via Server Action)
-  serverActions: {
-    bodySizeLimit: "50mb",
-  },
-
   // Optimize for Docker builds
   output: "standalone",
 
@@ -33,7 +28,7 @@ const nextConfig = {
     webpackBuildWorker: true,
     // Optimize package imports
     optimizePackageImports: ["@workspace/ui"],
-    // Allow large payloads (fallback for Next.js versions that read from experimental)
+    // Allow large payloads for Server Actions (e.g. base64 file content)
     serverActions: {
       bodySizeLimit: "50mb",
     },
