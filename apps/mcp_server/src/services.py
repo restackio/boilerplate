@@ -32,13 +32,7 @@ from src.workflows.tools.cockroachdb_crud import (
     CockroachDBRunSelectQuery,
 )
 from src.workflows.tools.complete_task import CompleteTask
-from src.workflows.tools.create_agent import CreateAgent
-from src.workflows.tools.create_dataset import CreateDataset
-from src.workflows.tools.create_integration_from_remote_mcp import (
-    CreateIntegrationFromRemoteMcp,
-)
 from src.workflows.tools.create_subtask import CreateSubtask
-from src.workflows.tools.create_view import CreateView
 from src.workflows.tools.generate_mock import GenerateMock
 from src.workflows.tools.list_integration_tools import (
     ListIntegrationTools,
@@ -78,10 +72,6 @@ async def run_restack_service() -> None:
             UpdateDataset,
             UpdateIntegration,
             UpdateFile,
-            CreateAgent,
-            CreateDataset,
-            CreateIntegrationFromRemoteMcp,
-            CreateView,
             UpdateView,
             ListIntegrationTools,
             SearchRemoteMcpDirectory,

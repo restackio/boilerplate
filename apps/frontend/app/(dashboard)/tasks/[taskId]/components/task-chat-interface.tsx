@@ -37,9 +37,14 @@ function isToolCallSpilloverContent(text: string): boolean {
   const t = text.trim();
   return (
     (t.includes('"workspace_id"') &&
-      (t.includes('"slug"') || t.includes("createdataset"))) ||
+      (t.includes('"slug"') ||
+        t.includes("createdataset") ||
+        t.includes("updatedataset"))) ||
     (t.includes("mcp_restack-core") &&
-      (t.includes("createdataset") || t.includes("createview")))
+      (t.includes("createdataset") ||
+        t.includes("updatedataset") ||
+        t.includes("createview") ||
+        t.includes("updateview")))
   );
 }
 

@@ -91,20 +91,24 @@ function deriveCreatedFromEvents(agentState: Task["agent_state"]): {
       (out.name as string) ?? (out.server_label as string) ?? "Unnamed";
     const tool = String(item.name).replace(/_/g, "").toLowerCase();
 
-    if (tool === "createagent" && out.agent_id) {
+    if ((tool === "updateagent" || tool === "createagent") && out.agent_id) {
       const id = String(out.agent_id);
       if (!seen.agent.has(id)) {
         seen.agent.add(id);
         agents.push({ id, name, href: `/agents/${id}` });
       }
-    } else if (tool === "createdataset" && out.dataset_id) {
+    } else if (
+      (tool === "updatedataset" || tool === "createdataset") &&
+      out.dataset_id
+    ) {
       const id = String(out.dataset_id);
       if (!seen.dataset.has(id)) {
         seen.dataset.add(id);
         datasets.push({ id, name, href: `/datasets/${id}` });
       }
     } else if (
-      (tool === "createintegrationfromremotemcp" ||
+      (tool === "updateintegration" ||
+        tool === "createintegrationfromremotemcp" ||
         tool === "create_integration_from_remote_mcp") &&
       out.mcp_server_id
     ) {
@@ -185,8 +189,8 @@ export function TaskCreatedList({ task, onRefresh }: TaskCreatedListProps) {
     }
   };
 
-  // Hide list only when there are no items and no way to refresh (e.g. not a build task)
-  if (!hasAny && !onRefresh) {
+  // Hide list when there are no items (don't show "Created" with 0 items)
+  if (!hasAny) {
     return null;
   }
 
@@ -225,9 +229,6 @@ export function TaskCreatedList({ task, onRefresh }: TaskCreatedListProps) {
 
       {isExpanded && (
         <div className="space-y-2 pl-1">
-          {!hasAny && (
-            <p className="text-xs text-muted-foreground py-1">No items.</p>
-          )}
           <CreatedSection
             icon={LayoutGrid}
             items={viewSpecs.map((view) => ({

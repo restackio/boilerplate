@@ -21,6 +21,19 @@ interface PublicAgent {
   workspace_id: string;
 }
 
+const TASK_STATUSES = [
+  "in_progress",
+  "in_review",
+  "closed",
+  "completed",
+  "failed",
+] as const;
+type TaskStatus = (typeof TASK_STATUSES)[number];
+
+function isTaskStatus(s: string | undefined): s is TaskStatus {
+  return s !== undefined && TASK_STATUSES.includes(s as TaskStatus);
+}
+
 interface PublicTask {
   id: string;
   temporal_agent_id?: string;
@@ -75,7 +88,16 @@ function PublicChatInner({ task }: { task: PublicTask }) {
       agentLoading={agentLoading}
       showSplitView={false}
       responseState={responseState}
-      task={{ status: task.status, agent_state: task.agent_state }}
+      task={{
+          id: task.id,
+          title: "",
+          status: isTaskStatus(task.status) ? task.status : "in_progress",
+          agent_id: "",
+          agent_name: "",
+          assigned_to_id: "",
+          assigned_to_name: "",
+          agent_state: task.agent_state,
+        }}
       taskId={taskId}
     />
   );

@@ -117,7 +117,7 @@ class ListMcpServerToolsInput(BaseModel):
 
     mcp_server_id: str = Field(
         ...,
-        description="MCP server ID (e.g. from createintegrationfromremotemcp)",
+        description="MCP server ID (e.g. from updateintegration)",
     )
     workspace_id: str = Field(
         ...,

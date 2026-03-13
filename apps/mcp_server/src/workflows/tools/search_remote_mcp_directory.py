@@ -43,7 +43,7 @@ class SearchRemoteMcpDirectoryOutput(BaseModel):
 
 @workflow.defn(
     name="SearchRemoteMcpDirectory",
-    description="Search the curated directory of remote MCP servers. Use to find relevant MCPs by keyword (e.g. search, github, exa). Returns entries with server_url, server_label, description. Use createintegrationfromremotemcp with an entry's server_url and server_label to add it to the workspace, then addagenttool to attach tools to an agent.",
+    description="Search the curated directory of remote MCP servers. Use to find relevant MCPs by keyword (e.g. search, github, exa). Returns entries with server_url, server_label, description. Use updateintegration with an entry's server_url and server_label to add it to the workspace, then addagenttool to attach tools to an agent.",
 )
 class SearchRemoteMcpDirectory:
     """Search the remote MCP directory via the backend."""

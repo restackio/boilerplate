@@ -14,7 +14,7 @@ class AddAgentToolInput(BaseModel):
 
     agent_id: str = Field(
         ...,
-        description="ID of the agent to add the tool to (e.g. from createagent result)",
+        description="ID of the agent to add the tool to (e.g. from updateagent result)",
     )
     tool_name: str = Field(
         ...,
@@ -39,7 +39,7 @@ class AddAgentToolOutput(BaseModel):
 
 @workflow.defn(
     name="AddAgentTool",
-    description="Add one MCP tool to an existing agent. Use after creating the parent (interactive) agent: add updatetodos then createsubtask to the parent. Pipeline agents get generatemock, transformdata, loadintodataset automatically. Pass agent_id from the createagent result and the tool_name.",
+    description="Add one MCP tool to an existing agent. Use after creating the parent (interactive) agent: add updatetodos then createsubtask to the parent. Pipeline agents get generatemock, transformdata, loadintodataset automatically. Pass agent_id from the updateagent result and the tool_name.",
 )
 class AddAgentTool:
     """MCP workflow to add a tool to an agent via the backend."""

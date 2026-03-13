@@ -11,7 +11,7 @@ class ListIntegrationToolsInput(BaseModel):
 
     mcp_server_id: str = Field(
         ...,
-        description="MCP server ID (e.g. from createintegrationfromremotemcp result)",
+        description="MCP server ID (e.g. from updateintegration result)",
     )
     workspace_id: str = Field(
         ...,
@@ -35,7 +35,7 @@ class ListIntegrationToolsOutput(BaseModel):
 
 @workflow.defn(
     name="ListIntegrationTools",
-    description="List tool names for an integration (MCP server). Use after createintegrationfromremotemcp: pass the returned mcp_server_id and workspace_id from meta_info. Returns a list of tool names; then call addagenttool for each tool name to attach them to the parent or pipeline agent.",
+    description="List tool names for an integration (MCP server). Use after updateintegration: pass the returned mcp_server_id and workspace_id from meta_info. Returns a list of tool names; then call addagenttool for each tool name to attach them to the parent or pipeline agent.",
 )
 class ListIntegrationTools:
     """List tools for an MCP server via the backend."""
