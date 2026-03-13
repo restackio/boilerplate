@@ -18,7 +18,6 @@ Built on Python + Kubernetes because enterprises already run AI workloads this w
 cp .env.example .env
 ```
 
-- Set `OPENAI_API_KEY` with a valid OpenAI API key
 - Set `RESTACK_ENGINE_MCP_ADDRESS` for ngrok tunnel with `ngrok http 11233`
 
 ### First time setup
@@ -27,7 +26,7 @@ cp .env.example .env
 pnpm localsetup
 ```
 
-This installs dependencies, starts infrastructure (PostgreSQL, ClickHouse, Restack), runs migrations, and inserts demo data.
+This installs dependencies, starts infrastructure (PostgreSQL, ClickHouse, Restack), and runs migrations. To seed the admin workspace (admin user, build agent, templates), set `ADMIN_SEED=true` before starting the backend, or run `pnpm db:admin:insert` after migrations.
 
 ### Start development
 
@@ -50,8 +49,8 @@ pnpm infra:start
 # Wait for services to be ready, then run migrations
 pnpm db:migrate
 
-# Insert demo data
-pnpm db:demo:insert
+# Optionally seed admin workspace (admin user, build agent, templates)
+pnpm db:admin:insert
 
 # Start all dev servers
 pnpm dev
@@ -110,18 +109,9 @@ pnpm dev
 
 ## OpenAI setup
 
-This boilerplate uses OpenAI's response API for tool execution. You'll need:
+This boilerplate uses OpenAI's response API for tool execution. OpenAI API keys are typically configured per-workspace. You'll need:
 
-1. **OpenAI API Key** - Get one at [platform.openai.com](https://platform.openai.com/api-keys)
-2. **Public MCP URL** - For OpenAI to call your local tools
-
-### Environment setup
-
-```bash
-cp env.development.example .env
-# Add your OpenAI API key:
-OPENAI_API_KEY=sk-your-key-here
-```
+1. **Public MCP URL** - For OpenAI to call your local tools (e.g. ngrok)
 
 ### Mcp server public access
 
@@ -140,12 +130,12 @@ RESTACK_ENGINE_MCP_ADDRESS=https://your-ngrok-url.ngrok-free.app/mcp
 
 ## Getting started tutorial
 
-### Step 1: Try a demo agent
+### Step 1: Try the platform
 
 1. Open Agent Orchestration at http://localhost:3000
-2. Login with demo credentials: `demo@example.com` / `password`
-3. Navigate to "Tasks" and select any completed task to see agent conversations
-4. Go to "Agents" to see 5 pre-configured agents across different teams
+2. Login with admin user (after seeding): `admin@example.com` — the password is generated when you run the admin seed and printed once; save it.
+3. Create a workspace, then go to Build to describe what you want or pick a template
+4. Go to "Agents" to manage agents; use "Deploy" on an agent for deployment options
 
 ### Step 2: Give an agent a new task
 
@@ -184,7 +174,7 @@ class TicketResult(BaseModel):
 
 async def search_zendesk_tickets(input: SearchTicketsInput) -> list[TicketResult]:
     """Search Zendesk tickets by query"""
-    # Mock implementation included for demo
+    # Mock implementation included for development
     return [
         TicketResult(id="12345", subject="Login issues", status="open"),
         TicketResult(id="12346", subject="Mobile app crash", status="pending")
@@ -264,7 +254,7 @@ pnpm start
 
 ```bash
 # Quick commands
-pnpm localsetup          # First time setup (install, infra, migrations, demo data)
+pnpm localsetup          # First time setup (install, infra, migrations)
 pnpm localdev            # Start infrastructure + dev servers
 pnpm dev                 # Start all dev servers with hot reloading (infra must be running)
 
@@ -278,7 +268,6 @@ pnpm infra:reset         # Complete infrastructure reset (⚠️ destroys data)
 
 # Database operations
 pnpm db:migrate          # Run database migrations (uses localhost by default)
-pnpm db:demo:insert      # Insert demo data (uses localhost by default)
 pnpm postgres:connect    # Connect to PostgreSQL
 pnpm clickhouse:connect  # Connect to ClickHouse
 

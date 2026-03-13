@@ -71,16 +71,16 @@ export function ActionButtonGroup({
   showSeparator = false,
 }: ActionButtonGroupProps) {
   // Filter actions based on conditions
-  const visibleActions = actions.filter(action => {
+  const visibleActions = actions.filter((action) => {
     if (action.show === false) return false;
-    if (typeof action.show === 'function') return action.show(context);
+    if (typeof action.show === "function") return action.show(context);
     return action.show === undefined || action.show === true;
   });
 
   // Spacing classes
   const spacingClasses = {
     tight: "gap-1",
-    normal: "gap-2", 
+    normal: "gap-2",
     loose: "gap-3",
   };
 
@@ -94,7 +94,8 @@ export function ActionButtonGroup({
   // Render action button
   const renderButton = (action: ActionButton) => {
     const Icon = action.icon;
-    const actionLoading = loadingStates[action.key] || action.loading || isLoading;
+    const actionLoading =
+      loadingStates[action.key] || action.loading || isLoading;
     const disabled = action.disabled || isLoading;
 
     return (
@@ -104,9 +105,7 @@ export function ActionButtonGroup({
         size={action.iconOnly ? "icon" : action.size || size}
         onClick={action.onClick}
         disabled={disabled}
-        className={cn(
-          action.iconOnly ? "h-8 w-8" : "flex items-center gap-2"
-        )}
+        className={cn(action.iconOnly ? "h-8 w-8" : "flex items-center gap-2")}
         title={action.tooltip || action.label}
       >
         {actionLoading ? (
@@ -125,18 +124,20 @@ export function ActionButtonGroup({
   };
 
   return (
-    <div className={cn(
-      "flex items-center",
-      spacingClasses[spacing],
-      alignClasses[align],
-      showSeparator && "border-l pl-4 ml-4",
-      className
-    )}>
+    <div
+      className={cn(
+        "flex items-center",
+        spacingClasses[spacing],
+        alignClasses[align],
+        showSeparator && "border-l pl-4 ml-4",
+        className,
+      )}
+    >
       {/* Status badge */}
       {statusBadge}
 
       {/* Action buttons */}
-      {visibleActions.map(action => renderButton(action))}
+      {visibleActions.map((action) => renderButton(action))}
     </div>
   );
 }
@@ -194,11 +195,7 @@ export function EntityHeader({
   };
 
   return (
-    <div className={cn(
-      "border-b bg-background",
-      sizeClasses[size],
-      className
-    )}>
+    <div className={cn("border-b bg-background", sizeClasses[size], className)}>
       {/* Breadcrumbs */}
       {breadcrumbs.length > 0 && (
         <nav className="mb-2">
@@ -232,13 +229,12 @@ export function EntityHeader({
           {/* Title and info */}
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-3 mb-1">
-              <h1 className={cn(
-                "font-semibold truncate",
-                titleSizeClasses[size]
-              )}>
+              <h1
+                className={cn("font-semibold truncate", titleSizeClasses[size])}
+              >
                 {title}
               </h1>
-              
+
               {/* Status badge */}
               {statusBadge}
 
@@ -274,17 +270,20 @@ export function EntityHeader({
 // Hook for managing action states
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function useActionStates(_actionKeys: string[]) {
-  const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
+  const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>(
+    {},
+  );
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const setLoading = (key: string, loading: boolean) => {
-    setLoadingStates(prev => ({ ...prev, [key]: loading }));
+    setLoadingStates((prev) => ({ ...prev, [key]: loading }));
   };
 
   const setError = (key: string, error: string | null) => {
-    setErrors(prev => 
-      error ? { ...prev, [key]: error } : 
-      { ...prev, [key]: undefined } as Record<string, string>
+    setErrors((prev) =>
+      error
+        ? { ...prev, [key]: error }
+        : ({ ...prev, [key]: undefined } as Record<string, string>),
     );
   };
 

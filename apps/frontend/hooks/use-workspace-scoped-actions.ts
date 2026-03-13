@@ -2,7 +2,10 @@
 
 import { useCallback, useState } from "react";
 import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
-import { runWorkflow, getWorkflowResult } from "@/app/actions/workflow";
+import {
+  executeWorkflow as executeWorkflowServer,
+  runWorkflow,
+} from "@/app/actions/workflow";
 
 export interface ApiResponse<T = any> {
   success: boolean;
@@ -77,6 +80,17 @@ export interface Task {
   created_by_name?: string; // Name of user who created the task
   created_at?: string;
   updated_at?: string;
+  // Build task: view specs for right-panel tables and row timelines
+  view_specs?: ViewSpec[];
+}
+
+export interface ViewSpec {
+  id: string;
+  name: string;
+  columns: { key: string; label: string }[];
+  dataset_id: string;
+  entity_id_field?: string;
+  activity_filter?: Record<string, unknown>;
 }
 
 export interface Team {
@@ -116,25 +130,21 @@ async function executeWorkflow<T>(
   workflowName: string,
   input: any = {}
 ): Promise<ApiResponse<T>> {
-
   try {
-
-    const { workflowId, runId } = await runWorkflow({
-      workflowName,
-      input,
-    });
-    
- 
-    const result = await getWorkflowResult({
-      workflowId,
-      runId,
-    });
-
-    
-    if (result === null || result === undefined) {
-      throw new Error('Workflow returned null or undefined result');
+    const serverResult = await executeWorkflowServer(workflowName, input);
+    if (!serverResult.success) {
+      return {
+        success: false,
+        error: serverResult.error ?? "Workflow execution failed",
+      };
     }
-    
+    const result = serverResult.data;
+    if (result === null || result === undefined) {
+      return {
+        success: false,
+        error: "Workflow returned null or undefined result",
+      };
+    }
     // Handle the response structure
     if (result && typeof result === 'object') {
       // For list responses (e.g., AgentsReadWorkflow returns { agents: [...] })
@@ -494,6 +504,18 @@ export function useWorkspaceScopedActions() {
     }
   }, [currentWorkspaceId, isReady]);
 
+  const getBuildAgent = useCallback(async () => {
+    if (!isReady) {
+      return { success: false, error: "Not ready", data: null };
+    }
+    try {
+      return await executeWorkflow<Agent | null>("AgentsGetBuildAgentWorkflow", {});
+    } catch (error) {
+      console.error("Failed to get build agent:", error);
+      return { success: false, error: "Failed to get build agent", data: null };
+    }
+  }, [isReady]);
+
   const publishAgent = useCallback(async (agentId: string) => {
     if (!isReady || !currentWorkspaceId) {
       console.error("Cannot publish agent: no valid workspace context");
@@ -531,8 +553,9 @@ export function useWorkspaceScopedActions() {
     setAgentsLoading({ isLoading: true, error: null });
     let result;
     try {
-      result = await executeWorkflow<{ agent: Agent }>("AgentsArchiveWorkflow", {
+      result = await executeWorkflow<{ agent: Agent }>("AgentsUpdateStatusWorkflow", {
         agent_id: agentId,
+        status: "archived",
       });
       
       if (result.success) {
@@ -994,6 +1017,7 @@ export function useWorkspaceScopedActions() {
     deleteAgent,
     getAgentById,
     getAgentVersions,
+    getBuildAgent,
     publishAgent,
     archiveAgent,
     

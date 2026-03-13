@@ -22,6 +22,7 @@ import {
 
 // Inner component that uses hooks requiring the provider
 function TaskDetailContentInner({ task, onRefetch }: { task: Task; onRefetch: () => Promise<void> }) {
+  const router = useRouter();
   const { currentWorkspaceId } = useDatabaseWorkspace();
   const {
     showDeleteDialog,
@@ -80,13 +81,16 @@ function TaskDetailContentInner({ task, onRefetch }: { task: Task; onRefetch: ()
     }
   };
 
+  const isBuildTask = task.title === "Build";
+
   return (
     <div>
-      <TaskHeader 
-        task={task} 
-        onDelete={() => setShowDeleteDialog(true)} 
+      <TaskHeader
+        task={task}
+        onDelete={() => setShowDeleteDialog(true)}
         onUpdateTask={handleUpdateTask}
         onOpenAnalytics={handleOpenAnalytics}
+        onDeploy={isBuildTask ? () => router.push(`/agents/new/${task.id}`) : undefined}
       />
       
       <div className={`flex ${showSplitView ? 'h-[calc(100vh-65px)]' : ''}`}>

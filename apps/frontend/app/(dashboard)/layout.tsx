@@ -20,10 +20,17 @@ export default function DashboardLayout({
   const isTaskDetailPage =
     pathname.startsWith("/tasks/") && pathname.split("/").length === 3;
   const isDatasetDetailPage =
-    pathname.startsWith("/datasets/") && pathname.split("/").length === 3 && pathname.split("/")[2] !== "new";
+    pathname.startsWith("/datasets/") &&
+    pathname.split("/").length === 3 &&
+    pathname.split("/")[2] !== "new";
   const isPlaygroundPage = pathname === "/playground";
-  
-  const shouldMinimizeSidebar = isTaskDetailPage || isDatasetDetailPage || isPlaygroundPage;
+  const isAgentsNewPage = pathname === "/agents/new";
+
+  const shouldMinimizeSidebar =
+    isTaskDetailPage ||
+    isDatasetDetailPage ||
+    isPlaygroundPage ||
+    isAgentsNewPage;
 
   // Controlled sidebar state that responds to pathname changes
   const [sidebarOpen, setSidebarOpen] = useState(!shouldMinimizeSidebar);

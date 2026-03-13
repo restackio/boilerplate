@@ -19,7 +19,7 @@ with import_functions():
     )
 
 
-@workflow.defn(name="FeedbackSubmissionWorkflow")
+@workflow.defn()
 class FeedbackSubmissionWorkflow:
     @workflow.run
     async def run(
@@ -59,7 +59,7 @@ class FeedbackSubmissionWorkflow:
         }
 
 
-@workflow.defn(name="GetTaskFeedbackWorkflow")
+@workflow.defn()
 class GetTaskFeedbackWorkflow:
     @workflow.run
     async def run(self, input_data: GetTaskFeedbackInput) -> dict:
@@ -85,7 +85,7 @@ class GetTaskFeedbackWorkflow:
         }
 
 
-@workflow.defn(name="GetFeedbackAnalyticsWorkflow")
+@workflow.defn()
 class GetFeedbackAnalyticsWorkflow:
     @workflow.run
     async def run(
@@ -109,7 +109,7 @@ class GetFeedbackAnalyticsWorkflow:
         )
 
 
-@workflow.defn(name="GetDetailedFeedbacksWorkflow")
+@workflow.defn()
 class GetDetailedFeedbacksWorkflow:
     @workflow.run
     async def run(

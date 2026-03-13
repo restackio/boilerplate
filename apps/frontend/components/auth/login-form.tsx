@@ -11,7 +11,13 @@ export function LoginForm({
 }: React.ComponentProps<"form">) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const { isLoading, error, startSubmission, finishSubmission, setSubmissionError } = useAuthFormState();
+  const {
+    isLoading,
+    error,
+    startSubmission,
+    finishSubmission,
+    setSubmissionError,
+  } = useAuthFormState();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,12 +29,24 @@ export function LoginForm({
         password,
       });
 
-      if (workflowResult && workflowResult.success && workflowResult.data && workflowResult.data.user) {
+      if (
+        workflowResult &&
+        workflowResult.success &&
+        workflowResult.data &&
+        workflowResult.data.user
+      ) {
         // Store user info in localStorage
-        localStorage.setItem("currentUser", JSON.stringify(workflowResult.data.user));
+        localStorage.setItem(
+          "currentUser",
+          JSON.stringify(workflowResult.data.user),
+        );
         window.location.href = "/dashboard";
       } else {
-        setSubmissionError(workflowResult?.error || workflowResult?.data?.error || "Invalid email or password");
+        setSubmissionError(
+          workflowResult?.error ||
+            workflowResult?.data?.error ||
+            "Invalid email or password",
+        );
       }
     } catch (error) {
       void error; // Suppress unused warning
@@ -57,7 +75,7 @@ export function LoginForm({
       id: "email",
       label: "Email",
       type: "email",
-      placeholder: "demo@example.com",
+      placeholder: "user@example.com",
       value: email,
       onChange: setEmail,
       required: true,
@@ -66,7 +84,7 @@ export function LoginForm({
       id: "password",
       label: "Password",
       type: "password",
-      placeholder: "Enter your password",
+      placeholder: "password",
       value: password,
       onChange: setPassword,
       required: true,
@@ -78,7 +96,6 @@ export function LoginForm({
     <AuthForm
       title="Login to your account"
       description="Enter your email below to login to your account"
-      demoInfo="Demo: demo@example.com / password"
       fields={fields}
       submitText="Login"
       loadingText="Logging in..."

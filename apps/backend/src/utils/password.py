@@ -27,8 +27,3 @@ def verify_password(password: str, hashed_password: str) -> bool:
         return bcrypt.checkpw(password_bytes, hashed_bytes)
     except (ValueError, TypeError, AttributeError):
         return False
-
-
-def generate_demo_password_hash() -> str:
-    """Generate a hash for the demo password 'password'."""
-    return hash_password("password")

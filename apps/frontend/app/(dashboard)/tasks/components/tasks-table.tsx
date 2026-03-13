@@ -140,6 +140,8 @@ const getTeamIcon = (task: Task, teams: Array<{ label: string; value: string; ic
 interface TasksTableProps {
   data: Task[];
   onViewTask?: (taskId: string) => void;
+  /** When set, task title and View button use this href instead of /tasks/:id (e.g. build tasks → /agents/new/:id). */
+  viewTaskHref?: (task: Task) => string;
   withFilters?: boolean;
   teams?: Array<{ label: string; value: string; icon: any }>;
   defaultFilters?: any[];
@@ -150,6 +152,7 @@ interface TasksTableProps {
 export function TasksTable({
   data,
   onViewTask,
+  viewTaskHref,
   withFilters = true,
   teams = [],
   defaultFilters = [],
@@ -213,10 +216,12 @@ export function TasksTable({
               </TableRow>
             </TableHeader>
           <TableBody>
-            {filteredData.map((task) => (
+            {filteredData.map((task) => {
+              const taskHref = viewTaskHref ? viewTaskHref(task) : `/tasks/${task.id}`;
+              return (
               <TableRow key={task.id} className="hover:bg-muted/50">
                 <TableCell className="p-3">
-                  <Link href={`/tasks/${task.id}`} className="block">
+                  <Link href={taskHref} className="block">
                     <div className="space-y-1">
                       <div className="font-medium truncate hover:underline">{task.title}</div>
                       <div className="text-sm text-muted-foreground truncate">
@@ -302,7 +307,7 @@ export function TasksTable({
                   })}
                 </TableCell>
                 {!dashboard && <TableCell className="p-3">
-                  <Link href={`/tasks/${task.id}`}>
+                  <Link href={taskHref}>
                     <Button
                       variant="outline"
                       size="sm"
@@ -316,7 +321,8 @@ export function TasksTable({
                   </Link>
                 </TableCell>}
               </TableRow>
-            ))}
+            );
+            })}
           </TableBody>
         </Table>
         </div>

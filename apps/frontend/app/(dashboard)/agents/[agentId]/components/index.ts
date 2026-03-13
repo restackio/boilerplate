@@ -8,6 +8,8 @@ export { AgentToolsManager } from './agent-tools-manager';
 export { McpServerDialog } from './mcp-server-dialog';
 export { WebhookTab } from './webhook-tab';
 export { TestAgentDialog } from './test-agent-dialog';
+export { DeployAgentDialog } from './deploy-agent-dialog';
+export { EarlyPreviewModelDialog } from './early-preview-model-dialog';
 export { AgentActions } from './agent-actions';
 export { AgentNotFound } from './agent-not-found';
 export { AgentTabNavigation } from './agent-tab-navigation';

@@ -18,6 +18,7 @@ import {
   CardTitle,
 } from "@workspace/ui/components/ui/card";
 import { PROMPT_TEMPLATES } from "./prompt-templates";
+import { EarlyPreviewModelDialog } from "./early-preview-model-dialog";
 
 export interface AgentConfigData {
   name?: string;
@@ -50,6 +51,9 @@ interface AgentConfigurationFormProps {
   onNameValidation?: (isValid: boolean, error: string) => void;
 }
 
+// Preview model values: selecting these opens Early Preview dialog and does not change model
+export const EARLY_PREVIEW_MODEL_VALUES = ["gemini", "anthropic", "custom"] as const;
+
 // Model options - centralized (latest OpenAI models per https://developers.openai.com/api/docs/guides/latest-model)
 export const MODEL_OPTIONS = [
   { value: "gpt-5.4", label: "GPT-5.4" },
@@ -61,6 +65,9 @@ export const MODEL_OPTIONS = [
   { value: "gpt-5-nano", label: "GPT-5 Nano" },
   { value: "o3-deep-research", label: "O3 Deep Research" },
   { value: "o4-mini-deep-research", label: "O4 Mini Deep Research" },
+  { value: "gemini", label: "Gemini" },
+  { value: "anthropic", label: "Anthropic" },
+  { value: "custom", label: "Custom model" },
 ];
 
 // Reasoning effort options - centralized (GPT-5.4 supports xhigh)
@@ -121,6 +128,7 @@ export function AgentConfigurationForm({
 
   // UI state
   const [internalNameError, setInternalNameError] = useState("");
+  const [showEarlyPreviewDialog, setShowEarlyPreviewDialog] = useState(false);
 
   const nameError = externalNameError || internalNameError;
 
@@ -151,6 +159,7 @@ export function AgentConfigurationForm({
   );
 
   return (
+    <>
     <div className="space-y-4">
       {/* Name Field */}
       {showNameField && (
@@ -203,6 +212,10 @@ export function AgentConfigurationForm({
               <Select
                 value={model}
                 onValueChange={(v) => {
+                  if (EARLY_PREVIEW_MODEL_VALUES.includes(v as (typeof EARLY_PREVIEW_MODEL_VALUES)[number])) {
+                    setShowEarlyPreviewDialog(true);
+                    return;
+                  }
                   onChange({ model: v });
                 }}
                 disabled={isReadOnly}
@@ -301,5 +314,10 @@ export function AgentConfigurationForm({
         </FieldWrapper>
       )}
     </div>
+    <EarlyPreviewModelDialog
+      isOpen={showEarlyPreviewDialog}
+      onClose={() => setShowEarlyPreviewDialog(false)}
+    />
+    </>
   );
 }

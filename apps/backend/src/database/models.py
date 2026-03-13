@@ -25,6 +25,7 @@ class Workspace(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True)
     name = Column(String(255), nullable=False)
+    is_admin = Column(Boolean, nullable=False, default=False)
     created_at = Column(
         DateTime,
         default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
@@ -256,7 +257,11 @@ class Agent(Base):
     # Relationships
     workspace = relationship("Workspace")
     team = relationship("Team", back_populates="agents")
-    tasks = relationship("Task", back_populates="agent")
+    tasks = relationship(
+        "Task",
+        back_populates="agent",
+        cascade="all, delete-orphan",
+    )
     parent_agent = relationship(
         "Agent", remote_side=[id], backref="child_agents"
     )
@@ -480,6 +485,11 @@ class Task(Base):
         String(50), nullable=True, default="inactive"
     )  # Schedule status: active, inactive, paused
     temporal_schedule_id = Column(String(255), nullable=True)
+    view_specs = Column(
+        JSONB,
+        nullable=False,
+        server_default="[]",
+    )  # View definitions for Build: [{id, name, columns, dataset_id, ...}]
     created_at = Column(
         DateTime,
         default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
@@ -593,6 +603,7 @@ class UserOAuthConnection(Base):
             tzinfo=None
         ),
     )
+    token_name = Column(String(255), nullable=True)
 
     # Relationships
     user = relationship("User")

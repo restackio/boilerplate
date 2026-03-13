@@ -23,8 +23,6 @@ interface AuthFormProps extends React.ComponentProps<"form"> {
   title: string;
   /** Form description */
   description: string;
-  /** Demo credentials info (optional) */
-  demoInfo?: string;
   /** Form fields configuration */
   fields: FormField[];
   /** Submit button text */
@@ -50,7 +48,6 @@ interface AuthFormProps extends React.ComponentProps<"form"> {
 export function AuthForm({
   title,
   description,
-  demoInfo,
   fields,
   submitText,
   loadingText,
@@ -63,26 +60,25 @@ export function AuthForm({
   ...props
 }: AuthFormProps) {
   return (
-    <form className={cn("flex flex-col gap-6", className)} onSubmit={onSubmit} {...props}>
+    <form
+      className={cn("flex flex-col gap-6", className)}
+      onSubmit={onSubmit}
+      {...props}
+    >
       <div className="flex flex-col items-center gap-2 text-center">
         <h1 className="text-2xl font-bold">{title}</h1>
         <p className="text-muted-foreground text-sm text-balance">
           {description}
         </p>
-        {demoInfo && (
-          <p className="text-muted-foreground text-xs text-balance">
-            {demoInfo}
-          </p>
-        )}
       </div>
-      
+
       <div className="grid gap-6">
         {error && (
           <div className="p-3 bg-red-50 border border-red-200 rounded-md">
             <p className="text-red-800 text-sm">{error}</p>
           </div>
         )}
-        
+
         {fields.map((field) => (
           <div key={field.id} className="grid gap-3">
             <div className="flex items-center">
@@ -100,14 +96,14 @@ export function AuthForm({
             />
           </div>
         ))}
-        
+
         {children}
-        
+
         <Button type="submit" className="w-full" disabled={isLoading}>
           {isLoading ? loadingText : submitText}
         </Button>
       </div>
-      
+
       {footerLink && (
         <div className="text-center text-sm">
           {footerLink.text}{" "}

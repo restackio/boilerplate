@@ -307,7 +307,16 @@ export function CreateTaskForm({
                   )}
                 </SelectContent>
               </Select>
-              <Select value={selectedTeamId} onValueChange={setSelectedTeamId}>
+              <Select
+                value={selectedTeamId}
+                onValueChange={(value) => {
+                  if (value === "__new_team__") {
+                    router.push("/teams/settings");
+                    return;
+                  }
+                  setSelectedTeamId(value);
+                }}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select a team" />
                 </SelectTrigger>
@@ -317,6 +326,7 @@ export function CreateTaskForm({
                       {team.name}
                     </SelectItem>
                   ))}
+                  <SelectItem value="__new_team__">+ New team</SelectItem>
                 </SelectContent>
               </Select>
           </div>

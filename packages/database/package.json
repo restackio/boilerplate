@@ -2,17 +2,17 @@
   "name": "@boilerplate/database",
   "version": "0.0.1",
   "private": true,
-  "description": "Database migrations and demo data for the boilerplate",
+  "description": "Database migrations and admin seed for the boilerplate",
   "scripts": {
     "migrate": "bash scripts/migrate.sh",
-    "demo:insert": "bash scripts/insert-demo.sh",
-    "demo:reset": "bash scripts/reset-demo.sh",
+    "admin:insert": "bash scripts/insert-admin.sh",
+    "admin:reset": "bash scripts/reset-admin.sh",
     "postgres:connect": "psql $DATABASE_URL",
     "postinstall": "mkdir -p node_modules"
   },
   "files": [
     "migrations/",
-    "demo/",
+    "admin/",
     "scripts/"
   ]
-} 
+}

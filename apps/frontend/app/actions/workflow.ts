@@ -138,6 +138,17 @@ export async function getMcpServers(workspaceId: string) {
   });
 }
 
+export async function getRemoteMcpDirectory(query?: string) {
+  const result = await executeWorkflow("GetRemoteMcpDirectoryWorkflow", {
+    query: query ?? null,
+  });
+  if (!result.success || !result.data) {
+    return { success: false as const, entries: [] };
+  }
+  const entries = (result.data as { entries?: unknown[] }).entries ?? [];
+  return { success: true as const, entries };
+}
+
 export async function createMcpServer(mcpServerData: {
   workspace_id: string;
   server_label: string;

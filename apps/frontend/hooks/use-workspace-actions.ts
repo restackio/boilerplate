@@ -7,6 +7,7 @@ import { User } from "../types/user";
 export interface Workspace {
   id: string;
   name: string;
+  is_admin?: boolean;
   created_at?: string;
   updated_at?: string;
 }

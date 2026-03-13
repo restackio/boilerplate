@@ -46,11 +46,10 @@ def encrypt_token(token: str) -> str:
             "utf-8"
         )
 
-    except (ValueError, TypeError):
-        # In case of encryption failure, log error but don't break the flow
-        # In production, you might want to handle this differently
-        # Using a simple fallback for development
-        return token  # Return unencrypted as fallback
+    except (ValueError, TypeError) as e:
+        # Do not store tokens in plaintext on encryption failure (security best practice)
+        msg = "Token encryption failed; cannot store token securely"
+        raise RuntimeError(msg) from e
 
 
 def decrypt_token(encrypted_token: str) -> str:

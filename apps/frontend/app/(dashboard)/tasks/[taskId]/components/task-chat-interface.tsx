@@ -3,13 +3,33 @@ import { ConversationItem } from "../types";
 import { EmptyState } from "@workspace/ui/components/empty-state";
 import { PromptInput } from "@workspace/ui/components/ai-elements/prompt-input";
 import { Response } from "@workspace/ui/components/ai-elements/response";
-import { TaskCardMcp, TaskCardTool, TaskCardWebSearch, TaskCardError } from "./cards";
-import { Reasoning, ReasoningTrigger, ReasoningContent } from "@workspace/ui/components/ai-elements/reasoning";
+import {
+  TaskCardMcp,
+  TaskCardTool,
+  TaskCardWebSearch,
+  TaskCardError,
+} from "./cards";
+import {
+  Reasoning,
+  ReasoningTrigger,
+  ReasoningContent,
+} from "@workspace/ui/components/ai-elements/reasoning";
 import { useConversationItem } from "../hooks/use-conversation-item";
 import { TaskTodosList } from "./task-todos-list";
 import { TaskSubtasksList } from "./task-subtasks-list";
 import { FeedbackButtons } from "./feedback-buttons";
 
+/** Detect assistant content that is only raw tool-call JSON (duplicate of tool card). */
+function isToolCallSpilloverContent(text: string): boolean {
+  if (!text || text.length < 30) return false;
+  const t = text.trim();
+  return (
+    (t.includes('"workspace_id"') &&
+      (t.includes('"slug"') || t.includes("createdataset"))) ||
+    (t.includes("mcp_restack-core") &&
+      (t.includes("createdataset") || t.includes("createview")))
+  );
+}
 
 interface TaskChatInterfaceProps {
   conversation: ConversationItem[];
@@ -21,8 +41,10 @@ interface TaskChatInterfaceProps {
   onDenyRequest?: (itemId: string) => void;
   agentLoading: boolean;
   showSplitView: boolean;
+  /** When true, chat fills its container (no max-width/center). Use on build page. */
+  fillContainer?: boolean;
   responseState?: unknown; // Agent state for real-time updates (while task running)
-  task?: { 
+  task?: {
     status?: string;
     agent_state?: {
       todos?: unknown[];
@@ -45,6 +67,7 @@ export function TaskChatInterface({
   onDenyRequest,
   agentLoading,
   showSplitView,
+  fillContainer = false,
   responseState,
   task,
   taskId,
@@ -54,41 +77,43 @@ export function TaskChatInterface({
   // Track reasoning durations
   const conversationEndRef = useRef<HTMLDivElement>(null);
 
-  const isTaskActive = task?.status === 'in_progress';
+  const isTaskActive = task?.status === "in_progress";
 
   // Transparently use real-time state OR database state
   const todos = useMemo(() => {
     // Try real-time first (while task is running)
-    if (isTaskActive && responseState && typeof responseState === 'object') {
+    if (isTaskActive && responseState && typeof responseState === "object") {
       const state = responseState as { todos?: unknown[] };
       if (state.todos?.length) return state.todos;
     }
-    
+
     // Fallback to database (when task is completed/failed/closed)
     if (task?.agent_state?.todos?.length) {
       return task.agent_state.todos;
     }
-    
+
     return null;
   }, [isTaskActive, responseState, task?.agent_state?.todos]);
 
   const subtasks = useMemo(() => {
     // Try real-time first (while task is running)
-    if (isTaskActive && responseState && typeof responseState === 'object') {
+    if (isTaskActive && responseState && typeof responseState === "object") {
       const state = responseState as { subtasks?: unknown[] };
       if (state.subtasks?.length) return state.subtasks;
     }
-    
+
     // Fallback to database (when task is completed/failed/closed)
     if (task?.agent_state?.subtasks?.length) {
       return task.agent_state.subtasks;
     }
-    
+
     return null;
   }, [isTaskActive, responseState, task?.agent_state?.subtasks]);
 
   return (
-    <div className={`${showSplitView ? 'w-3/5 h-full' : 'w-full max-w-4xl mx-auto'} flex flex-col bg-background`}>
+    <div
+      className={`${showSplitView ? "w-3/5 h-full" : fillContainer ? "w-full" : "w-full max-w-4xl mx-auto"} flex flex-col bg-background`}
+    >
       <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
         {conversation.length === 0 ? (
           <EmptyState
@@ -110,36 +135,41 @@ export function TaskChatInterface({
                   workspaceId={workspaceId}
                   responseIndex={index}
                   messageCount={conversation.length}
-                  reasoningDuration={item.type === 'reasoning' ? (typeof item.reasoning_duration_seconds === 'number' ? item.reasoning_duration_seconds : undefined) : undefined}
+                  reasoningDuration={
+                    item.type === "reasoning"
+                      ? typeof item.reasoning_duration_seconds === "number"
+                        ? item.reasoning_duration_seconds
+                        : undefined
+                      : undefined
+                  }
                 />
               </div>
             ))}
-            
-
           </>
         )}
         <div ref={conversationEndRef} />
       </div>
 
-      <div className="p-4 space-y-2">
+      <div className="sticky bottom-0 z-50 p-2">
+        <div className="py-2 space-y-2">
           {/* Persistent Subtasks List above input - real-time from agent state */}
           {subtasks && <TaskSubtasksList subtasks={subtasks} />}
 
           {/* Persistent Todo List above input */}
           {todos && <TaskTodosList todos={todos} />}
+        </div>
 
+        <PromptInput
+          prompt={chatMessage}
+          onPromptChange={onChatMessageChange}
+          onSubmit={onSendMessage}
+          isLoading={agentLoading}
+          isInitializing={false}
+          placeholder="Request changes or ask a question"
+          loadingPlaceholder="Agent is processing..."
+          initializingPlaceholder="Waiting for agent to be ready..."
+        />
       </div>
-
-      <PromptInput
-        prompt={chatMessage}
-        onPromptChange={onChatMessageChange}
-        onSubmit={onSendMessage}
-        isLoading={agentLoading}
-        isInitializing={false}
-        placeholder="Request changes or ask a question"
-        loadingPlaceholder="Agent is processing..."
-        initializingPlaceholder="Waiting for agent to be ready..."
-      />
     </div>
   );
 }
@@ -170,79 +200,78 @@ function RenderConversationItem({
 }) {
   const conversationItemData = useConversationItem(item);
   switch (item.type) {
-    case 'error':
-      return (
-        <TaskCardError 
-          key={item.id}
-          item={item}
-          onClick={onCardClick}
-        />
-      );
+    case "error":
+      return <TaskCardError key={item.id} item={item} onClick={onCardClick} />;
 
-    case 'reasoning': {
-      const reasoningText = item.openai_output?.summary?.map(s => s.text).join('\n\n') || '';
-      
+    case "reasoning": {
+      const reasoningText =
+        item.openai_output?.summary?.map((s) => s.text).join("\n\n") || "";
+
       // Use isStreaming from the conversation store - it's properly set to false
       // when response.output_item.done is received, regardless of duration
       const isInProgress = item.isStreaming ?? false;
-      
+
       return (
-        <Reasoning 
+        <Reasoning
           key={item.id}
           isStreaming={isInProgress}
           duration={reasoningDuration || 0}
         >
           <ReasoningTrigger />
           <ReasoningContent>
-            {reasoningText || 'No reasoning available'}
+            {reasoningText || "No reasoning available"}
           </ReasoningContent>
         </Reasoning>
       );
     }
-        
-    case 'mcp_approval_request':
+
+    case "mcp_approval_request":
       return (
-        <TaskCardMcp 
+        <TaskCardMcp
           key={item.id}
           item={item}
-          onApprove={() => onApproveRequest?.(item.openai_output?.id || item.id)}
+          onApprove={() =>
+            onApproveRequest?.(item.openai_output?.id || item.id)
+          }
           onDeny={() => onDenyRequest?.(item.openai_output?.id || item.id)}
           onClick={onCardClick}
         />
       );
-        
-    case 'mcp_list_tools':
+
+    case "mcp_list_tools":
       return (
-        <TaskCardTool 
+        <TaskCardTool
           key={item.id}
-          item={item} 
-          onClick={onCardClick || (() => {})}
-        />
-      );
-        
-    case 'mcp_call':
-      return (
-        <TaskCardTool 
-          key={item.id}
-          item={item} 
+          item={item}
           onClick={onCardClick || (() => {})}
         />
       );
 
-    case 'web_search_call':
+    case "mcp_call":
       return (
-        <TaskCardWebSearch 
+        <TaskCardTool
           key={item.id}
-          item={item} 
-          onClick={onCardClick}
+          item={item}
+          onClick={onCardClick || (() => {})}
         />
       );
-        
-    case 'assistant': {
-      const { isUser, textContent, isReasoningType } = conversationItemData;
-      const isAgentMessage = !isUser && item.openai_output?.role === 'assistant';
+
+    case "web_search_call":
       return (
-        <div key={item.id} className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
+        <TaskCardWebSearch key={item.id} item={item} onClick={onCardClick} />
+      );
+
+    case "assistant": {
+      const { isUser, textContent, isReasoningType } = conversationItemData;
+      const isAgentMessage =
+        !isUser && item.openai_output?.role === "assistant";
+      const hideAsSpillover =
+        !isUser && isToolCallSpilloverContent(textContent);
+      return (
+        <div
+          key={item.id}
+          className={`flex ${isUser ? "justify-end" : "justify-start"}`}
+        >
           <div className="flex flex-col max-w-[85%]">
             <div className="flex items-start space-x-2">
               <div
@@ -255,9 +284,13 @@ function RenderConversationItem({
                 }
               >
                 <div className="text-sm whitespace-pre-wrap break-words">
-                  <Response>
-                    {textContent}
-                  </Response>
+                  {hideAsSpillover ? (
+                    <span className="text-muted-foreground italic">
+                      Tool output shown above
+                    </span>
+                  ) : (
+                    <Response>{textContent}</Response>
+                  )}
                 </div>
               </div>
             </div>
@@ -276,7 +309,7 @@ function RenderConversationItem({
         </div>
       );
     }
-      
+
     // case 'response_status': {
     //   const responseStatus = item.openai_event?.response?.status || item.openai_event?.type?.split('.').pop();
     //   return (
@@ -290,12 +323,18 @@ function RenderConversationItem({
     //     </div>
     //   );
     // }
-      
+
     default: {
       const { isUser, textContent, isReasoningType } = conversationItemData;
-      const isAgentMessage = !isUser && item.openai_output?.role === 'assistant';
+      const isAgentMessage =
+        !isUser && item.openai_output?.role === "assistant";
+      const hideAsSpillover =
+        !isUser && isToolCallSpilloverContent(textContent);
       return (
-        <div key={item.id} className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
+        <div
+          key={item.id}
+          className={`flex ${isUser ? "justify-end" : "justify-start"}`}
+        >
           <div className="flex flex-col max-w-[85%]">
             <div className="flex items-start space-x-2">
               <div
@@ -308,9 +347,13 @@ function RenderConversationItem({
                 }
               >
                 <div className="text-sm whitespace-pre-wrap break-words">
-                  <Response>
-                    {textContent}
-                  </Response>
+                  {hideAsSpillover ? (
+                    <span className="text-muted-foreground italic">
+                      Tool output shown above
+                    </span>
+                  ) : (
+                    <Response>{textContent}</Response>
+                  )}
                 </div>
               </div>
             </div>
@@ -330,4 +373,4 @@ function RenderConversationItem({
       );
     }
   }
-} 
+}

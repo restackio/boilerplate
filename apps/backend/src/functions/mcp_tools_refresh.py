@@ -1,4 +1,5 @@
 import json
+import uuid
 
 import aiohttp
 from pydantic import (
@@ -8,8 +9,15 @@ from pydantic import (
     field_validator,
 )
 from restack_ai.function import function, log
+from sqlalchemy import select
 
 from src.client import mcp_address
+from src.database.connection import get_async_db
+from src.database.models import McpServer
+from src.functions.mcp_oauth_crud import (
+    GetOAuthTokenForMcpServerInput,
+    get_oauth_token_for_mcp_server,
+)
 
 
 def _extract_tools_from_result(result: dict) -> list[dict]:
@@ -102,6 +110,34 @@ class McpToolsSessionOutput(BaseModel):
         default_factory=list
     )  # New detailed format
     error: str | None = None
+
+
+class ListMcpServerToolsInput(BaseModel):
+    """Input for listing tools of an MCP server by ID (for build agent)."""
+
+    mcp_server_id: str = Field(
+        ...,
+        description="MCP server ID (e.g. from createintegrationfromremotemcp)",
+    )
+    workspace_id: str = Field(
+        ...,
+        description="Workspace ID (e.g. from meta_info)",
+    )
+
+
+class ListMcpServerToolsOutput(BaseModel):
+    """Output: tool names for the given MCP server."""
+
+    success: bool = Field(
+        ..., description="True if tools were listed"
+    )
+    tools: list[str] = Field(
+        default_factory=list,
+        description="Tool names to pass to addagenttool",
+    )
+    error: str | None = Field(
+        default=None, description="Error message if failed"
+    )
 
 
 class McpToolsListDirectInput(BaseModel):
@@ -532,3 +568,59 @@ async def mcp_tools_list_direct(
             success=False,
             error=f"Error getting tools list: {e!s}",
         )
+
+
+@function.defn()
+async def list_mcp_server_tools(
+    function_input: ListMcpServerToolsInput,
+) -> ListMcpServerToolsOutput:
+    """List tool names for an MCP server by ID (for build agent: use before addagenttool)."""
+    try:
+        async for db in get_async_db():
+            server_row = await db.execute(
+                select(McpServer).where(
+                    McpServer.id
+                    == uuid.UUID(function_input.mcp_server_id)
+                )
+            )
+            server = server_row.scalar_one_or_none()
+            if not server:
+                return ListMcpServerToolsOutput(
+                    success=False,
+                    error=f"MCP server {function_input.mcp_server_id} not found",
+                )
+            headers = {}
+            token = await get_oauth_token_for_mcp_server(
+                GetOAuthTokenForMcpServerInput(
+                    workspace_id=function_input.workspace_id,
+                    mcp_server_id=function_input.mcp_server_id,
+                )
+            )
+            if token:
+                headers["Authorization"] = f"Bearer {token}"
+            if server.headers and isinstance(
+                server.headers, dict
+            ):
+                headers = {**server.headers, **headers}
+            direct = await mcp_tools_list_direct(
+                McpToolsListDirectInput(
+                    server_url=server.server_url,
+                    local=bool(server.local),
+                    headers=headers or None,
+                )
+            )
+            return ListMcpServerToolsOutput(
+                success=direct.success,
+                tools=direct.tools or [],
+                error=direct.error,
+            )
+    except (ValueError, TypeError, AttributeError) as e:
+        log.warning(f"list_mcp_server_tools failed: {e}")
+        return ListMcpServerToolsOutput(
+            success=False,
+            error=f"Failed to list tools: {e!s}",
+        )
+    return ListMcpServerToolsOutput(
+        success=False,
+        error="Database connection failed",
+    )

@@ -59,6 +59,7 @@ class TaskUpdateInput(BaseModel):
         None, pattern="^(active|inactive|paused)$"
     )
     temporal_schedule_id: str | None = None
+    view_specs: list | None = None  # Build task view definitions
 
     @field_validator(
         "assigned_to_id",
@@ -107,6 +108,10 @@ class TaskSaveAgentStateInput(BaseModel):
 class TaskGetByWorkspaceInput(BaseModel):
     workspace_id: str = Field(..., min_length=1)
     team_id: str | None = None
+    exclude_build_tasks: bool = Field(
+        default=False,
+        description="When True, exclude tasks with title 'Build' (agent build tasks) from counts.",
+    )
 
 
 # Pydantic models for output serialization
@@ -136,6 +141,7 @@ class TaskOutput(BaseModel):
     is_scheduled: bool = False
     schedule_status: str | None = None
     temporal_schedule_id: str | None
+    view_specs: list | None = None  # Build task view definitions
     created_at: str | None
     updated_at: str | None
 
@@ -237,6 +243,10 @@ async def tasks_read(
                     is_scheduled=task.is_scheduled,
                     schedule_status=task.schedule_status,
                     temporal_schedule_id=task.temporal_schedule_id,
+                    view_specs=task.view_specs
+                    if getattr(task, "view_specs", None)
+                    is not None
+                    else [],
                     created_at=task.created_at.isoformat()
                     if task.created_at
                     else None,
@@ -346,6 +356,9 @@ async def tasks_create(
                 is_scheduled=task.is_scheduled,
                 schedule_status=task.schedule_status,
                 temporal_schedule_id=task.temporal_schedule_id,
+                view_specs=task.view_specs
+                if getattr(task, "view_specs", None) is not None
+                else [],
                 created_at=task.created_at.isoformat()
                 if task.created_at
                 else None,
@@ -409,6 +422,10 @@ async def tasks_update(
                             and value is not None
                         )
                         or (
+                            key == "view_specs"
+                            and value is not None
+                        )
+                        or (
                             key
                             in [
                                 "is_scheduled",
@@ -467,6 +484,9 @@ async def tasks_update(
                 is_scheduled=task.is_scheduled,
                 schedule_status=task.schedule_status,
                 temporal_schedule_id=task.temporal_schedule_id,
+                view_specs=task.view_specs
+                if getattr(task, "view_specs", None) is not None
+                else [],
                 created_at=task.created_at.isoformat()
                 if task.created_at
                 else None,
@@ -559,6 +579,9 @@ async def tasks_save_agent_state(
                 is_scheduled=task.is_scheduled,
                 schedule_status=task.schedule_status,
                 temporal_schedule_id=task.temporal_schedule_id,
+                view_specs=task.view_specs
+                if getattr(task, "view_specs", None) is not None
+                else [],
                 created_at=task.created_at.isoformat(),
                 updated_at=task.updated_at.isoformat(),
             )
@@ -671,6 +694,9 @@ async def tasks_get_by_id(
                 is_scheduled=task.is_scheduled,
                 schedule_status=task.schedule_status,
                 temporal_schedule_id=task.temporal_schedule_id,
+                view_specs=task.view_specs
+                if getattr(task, "view_specs", None) is not None
+                else [],
                 created_at=task.created_at.isoformat()
                 if task.created_at
                 else None,
@@ -750,6 +776,10 @@ async def tasks_get_by_parent_id(
                     is_scheduled=task.is_scheduled,
                     schedule_status=task.schedule_status,
                     temporal_schedule_id=task.temporal_schedule_id,
+                    view_specs=task.view_specs
+                    if getattr(task, "view_specs", None)
+                    is not None
+                    else [],
                     created_at=task.created_at.isoformat()
                     if task.created_at
                     else None,
@@ -828,6 +858,10 @@ async def tasks_get_by_status(
                     is_scheduled=task.is_scheduled,
                     schedule_status=task.schedule_status,
                     temporal_schedule_id=task.temporal_schedule_id,
+                    view_specs=task.view_specs
+                    if getattr(task, "view_specs", None)
+                    is not None
+                    else [],
                     created_at=task.created_at.isoformat()
                     if task.created_at
                     else None,
@@ -917,6 +951,9 @@ async def tasks_update_agent_task_id(
                 is_scheduled=task.is_scheduled,
                 schedule_status=task.schedule_status,
                 temporal_schedule_id=task.temporal_schedule_id,
+                view_specs=task.view_specs
+                if getattr(task, "view_specs", None) is not None
+                else [],
                 created_at=task.created_at.isoformat()
                 if task.created_at
                 else None,
@@ -939,8 +976,6 @@ async def tasks_get_stats(
     function_input: TaskGetByWorkspaceInput,
 ) -> TaskStatsOutput:
     """Get task statistics by status for a specific workspace."""
-    from src.utils.demo import apply_demo_multiplier_to_stats
-
     async for db in get_async_db():
         try:
             # Query to count tasks by status
@@ -962,6 +997,11 @@ async def tasks_get_stats(
                     == uuid.UUID(function_input.team_id)
                 )
 
+            if function_input.exclude_build_tasks:
+                stats_query = stats_query.where(
+                    Task.title != "Build"
+                )
+
             result = await db.execute(stats_query)
             status_counts = result.all()
 
@@ -980,25 +1020,12 @@ async def tasks_get_stats(
                     stats[status] = count
                     total += count
 
-            # Add demo multipliers if enabled
-            real_stats = {
-                "in_progress": stats["in_progress"],
-                "in_review": stats["in_review"],
-                "closed": stats["closed"],
-                "completed": stats["completed"],
-                "total": total,
-            }
-
-            enhanced_stats = apply_demo_multiplier_to_stats(
-                real_stats
-            )
-
             return TaskStatsOutput(
-                in_progress=enhanced_stats["in_progress"],
-                in_review=enhanced_stats["in_review"],
-                closed=enhanced_stats["closed"],
-                completed=enhanced_stats["completed"],
-                total=enhanced_stats["total"],
+                in_progress=stats["in_progress"],
+                in_review=stats["in_review"],
+                closed=stats["closed"],
+                completed=stats["completed"],
+                total=total,
             )
         except Exception as e:
             raise NonRetryableError(

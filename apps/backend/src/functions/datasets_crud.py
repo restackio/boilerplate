@@ -267,7 +267,9 @@ async def _get_cockroachdb_stats(
             storage_config, workspace_id
         )
         where_clause = " AND ".join(where_conditions)
-        table_name = storage_config.get("table", "pipeline_events")
+        table_name = storage_config.get(
+            "table", "pipeline_events"
+        )
 
         _validate_table_name(table_name)
 
@@ -285,7 +287,8 @@ async def _get_cockroachdb_stats(
 
         if row:
             return {
-                "unique_event_names": row["unique_event_names"] or 0,
+                "unique_event_names": row["unique_event_names"]
+                or 0,
                 "unique_agents": row["unique_agents"] or 0,
                 "last_updated_at": row["last_updated_at"],
             }
@@ -494,43 +497,69 @@ async def datasets_get_by_id(
 async def datasets_create(
     function_input: DatasetCreateInput,
 ) -> DatasetSingleOutput:
-    """Create a new dataset in PostgreSQL."""
+    """Create a new dataset in PostgreSQL, or return existing if (workspace_id, name) already exists (idempotent)."""
     try:
+        import json
         import uuid
 
-        # Generate UUID for the new dataset
-        dataset_id = str(uuid.uuid4())
-
-        # Set up default storage config based on storage type
-        storage_config = function_input.storage_config.copy()
-        if function_input.storage_type == "clickhouse" and not storage_config:
-            storage_config = {
-                "database": "boilerplate_clickhouse",
-                "table": "pipeline_events",
-                "filter": {},
-            }
-        elif function_input.storage_type == "cockroachdb" and not storage_config:
-            storage_config = {
-                "database": "boilerplate_cockroachdb",
-                "table": "pipeline_events",
-                "filter": {},
-            }
-
-        # Scope queries to this dataset's events (by UUID)
-        storage_config["dataset_id"] = dataset_id
-
-        # Add tag-based filtering if tags are provided (applies to all storage types)
-        if function_input.tags and storage_config is not None:
-            if "filter" not in storage_config:
-                storage_config["filter"] = {}
-            storage_config["filter"]["tags"] = function_input.tags
-
-        # No need for schema_definition - storage backend schema is the source of truth
-
-        # Insert into PostgreSQL
-        import json
-
         async for db in get_async_db():
+            # Idempotent: if dataset with same workspace_id and name exists, return it
+            existing = await db.execute(
+                text("""
+                    SELECT id FROM datasets
+                    WHERE workspace_id = :workspace_id AND name = :name
+                    LIMIT 1
+                """),
+                {
+                    "workspace_id": function_input.workspace_id,
+                    "name": function_input.name,
+                },
+            )
+            row = existing.mappings().first()
+            if row is not None:
+                await db.commit()
+                return await datasets_get_by_id(
+                    DatasetGetByIdInput(
+                        dataset_id=str(row["id"]),
+                        workspace_id=function_input.workspace_id,
+                    )
+                )
+
+            # Generate UUID for the new dataset
+            dataset_id = str(uuid.uuid4())
+
+            # Set up default storage config based on storage type
+            storage_config = function_input.storage_config.copy()
+            if (
+                function_input.storage_type == "clickhouse"
+                and not storage_config
+            ):
+                storage_config = {
+                    "database": "boilerplate_clickhouse",
+                    "table": "pipeline_events",
+                    "filter": {},
+                }
+            elif (
+                function_input.storage_type == "cockroachdb"
+                and not storage_config
+            ):
+                storage_config = {
+                    "database": "boilerplate_cockroachdb",
+                    "table": "pipeline_events",
+                    "filter": {},
+                }
+
+            # Scope queries to this dataset's events (by UUID)
+            storage_config["dataset_id"] = dataset_id
+
+            # Add tag-based filtering if tags are provided (applies to all storage types)
+            if function_input.tags and storage_config is not None:
+                if "filter" not in storage_config:
+                    storage_config["filter"] = {}
+                storage_config["filter"]["tags"] = (
+                    function_input.tags
+                )
+
             await db.execute(
                 text("""
                     INSERT INTO datasets (id, workspace_id, name, description, storage_type,
@@ -549,13 +578,12 @@ async def datasets_create(
             )
             await db.commit()
 
-        # Return the created dataset
-        return await datasets_get_by_id(
-            DatasetGetByIdInput(
-                dataset_id=dataset_id,
-                workspace_id=function_input.workspace_id,
+            return await datasets_get_by_id(
+                DatasetGetByIdInput(
+                    dataset_id=dataset_id,
+                    workspace_id=function_input.workspace_id,
+                )
             )
-        )
 
     except (ValueError, TypeError, ConnectionError) as e:
         msg = f"Failed to create dataset '{function_input.name}': {e!s}"
@@ -643,7 +671,9 @@ async def _query_cockroachdb_events(
         )
 
         where_clause = " AND ".join(where_conditions)
-        table_name = storage_config.get("table", "pipeline_events")
+        table_name = storage_config.get(
+            "table", "pipeline_events"
+        )
 
         _validate_table_name(table_name)
 
@@ -655,9 +685,7 @@ async def _query_cockroachdb_events(
             f"ORDER BY event_timestamp DESC "
             f"LIMIT {function_input.limit} OFFSET {function_input.offset}"
         )
-        count_query = (
-            f"SELECT COUNT(*) FROM {table_name} WHERE {where_clause}"  # noqa: S608
-        )
+        count_query = f"SELECT COUNT(*) FROM {table_name} WHERE {where_clause}"  # noqa: S608
 
         async with pool.acquire() as conn:
             rows = await conn.fetch(events_query)
@@ -669,14 +697,20 @@ async def _query_cockroachdb_events(
             {
                 "id": str(row["id"]),
                 "agent_id": str(row["agent_id"]),
-                "task_id": str(row["task_id"]) if row["task_id"] else None,
+                "task_id": str(row["task_id"])
+                if row["task_id"]
+                else None,
                 "event_name": row["event_name"],
-                "raw_data": dict(row["raw_data"]) if row["raw_data"] else {},
+                "raw_data": dict(row["raw_data"])
+                if row["raw_data"]
+                else {},
                 "transformed_data": dict(row["transformed_data"])
                 if row["transformed_data"]
                 else None,
                 "tags": list(row["tags"]) if row["tags"] else [],
-                "event_timestamp": row["event_timestamp"].isoformat()
+                "event_timestamp": row[
+                    "event_timestamp"
+                ].isoformat()
                 if row["event_timestamp"]
                 else None,
             }
