@@ -21,6 +21,7 @@
     "infra:reset": "docker-compose -f docker-compose.dev.yml down -v && docker-compose -f docker-compose.dev.yml up -d",
     "infra:ps": "docker-compose -f docker-compose.dev.yml ps",
     "db:migrate": "turbo migrate --filter=@boilerplate/database",
+    "db:reset": "pnpm infra:reset && sleep 12 && pnpm db:migrate",
     "db:admin:insert": "turbo admin:insert --filter=@boilerplate/database",
     "db:admin:reset": "turbo admin:reset --filter=@boilerplate/database",
     "postgres:connect": "docker-compose -f docker-compose.dev.yml exec postgres psql -U postgres -d boilerplate_postgres",

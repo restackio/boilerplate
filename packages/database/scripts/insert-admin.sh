@@ -9,8 +9,16 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 if [ -d "/app/packages/database" ]; then
   REPO_ROOT="/app"
 else
-  REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+  # From packages/database/scripts need 3 levels up to reach repo root
+  REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 fi
+# Backend dir for PYTHONPATH (so generate_admin_password.py can import src.utils.password)
+BACKEND_DIR="$REPO_ROOT/apps/backend"
+if [ ! -d "$BACKEND_DIR/src" ]; then
+  echo "Error: Backend not found at $BACKEND_DIR (expected apps/backend with src/)" >&2
+  exit 1
+fi
+export PYTHONPATH="$BACKEND_DIR"
 
 echo "========================================"
 echo "Admin Data Insert"
@@ -41,14 +49,14 @@ echo ""
 workspace_exists=$(psql "$DATABASE_URL" -tAc "SELECT COUNT(*) FROM workspaces WHERE id = '$ADMIN_WORKSPACE_ID'")
 
 run_admin_sql() {
-  PYTHONPATH="$REPO_ROOT/apps/backend" python3 "$SCRIPT_DIR/generate_admin_password.py" "$ADMIN_SQL_FILE" 2>/dev/null | psql "$DATABASE_URL" -f -
+  python3 "$SCRIPT_DIR/generate_admin_password.py" "$ADMIN_SQL_FILE" 2>/dev/null | psql "$DATABASE_URL" -f -
 }
 
 if [ "$workspace_exists" = "0" ]; then
   echo "→ Inserting admin data (workspace, user, build agent, template)..."
   if [ -f "$ADMIN_SQL_FILE" ]; then
-    ADMIN_PASS=$(PYTHONPATH="$REPO_ROOT/apps/backend" python3 "$SCRIPT_DIR/generate_admin_password.py" "$ADMIN_SQL_FILE" 2>&1 | head -1)
-    PYTHONPATH="$REPO_ROOT/apps/backend" python3 "$SCRIPT_DIR/generate_admin_password.py" "$ADMIN_SQL_FILE" 2>/dev/null | psql "$DATABASE_URL" -f - > /dev/null
+    ADMIN_PASS=$(python3 "$SCRIPT_DIR/generate_admin_password.py" "$ADMIN_SQL_FILE" 2>&1 | head -1)
+    python3 "$SCRIPT_DIR/generate_admin_password.py" "$ADMIN_SQL_FILE" 2>/dev/null | psql "$DATABASE_URL" -f - > /dev/null
     echo "✓ PostgreSQL admin data inserted"
   else
     echo "⚠ Warning: $ADMIN_SQL_FILE not found"

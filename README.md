@@ -65,6 +65,23 @@ pnpm dev
 - **API**: http://localhost:8000
 - **ClickHouse**: http://localhost:8123 (metrics and analytics)
 
+### Default admin (seed user)
+
+The admin seed creates a single platform user you can log in with:
+
+- **Email:** `admin@example.com`
+- **Password:** Generated when the admin workspace is first created; it is **printed once** in the terminal when you run `pnpm db:admin:insert` and the admin workspace does not exist yet.
+
+If you never saw the password (e.g. you ran `db:admin:insert` after the workspace already existed), or you get errors like “no admin in the db” when creating users or using the app:
+
+1. Use the same database as the app: set `DATABASE_URL` in your environment (e.g. from `.env`) when running commands.
+2. Re-seed the admin workspace and get a **new** printed password:
+   ```bash
+   pnpm db:admin:reset
+   ```
+   This clears admin workspace data and re-runs the seed; the script will print the new admin password. Save it—it won’t be shown again.
+3. Log in at http://localhost:3000 with `admin@example.com` and that password.
+
 **Performance tip:** development mode uses hot reloading. For faster page loads, use `pnpm build && pnpm start` instead of `pnpm localdev`.
 
 ## What can you build?
@@ -268,6 +285,7 @@ pnpm infra:reset         # Complete infrastructure reset (⚠️ destroys data)
 
 # Database operations
 pnpm db:migrate          # Run database migrations (uses localhost by default)
+pnpm db:reset            # Wipe all DB data and re-run migrations (⚠️ destroys data)
 pnpm postgres:connect    # Connect to PostgreSQL
 pnpm clickhouse:connect  # Connect to ClickHouse
 
