@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { AuthForm, useAuthFormState } from "@workspace/ui/components";
-import { Button } from "@workspace/ui/components/ui/button";
 import { executeWorkflow } from "@/app/actions/workflow";
 
 export function LoginForm({
@@ -11,7 +11,13 @@ export function LoginForm({
 }: React.ComponentProps<"form">) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const { isLoading, error, startSubmission, finishSubmission, setSubmissionError } = useAuthFormState();
+  const {
+    isLoading,
+    error,
+    startSubmission,
+    finishSubmission,
+    setSubmissionError,
+  } = useAuthFormState();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,12 +29,24 @@ export function LoginForm({
         password,
       });
 
-      if (workflowResult && workflowResult.success && workflowResult.data && workflowResult.data.user) {
+      if (
+        workflowResult &&
+        workflowResult.success &&
+        workflowResult.data &&
+        workflowResult.data.user
+      ) {
         // Store user info in localStorage
-        localStorage.setItem("currentUser", JSON.stringify(workflowResult.data.user));
+        localStorage.setItem(
+          "currentUser",
+          JSON.stringify(workflowResult.data.user),
+        );
         window.location.href = "/dashboard";
       } else {
-        setSubmissionError(workflowResult?.error || workflowResult?.data?.error || "Invalid email or password");
+        setSubmissionError(
+          workflowResult?.error ||
+            workflowResult?.data?.error ||
+            "Invalid email or password",
+        );
       }
     } catch (error) {
       void error; // Suppress unused warning
@@ -39,17 +57,12 @@ export function LoginForm({
   };
 
   const forgotPasswordLink = (
-    <Button
-      type="button"
-      onClick={() => {
-        // TODO: Implement forgot password functionality
-        alert("Forgot password functionality coming soon!");
-      }}
-      variant="link"
-      className="ml-auto text-sm h-auto p-0"
+    <Link
+      href="/forgot-password"
+      className="ml-auto text-sm text-primary underline underline-offset-4 hover:text-primary/80"
     >
       Forgot your password?
-    </Button>
+    </Link>
   );
 
   const fields = [
@@ -57,7 +70,7 @@ export function LoginForm({
       id: "email",
       label: "Email",
       type: "email",
-      placeholder: "demo@example.com",
+      placeholder: "user@example.com",
       value: email,
       onChange: setEmail,
       required: true,
@@ -66,7 +79,7 @@ export function LoginForm({
       id: "password",
       label: "Password",
       type: "password",
-      placeholder: "Enter your password",
+      placeholder: "password",
       value: password,
       onChange: setPassword,
       required: true,
@@ -78,7 +91,6 @@ export function LoginForm({
     <AuthForm
       title="Login to your account"
       description="Enter your email below to login to your account"
-      demoInfo="Demo: demo@example.com / password"
       fields={fields}
       submitText="Login"
       loadingText="Logging in..."

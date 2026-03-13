@@ -104,9 +104,8 @@ export default function CreateWorkspacePage() {
       
       setCurrentWorkspaceId(createdWorkspace.id);
 
-      // Force a page reload to refresh workspace data
-      // The dashboard will check for newWorkspaceId and switch to it
-      window.location.href = "/dashboard";
+      // Redirect to New agent so user can describe what they want or use a starter prompt
+      window.location.href = "/agents/new";
     } catch (error) {
       void error; // Suppress unused warning
       setError("Failed to create workspace. Please try again.");

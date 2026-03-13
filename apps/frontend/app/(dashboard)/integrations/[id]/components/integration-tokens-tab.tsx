@@ -2,11 +2,13 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { TokensTable, TokenData } from "../../components/tokens-table";
-import { useWorkspaceScopedActions, McpServer } from "../../../../../hooks/use-workspace-scoped-actions";
+import {
+  useWorkspaceScopedActions,
+  McpServer,
+} from "../../../../../hooks/use-workspace-scoped-actions";
 import { useOAuthFlow } from "../../../../../hooks/use-oauth-flow";
 import { useDatabaseWorkspace } from "../../../../../lib/database-workspace-context";
 import { AddTokenDialog } from "../../components/add-token-dialog";
-
 
 interface IntegrationTokensTabProps {
   server: McpServer;
@@ -22,14 +24,22 @@ export function IntegrationTokensTab({ server }: IntegrationTokensTabProps) {
 
   const loadTokens = useCallback(async () => {
     try {
-      const result = await executeWorkflow("OAuthTokensGetByWorkspaceWorkflow", {
-        workspace_id: server.workspace_id,
-      });
-      if (result.success && result.data && typeof result.data === 'object' && 'tokens' in result.data) {
+      const result = await executeWorkflow(
+        "OAuthTokensGetByWorkspaceWorkflow",
+        {
+          workspace_id: server.workspace_id,
+        },
+      );
+      if (
+        result.success &&
+        result.data &&
+        typeof result.data === "object" &&
+        "tokens" in result.data
+      ) {
         // Filter tokens for this specific server
         const tokens = (result.data as { tokens: TokenData[] }).tokens;
         const serverTokens = tokens.filter(
-          (token: TokenData) => token.mcp_server_id === server.id
+          (token: TokenData) => token.mcp_server_id === server.id,
         );
         setTokens(serverTokens);
       }
@@ -43,7 +53,6 @@ export function IntegrationTokensTab({ server }: IntegrationTokensTabProps) {
   useEffect(() => {
     loadTokens();
   }, [loadTokens]);
-
 
   const handleOAuthConnect = async () => {
     await startOAuthFlow(server);
@@ -60,10 +69,10 @@ export function IntegrationTokensTab({ server }: IntegrationTokensTabProps) {
         user_id: currentUser.id,
         workspace_id: server.workspace_id,
         mcp_server_id: server.id,
-        bearer_token: token,
+        access_token: token,
         token_name: name || undefined,
       });
-      
+
       if (result.success) {
         await loadTokens();
       }
@@ -72,18 +81,12 @@ export function IntegrationTokensTab({ server }: IntegrationTokensTabProps) {
     }
   };
 
-  const handleDeleteToken = async () => {
-    if (!currentUser?.id) {
-      console.error("No current user available");
-      return;
-    }
-
+  const handleDeleteToken = async (tokenId: string) => {
     try {
       const result = await executeWorkflow("OAuthTokenDeleteWorkflow", {
-        user_id: currentUser.id,
-        mcp_server_id: server.id,
+        token_id: tokenId,
       });
-      
+
       if (result.success) {
         await loadTokens();
       }
@@ -97,7 +100,7 @@ export function IntegrationTokensTab({ server }: IntegrationTokensTabProps) {
       const result = await executeWorkflow("OAuthTokenSetDefaultByIdWorkflow", {
         token_id: tokenId,
       });
-      
+
       if (result.success) {
         // Refresh the tokens list to show updated default status
         await loadTokens();
@@ -108,8 +111,6 @@ export function IntegrationTokensTab({ server }: IntegrationTokensTabProps) {
       console.error("Failed to set token as default:", error);
     }
   };
-
-
 
   return (
     <div>

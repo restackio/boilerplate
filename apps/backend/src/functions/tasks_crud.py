@@ -59,6 +59,8 @@ class TaskUpdateInput(BaseModel):
         None, pattern="^(active|inactive|paused)$"
     )
     temporal_schedule_id: str | None = None
+    view_specs: list | None = None  # Build task view definitions
+    temporal_run_id: str | None = None  # For sending end event to the correct run
 
     @field_validator(
         "assigned_to_id",
@@ -107,6 +109,21 @@ class TaskSaveAgentStateInput(BaseModel):
 class TaskGetByWorkspaceInput(BaseModel):
     workspace_id: str = Field(..., min_length=1)
     team_id: str | None = None
+    exclude_build_tasks: bool = Field(
+        default=False,
+        description="When True, exclude tasks with title 'Build' (agent build tasks) from counts.",
+    )
+
+
+class ListViewsForDatasetInput(BaseModel):
+    workspace_id: str = Field(..., min_length=1)
+    dataset_id: str = Field(..., min_length=1)
+
+
+class GetViewInput(BaseModel):
+    workspace_id: str = Field(..., min_length=1)
+    dataset_id: str = Field(..., min_length=1)
+    view_id: str = Field(..., min_length=1)
 
 
 # Pydantic models for output serialization
@@ -136,6 +153,7 @@ class TaskOutput(BaseModel):
     is_scheduled: bool = False
     schedule_status: str | None = None
     temporal_schedule_id: str | None
+    view_specs: list | None = None  # Build task view definitions
     created_at: str | None
     updated_at: str | None
 
@@ -155,6 +173,18 @@ class TaskSingleOutput(BaseModel):
 
 class TaskDeleteOutput(BaseModel):
     success: bool
+
+
+class ListViewsForDatasetOutput(BaseModel):
+    success: bool = True
+    views: list[dict] = Field(default_factory=list)
+    error: str | None = None
+
+
+class GetViewOutput(BaseModel):
+    success: bool = True
+    view: dict | None = None
+    error: str | None = None
 
 
 class TaskStatsOutput(BaseModel):
@@ -237,6 +267,10 @@ async def tasks_read(
                     is_scheduled=task.is_scheduled,
                     schedule_status=task.schedule_status,
                     temporal_schedule_id=task.temporal_schedule_id,
+                    view_specs=task.view_specs
+                    if getattr(task, "view_specs", None)
+                    is not None
+                    else [],
                     created_at=task.created_at.isoformat()
                     if task.created_at
                     else None,
@@ -346,6 +380,9 @@ async def tasks_create(
                 is_scheduled=task.is_scheduled,
                 schedule_status=task.schedule_status,
                 temporal_schedule_id=task.temporal_schedule_id,
+                view_specs=task.view_specs
+                if getattr(task, "view_specs", None) is not None
+                else [],
                 created_at=task.created_at.isoformat()
                 if task.created_at
                 else None,
@@ -378,12 +415,14 @@ async def tasks_update(
             task = result.scalar_one_or_none()
 
             if not task:
-                raise NonRetryableError(  # noqa: TRY301
+                raise NonRetryableError(
                     message=f"Task with id {function_input.task_id} not found"
                 )
-            # Update fields (only non-None values, excluding task_id)
-            update_data = function_input.dict(
-                exclude_unset=True, exclude={"task_id"}
+            # Update fields (only non-None values, excluding task_id and temporal_run_id)
+            # temporal_run_id is only used by TasksUpdateWorkflow when sending end event
+            update_data = function_input.model_dump(
+                exclude_unset=True,
+                exclude={"task_id", "temporal_run_id"},
             )
             for key, value in update_data.items():
                 if hasattr(task, key) and value is not None:
@@ -406,6 +445,10 @@ async def tasks_update(
                         )
                         or (
                             key == "schedule_spec"
+                            and value is not None
+                        )
+                        or (
+                            key == "view_specs"
                             and value is not None
                         )
                         or (
@@ -467,6 +510,9 @@ async def tasks_update(
                 is_scheduled=task.is_scheduled,
                 schedule_status=task.schedule_status,
                 temporal_schedule_id=task.temporal_schedule_id,
+                view_specs=task.view_specs
+                if getattr(task, "view_specs", None) is not None
+                else [],
                 created_at=task.created_at.isoformat()
                 if task.created_at
                 else None,
@@ -510,7 +556,7 @@ async def tasks_save_agent_state(
             task = result.scalar_one_or_none()
 
             if not task:
-                raise NonRetryableError(  # noqa: TRY301
+                raise NonRetryableError(
                     message=f"Task with id {function_input.task_id} not found"
                 )
 
@@ -559,6 +605,9 @@ async def tasks_save_agent_state(
                 is_scheduled=task.is_scheduled,
                 schedule_status=task.schedule_status,
                 temporal_schedule_id=task.temporal_schedule_id,
+                view_specs=task.view_specs
+                if getattr(task, "view_specs", None) is not None
+                else [],
                 created_at=task.created_at.isoformat(),
                 updated_at=task.updated_at.isoformat(),
             )
@@ -586,7 +635,7 @@ async def tasks_delete(
             task = result.scalar_one_or_none()
 
             if not task:
-                raise NonRetryableError(  # noqa: TRY301
+                raise NonRetryableError(
                     message=f"Task with id {function_input.task_id} not found"
                 )
             await db.delete(task)
@@ -630,7 +679,7 @@ async def tasks_get_by_id(
             task = result.scalar_one_or_none()
 
             if not task:
-                raise NonRetryableError(  # noqa: TRY301
+                raise NonRetryableError(
                     message=f"Task with id {function_input.task_id} not found"
                 )
             output_result = TaskOutput(
@@ -671,6 +720,9 @@ async def tasks_get_by_id(
                 is_scheduled=task.is_scheduled,
                 schedule_status=task.schedule_status,
                 temporal_schedule_id=task.temporal_schedule_id,
+                view_specs=task.view_specs
+                if getattr(task, "view_specs", None) is not None
+                else [],
                 created_at=task.created_at.isoformat()
                 if task.created_at
                 else None,
@@ -685,6 +737,74 @@ async def tasks_get_by_id(
                 message=f"Failed to get task: {e!s}"
             ) from e
     return None
+
+
+def _view_specs_for_dataset(
+    view_specs: list | None, dataset_id: str
+) -> list[dict]:
+    """Return view specs that reference the given dataset_id."""
+    if not view_specs or not isinstance(view_specs, list):
+        return []
+    return [
+        v
+        for v in view_specs
+        if isinstance(v, dict) and v.get("dataset_id") == dataset_id
+    ]
+
+
+@function.defn()
+async def tasks_list_views_for_dataset(
+    function_input: ListViewsForDatasetInput,
+) -> ListViewsForDatasetOutput:
+    """List view specs that reference the given dataset (from tasks.view_specs)."""
+    if isinstance(function_input, dict):
+        function_input = ListViewsForDatasetInput.model_validate(function_input)
+    async for db in get_async_db():
+        try:
+            tasks_query = select(Task).where(
+                Task.workspace_id == uuid.UUID(function_input.workspace_id)
+            )
+            result = await db.execute(tasks_query)
+            tasks = result.scalars().all()
+            views: list[dict] = []
+            for task in tasks:
+                specs = getattr(task, "view_specs", None) or []
+                views.extend(
+                    _view_specs_for_dataset(specs, function_input.dataset_id)
+                )
+            return ListViewsForDatasetOutput(success=True, views=views)
+        except Exception as e:  # noqa: BLE001
+            log.error(f"tasks_list_views_for_dataset failed: {e!s}")
+            return ListViewsForDatasetOutput(
+                success=False, views=[], error=str(e)
+            )
+    return ListViewsForDatasetOutput(success=False, views=[], error="No db")
+
+
+@function.defn()
+async def tasks_get_view_by_id(
+    function_input: GetViewInput,
+) -> GetViewOutput:
+    """Get a single view spec by id that references the given dataset."""
+    if isinstance(function_input, dict):
+        function_input = GetViewInput.model_validate(function_input)
+    async for db in get_async_db():
+        try:
+            tasks_query = select(Task).where(
+                Task.workspace_id == uuid.UUID(function_input.workspace_id)
+            )
+            result = await db.execute(tasks_query)
+            tasks = result.scalars().all()
+            for task in tasks:
+                specs = getattr(task, "view_specs", None) or []
+                for v in _view_specs_for_dataset(specs, function_input.dataset_id):
+                    if isinstance(v, dict) and v.get("id") == function_input.view_id:
+                        return GetViewOutput(success=True, view=v)
+            return GetViewOutput(success=True, view=None)
+        except Exception as e:  # noqa: BLE001
+            log.error(f"tasks_get_view_by_id failed: {e!s}")
+            return GetViewOutput(success=False, view=None, error=str(e))
+    return GetViewOutput(success=False, view=None, error="No db")
 
 
 @function.defn()
@@ -750,6 +870,10 @@ async def tasks_get_by_parent_id(
                     is_scheduled=task.is_scheduled,
                     schedule_status=task.schedule_status,
                     temporal_schedule_id=task.temporal_schedule_id,
+                    view_specs=task.view_specs
+                    if getattr(task, "view_specs", None)
+                    is not None
+                    else [],
                     created_at=task.created_at.isoformat()
                     if task.created_at
                     else None,
@@ -828,6 +952,10 @@ async def tasks_get_by_status(
                     is_scheduled=task.is_scheduled,
                     schedule_status=task.schedule_status,
                     temporal_schedule_id=task.temporal_schedule_id,
+                    view_specs=task.view_specs
+                    if getattr(task, "view_specs", None)
+                    is not None
+                    else [],
                     created_at=task.created_at.isoformat()
                     if task.created_at
                     else None,
@@ -868,7 +996,7 @@ async def tasks_update_agent_task_id(
             task = result.scalar_one_or_none()
 
             if not task:
-                raise NonRetryableError(  # noqa: TRY301
+                raise NonRetryableError(
                     message=f"Task with id {function_input.task_id} not found"
                 )
             # Update the temporal_agent_id
@@ -917,6 +1045,9 @@ async def tasks_update_agent_task_id(
                 is_scheduled=task.is_scheduled,
                 schedule_status=task.schedule_status,
                 temporal_schedule_id=task.temporal_schedule_id,
+                view_specs=task.view_specs
+                if getattr(task, "view_specs", None) is not None
+                else [],
                 created_at=task.created_at.isoformat()
                 if task.created_at
                 else None,
@@ -939,8 +1070,6 @@ async def tasks_get_stats(
     function_input: TaskGetByWorkspaceInput,
 ) -> TaskStatsOutput:
     """Get task statistics by status for a specific workspace."""
-    from src.utils.demo import apply_demo_multiplier_to_stats
-
     async for db in get_async_db():
         try:
             # Query to count tasks by status
@@ -962,6 +1091,11 @@ async def tasks_get_stats(
                     == uuid.UUID(function_input.team_id)
                 )
 
+            if function_input.exclude_build_tasks:
+                stats_query = stats_query.where(
+                    Task.title != "Build"
+                )
+
             result = await db.execute(stats_query)
             status_counts = result.all()
 
@@ -980,25 +1114,12 @@ async def tasks_get_stats(
                     stats[status] = count
                     total += count
 
-            # Add demo multipliers if enabled
-            real_stats = {
-                "in_progress": stats["in_progress"],
-                "in_review": stats["in_review"],
-                "closed": stats["closed"],
-                "completed": stats["completed"],
-                "total": total,
-            }
-
-            enhanced_stats = apply_demo_multiplier_to_stats(
-                real_stats
-            )
-
             return TaskStatsOutput(
-                in_progress=enhanced_stats["in_progress"],
-                in_review=enhanced_stats["in_review"],
-                closed=enhanced_stats["closed"],
-                completed=enhanced_stats["completed"],
-                total=enhanced_stats["total"],
+                in_progress=stats["in_progress"],
+                in_review=stats["in_review"],
+                closed=stats["closed"],
+                completed=stats["completed"],
+                total=total,
             )
         except Exception as e:
             raise NonRetryableError(

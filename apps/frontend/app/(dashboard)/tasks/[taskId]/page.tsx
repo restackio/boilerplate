@@ -2,7 +2,10 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useWorkspaceScopedActions, Task } from "@/hooks/use-workspace-scoped-actions";
+import {
+  useWorkspaceScopedActions,
+  Task,
+} from "@/hooks/use-workspace-scoped-actions";
 import { useTaskDetail } from "./hooks/use-task-detail";
 import { sendMcpApproval } from "@/app/actions/agent";
 import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
@@ -21,7 +24,14 @@ import {
 } from "@workspace/ui/components";
 
 // Inner component that uses hooks requiring the provider
-function TaskDetailContentInner({ task, onRefetch }: { task: Task; onRefetch: () => Promise<void> }) {
+function TaskDetailContentInner({
+  task,
+  onRefetch,
+}: {
+  task: Task;
+  onRefetch: () => Promise<void>;
+}) {
+  const router = useRouter();
   const { currentWorkspaceId } = useDatabaseWorkspace();
   const {
     showDeleteDialog,
@@ -80,16 +90,25 @@ function TaskDetailContentInner({ task, onRefetch }: { task: Task; onRefetch: ()
     }
   };
 
+  const isBuildTask = task.title === "Build";
+  const [filesRefreshTrigger, setFilesRefreshTrigger] = useState(0);
+  const handleFilesAdded = useCallback(() => {
+    setFilesRefreshTrigger((n) => n + 1);
+  }, []);
+
   return (
     <div>
-      <TaskHeader 
-        task={task} 
-        onDelete={() => setShowDeleteDialog(true)} 
+      <TaskHeader
+        task={task}
+        onDelete={() => setShowDeleteDialog(true)}
         onUpdateTask={handleUpdateTask}
         onOpenAnalytics={handleOpenAnalytics}
+        onDeploy={
+          isBuildTask ? () => router.push(`/agents/new/${task.id}`) : undefined
+        }
       />
-      
-      <div className={`flex ${showSplitView ? 'h-[calc(100vh-65px)]' : ''}`}>
+
+      <div className={`flex ${showSplitView ? "h-[calc(100vh-65px)]" : ""}`}>
         <TaskChatInterface
           conversation={conversation}
           chatMessage={chatMessage}
@@ -105,6 +124,9 @@ function TaskDetailContentInner({ task, onRefetch }: { task: Task; onRefetch: ()
           taskId={task.id}
           agentId={task.agent_id}
           workspaceId={currentWorkspaceId || undefined}
+          onFilesAdded={handleFilesAdded}
+          filesRefreshTrigger={filesRefreshTrigger}
+          onRefreshTask={onRefetch}
         />
 
         <TaskSplitView
@@ -132,10 +154,16 @@ function TaskDetailContentInner({ task, onRefetch }: { task: Task; onRefetch: ()
 
 // Wrapper component that provides the AgentStreamProvider
 // The provider internally chooses between active (with subscriptions) or mock (without)
-function TaskDetailContent({ task, onRefetch }: { task: Task; onRefetch: () => Promise<void> }) {
+function TaskDetailContent({
+  task,
+  onRefetch,
+}: {
+  task: Task;
+  onRefetch: () => Promise<void>;
+}) {
   return (
     <AgentStreamProvider
-      agentTaskId={task.temporal_agent_id || ''}
+      agentTaskId={task.temporal_agent_id || ""}
       runId={task.agent_state?.metadata?.temporal_run_id}
       taskStatus={task.status}
       initialState={task.agent_state}
@@ -150,7 +178,7 @@ export default function TaskDetailPage() {
   const params = useParams();
   const router = useRouter();
   const taskId = params?.taskId as string;
-  
+
   const [task, setTask] = useState<Task | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -159,10 +187,10 @@ export default function TaskDetailPage() {
 
   const fetchTask = useCallback(async () => {
     if (!taskId) return;
-    
+
     setIsLoading(true);
     setError(null);
-    
+
     try {
       const result = await getTaskById(taskId);
       if (result.success && result.data) {
@@ -187,11 +215,24 @@ export default function TaskDetailPage() {
   }
 
   if (error) {
-    return <EntityErrorState error={error} entityId={taskId} entityType="task" onBack={() => router.push("/tasks")} />;
+    return (
+      <EntityErrorState
+        error={error}
+        entityId={taskId}
+        entityType="task"
+        onBack={() => router.push("/tasks")}
+      />
+    );
   }
 
   if (!task) {
-    return <EntityNotFoundState entityId={taskId} entityType="task" onBack={() => router.push("/tasks")} />;
+    return (
+      <EntityNotFoundState
+        entityId={taskId}
+        entityType="task"
+        onBack={() => router.push("/tasks")}
+      />
+    );
   }
 
   // Wait for temporal_agent_id before rendering content with subscriptions
@@ -201,4 +242,3 @@ export default function TaskDetailPage() {
 
   return <TaskDetailContent task={task} onRefetch={fetchTask} />;
 }
-

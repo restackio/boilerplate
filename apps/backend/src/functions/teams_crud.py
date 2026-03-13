@@ -157,7 +157,7 @@ async def teams_update(
             team = result.scalar_one_or_none()
 
             if not team:
-                raise NonRetryableError(  # noqa: TRY301
+                raise NonRetryableError(
                     message=f"Team with id {function_input.team_id} not found"
                 )
             update_data = function_input.dict(
@@ -206,7 +206,7 @@ async def teams_delete(
             team = result.scalar_one_or_none()
 
             if not team:
-                raise NonRetryableError(  # noqa: TRY301
+                raise NonRetryableError(
                     message=f"Team with id {function_input.team_id} not found"
                 )
             await db.delete(team)
@@ -235,7 +235,7 @@ async def teams_get_by_id(
             team = result.scalar_one_or_none()
 
             if not team:
-                raise NonRetryableError(  # noqa: TRY301
+                raise NonRetryableError(
                     message=f"Team with id {function_input.team_id} not found"
                 )
             output_result = TeamOutput(

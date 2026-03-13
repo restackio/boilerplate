@@ -17,7 +17,7 @@ import { getTasksByMetric, getTasksByFeedback } from "@/app/actions/tasks-filter
 export default function TasksPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { currentWorkspaceId, isReady } = useDatabaseWorkspace();
+  const { currentWorkspaceId, isReady, isAdminWorkspace } = useDatabaseWorkspace();
   const { tasks, tasksLoading, fetchTasks, deleteTask, createTask, teams, fetchTeams } = useWorkspaceScopedActions();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [filteredTaskIds, setFilteredTaskIds] = useState<string[] | null>(null);
@@ -145,21 +145,26 @@ export default function TasksPage() {
       updated: task.updated_at || "",
     }));
 
+    let list: typeof transformedTasks;
     // Filter by metric/feedback if filteredTaskIds is set
     if (filteredTaskIds !== null) {
-      return transformedTasks.filter(task => filteredTaskIds.includes(task.id));
+      list = transformedTasks.filter(task => filteredTaskIds.includes(task.id));
+    } else {
+      // Filter by specific task IDs if provided in URL params (for newly created tasks)
+      const tasksParam = searchParams.get('tasks');
+      if (tasksParam && searchParams.get('highlight') === 'true') {
+        const taskIds = tasksParam.split(',').filter(id => id.trim());
+        list = transformedTasks.filter(task => taskIds.includes(task.id));
+      } else {
+        list = transformedTasks.filter(task => !task.schedule_spec);
+      }
     }
-
-    // Filter by specific task IDs if provided in URL params (for newly created tasks)
-    const tasksParam = searchParams.get('tasks');
-    if (tasksParam && searchParams.get('highlight') === 'true') {
-      const taskIds = tasksParam.split(',').filter(id => id.trim());
-      return transformedTasks.filter(task => taskIds.includes(task.id));
+    // In non-admin workspaces, hide build tasks from /tasks (they live under /agents)
+    if (!isAdminWorkspace) {
+      list = list.filter(task => task.title !== "Build");
     }
-
-    // Only exclude scheduled tasks when no filters are active
-    return transformedTasks.filter(task => !task.schedule_spec);
-  }, [tasks, searchParams, filteredTaskIds]);
+    return list;
+  }, [tasks, searchParams, filteredTaskIds, isAdminWorkspace]);
 
   // Create team options for filtering
   const teamOptions = useMemo(() => {

@@ -4,7 +4,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from restack_ai.function import NonRetryableError, function, log
 from sqlalchemy import func, select, update
 from sqlalchemy.exc import SQLAlchemyError
@@ -35,8 +35,29 @@ class GetMcpServerInput(BaseModel):
 
 
 class GetOAuthTokenInput(BaseModel):
-    user_id: str = Field(..., description="User ID")
-    mcp_server_id: str = Field(..., description="MCP Server ID")
+    user_id: str | None = Field(
+        None,
+        description="User ID (required with mcp_server_id when token_id not set)",
+    )
+    mcp_server_id: str | None = Field(
+        None,
+        description="MCP Server ID (required with user_id when token_id not set)",
+    )
+    token_id: str | None = Field(
+        None,
+        description="Token ID. When set (e.g. for delete), user_id and mcp_server_id are ignored.",
+    )
+
+    @model_validator(mode="after")
+    def require_token_id_or_user_and_server(
+        self,
+    ) -> "GetOAuthTokenInput":
+        if self.token_id:
+            return self
+        if not self.user_id or not self.mcp_server_id:
+            msg = "Either token_id or both user_id and mcp_server_id are required"
+            raise ValueError(msg)
+        return self
 
 
 class GetOAuthTokenForMcpServerInput(BaseModel):
@@ -72,16 +93,29 @@ class SaveOAuthTokenInput(BaseModel):
         default=False,
         description="Whether this token is the default for the workspace",
     )
+    token_name: str | None = Field(
+        default=None,
+        description="Optional display name for the token",
+    )
 
 
 class SaveBearerTokenInput(BaseModel):
+    """Input for creating/updating a bearer token (e.g. OpenAI API key)."""
+
     user_id: str = Field(..., description="User ID")
     workspace_id: str = Field(..., description="Workspace ID")
     mcp_server_id: str = Field(..., description="MCP Server ID")
-    access_token: str = Field(..., description="Bearer token")
+    access_token: str = Field(
+        ...,
+        description="Bearer token (e.g. API key)",
+    )
     is_default: bool = Field(
         default=False,
         description="Whether this token is the default for the workspace",
+    )
+    token_name: str | None = Field(
+        default=None,
+        description="Optional display name for the token",
     )
 
 
@@ -117,6 +151,7 @@ class OAuthTokenOutput(BaseModel):
     connected_at: str
     auth_type: str
     is_default: bool
+    token_name: str | None = None
 
     class Config:
         """Pydantic configuration."""
@@ -187,12 +222,7 @@ async def oauth_token_create_or_update(
     function_input: SaveOAuthTokenInput,
 ) -> SaveOAuthTokenOutput:
     """Create or update OAuth token."""
-    log.info(
-        f"Starting oauth_token_create_or_update with input: {function_input}"
-    )
-
     async for db in get_async_db():
-        log.info("Database connection established")
         try:
             # Check if there are any existing connections for this MCP server in this workspace
             existing_connections_query = select(
@@ -239,15 +269,18 @@ async def oauth_token_create_or_update(
                     + timedelta(seconds=function_input.expires_in)
                 ).replace(tzinfo=None)
 
-            # Check if token already exists
-            query = select(UserOAuthConnection).where(
-                UserOAuthConnection.user_id
-                == uuid.UUID(function_input.user_id),
-                UserOAuthConnection.mcp_server_id
-                == uuid.UUID(function_input.mcp_server_id),
-            )
-            result = await db.execute(query)
-            existing_token = result.scalar_one_or_none()
+            # For OAuth: one connection per (user, mcp_server) — update if exists.
+            # For Bearer: allow multiple tokens per (user, mcp_server) — always create.
+            existing_token = None
+            if function_input.auth_type == "oauth":
+                query = select(UserOAuthConnection).where(
+                    UserOAuthConnection.user_id
+                    == uuid.UUID(function_input.user_id),
+                    UserOAuthConnection.mcp_server_id
+                    == uuid.UUID(function_input.mcp_server_id),
+                )
+                result = await db.execute(query)
+                existing_token = result.scalar_one_or_none()
 
             # Encrypt tokens
             encrypted_access_token = encrypt_token(
@@ -276,6 +309,7 @@ async def oauth_token_create_or_update(
                     function_input.auth_type
                 )
                 existing_token.is_default = should_be_default
+                existing_token.token_name = function_input.token_name
                 existing_token.updated_at = datetime.now(
                     UTC
                 ).replace(tzinfo=None)
@@ -298,6 +332,7 @@ async def oauth_token_create_or_update(
                     scope=function_input.scope,
                     auth_type=function_input.auth_type,
                     is_default=should_be_default,
+                    token_name=function_input.token_name,
                 )
                 db.add(token)
 
@@ -318,6 +353,7 @@ async def oauth_token_create_or_update(
                     connected_at=token.connected_at.isoformat(),
                     auth_type=token.auth_type,
                     is_default=token.is_default,
+                    token_name=getattr(token, "token_name", None),
                 )
             )
 
@@ -357,6 +393,7 @@ async def bearer_token_create_or_update(
         scope=None,
         auth_type="bearer",
         is_default=function_input.is_default,
+        token_name=function_input.token_name,
     )
     return await oauth_token_create_or_update(oauth_input)
 
@@ -394,6 +431,7 @@ async def oauth_token_get_by_user_and_server(
                     connected_at=token.connected_at.isoformat(),
                     auth_type=token.auth_type,
                     is_default=token.is_default,
+                    token_name=getattr(token, "token_name", None),
                 )
             )
 
@@ -472,6 +510,36 @@ async def _get_connection_fallback(
     )
     result = await db.execute(query)
     return result.scalar_one_or_none()
+
+
+async def get_workspace_openai_api_key(
+    workspace_id: str,
+) -> str | None:
+    """Return the decrypted OpenAI API key for the workspace, or None if not set.
+
+    The key is stored as a bearer token on the workspace's 'OpenAI' MCP server
+    (Integrations > OpenAI > Add Bearer Token). Used for LLM calls so the key
+    is never logged.
+    """
+    async for db in get_async_db():
+        try:
+            server_query = select(McpServer).where(
+                McpServer.workspace_id == uuid.UUID(workspace_id),
+                McpServer.server_label == "OpenAI",
+            )
+            server_result = await db.execute(server_query)
+            openai_server = server_result.scalar_one_or_none()
+            if not openai_server:
+                return None
+            connection = await _get_connection_by_workspace(
+                db, workspace_id, str(openai_server.id)
+            )
+            if not connection or connection.auth_type != "bearer":
+                return None
+            return decrypt_token(connection.access_token) or None
+        except (SQLAlchemyError, ValueError):
+            return None
+    return None
 
 
 async def _refresh_token_if_expired(
@@ -645,15 +713,28 @@ async def oauth_token_get_decrypted(
 async def oauth_token_delete(
     function_input: GetOAuthTokenInput,
 ) -> DeleteTokenOutput:
-    """Delete OAuth token by user and server."""
+    """Delete OAuth token by token_id or by user and server."""
     async for db in get_async_db():
         try:
-            query = select(UserOAuthConnection).where(
-                UserOAuthConnection.user_id
-                == uuid.UUID(function_input.user_id),
-                UserOAuthConnection.mcp_server_id
-                == uuid.UUID(function_input.mcp_server_id),
-            )
+            if function_input.token_id:
+                query = select(UserOAuthConnection).where(
+                    UserOAuthConnection.id
+                    == uuid.UUID(function_input.token_id)
+                )
+            else:
+                if (
+                    not function_input.user_id
+                    or not function_input.mcp_server_id
+                ):
+                    raise NonRetryableError(
+                        message="Either token_id or both user_id and mcp_server_id are required"
+                    )
+                query = select(UserOAuthConnection).where(
+                    UserOAuthConnection.user_id
+                    == uuid.UUID(function_input.user_id),
+                    UserOAuthConnection.mcp_server_id
+                    == uuid.UUID(function_input.mcp_server_id),
+                )
             result = await db.execute(query)
             token = result.scalar_one_or_none()
 
@@ -796,6 +877,10 @@ async def oauth_token_refresh_and_update(
                             scope=existing_token.scope,
                             connected_at=existing_token.connected_at.isoformat(),
                             auth_type=existing_token.auth_type,
+                            is_default=existing_token.is_default,
+                            token_name=getattr(
+                                existing_token, "token_name", None
+                            ),
                         )
                     )
                 raise NonRetryableError(
@@ -851,6 +936,7 @@ async def oauth_tokens_get_by_workspace(
                     connected_at=token.connected_at.isoformat(),
                     auth_type=token.auth_type,
                     is_default=token.is_default,
+                    token_name=getattr(token, "token_name", None),
                 )
                 for token in tokens
             ]
@@ -900,6 +986,7 @@ async def oauth_token_get_default(
                     connected_at=token.connected_at.isoformat(),
                     auth_type=token.auth_type,
                     is_default=token.is_default,
+                    token_name=getattr(token, "token_name", None),
                 )
             )
 
@@ -968,6 +1055,7 @@ async def oauth_token_set_default(
                     connected_at=token.connected_at.isoformat(),
                     auth_type=token.auth_type,
                     is_default=token.is_default,
+                    token_name=getattr(token, "token_name", None),
                 )
             )
 
@@ -1034,6 +1122,7 @@ async def oauth_token_set_default_by_id(
                     connected_at=token.connected_at.isoformat(),
                     auth_type=token.auth_type,
                     is_default=token.is_default,
+                    token_name=getattr(token, "token_name", None),
                 )
             )
 

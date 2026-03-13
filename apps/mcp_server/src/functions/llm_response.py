@@ -66,6 +66,15 @@ async def llm_response(  # noqa: C901
         # Get singleton OpenAI client to prevent file descriptor leaks
         client = get_openai_client()
 
+        def _require_client() -> None:
+            if client is None:
+                msg = (
+                    "OpenAI API key is not configured. Add it to the workspace or set OPENAI_API_KEY."
+                )
+                raise ValueError(msg)  # noqa: TRY301
+
+        _require_client()
+
         response: ChatCompletion = (
             await client.chat.completions.create(
                 **function_input.create_params

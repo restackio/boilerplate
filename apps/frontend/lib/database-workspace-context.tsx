@@ -9,6 +9,8 @@ interface DatabaseWorkspaceContextType {
   workspaces: Workspace[];
   currentWorkspaceId: string | null;
   workspaceId: string | null; // Alias for currentWorkspaceId for convenience
+  /** True when the current workspace is the admin workspace (e.g. build tasks stay in /tasks). */
+  isAdminWorkspace: boolean;
   currentUser: User | null;
   currentUserId: string | null; // User ID for convenience
   loading: { isLoading: boolean; error: string | null };
@@ -139,7 +141,12 @@ export function DatabaseWorkspaceProvider({ children }: { children: React.ReactN
 
   // Simple ready state: not loading, no error, and have a workspace
   const isReady = !isLoading && !error && currentWorkspaceId && workspaces.length > 0;
-  
+
+  const isAdminWorkspace = useMemo(
+    () => workspaces.find((w) => w.id === currentWorkspaceId)?.is_admin === true,
+    [workspaces, currentWorkspaceId]
+  );
+
   // Memoize loading object to prevent unnecessary re-renders
   const loading = useMemo(() => ({ isLoading, error }), [isLoading, error]);
   
@@ -155,6 +162,7 @@ export function DatabaseWorkspaceProvider({ children }: { children: React.ReactN
     workspaces,
     currentWorkspaceId,
     workspaceId: currentWorkspaceId, // Alias for currentWorkspaceId
+    isAdminWorkspace,
     currentUser,
     currentUserId: currentUser?.id || null, // User ID for convenience
     loading,
@@ -164,7 +172,7 @@ export function DatabaseWorkspaceProvider({ children }: { children: React.ReactN
     refreshData,
     createWorkspace,
     initialize: async () => {}, // Simplified - no longer needed
-  }), [workspaces, currentWorkspaceId, currentUser, loading, isReady, setCurrentWorkspaceId, refreshData, createWorkspace]);
+  }), [workspaces, currentWorkspaceId, isAdminWorkspace, currentUser, loading, isReady, setCurrentWorkspaceId, refreshData, createWorkspace]);
 
   return (
     <DatabaseWorkspaceContext.Provider value={value}>

@@ -17,6 +17,7 @@ with import_functions():
     from src.functions.mcp_oauth_client import (
         ExchangeCodeForTokenInput,
         ParseCallbackInput,
+        _normalize_redirect_uri,
         oauth_exchange_code_for_token,
         oauth_generate_auth_url,
         oauth_parse_callback,
@@ -54,6 +55,14 @@ class McpOAuthInitializeWorkflowInput(BaseModel):
     user_id: str = Field(..., description="User ID")
     workspace_id: str = Field(..., description="Workspace ID")
     mcp_server_id: str = Field(..., description="MCP Server ID")
+    redirect_uri: str = Field(
+        ...,
+        description="OAuth redirect URI (frontend origin + /oauth/callback). No env allowlist; validated against request_origin when provided.",
+    )
+    request_origin: str | None = Field(
+        None,
+        description="Request origin (e.g. window.location.origin) for validation; redirect_uri origin must match.",
+    )
 
 
 class McpOAuthCallbackWorkflowInput(BaseModel):
@@ -115,7 +124,7 @@ class McpOAuthInitializeWorkflow:
                 "MCP server found", server_url=server.server_url
             )
 
-            # Step 2: Generate OAuth authorization URL using MCP SDK with workflow state
+            # Step 2: Generate OAuth authorization URL (redirect_uri from frontend; no env)
             log.info("Step 2: Generating OAuth authorization URL")
             from src.functions.mcp_oauth_client import (
                 GenerateAuthUrlInput,
@@ -128,7 +137,8 @@ class McpOAuthInitializeWorkflow:
                     server_label=server.server_label,
                     user_id=request.user_id,
                     workspace_id=request.workspace_id,
-                    redirect_uri="http://localhost:3000/oauth/callback",
+                    redirect_uri=request.redirect_uri,
+                    request_origin=request.request_origin,
                 ),
                 start_to_close_timeout=timedelta(seconds=60),
                 task_queue=TASK_QUEUE,
@@ -150,12 +160,18 @@ class McpOAuthInitializeWorkflow:
                 "OAuth authorization URL generated successfully"
             )
 
-            # Extract client_id from the authorization URL for use in callback
-            parsed_url = urlparse(
-                auth_url_result.auth_url.authorization_url
+            # Use client_id and client_secret from auth URL result for callback
+            client_id = getattr(
+                auth_url_result.auth_url, "client_id", None
             )
-            query_params = parse_qs(parsed_url.query)
-            client_id = query_params.get("client_id", [None])[0]
+            if not client_id:
+                parsed_url = urlparse(
+                    auth_url_result.auth_url.authorization_url
+                )
+                query_params = parse_qs(parsed_url.query)
+                client_id = query_params.get("client_id", [None])[
+                    0
+                ]
 
         except (ValueError, TypeError, AttributeError) as e:
             error_message = (
@@ -185,8 +201,8 @@ class McpOAuthCallbackWorkflow:
     ) -> dict[str, Any]:
         """Multi-step OAuth callback handling.
 
-        1. Parse callback URL to extract authorization code and state
-        2. Get MCP server configuration
+        1. Get MCP server configuration (needed for state validation)
+        2. Parse callback URL and validate state (CSRF)
         3. Exchange code for tokens using PKCE verification
         4. Save tokens to database
         """
@@ -195,12 +211,37 @@ class McpOAuthCallbackWorkflow:
         )
 
         try:
-            # Step 1: Parse callback URL
-            log.info("Step 1: Parsing OAuth callback URL")
+            # Step 1: Get MCP server first (required for state validation)
+            log.info("Step 1: Getting MCP server configuration")
+            server_result = await workflow.step(
+                function=mcp_server_get_by_id,
+                function_input=GetMcpServerInput(
+                    mcp_server_id=request.mcp_server_id
+                ),
+                start_to_close_timeout=timedelta(seconds=30),
+                task_queue=TASK_QUEUE,
+            )
+
+            if not server_result or not server_result.server:
+                log.error("Failed to get MCP server")
+                return {
+                    "success": False,
+                    "error": "Failed to get MCP server",
+                }
+
+            server = server_result.server
+
+            # Step 2: Parse callback and validate state (CSRF protection)
+            log.info(
+                "Step 2: Parsing OAuth callback URL and validating state"
+            )
             callback_result = await workflow.step(
                 function=oauth_parse_callback,
                 function_input=ParseCallbackInput(
-                    callback_url=request.callback_url
+                    callback_url=request.callback_url,
+                    user_id=request.user_id,
+                    workspace_id=request.workspace_id,
+                    server_label=server.server_label,
                 ),
                 start_to_close_timeout=timedelta(seconds=10),
                 task_queue=TASK_QUEUE,
@@ -223,25 +264,10 @@ class McpOAuthCallbackWorkflow:
                 code_length=len(code) if code else 0,
             )
 
-            # Step 2: Get MCP server configuration
-            log.info("Step 2: Getting MCP server configuration")
-            server_result = await workflow.step(
-                function=mcp_server_get_by_id,
-                function_input=GetMcpServerInput(
-                    mcp_server_id=request.mcp_server_id
-                ),
-                start_to_close_timeout=timedelta(seconds=30),
-                task_queue=TASK_QUEUE,
+            # Step 3: Exchange code for tokens (redirect_uri = frontend callback URL, no query)
+            redirect_uri = _normalize_redirect_uri(
+                request.callback_url
             )
-
-            if not server_result or not server_result.server:
-                log.error("Failed to get MCP server")
-                return {
-                    "success": False,
-                    "error": "Failed to get MCP server",
-                }
-
-            # Step 3: Exchange code for tokens using MCP SDK
             log.info(
                 "Step 3: Exchanging authorization code for tokens"
             )
@@ -249,13 +275,13 @@ class McpOAuthCallbackWorkflow:
             token_result = await workflow.step(
                 function=oauth_exchange_code_for_token,
                 function_input=ExchangeCodeForTokenInput(
-                    server_url=server_result.server.server_url,
-                    server_label=server_result.server.server_label,
+                    server_url=server.server_url,
+                    server_label=server.server_label,
                     user_id=request.user_id,
                     workspace_id=request.workspace_id,
                     code=code,
                     state=state,
-                    redirect_uri="http://localhost:3000/oauth/callback",
+                    redirect_uri=redirect_uri,
                     client_id=request.client_id,  # Pass the client_id from authorization phase
                     client_secret=request.client_secret,  # Pass the client_secret from authorization phase
                 ),
@@ -273,7 +299,7 @@ class McpOAuthCallbackWorkflow:
                     "error": "Failed to exchange authorization code for tokens",
                     "code": code,
                     "state": state,
-                    "server_url": server_result.server.server_url,
+                    "server_url": server.server_url,
                 }
 
             token_data = token_result.token_exchange
@@ -286,9 +312,7 @@ class McpOAuthCallbackWorkflow:
                 )
 
                 # Update MCP server headers with client credentials
-                current_headers = (
-                    server_result.server.headers or {}
-                )
+                current_headers = server.headers or {}
                 updated_headers = {
                     **current_headers,
                     "oauth_client_id": token_data.client_id,

@@ -58,26 +58,26 @@ export function EmptyState({
   const config = sizeConfig[size];
 
   const content = (
-    <div className={cn(
-      "text-center flex flex-col items-center",
-      config.container,
-      className
-    )}>
-
+    <div
+      className={cn(
+        "text-center flex flex-col items-center",
+        config.container,
+        className,
+      )}
+    >
       {/* Title */}
-      <h3 className={cn(
-        "font-semibold text-foreground mb-2",
-        config.title
-      )}>
+      <h3 className={cn("font-semibold text-foreground mb-2", config.title)}>
         {title}
       </h3>
 
       {/* Description */}
       {description && (
-        <p className={cn(
-          "text-muted-foreground mb-6 max-w-md",
-          config.description
-        )}>
+        <p
+          className={cn(
+            "text-muted-foreground mb-6 max-w-md",
+            config.description,
+          )}
+        >
           {description}
         </p>
       )}
@@ -94,10 +94,7 @@ export function EmptyState({
             </Button>
           )}
           {secondaryAction && (
-            <Button
-              variant="outline"
-              onClick={secondaryAction.onClick}
-            >
+            <Button variant="outline" onClick={secondaryAction.onClick}>
               {secondaryAction.label}
             </Button>
           )}
@@ -130,18 +127,27 @@ export function NoResultsFound({
   return (
     <EmptyState
       title={searchTerm ? `No results for "${searchTerm}"` : "No results found"}
-      description={searchTerm 
-        ? "Try adjusting your search terms or filters"
-        : "No items match your current filters"
+      description={
+        searchTerm
+          ? "Try adjusting your search terms or filters"
+          : "No items match your current filters"
       }
-      action={onCreate ? {
-        label: createLabel,
-        onClick: onCreate,
-      } : undefined}
-      secondaryAction={onClearSearch && searchTerm ? {
-        label: "Clear search",
-        onClick: onClearSearch,
-      } : undefined}
+      action={
+        onCreate
+          ? {
+              label: createLabel,
+              onClick: onCreate,
+            }
+          : undefined
+      }
+      secondaryAction={
+        onClearSearch && searchTerm
+          ? {
+              label: "Clear search",
+              onClick: onClearSearch,
+            }
+          : undefined
+      }
       className={className}
     />
   );
@@ -160,17 +166,24 @@ export function NoItemsYet({
   description?: string;
   className?: string;
 }) {
-  const defaultDescription = description || `You don't have any ${itemType} yet. Create your first one to get started.`;
-  const defaultCreateLabel = createLabel || `Create your first ${itemType.replace(/s$/, '')}`;
+  const defaultDescription =
+    description ||
+    `You don't have any ${itemType}. Create your first one to get started.`;
+  const defaultCreateLabel =
+    createLabel || `Create your first ${itemType.replace(/s$/, "")}`;
 
   return (
     <EmptyState
-      title={`No ${itemType} yet`}
+      title={`No ${itemType}`}
       description={defaultDescription}
-      action={onCreate ? {
-        label: defaultCreateLabel,
-        onClick: onCreate,
-      } : undefined}
+      action={
+        onCreate
+          ? {
+              label: defaultCreateLabel,
+              onClick: onCreate,
+            }
+          : undefined
+      }
       className={className}
     />
   );
@@ -193,11 +206,15 @@ export function ErrorState({
     <EmptyState
       title={title}
       description={description}
-      action={onRetry ? {
-        label: retryLabel,
-        onClick: onRetry,
-        variant: "outline",
-      } : undefined}
+      action={
+        onRetry
+          ? {
+              label: retryLabel,
+              onClick: onRetry,
+              variant: "outline",
+            }
+          : undefined
+      }
       className={className}
     />
   );
@@ -215,19 +232,15 @@ export function FileDropZone({
   className?: string;
 }) {
   return (
-    <div 
+    <div
       className={cn(
         "border-2 border-dashed border-muted-foreground/25 rounded-lg hover:border-muted-foreground/50 transition-colors",
         onFileSelect && "cursor-pointer",
-        className
+        className,
       )}
       onClick={onFileSelect}
     >
-      <EmptyState
-        title={title}
-        description={description}
-        size="md"
-      />
+      <EmptyState title={title} description={description} size="md" />
     </div>
   );
 }

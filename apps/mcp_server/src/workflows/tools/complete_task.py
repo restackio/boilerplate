@@ -41,6 +41,7 @@ class TaskUpdateInput(BaseModel):
         None, pattern="^(active|inactive|paused)$"
     )
     temporal_schedule_id: str | None = None
+    temporal_run_id: str | None = None  # For backend to send end event to correct run
 
     @field_validator(
         "assigned_to_id",
@@ -121,13 +122,14 @@ class CompleteTask:
                 event_input["result"] = workflow_input.result
 
             await workflow.child_execute(
-              workflow="TasksUpdateWorkflow",
-              workflow_id=f"task_update_{workflow_info().workflow_id}",
-              workflow_input=TaskUpdateInput(
-                task_id=workflow_input.task_id,
-                status="completed",
-              ),
-              task_queue="backend",
+                workflow="TasksUpdateWorkflow",
+                workflow_id=f"task_update_{workflow_info().workflow_id}",
+                workflow_input=TaskUpdateInput(
+                    task_id=workflow_input.task_id,
+                    status="completed",
+                    temporal_run_id=workflow_input.temporal_run_id,
+                ),
+                task_queue="backend",
             )
 
             return CompleteTaskOutput(

@@ -25,12 +25,13 @@ from src.functions.agent_tools_crud import (
     agent_tools_read_by_agent,
     agent_tools_read_records_by_agent,
     agent_tools_update,
+    get_restack_core_mcp_server_id_for_agent,
 )
 from src.functions.agents_crud import (
-    agents_archive,
     agents_clone,
     agents_create,
     agents_delete,
+    agents_get_build_agent,
     agents_get_by_id,
     agents_get_by_status,
     agents_get_versions,
@@ -42,7 +43,12 @@ from src.functions.agents_crud import (
     agents_update_status,
 )
 from src.functions.analytics_metrics import get_analytics_metrics
-from src.functions.auth_crud import user_login, user_signup
+from src.functions.auth_crud import (
+    request_password_reset,
+    reset_password,
+    user_login,
+    user_signup,
+)
 from src.functions.data_ingestion import (
     ingest_pipeline_events,
     ingest_pipeline_events_cockroachdb,
@@ -52,6 +58,7 @@ from src.functions.datasets_crud import (
     datasets_create,
     datasets_get_by_id,
     datasets_read,
+    datasets_update,
     delete_dataset_events_by_source,
     list_dataset_files,
     query_dataset_events,
@@ -79,6 +86,7 @@ from src.functions.mcp_oauth_client import (
     oauth_refresh_token,
 )
 from src.functions.mcp_oauth_crud import (
+    bearer_token_create_or_update,
     get_oauth_token_for_mcp_server,
     mcp_server_get_by_id,
     oauth_token_create_or_update,
@@ -96,6 +104,7 @@ from src.functions.mcp_servers_crud import (
     mcp_servers_update,
 )
 from src.functions.mcp_tools_refresh import (
+    list_mcp_server_tools,
     mcp_session_init,
     mcp_tools_list,
     mcp_tools_list_direct,
@@ -113,6 +122,9 @@ from src.functions.metrics_evaluation import (
     evaluate_python_code_metric,
     ingest_performance_metrics,
     ingest_quality_metrics,
+)
+from src.functions.remote_mcp_directory import (
+    remote_mcp_directory_read,
 )
 from src.functions.restack_engine import (
     restack_engine_api_schedule,
@@ -138,6 +150,8 @@ from src.functions.tasks_crud import (
     tasks_get_by_id,
     tasks_get_by_parent_id,
     tasks_get_stats,
+    tasks_get_view_by_id,
+    tasks_list_views_for_dataset,
     tasks_read,
     tasks_save_agent_state,
     tasks_update,
@@ -201,10 +215,10 @@ from src.workflows.crud.agent_tools_crud import (
     AgentToolsUpdateWorkflow,
 )
 from src.workflows.crud.agents_crud import (
-    AgentsArchiveWorkflow,
     AgentsCloneWorkflow,
     AgentsCreateWorkflow,
     AgentsDeleteWorkflow,
+    AgentsGetBuildAgentWorkflow,
     AgentsGetByIdWorkflow,
     AgentsGetByStatusWorkflow,
     AgentsGetVersionsWorkflow,
@@ -215,6 +229,8 @@ from src.workflows.crud.agents_crud import (
     AgentsUpdateWorkflow,
 )
 from src.workflows.crud.auth_crud import (
+    RequestPasswordResetWorkflow,
+    ResetPasswordWorkflow,
     UserLoginWorkflow,
     UserSignupWorkflow,
 )
@@ -224,7 +240,9 @@ from src.workflows.crud.datasets_crud import (
     DatasetsGetByIdWorkflow,
     DatasetsReadWorkflow,
     DeleteDatasetEventsBySourceWorkflow,
+    GetViewWorkflow,
     ListDatasetFilesWorkflow,
+    ListViewsForDatasetWorkflow,
     QueryDatasetEventsWorkflow,
 )
 from src.workflows.crud.mcp_oauth_sdk import (
@@ -250,6 +268,9 @@ from src.workflows.crud.metrics_crud import (
     DeleteMetricDefinitionWorkflow,
     ListMetricDefinitionsWorkflow,
     UpdateMetricDefinitionWorkflow,
+)
+from src.workflows.crud.remote_mcp_directory import (
+    GetRemoteMcpDirectoryWorkflow,
 )
 from src.workflows.crud.schedule_crud import (
     ScheduleControlWorkflow,
@@ -333,9 +354,9 @@ async def run_restack_service() -> None:
             AgentsCloneWorkflow,
             AgentsUpdateWorkflow,
             AgentsDeleteWorkflow,
-            AgentsArchiveWorkflow,
             AgentsUpdateStatusWorkflow,
             AgentsGetByIdWorkflow,
+            AgentsGetBuildAgentWorkflow,
             AgentsGetByStatusWorkflow,
             AgentsGetVersionsWorkflow,
             TasksReadWorkflow,
@@ -370,6 +391,8 @@ async def run_restack_service() -> None:
             UserWorkspacesDeleteWorkflow,
             UserSignupWorkflow,
             UserLoginWorkflow,
+            RequestPasswordResetWorkflow,
+            ResetPasswordWorkflow,
             # Datasets workflows
             DatasetsReadWorkflow,
             DatasetsCreateWorkflow,
@@ -377,12 +400,15 @@ async def run_restack_service() -> None:
             QueryDatasetEventsWorkflow,
             ListDatasetFilesWorkflow,
             DeleteDatasetEventsBySourceWorkflow,
+            ListViewsForDatasetWorkflow,
+            GetViewWorkflow,
             McpServersReadWorkflow,
             McpServersCreateWorkflow,
             McpServersUpdateWorkflow,
             McpServersDeleteWorkflow,
             McpServersGetByIdWorkflow,
             McpToolsListWorkflow,
+            GetRemoteMcpDirectoryWorkflow,
             AgentToolsReadByAgentWorkflow,
             AgentToolsReadRecordsByAgentWorkflow,
             AgentToolsCreateWorkflow,
@@ -439,7 +465,7 @@ async def run_restack_service() -> None:
             agents_clone,
             agents_update,
             agents_delete,
-            agents_archive,
+            agents_get_build_agent,
             agents_get_by_id,
             agents_get_by_status,
             agents_get_versions,
@@ -452,6 +478,8 @@ async def run_restack_service() -> None:
             tasks_get_by_id,
             tasks_get_by_parent_id,
             tasks_get_stats,
+            tasks_get_view_by_id,
+            tasks_list_views_for_dataset,
             tasks_save_agent_state,
             tasks_update_agent_task_id,
             get_tasks_by_metric_failure,
@@ -485,6 +513,8 @@ async def run_restack_service() -> None:
             user_workspaces_delete,
             user_signup,
             user_login,
+            request_password_reset,
+            reset_password,
             # Datasets functions
             datasets_read,
             datasets_get_by_id,
@@ -492,6 +522,7 @@ async def run_restack_service() -> None:
             list_dataset_files,
             delete_dataset_events_by_source,
             datasets_create,
+            datasets_update,
             # Data ingestion functions
             ingest_pipeline_events,
             ingest_pipeline_events_cockroachdb,
@@ -501,12 +532,15 @@ async def run_restack_service() -> None:
             mcp_servers_update,
             mcp_servers_delete,
             mcp_servers_get_by_id,
+            remote_mcp_directory_read,
             # MCP tools functions
             mcp_session_init,
             mcp_tools_list,
             mcp_tools_list_direct,
+            list_mcp_server_tools,
             # MCP OAuth CRUD functions
             mcp_server_get_by_id,
+            bearer_token_create_or_update,
             oauth_token_create_or_update,
             oauth_token_get_by_user_and_server,
             oauth_token_delete,
@@ -523,6 +557,7 @@ async def run_restack_service() -> None:
             agent_tools_read_records_by_agent,
             agent_tools_create,
             agent_tools_update,
+            get_restack_core_mcp_server_id_for_agent,
             agent_tools_delete,
             # Agent subagents functions
             agent_subagents_read,
@@ -627,8 +662,8 @@ def init_tracing() -> None:
         logger.warning("Continuing without tracing...")
 
 
-def _run_startup_tasks() -> None:  # noqa: PLR0912
-    """Run database migrations and demo data insertion before starting services."""
+def _run_startup_tasks() -> None:
+    """Run database migrations before starting services."""
     import sys
 
     try:
@@ -675,59 +710,33 @@ def _run_startup_tasks() -> None:  # noqa: PLR0912
                 "Migration script not found: %s", migrate_script
             )
 
-        # Handle demo data
-        demo_mode = (
-            os.getenv("DEMO_MODE", "false").lower() == "true"
+        # Handle admin workspace seed (admin user, build agent, template agents)
+        admin_seed = (
+            os.getenv("ADMIN_SEED", "false").lower() == "true"
         )
-        reset_demo = (
-            os.getenv("RESET_DEMO", "false").lower() == "true"
-        )
-
-        if demo_mode:
-            if reset_demo:
-                logger.info("Resetting demo data...")
-                reset_script = scripts_dir / "reset-demo.sh"
-                if reset_script.exists():
-                    result = subprocess.run(  # noqa: S603
-                        [str(reset_script)],
-                        check=False,
-                        capture_output=True,
-                        text=True,
+        if admin_seed:
+            logger.info("Inserting admin workspace data...")
+            insert_script = scripts_dir / "insert-admin.sh"
+            if insert_script.exists():
+                result = subprocess.run(  # noqa: S603
+                    [str(insert_script)],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                )
+                if result.returncode != 0:
+                    logger.error(
+                        "Admin seed failed: %s", result.stderr
                     )
-                    if result.returncode != 0:
-                        logger.error(
-                            "Demo reset failed: %s", result.stderr
-                        )
-                        sys.exit(1)
-                    logger.info(
-                        "Demo data reset completed successfully"
-                    )
-                else:
-                    logger.warning(
-                        "Reset script not found: %s", reset_script
-                    )
+                    sys.exit(1)
+                logger.info(
+                    "Admin workspace data inserted successfully"
+                )
             else:
-                logger.info("Inserting demo data...")
-                insert_script = scripts_dir / "insert-demo.sh"
-                if insert_script.exists():
-                    result = subprocess.run(  # noqa: S603
-                        [str(insert_script)],
-                        check=False,
-                        capture_output=True,
-                        text=True,
-                    )
-                    if result.returncode != 0:
-                        logger.error(
-                            "Demo insert failed: %s",
-                            result.stderr,
-                        )
-                        sys.exit(1)
-                    logger.info("Demo data inserted successfully")
-                else:
-                    logger.warning(
-                        "Insert script not found: %s",
-                        insert_script,
-                    )
+                logger.warning(
+                    "Admin insert script not found: %s",
+                    insert_script,
+                )
 
     except Exception:
         logger.exception("Unexpected error in startup tasks")

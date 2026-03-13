@@ -42,7 +42,7 @@ FROM pipeline_events
 WHERE has(tags, 'YOUR_TAG')
 ORDER BY event_timestamp DESC
 LIMIT 50;
-"""
+""",
 )
 class ClickHouseRunSelectQuery:
     """Workflow to run a SELECT query in ClickHouse."""

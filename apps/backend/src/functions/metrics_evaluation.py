@@ -111,6 +111,11 @@ async def evaluate_llm_judge_metric(
 
         # Get singleton OpenAI client to prevent file descriptor leaks
         client = get_openai_client()
+        if client is None:
+            log.error(
+                "OpenAI API key not configured; skipping metrics evaluation"
+            )
+            return None
 
         # Construct evaluation prompt
         full_prompt = f"""{judge_prompt}

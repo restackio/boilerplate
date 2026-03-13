@@ -351,6 +351,11 @@ class TasksUpdateWorkflow:
                         function_input=SendAgentEventInput(
                             event_name="end",
                             temporal_agent_id=current_task.temporal_agent_id,
+                            temporal_run_id=getattr(
+                                workflow_input,
+                                "temporal_run_id",
+                                None,
+                            ),
                         ),
                         task_queue=TASK_QUEUE,
                         start_to_close_timeout=timedelta(

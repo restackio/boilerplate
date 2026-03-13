@@ -37,6 +37,13 @@ class DatasetCreateInput(BaseModel):
     tags: list[str] | None = None
 
 
+class DatasetUpdateInput(BaseModel):
+    dataset_id: str = Field(..., min_length=1)
+    workspace_id: str = Field(..., min_length=1)
+    name: str | None = Field(None, min_length=1, max_length=255)
+    description: str | None = None
+
+
 class QueryDatasetEventsInput(BaseModel):
     workspace_id: str = Field(..., min_length=1)
     dataset_id: str = Field(..., min_length=1)
@@ -53,6 +60,10 @@ class ListDatasetFilesInput(BaseModel):
 
     workspace_id: str = Field(..., min_length=1)
     dataset_id: str = Field(..., min_length=1)
+    task_id: str | None = Field(
+        default=None,
+        description="If set, only return files uploaded for this task.",
+    )
 
 
 class DatasetFileSummary(BaseModel):
@@ -178,7 +189,7 @@ async def _get_clickhouse_stats(
         # Validate table name to prevent SQL injection
         def _raise_invalid_table_name() -> None:
             msg = "Invalid table name"
-            raise ValueError(msg)  # noqa: TRY301
+            raise ValueError(msg)
 
         if not table_name.replace("_", "").isalnum():
             _raise_invalid_table_name()
@@ -267,7 +278,9 @@ async def _get_cockroachdb_stats(
             storage_config, workspace_id
         )
         where_clause = " AND ".join(where_conditions)
-        table_name = storage_config.get("table", "pipeline_events")
+        table_name = storage_config.get(
+            "table", "pipeline_events"
+        )
 
         _validate_table_name(table_name)
 
@@ -285,7 +298,8 @@ async def _get_cockroachdb_stats(
 
         if row:
             return {
-                "unique_event_names": row["unique_event_names"] or 0,
+                "unique_event_names": row["unique_event_names"]
+                or 0,
                 "unique_agents": row["unique_agents"] or 0,
                 "last_updated_at": row["last_updated_at"],
             }
@@ -494,43 +508,69 @@ async def datasets_get_by_id(
 async def datasets_create(
     function_input: DatasetCreateInput,
 ) -> DatasetSingleOutput:
-    """Create a new dataset in PostgreSQL."""
+    """Create a new dataset in PostgreSQL, or return existing if (workspace_id, name) already exists (idempotent)."""
     try:
+        import json
         import uuid
 
-        # Generate UUID for the new dataset
-        dataset_id = str(uuid.uuid4())
-
-        # Set up default storage config based on storage type
-        storage_config = function_input.storage_config.copy()
-        if function_input.storage_type == "clickhouse" and not storage_config:
-            storage_config = {
-                "database": "boilerplate_clickhouse",
-                "table": "pipeline_events",
-                "filter": {},
-            }
-        elif function_input.storage_type == "cockroachdb" and not storage_config:
-            storage_config = {
-                "database": "boilerplate_cockroachdb",
-                "table": "pipeline_events",
-                "filter": {},
-            }
-
-        # Scope queries to this dataset's events (by UUID)
-        storage_config["dataset_id"] = dataset_id
-
-        # Add tag-based filtering if tags are provided (applies to all storage types)
-        if function_input.tags and storage_config is not None:
-            if "filter" not in storage_config:
-                storage_config["filter"] = {}
-            storage_config["filter"]["tags"] = function_input.tags
-
-        # No need for schema_definition - storage backend schema is the source of truth
-
-        # Insert into PostgreSQL
-        import json
-
         async for db in get_async_db():
+            # Idempotent: if dataset with same workspace_id and name exists, return it
+            existing = await db.execute(
+                text("""
+                    SELECT id FROM datasets
+                    WHERE workspace_id = :workspace_id AND name = :name
+                    LIMIT 1
+                """),
+                {
+                    "workspace_id": function_input.workspace_id,
+                    "name": function_input.name,
+                },
+            )
+            row = existing.mappings().first()
+            if row is not None:
+                await db.commit()
+                return await datasets_get_by_id(
+                    DatasetGetByIdInput(
+                        dataset_id=str(row["id"]),
+                        workspace_id=function_input.workspace_id,
+                    )
+                )
+
+            # Generate UUID for the new dataset
+            dataset_id = str(uuid.uuid4())
+
+            # Set up default storage config based on storage type
+            storage_config = function_input.storage_config.copy()
+            if (
+                function_input.storage_type == "clickhouse"
+                and not storage_config
+            ):
+                storage_config = {
+                    "database": "boilerplate_clickhouse",
+                    "table": "pipeline_events",
+                    "filter": {},
+                }
+            elif (
+                function_input.storage_type == "cockroachdb"
+                and not storage_config
+            ):
+                storage_config = {
+                    "database": "boilerplate_cockroachdb",
+                    "table": "pipeline_events",
+                    "filter": {},
+                }
+
+            # Scope queries to this dataset's events (by UUID)
+            storage_config["dataset_id"] = dataset_id
+
+            # Add tag-based filtering if tags are provided (applies to all storage types)
+            if function_input.tags and storage_config is not None:
+                if "filter" not in storage_config:
+                    storage_config["filter"] = {}
+                storage_config["filter"]["tags"] = (
+                    function_input.tags
+                )
+
             await db.execute(
                 text("""
                     INSERT INTO datasets (id, workspace_id, name, description, storage_type,
@@ -549,17 +589,76 @@ async def datasets_create(
             )
             await db.commit()
 
-        # Return the created dataset
-        return await datasets_get_by_id(
-            DatasetGetByIdInput(
-                dataset_id=dataset_id,
-                workspace_id=function_input.workspace_id,
+            return await datasets_get_by_id(
+                DatasetGetByIdInput(
+                    dataset_id=dataset_id,
+                    workspace_id=function_input.workspace_id,
+                )
             )
-        )
 
     except (ValueError, TypeError, ConnectionError) as e:
         msg = f"Failed to create dataset '{function_input.name}': {e!s}"
         raise NonRetryableError(msg) from e
+
+
+@function.defn()
+async def datasets_update(
+    function_input: DatasetUpdateInput,
+) -> DatasetSingleOutput:
+    """Update an existing dataset (name, description)."""
+    try:
+        async for db in get_async_db():
+            existing = await db.execute(
+                text("""
+                    SELECT id, workspace_id FROM datasets
+                    WHERE id = :dataset_id AND workspace_id = :workspace_id
+                    LIMIT 1
+                """),
+                {
+                    "dataset_id": function_input.dataset_id,
+                    "workspace_id": function_input.workspace_id,
+                },
+            )
+            row = existing.mappings().first()
+            if row is None:
+                raise NonRetryableError(
+                    message=f"Dataset {function_input.dataset_id} not found in workspace"
+                )
+            updates = []
+            params = {"dataset_id": function_input.dataset_id}
+            if function_input.name is not None:
+                updates.append("name = :name")
+                params["name"] = function_input.name
+            if function_input.description is not None:
+                updates.append("description = :description")
+                params["description"] = function_input.description
+            if not updates:
+                return await datasets_get_by_id(
+                    DatasetGetByIdInput(
+                        dataset_id=function_input.dataset_id,
+                        workspace_id=function_input.workspace_id,
+                    )
+                )
+            # Column names in updates are from allowlisted fields (name, description only)
+            await db.execute(
+                text(
+                    "UPDATE datasets SET "  # noqa: S608
+                    + ", ".join(updates)
+                    + ", updated_at = NOW() WHERE id = :dataset_id"
+                ),
+                params,
+            )
+            await db.commit()
+            return await datasets_get_by_id(
+                DatasetGetByIdInput(
+                    dataset_id=function_input.dataset_id,
+                    workspace_id=function_input.workspace_id,
+                )
+            )
+    except (ValueError, TypeError, ConnectionError) as e:
+        msg = f"Failed to update dataset: {e!s}"
+        raise NonRetryableError(msg) from e
+    return None
 
 
 @function.defn()
@@ -599,7 +698,7 @@ async def query_dataset_events(
             )
         return QueryDatasetEventsOutput(
             success=False,
-            error=f"Storage type {dataset.storage_type} not yet supported",
+            error=f"Storage type {dataset.storage_type} not supported",
             events=[],
             total_count=0,
             limit=function_input.limit,
@@ -643,7 +742,9 @@ async def _query_cockroachdb_events(
         )
 
         where_clause = " AND ".join(where_conditions)
-        table_name = storage_config.get("table", "pipeline_events")
+        table_name = storage_config.get(
+            "table", "pipeline_events"
+        )
 
         _validate_table_name(table_name)
 
@@ -655,9 +756,7 @@ async def _query_cockroachdb_events(
             f"ORDER BY event_timestamp DESC "
             f"LIMIT {function_input.limit} OFFSET {function_input.offset}"
         )
-        count_query = (
-            f"SELECT COUNT(*) FROM {table_name} WHERE {where_clause}"  # noqa: S608
-        )
+        count_query = f"SELECT COUNT(*) FROM {table_name} WHERE {where_clause}"  # noqa: S608
 
         async with pool.acquire() as conn:
             rows = await conn.fetch(events_query)
@@ -669,14 +768,20 @@ async def _query_cockroachdb_events(
             {
                 "id": str(row["id"]),
                 "agent_id": str(row["agent_id"]),
-                "task_id": str(row["task_id"]) if row["task_id"] else None,
+                "task_id": str(row["task_id"])
+                if row["task_id"]
+                else None,
                 "event_name": row["event_name"],
-                "raw_data": dict(row["raw_data"]) if row["raw_data"] else {},
+                "raw_data": dict(row["raw_data"])
+                if row["raw_data"]
+                else {},
                 "transformed_data": dict(row["transformed_data"])
                 if row["transformed_data"]
                 else None,
                 "tags": list(row["tags"]) if row["tags"] else [],
-                "event_timestamp": row["event_timestamp"].isoformat()
+                "event_timestamp": row[
+                    "event_timestamp"
+                ].isoformat()
                 if row["event_timestamp"]
                 else None,
             }
@@ -961,6 +1066,8 @@ async def list_dataset_files(
             function_input.workspace_id,
             function_input.dataset_id,
         )
+        if function_input.task_id:
+            where_conditions.append(f"task_id = '{function_input.task_id}'")
         where_conditions.extend(
             _build_tag_filters(storage_config)
         )

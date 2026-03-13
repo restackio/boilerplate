@@ -13,6 +13,7 @@ This repository focuses on the **orchestration platform** itself. This repositor
 - Bug fixes and security enhancements
 
 **What this repository does not accept:**
+
 - Specific MCP server integrations (create your own repository)
 - Production seed data (existing data serves as examples only)
 - Domain-specific business logic
@@ -83,7 +84,7 @@ boilerplate/
 ### Prerequisites
 
 - **[Node.js 20+](https://nodejs.org/)**
-- **[Python 3.12+](https://www.python.org/downloads/)** 
+- **[Python 3.12+](https://www.python.org/downloads/)**
 - **[pnpm](https://pnpm.io/installation)** (package manager)
 - **[Docker & Docker Compose](https://docs.docker.com/get-docker/)**
 - **[uv](https://docs.astral.sh/uv/getting-started/installation/)** (Python package manager)
@@ -100,11 +101,12 @@ cd boilerplate
 cp env.development.example .env
 # Edit .env with your API keys
 
-# First time setup (installs deps, starts infra, runs migrations, inserts demo)
+# First time setup (installs deps, starts infra, runs migrations)
 pnpm localsetup
 ```
 
 **Or do it step-by-step:**
+
 ```bash
 # Install dependencies
 pnpm install
@@ -115,25 +117,28 @@ pnpm infra:start
 # Run database migrations
 pnpm db:migrate
 
-# Insert demo data (optional)
-pnpm db:demo:insert
+# Optionally seed admin workspace (admin user, build agent, templates)
+pnpm db:admin:insert
 ```
 
 ### Development with hot reloading
 
 **Option A: quick start (recommended for daily use)**
+
 ```bash
 # Starts infrastructure + all apps with hot reloading
 pnpm localdev
 ```
 
 **Option B: manual start (if infra already running)**
+
 ```bash
 # Starts all apps with hot reloading
 pnpm dev
 ```
 
 **Option C: start individual services (for debugging)**
+
 ```bash
 # Make sure infrastructure is running first
 pnpm infra:start
@@ -181,7 +186,7 @@ RESTACK_ENGINE_MCP_ADDRESS=https://your-ngrok-url.ngrok-free.app
 
 ```bash
 # Quick commands
-pnpm localsetup         # First time setup (install, infra, migrations, demo data)
+pnpm localsetup         # First time setup (install, infra, migrations)
 pnpm localdev           # Start infrastructure + all dev servers
 
 # Development environment
@@ -193,8 +198,7 @@ pnpm infra:reset        # Reset infrastructure (⚠️ destroys data)
 
 # Database operations
 pnpm db:migrate         # Run database migrations
-pnpm db:demo:insert     # Insert demo data (if not exists)
-pnpm db:demo:reset      # Reset demo data
+pnpm db:admin:insert    # Seed admin workspace (admin user, build agent, templates)
 pnpm postgres:connect   # Connect to PostgreSQL
 pnpm clickhouse:connect # Connect to ClickHouse
 
@@ -233,6 +237,7 @@ apps/frontend/
 ```
 
 **Key Patterns**:
+
 - Server Components for data fetching
 - Server Actions for mutations (avoid API routes when possible)
 - Context for workspace scoping
@@ -260,6 +265,7 @@ apps/backend/src/
 ```
 
 **Key Patterns**:
+
 - Functions handle single responsibilities (CRUD operations)
 - Workflows orchestrate complex multi-step operations
 - Database models use SQLAlchemy ORM
@@ -270,7 +276,7 @@ apps/backend/src/
 
 **Purpose**: example MCP server implementation (reference only)
 
-> **Note**: The included MCP server serves demonstration purposes only. For production use, create your own MCP server in a separate repository tailored to your specific integrations and tools.
+> **Note**: The included MCP server is for development. For production use, create your own MCP server in a separate repository tailored to your specific integrations and tools.
 
 ```
 apps/mcp_server/src/
@@ -282,17 +288,18 @@ apps/mcp_server/src/
 ```
 
 **Key Patterns**:
+
 - Each function becomes a tool available for workflows
 - Auto-discovery of functions through introspection
 - Pydantic schemas for input/output validation
 - Async functions for external API calls
-
 
 ## Development patterns
 
 ### Adding new backend functions
 
 1. **Create Function** (`apps/backend/src/functions/my_function.py`):
+
 ```python
 from restack_ai import function
 
@@ -304,6 +311,7 @@ async def my_function(data: dict) -> dict:
 ```
 
 2. **Register in Services** (`apps/backend/src/services.py`):
+
 ```python
 from .functions.my_function import my_function
 
@@ -312,6 +320,7 @@ services = [my_function, ...]
 ```
 
 3. **Create Workflow** (if needed):
+
 ```python
 from restack_ai import workflow
 
@@ -330,6 +339,7 @@ class MyWorkflow:
 **For your own MCP server implementation:**
 
 1. **Create Tool Function** (`your-mcp-server/src/functions/my_tool.py`):
+
 ```python
 async def my_tool(param1: str, param2: int = 10) -> dict:
     """Tool description for workflows"""
@@ -344,6 +354,7 @@ async def my_tool(param1: str, param2: int = 10) -> dict:
 **First, decide where the component belongs:**
 
 **📱 Frontend App (`apps/frontend/components/`)** - for:
+
 - Domain-specific business logic (AgentConfigurationForm)
 - Next.js-dependent components (useRouter, Link, server actions)
 - App-specific layouts and navigation
@@ -351,6 +362,7 @@ async def my_tool(param1: str, param2: int = 10) -> dict:
 - Page-specific components
 
 **📦 Shared UI Package (`packages/ui/src/components/`)** - for:
+
 - Pure UI primitives (Button, Input, Card)
 - Framework-agnostic components
 - Reusable AI interface patterns (ChatInput, ToolsList)
@@ -358,56 +370,60 @@ async def my_tool(param1: str, param2: int = 10) -> dict:
 - Design system components
 
 **Example - Frontend Component:**
+
 ```tsx
-'use client'
-import { executeWorkflow } from "@/app/actions/workflow"
-import { Button } from "@workspace/ui/components/ui/button"
+"use client";
+import { executeWorkflow } from "@/app/actions/workflow";
+import { Button } from "@workspace/ui/components/ui/button";
 
 interface AgentFormProps {
-  onAgentCreated: () => void
+  onAgentCreated: () => void;
 }
 
 export function AgentForm({ onAgentCreated }: AgentFormProps) {
   const handleSubmit = async () => {
-    await executeWorkflow("CreateAgent", data)
-    onAgentCreated()
-  }
-  return <form onSubmit={handleSubmit}>...</form>
+    await executeWorkflow("CreateAgent", data);
+    onAgentCreated();
+  };
+  return <form onSubmit={handleSubmit}>...</form>;
 }
 ```
 
 **Example - Shared UI Component:**
+
 ```tsx
-import { Button } from "./ui/button"
-import { Textarea } from "./ui/textarea"
+import { Button } from "./ui/button";
+import { Textarea } from "./ui/textarea";
 
 interface ChatInputProps {
-  onSend: (message: string) => void
-  disabled?: boolean
+  onSend: (message: string) => void;
+  disabled?: boolean;
 }
 
 export function ChatInput({ onSend, disabled }: ChatInputProps) {
-  return <div>...</div> // No Next.js or app-specific dependencies
+  return <div>...</div>; // No Next.js or app-specific dependencies
 }
 ```
 
 ### Database schema changes
 
 **PostgreSQL**:
+
 1. **Create Migration** (`packages/database/migrations/postgres/00X_description.sql`)
 2. **Update Models** (if needed, `apps/backend/src/database/models.py`)
-3. **Update Demo Data** (optional, `packages/database/demo/postgres-demo.sql`) - for development/testing only
+3. **Update Admin Seed** (optional, `packages/database/admin/postgres-admin.sql`) - only if admin workspace schema changes
 
 **ClickHouse**:
+
 1. **Create Migration** (`packages/database/migrations/clickhouse/00X_description.sql`)
-2. **Update Demo Data** (optional, `packages/database/demo/clickhouse-demo.sql`) - for development/testing only
 
 **Test Changes**:
+
 ```bash
 # Test migrations locally
 pnpm infra:reset      # Reset infrastructure
 pnpm db:migrate       # Run migrations
-pnpm db:demo:insert   # Insert demo data
+pnpm db:admin:insert  # Seed admin workspace (optional)
 
 # Or connect directly to databases
 pnpm postgres:connect
@@ -415,6 +431,7 @@ pnpm clickhouse:connect
 ```
 
 **Migration Guidelines**:
+
 - Name migrations with sequential numbers: `002_add_user_roles.sql`
 - Never change existing migrations - create new ones
 - Migrations run automatically on backend startup in production
@@ -452,6 +469,7 @@ perf: optimize database queries for large datasets
 ### Pull request process
 
 1. **Pre-PR Checklist**:
+
 ```bash
 pnpm lint           # Fix all linting issues
 pnpm type-check     # Fix all type errors
@@ -459,24 +477,30 @@ pnpm build          # Ensure clean build
 ```
 
 2. **PR Template**:
+
 ```markdown
 ## Summary
+
 Brief description of changes
 
 ## Technical Details
+
 - List specific changes made
 - Include any database schema updates
 - Note frontend modifications
 
 ## Testing
+
 - [ ] Manual testing completed
 - [ ] Code quality checks pass
 
 ## Breaking Changes
+
 List any breaking changes
 ```
 
 3. **Review Process**:
+
 - Code review required
 - All CI checks must pass
 - Documentation updated
@@ -484,6 +508,7 @@ List any breaking changes
 ### Code standards
 
 **TypeScript/React**:
+
 ```typescript
 // Good: Explicit types, descriptive names
 interface AgentProps {
@@ -500,11 +525,12 @@ async function AgentList({ workspaceId }: { workspaceId: string }) {
 ```
 
 **Python/Backend**:
+
 ```python
 # Good: Type hints, async/await, descriptive names
 @function.defn(name="agent_create")
 async def agent_create(
-    workspace_id: str, 
+    workspace_id: str,
     agent_data: AgentData
 ) -> Agent:
     """Create a new agent with the provided data."""
@@ -520,6 +546,7 @@ async def agent_create(
 ### Common issues
 
 **1. Hot Reloading Not Working**
+
 ```bash
 # Check if processes are running
 pnpm infra:ps
@@ -530,6 +557,7 @@ pnpm dev
 ```
 
 **2. Database Connection Issues**
+
 ```bash
 # Check PostgreSQL status
 pnpm infra:logs | grep postgres
@@ -540,10 +568,11 @@ pnpm infra:logs | grep clickhouse
 # Reset infrastructure and rerun migrations
 pnpm infra:reset
 pnpm db:migrate
-pnpm db:demo:insert
+pnpm db:admin:insert   # Optional: seed admin workspace
 ```
 
 **3. MCP Server Not Responding**
+
 ```bash
 # Check MCP server logs
 cd apps/mcp_server
@@ -554,6 +583,7 @@ curl http://localhost:8001/health
 ```
 
 **4. Frontend Build Errors**
+
 ```bash
 # Clear Next.js cache
 cd apps/frontend
@@ -597,6 +627,7 @@ async def debug_function(data: dict) -> dict:
 ## Learning resources
 
 ### Technical documentation
+
 - [Restack AI Framework](https://docs.restack.io/)
 - [Next.js App Router](https://nextjs.org/docs/app)
 - [FastAPI](https://fastapi.tiangolo.com/)
@@ -608,17 +639,20 @@ async def debug_function(data: dict) -> dict:
 - [ClickHouse](https://clickhouse.com/docs)
 
 ### Architecture patterns
+
 - [Model Context Protocol](https://modelcontextprotocol.io/)
 - [Turborepo](https://turbo.build/repo/docs)
 - [Monorepo Best Practices](https://nx.dev/concepts/more-concepts/why-monorepos)
 
 ### Platform-specific
+
 - [Vercel Deployment](https://vercel.com/docs)
 - [Docker Best Practices](https://docs.docker.com/develop/dev-best-practices/)
 - [PostgreSQL Performance](https://www.postgresql.org/docs/current/performance-tips.html)
 - [ClickHouse Performance](https://clickhouse.com/docs/en/operations/performance)
 
 ### Development tools
+
 - [pnpm Documentation](https://pnpm.io/motivation)
 - [uv Documentation](https://docs.astral.sh/uv/)
 - [TypeScript Handbook](https://www.typescriptlang.org/docs/)

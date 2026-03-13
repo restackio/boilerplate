@@ -15,11 +15,10 @@ with import_functions():
         agent_tools_create,
     )
     from src.functions.agents_crud import (
-        AgentArchiveInput,
-        AgentArchiveOutput,
         AgentCloneInput,
         AgentCreateInput,
         AgentDeleteOutput,
+        AgentGetBuildAgentInput,
         AgentGetByIdOutput,
         AgentGetByStatusInput,
         AgentGetByWorkspaceInput,
@@ -31,10 +30,10 @@ with import_functions():
         AgentUpdateInput,
         AgentUpdateStatusInput,
         AgentUpdateStatusOutput,
-        agents_archive,
         agents_clone,
         agents_create,
         agents_delete,
+        agents_get_build_agent,
         agents_get_by_id,
         agents_get_by_status,
         agents_get_versions,
@@ -115,6 +114,10 @@ class AgentsCreateWorkflow:
                     {
                         "tool_name": "loadintodataset",
                         "custom_description": "Load enriched data to dataset (Step 3: Load)",
+                    },
+                    {
+                        "tool_name": "completetask",
+                        "custom_description": "Mark this task complete and stop. Call after loading data (or when done). Pass task_id, temporal_agent_id, temporal_run_id from meta_info.",
                     },
                 ]
 
@@ -323,26 +326,23 @@ class AgentsReadTableWorkflow:
 
 
 @workflow.defn()
-class AgentsArchiveWorkflow:
-    """Workflow to archive an agent."""
+class AgentsGetBuildAgentWorkflow:
+    """Workflow to resolve the build agent from the admin workspace."""
 
     @workflow.run
     async def run(
-        self, workflow_input: AgentArchiveInput
-    ) -> AgentArchiveOutput:
-        """Archive an agent."""
+        self, workflow_input: AgentGetBuildAgentInput
+    ) -> AgentGetByIdOutput:
         try:
             return await workflow.step(
-                function=agents_archive,
+                function=agents_get_build_agent,
                 function_input=workflow_input,
                 task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=30),
             )
-
         except Exception as e:
-            error_message = f"Error during agents_archive: {e}"
-            log.error(error_message)
-            raise NonRetryableError(message=error_message) from e
+            log.error(f"Error during agents_get_build_agent: {e}")
+            raise NonRetryableError(message=str(e)) from e
 
 
 @workflow.defn()

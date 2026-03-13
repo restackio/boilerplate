@@ -1,5 +1,9 @@
 """MCP OAuth client operations for handling OAuth flows."""
 
+import base64
+import hashlib
+import hmac
+import os
 import secrets
 from urllib.parse import parse_qs, urlencode, urljoin, urlparse
 
@@ -20,6 +24,9 @@ from pydantic import AnyUrl, BaseModel, Field
 from restack_ai.function import NonRetryableError, function, log
 
 from .mcp_oauth_crud import GetOAuthTokenInput
+
+# OAuth 2.0 token endpoint auth method (RFC 7591); not a secret.
+TOKEN_ENDPOINT_AUTH_METHOD_CLIENT_SECRET_POST = "client_secret_post"  # noqa: S105
 
 
 async def register_oauth_client(
@@ -108,6 +115,18 @@ class OAuthStateValidationError(NonRetryableError):
 # Pydantic models for OAuth flow operations
 class ParseCallbackInput(BaseModel):
     callback_url: str = Field(..., min_length=1)
+    user_id: str | None = Field(
+        None,
+        description="User ID for state validation (CSRF). Required for secure callback.",
+    )
+    workspace_id: str | None = Field(
+        None,
+        description="Workspace ID for state validation (CSRF).",
+    )
+    server_label: str | None = Field(
+        None,
+        description="MCP server label for state validation (CSRF).",
+    )
 
 
 class GenerateAuthUrlInput(BaseModel):
@@ -116,6 +135,10 @@ class GenerateAuthUrlInput(BaseModel):
     user_id: str = Field(..., min_length=1)
     workspace_id: str = Field(..., min_length=1)
     redirect_uri: str = Field(..., min_length=1)
+    request_origin: str | None = Field(
+        None,
+        description="Origin of the request (e.g. from frontend); redirect_uri origin must match if provided.",
+    )
     state: str | None = Field(None)
 
 
@@ -146,6 +169,7 @@ class CallbackParseOutput(BaseModel):
 class AuthUrlOutput(BaseModel):
     authorization_url: str
     state: str
+    client_id: str | None = None
     client_secret: str | None = None
 
 
@@ -205,9 +229,15 @@ def sanitize_log_data(data: dict) -> dict:
 
 
 def validate_oauth_callback_params(
-    params: dict, expected_state: str | None = None
+    params: dict,
+    expected_state: str | None = None,
+    state_context: tuple[str, str, str] | None = None,
 ) -> tuple[str, str | None]:
-    """Validate OAuth callback parameters and return code and state."""
+    """Validate OAuth callback parameters and return code and state.
+
+    When state_context (user_id, workspace_id, server_label) is provided,
+    state must be a valid signed state for that context (CSRF protection).
+    """
     if "error" in params:
         error_desc = params.get("error_description", [""])[0]
         error_message = (
@@ -224,16 +254,20 @@ def validate_oauth_callback_params(
     code = params["code"][0]
     state = params.get("state", [None])[0]
 
-    # Basic state validation - in production, you'd want to store and validate against expected states
     if expected_state and state != expected_state:
         error_message = "OAuth state parameter mismatch - possible CSRF attack"
         raise OAuthStateValidationError(error_message)
 
-    # Basic validation of code format
+    if state_context is not None:
+        user_id, workspace_id, server_label = state_context
+        if not _verify_signed_state(
+            state, user_id, workspace_id, server_label
+        ):
+            error_message = "OAuth state validation failed - possible CSRF attack or expired link"
+            raise OAuthStateValidationError(error_message)
+
     min_oauth_code_length = 10
-    if (
-        not code or len(code) < min_oauth_code_length
-    ):  # OAuth codes are typically much longer
+    if not code or len(code) < min_oauth_code_length:
         error_message = "Invalid authorization code format"
         raise NonRetryableError(error_message)
 
@@ -269,8 +303,11 @@ def _raise_token_refresh_failed_error(error_detail: str) -> None:
 def _raise_registration_failed_error(
     status_code: int, text: str
 ) -> None:
-    """Raise error when OAuth registration fails."""
-    error_message = f"Registration failed: {status_code} {text}"
+    """Raise error when OAuth registration fails. Avoid leaking response body."""
+    safe_detail = (text or "")[:200].replace("\n", " ")
+    error_message = (
+        f"Registration failed: HTTP {status_code}. {safe_detail}"
+    )
     raise OAuthRegistrationError(error_message)
 
 
@@ -282,14 +319,179 @@ def _raise_client_registration_failed_error(
     raise OAuthRegistrationError(error_message)
 
 
+def _raise_no_registration_endpoint_error(message: str) -> None:
+    """Raise when the server has no OAuth registration endpoint."""
+    raise OAuthRegistrationError(message)
+
+
 def _raise_token_exchange_failed_error(
     status_code: int, text: str
 ) -> None:
-    """Raise error when token exchange fails."""
-    error_message = (
-        f"Token exchange failed: {status_code} - {text}"
-    )
+    """Raise error when token exchange fails. Avoid leaking tokens in body."""
+    safe_detail = (text or "")[:200].replace("\n", " ")
+    error_message = f"Token exchange failed: HTTP {status_code}. {safe_detail}"
     raise OAuthTokenError(error_message)
+
+
+def _get_state_secret() -> bytes:
+    """Secret for signing OAuth state (CSRF protection)."""
+    raw = os.getenv(
+        "PASSWORD_SALT", "default_dev_salt_change_in_production"
+    )
+    return raw.encode("utf-8")
+
+
+def _create_signed_state(
+    user_id: str, workspace_id: str, server_label: str
+) -> str:
+    """Create a signed state value binding user/workspace/server for CSRF protection."""
+    nonce = secrets.token_urlsafe(16)
+    payload = f"{nonce}.{user_id}.{workspace_id}.{server_label}"
+    sig = hmac.new(
+        _get_state_secret(),
+        payload.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+    return base64.urlsafe_b64encode(
+        f"{payload}.{sig}".encode()
+    ).decode("ascii")
+
+
+_JWT_PARTS_COUNT = 2
+_JWT_PAYLOAD_PARTS_COUNT = 4
+
+
+def _verify_signed_state(
+    state: str | None,
+    user_id: str,
+    workspace_id: str,
+    server_label: str,
+) -> bool:
+    """Verify that state was issued by us for this user/workspace/server."""
+    if not state or not state.strip():
+        return False
+    try:
+        decoded = base64.urlsafe_b64decode(
+            state.encode("ascii")
+        ).decode("utf-8")
+        parts = decoded.rsplit(".", 1)
+        if len(parts) != _JWT_PARTS_COUNT:
+            return False
+        payload, sig = parts
+        expected_sig = hmac.new(
+            _get_state_secret(),
+            payload.encode("utf-8"),
+            hashlib.sha256,
+        ).hexdigest()
+        if not hmac.compare_digest(expected_sig, sig):
+            return False
+        comps = payload.split(".", 3)
+        if len(comps) != _JWT_PAYLOAD_PARTS_COUNT:
+            return False
+        _nonce, uid, wid, label = comps
+    except (ValueError, TypeError, UnicodeDecodeError):
+        return False
+    else:
+        return (
+            uid == user_id
+            and wid == workspace_id
+            and label == server_label
+        )
+
+
+def _require_https_or_localhost(
+    url: str, context: str = "URL"
+) -> None:
+    """Require HTTPS for OAuth-related URLs unless localhost (development)."""
+    parsed = urlparse(url)
+    scheme = (parsed.scheme or "").lower()
+    host = (parsed.hostname or "").lower()
+    if scheme == "https":
+        return
+    if scheme == "http" and host in (
+        "localhost",
+        "127.0.0.1",
+        "[::1]",
+    ):
+        return
+    raise OAuthDiscoveryError(
+        message=f"{context} must use HTTPS (or HTTP only for localhost): {url}"
+    )
+
+
+def _normalize_redirect_uri(redirect_uri: str) -> str:
+    """Scheme + host + path only (no query/fragment)."""
+    parsed = urlparse(redirect_uri)
+    path = (parsed.path or "/").rstrip("/") or "/"
+    return f"{parsed.scheme}://{parsed.netloc}{path}"
+
+
+def _redirect_uri_origin(redirect_uri: str) -> str:
+    """Origin (scheme + host) of redirect_uri."""
+    parsed = urlparse(redirect_uri)
+    return f"{parsed.scheme}://{parsed.netloc}"
+
+
+def _is_valid_oauth_callback_path(path: str) -> bool:
+    """True if path is /oauth/callback (with or without trailing slash)."""
+    p = (path or "/").strip().rstrip("/") or "/"
+    return p == "/oauth/callback"
+
+
+def _get_allowed_redirect_uris() -> set[str]:
+    """Build set of allowed redirect URIs from FRONTEND_URL, ALLOWED_FRONTEND_ORIGINS, OAUTH_ALLOWED_REDIRECT_URIS."""
+    allowed: set[str] = set()
+    frontend_url = os.environ.get("FRONTEND_URL", "").strip()
+    if frontend_url:
+        base = frontend_url.rstrip("/")
+        allowed.add(f"{base}/oauth/callback")
+    origins = os.environ.get("ALLOWED_FRONTEND_ORIGINS", "").strip()
+    if origins:
+        for origin in origins.split(","):
+            o = origin.strip()
+            if o:
+                base = o.rstrip("/")
+                allowed.add(f"{base}/oauth/callback")
+    uris = os.environ.get("OAUTH_ALLOWED_REDIRECT_URIS", "").strip()
+    if uris:
+        for uri in uris.split(","):
+            u = uri.strip()
+            if u:
+                allowed.add(_normalize_redirect_uri(u))
+    return allowed
+
+
+def _is_allowed_redirect_uri(redirect_uri: str) -> bool:
+    """Return True if redirect_uri is in the env-configured allowlist."""
+    allowed = _get_allowed_redirect_uris()
+    if not allowed:
+        return False
+    normalized = _normalize_redirect_uri(redirect_uri)
+    return normalized in allowed
+
+
+def _validate_redirect_uri(
+    redirect_uri: str,
+    request_origin: str | None = None,
+) -> None:
+    """Validate redirect_uri: well-formed, path /oauth/callback, and optional origin match. No env allowlist."""
+    parsed = urlparse(redirect_uri)
+    if not parsed.scheme or not parsed.netloc:
+        raise NonRetryableError(
+            message="Redirect URI must be a valid URL (scheme and host)."
+        )
+    path = (parsed.path or "/").rstrip("/") or "/"
+    if not _is_valid_oauth_callback_path(path):
+        raise NonRetryableError(
+            message="Redirect URI path must be /oauth/callback."
+        )
+    if request_origin:
+        origin = _redirect_uri_origin(redirect_uri)
+        req_origin = request_origin.strip().rstrip("/")
+        if origin != req_origin:
+            raise NonRetryableError(
+                message="Redirect URI origin does not match request origin."
+            )
 
 
 def create_client_metadata(
@@ -343,10 +545,11 @@ def get_discovery_urls(server_url: str) -> list[str]:
     return urls
 
 
-async def discover_oauth_metadata(
+async def discover_oauth_metadata(  # noqa: C901
     server_url: str,
 ) -> OAuthMetadata:
     """Discover OAuth metadata using MCP SDK's discovery logic with proper fallbacks."""
+    _require_https_or_localhost(server_url, "MCP server URL")
     discovery_urls = get_discovery_urls(server_url)
     last_error = None
 
@@ -366,6 +569,15 @@ async def discover_oauth_metadata(
                                 response.content
                             )
                         )
+                        for attr in (
+                            "authorization_endpoint",
+                            "token_endpoint",
+                        ):
+                            ep = getattr(metadata, attr, None)
+                            if ep:
+                                _require_https_or_localhost(
+                                    str(ep), f"OAuth {attr}"
+                                )
                         log.info(
                             f"Successfully discovered OAuth metadata at: {url}"
                         )
@@ -448,24 +660,48 @@ async def oauth_generate_auth_url(
             function_input.redirect_uri,
         )
 
+        _validate_redirect_uri(
+            function_input.redirect_uri,
+            function_input.request_origin,
+        )
+
         # Step 1: Discover OAuth metadata using MCP SDK logic
         oauth_metadata = await discover_oauth_metadata(
             function_input.server_url
         )
 
-        # Get base URL for client registration
-        parsed_url = urlparse(function_input.server_url)
-        base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
+        # Step 2: Register client only if the server advertises a registration endpoint.
+        # Many providers (e.g. Attio) support OAuth but do not support RFC 7591 dynamic
+        # client registration; they require pre-registered client_id/client_secret.
+        registration_endpoint = getattr(
+            oauth_metadata,
+            "registration_endpoint",
+            None,
+        )
+        if not registration_endpoint:
+            msg = (
+                "This integration does not support automatic OAuth registration. "
+                "Use the Bearer token tab and add an API key or token from the provider's "
+                "dashboard, or register an OAuth app in the provider's developer portal "
+                "and add client credentials to the integration."
+            )
+            _raise_no_registration_endpoint_error(msg)
 
         async with httpx.AsyncClient() as client:
-            # Step 2: Register client
-            registration_url = f"{base_url}/register"
             registration_data = client_metadata.model_dump(
                 by_alias=True, mode="json", exclude_none=True
             )
+            # Omit scope from registration: many servers (e.g. Attio) reject unknown scopes
+            # with invalid_scope. Scope is requested at authorization time instead.
+            registration_data.pop("scope", None)
+            # Use client_secret_post so token exchange sends credentials in body; some
+            # providers (e.g. Attio) reject Basic auth for dynamically registered clients.
+            registration_data["token_endpoint_auth_method"] = (
+                TOKEN_ENDPOINT_AUTH_METHOD_CLIENT_SECRET_POST
+            )
 
             reg_response = await client.post(
-                registration_url, json=registration_data
+                str(registration_endpoint), json=registration_data
             )
             if reg_response.status_code not in (200, 201):
                 await (
@@ -481,12 +717,26 @@ async def oauth_generate_auth_url(
                 )
             )
 
-            # Step 3: Build authorization URL with our PKCE parameters
+            # Step 3: Build authorization URL with signed state (CSRF protection)
             auth_endpoint = str(
                 oauth_metadata.authorization_endpoint
             )
-            state = secrets.token_urlsafe(32)
+            state = _create_signed_state(
+                function_input.user_id,
+                function_input.workspace_id,
+                function_input.server_label,
+            )
 
+            # Use scopes from discovery if advertised (e.g. Attio), else MCP default
+            scopes_supported = getattr(
+                oauth_metadata, "scopes_supported", None
+            )
+            scope_value = (
+                " ".join(scopes_supported[:8])
+                if scopes_supported
+                and isinstance(scopes_supported, list)
+                else "read_content update_content"
+            )
             auth_params = {
                 "response_type": "code",
                 "client_id": client_info.client_id,
@@ -494,7 +744,7 @@ async def oauth_generate_auth_url(
                 "state": state,
                 "code_challenge": pkce_params.code_challenge,
                 "code_challenge_method": "S256",
-                "scope": "read_content update_content",
+                "scope": scope_value,
                 # RFC 8707: Include resource parameter for better authorization scoping
                 "resource": resource_url_from_server_url(
                     function_input.server_url
@@ -505,13 +755,16 @@ async def oauth_generate_auth_url(
                 f"{auth_endpoint}?{urlencode(auth_params)}"
             )
 
-        # Pack code_verifier with client_secret for token exchange phase
-        # Format: "client_secret|code_verifier" - allows passing PKCE parameter between workflows
+        # Pack code_verifier with client_secret for token exchange phase.
+        # Use delimiter that is unlikely to appear in a client_secret.
+        _pack_delim = "||MCP_CV||"
+        packed_secret = f"{client_info.client_secret}{_pack_delim}{pkce_params.code_verifier}"
         return AuthUrlResultOutput(
             auth_url=AuthUrlOutput(
                 authorization_url=authorization_url,
                 state=state,
-                client_secret=f"{client_info.client_secret}|{pkce_params.code_verifier}",  # Pack both values
+                client_id=client_info.client_id,
+                client_secret=packed_secret,
             )
         )
 
@@ -531,13 +784,30 @@ async def oauth_generate_auth_url(
 async def oauth_parse_callback(
     function_input: ParseCallbackInput,
 ) -> CallbackParseResultOutput:
-    """Parse OAuth callback URL to extract code and state."""
+    """Parse OAuth callback URL to extract code and state.
+
+    When user_id, workspace_id, and server_label are provided, validates
+    the state parameter using HMAC (CSRF protection).
+    """
     try:
         parsed = urlparse(function_input.callback_url)
         params = parse_qs(parsed.query)
 
-        # Validate callback parameters with security checks
-        code, state = validate_oauth_callback_params(params)
+        state_context = None
+        if (
+            function_input.user_id
+            and function_input.workspace_id
+            and function_input.server_label
+        ):
+            state_context = (
+                function_input.user_id,
+                function_input.workspace_id,
+                function_input.server_label,
+            )
+
+        code, state = validate_oauth_callback_params(
+            params, state_context=state_context
+        )
 
         result = CallbackParseOutput(code=code, state=state)
 
@@ -560,16 +830,18 @@ async def _prepare_token_data_with_existing_credentials(
     client_secret = None
     code_verifier = None
 
-    # Unpack client_secret and code_verifier (format: "secret|verifier")
-    if (
-        function_input.client_secret
-        and "|" in function_input.client_secret
-    ):
+    # Unpack client_secret and code_verifier (delimiter chosen to avoid collision with secret)
+    _pack_delim = "||MCP_CV||"
+    if not function_input.client_secret:
+        client_secret = None
+        code_verifier = None
+    elif _pack_delim in function_input.client_secret:
         client_secret, code_verifier = (
-            function_input.client_secret.split("|", 1)
+            function_input.client_secret.split(_pack_delim, 1)
         )
     else:
         client_secret = function_input.client_secret
+        code_verifier = None
 
     token_data = {
         "grant_type": "authorization_code",
@@ -595,11 +867,20 @@ async def _prepare_token_data_with_existing_credentials(
 async def _register_new_client_and_prepare_token_data(
     function_input: ExchangeCodeForTokenInput,
     client: httpx.AsyncClient,
-    base_url: str,
+    oauth_metadata: OAuthMetadata,
     client_metadata: OAuthClientMetadata,
 ) -> tuple[dict, str | None, str]:
     """Register a new OAuth client and prepare token exchange data."""
-    registration_url = f"{base_url}/register"
+    registration_endpoint = getattr(
+        oauth_metadata, "registration_endpoint", None
+    )
+    if not registration_endpoint:
+        msg = (
+            "This integration does not support automatic OAuth registration. "
+            "Use the Bearer token tab or add OAuth client credentials from the "
+            "provider's developer portal."
+        )
+        _raise_no_registration_endpoint_error(msg)
     registration_data = client_metadata.model_dump(
         by_alias=True,
         mode="json",
@@ -607,7 +888,7 @@ async def _register_new_client_and_prepare_token_data(
     )
 
     reg_response = await client.post(
-        registration_url, json=registration_data
+        str(registration_endpoint), json=registration_data
     )
     if reg_response.status_code not in (200, 201):
         await reg_response.aread()
@@ -650,6 +931,8 @@ async def oauth_exchange_code_for_token(
                 function_input.server_label
             )
 
+        _validate_redirect_uri(function_input.redirect_uri, None)
+
         # Create OAuth client metadata (same as during auth URL generation)
         # Use deterministic client_name to ensure consistent registration
         deterministic_client_name = f"MCP-Client-{function_input.user_id}-{function_input.workspace_id}-{function_input.server_label}"
@@ -669,12 +952,6 @@ async def oauth_exchange_code_for_token(
                 function_input.server_url
             )
             token_endpoint = str(oauth_metadata.token_endpoint)
-
-            # Get base URL for fallback client registration
-            parsed_url = urlparse(function_input.server_url)
-            base_url = (
-                f"{parsed_url.scheme}://{parsed_url.netloc}"
-            )
 
             # Initialize variables for client credentials
             client_secret = None
@@ -702,16 +979,20 @@ async def oauth_exchange_code_for_token(
                     ) = await _register_new_client_and_prepare_token_data(
                         function_input,
                         client,
-                        base_url,
+                        oauth_metadata,
                         client_metadata,
                     )
 
+                # We register with client_secret_post; send credentials in body.
+                # Only use Basic auth when the server explicitly expects it (e.g. from
+                # registration response); for dynamic registration we use post.
+                token_headers = {
+                    "Content-Type": "application/x-www-form-urlencoded"
+                }
                 token_response = await client.post(
                     token_endpoint,
                     data=token_data,
-                    headers={
-                        "Content-Type": "application/x-www-form-urlencoded"
-                    },
+                    headers=token_headers,
                 )
 
                 http_ok = 200

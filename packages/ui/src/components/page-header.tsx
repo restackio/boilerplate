@@ -27,10 +27,11 @@ interface PageHeaderProps {
 export function PageHeader({
   breadcrumbs,
   actions,
+  fixed = true,
   className = "",
 }: PageHeaderProps) {
   const headerClasses = `
-    flex items-center justify-between p-4 bg-background border-b
+    flex items-center justify-between p-4 bg-background border-b ${fixed ? "sticky top-0 z-50" : ""}
     ${className}
   `.trim();
 

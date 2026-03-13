@@ -16,11 +16,17 @@ export function useOAuthFlow() {
     }
 
     try {
-      // Start OAuth flow
+      // No URL envs: redirect and origin come from current frontend (works on any deploy URL)
+      const origin =
+        typeof window !== "undefined" ? window.location.origin : "";
+      const redirectUri = `${origin}/oauth/callback`;
+
       const result = await executeWorkflow("McpOAuthInitializeWorkflow", {
         user_id: currentUser.id,
         workspace_id: server.workspace_id,
         mcp_server_id: server.id,
+        redirect_uri: redirectUri,
+        request_origin: origin || undefined,
       });
       
       if (result.success && result.data && typeof result.data === 'object' && 'authorization_url' in result.data) {

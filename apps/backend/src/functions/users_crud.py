@@ -107,7 +107,7 @@ async def users_create(
             workspace = workspace_result.scalar_one_or_none()
 
             if not workspace:
-                raise NonRetryableError(  # noqa: TRY301
+                raise NonRetryableError(
                     message=f"Workspace with id {user_data.workspace_id} not found"
                 )
             user_id = uuid.uuid4()
@@ -160,7 +160,7 @@ async def users_update(
             user = result.scalar_one_or_none()
 
             if not user:
-                raise NonRetryableError(  # noqa: TRY301
+                raise NonRetryableError(
                     message=f"User with id {function_input.user_id} not found"
                 )
             # Update fields (only non-None values)
@@ -210,7 +210,7 @@ async def users_delete(
             user = result.scalar_one_or_none()
 
             if not user:
-                raise NonRetryableError(  # noqa: TRY301
+                raise NonRetryableError(
                     message=f"User with id {function_input.user_id} not found"
                 )
             await db.delete(user)
