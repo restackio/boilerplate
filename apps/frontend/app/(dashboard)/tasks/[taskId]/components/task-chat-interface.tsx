@@ -1,4 +1,4 @@
-import { useRef, useMemo } from "react";
+import { useRef, useMemo, useState } from "react";
 import { ConversationItem } from "../types";
 import { EmptyState } from "@workspace/ui/components/empty-state";
 import { PromptInput } from "@workspace/ui/components/ai-elements/prompt-input";
@@ -18,6 +18,15 @@ import { useConversationItem } from "../hooks/use-conversation-item";
 import { TaskTodosList } from "./task-todos-list";
 import { TaskSubtasksList } from "./task-subtasks-list";
 import { FeedbackButtons } from "./feedback-buttons";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@workspace/ui/components/ui/dropdown-menu";
+import { Button } from "@workspace/ui/components/ui/button";
+import { Plus, FileUp } from "lucide-react";
+import { AddTaskFilesDialog } from "./add-task-files-dialog";
 
 /** Detect assistant content that is only raw tool-call JSON (duplicate of tool card). */
 function isToolCallSpilloverContent(text: string): boolean {
@@ -55,6 +64,7 @@ interface TaskChatInterfaceProps {
   taskId?: string;
   agentId?: string;
   workspaceId?: string;
+  onFilesAdded?: () => void;
 }
 
 export function TaskChatInterface({
@@ -73,9 +83,10 @@ export function TaskChatInterface({
   taskId,
   agentId,
   workspaceId,
+  onFilesAdded,
 }: TaskChatInterfaceProps) {
-  // Track reasoning durations
   const conversationEndRef = useRef<HTMLDivElement>(null);
+  const [addFilesDialogOpen, setAddFilesDialogOpen] = useState(false);
 
   const isTaskActive = task?.status === "in_progress";
 
@@ -158,6 +169,37 @@ export function TaskChatInterface({
           {/* Persistent Todo List above input */}
           {todos && <TaskTodosList todos={todos} />}
         </div>
+
+        {/* + button with dropdown: Add files, etc. */}
+        {workspaceId && taskId && (
+          <div className="flex items-center gap-1 mb-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon" className="h-8 w-8">
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem
+                  onSelect={(e) => {
+                    e.preventDefault();
+                    setAddFilesDialogOpen(true);
+                  }}
+                >
+                  <FileUp className="h-4 w-4 mr-2" />
+                  Add files
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <AddTaskFilesDialog
+              workspaceId={workspaceId}
+              taskId={taskId}
+              open={addFilesDialogOpen}
+              onOpenChange={setAddFilesDialogOpen}
+              onFilesAdded={onFilesAdded}
+            />
+          </div>
+        )}
 
         <PromptInput
           prompt={chatMessage}

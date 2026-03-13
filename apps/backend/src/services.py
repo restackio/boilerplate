@@ -221,6 +221,8 @@ from src.workflows.crud.agents_crud import (
     AgentsUpdateWorkflow,
 )
 from src.workflows.crud.auth_crud import (
+    RequestPasswordResetWorkflow,
+    ResetPasswordWorkflow,
     UserLoginWorkflow,
     UserSignupWorkflow,
 )
@@ -379,6 +381,8 @@ async def run_restack_service() -> None:
             UserWorkspacesDeleteWorkflow,
             UserSignupWorkflow,
             UserLoginWorkflow,
+            RequestPasswordResetWorkflow,
+            ResetPasswordWorkflow,
             # Datasets workflows
             DatasetsReadWorkflow,
             DatasetsCreateWorkflow,

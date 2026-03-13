@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { Eye, EyeOff } from "lucide-react";
+import { useState, ReactNode } from "react";
 import { cn } from "../lib/utils";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { useState, ReactNode } from "react";
 
 interface FormField {
   id: string;
@@ -59,6 +60,14 @@ export function AuthForm({
   className,
   ...props
 }: AuthFormProps) {
+  const [passwordVisible, setPasswordVisible] = useState<
+    Record<string, boolean>
+  >({});
+
+  const togglePasswordVisibility = (fieldId: string) => {
+    setPasswordVisible((prev) => ({ ...prev, [fieldId]: !prev[fieldId] }));
+  };
+
   return (
     <form
       className={cn("flex flex-col gap-6", className)}
@@ -79,23 +88,52 @@ export function AuthForm({
           </div>
         )}
 
-        {fields.map((field) => (
-          <div key={field.id} className="grid gap-3">
-            <div className="flex items-center">
-              <Label htmlFor={field.id}>{field.label}</Label>
-              {field.additionalElement}
+        {fields.map((field) => {
+          const isPassword = field.type === "password";
+          const inputType =
+            isPassword && passwordVisible[field.id] ? "text" : field.type;
+          return (
+            <div key={field.id} className="grid gap-3">
+              <div className="flex items-center">
+                <Label htmlFor={field.id}>{field.label}</Label>
+                {field.additionalElement}
+              </div>
+              <div className="relative">
+                <Input
+                  id={field.id}
+                  type={inputType}
+                  placeholder={field.placeholder}
+                  value={field.value}
+                  onChange={(e) => field.onChange(e.target.value)}
+                  required={field.required}
+                  autoComplete={field.type}
+                  className={isPassword ? "pr-10" : undefined}
+                />
+                {isPassword && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                    onClick={() => togglePasswordVisibility(field.id)}
+                    aria-label={
+                      passwordVisible[field.id]
+                        ? "Hide password"
+                        : "Show password"
+                    }
+                    tabIndex={-1}
+                  >
+                    {passwordVisible[field.id] ? (
+                      <EyeOff className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <Eye className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </Button>
+                )}
+              </div>
             </div>
-            <Input
-              id={field.id}
-              type={field.type}
-              placeholder={field.placeholder}
-              value={field.value}
-              onChange={(e) => field.onChange(e.target.value)}
-              required={field.required}
-              autoComplete={field.type}
-            />
-          </div>
-        ))}
+          );
+        })}
 
         {children}
 

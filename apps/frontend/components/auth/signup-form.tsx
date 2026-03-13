@@ -9,11 +9,16 @@ export function SignupForm({
   className,
   ...props
 }: React.ComponentProps<"form">) {
-  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const { isLoading, error, startSubmission, finishSubmission, setSubmissionError } = useAuthFormState();
+  const {
+    isLoading,
+    error,
+    startSubmission,
+    finishSubmission,
+    setSubmissionError,
+  } = useAuthFormState();
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -35,14 +40,21 @@ export function SignupForm({
     try {
       // Create the user (without workspace)
       const workflowResult = await executeWorkflow("UserSignupWorkflow", {
-        name,
         email,
         password,
       });
 
-      if (workflowResult && workflowResult.success && workflowResult.data && workflowResult.data.user) {
+      if (
+        workflowResult &&
+        workflowResult.success &&
+        workflowResult.data &&
+        workflowResult.data.user
+      ) {
         // Store user info in localStorage
-        localStorage.setItem("currentUser", JSON.stringify(workflowResult.data.user));
+        localStorage.setItem(
+          "currentUser",
+          JSON.stringify(workflowResult.data.user),
+        );
         // Redirect to workspace creation page
         router.push("/workspace/create");
       } else {
@@ -57,15 +69,6 @@ export function SignupForm({
   };
 
   const fields = [
-    {
-      id: "name",
-      label: "Name",
-      type: "text",
-      placeholder: "John Doe",
-      value: name,
-      onChange: setName,
-      required: true,
-    },
     {
       id: "email",
       label: "Email",

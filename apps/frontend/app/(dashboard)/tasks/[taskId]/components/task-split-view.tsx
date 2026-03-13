@@ -3,6 +3,8 @@ import { StatusIcon } from "@workspace/ui/components/status-indicators";
 import { ConversationItem } from "../types";
 import { TaskDetailsTab } from "./task-details-tab";
 import { TaskAnalyticsTab } from "./task-analytics-tab";
+import { TaskFilesPanel } from "./task-files-panel";
+import { TaskCreatedPanel } from "./task-created-panel";
 import { Task } from "@/hooks/use-workspace-scoped-actions";
 
 interface TaskSplitViewProps {
@@ -14,6 +16,10 @@ interface TaskSplitViewProps {
   task: Task;
   onUpdateTask: (updates: Partial<Task>) => Promise<void>;
   isUpdating: boolean;
+  /** Increment to refresh the Files panel (e.g. after adding files). */
+  filesRefreshTrigger?: number;
+  /** When true, show the "Created" tab (Build task). */
+  isBuildTask?: boolean;
 }
 
 export function TaskSplitView({
@@ -25,6 +31,8 @@ export function TaskSplitView({
   task,
   onUpdateTask,
   isUpdating,
+  filesRefreshTrigger = 0,
+  isBuildTask = false,
 }: TaskSplitViewProps) {
   // Custom detail renderer for conversation items
   const renderItemDetails = (item: ConversationItem) => (
@@ -32,14 +40,23 @@ export function TaskSplitView({
       {/* Item Type and Status */}
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="text-sm font-medium text-muted-foreground">Type</label>
+          <label className="text-sm font-medium text-muted-foreground">
+            Type
+          </label>
           <p className="text-sm">{item.type}</p>
         </div>
         <div>
-          <label className="text-sm font-medium text-muted-foreground">Status</label>
+          <label className="text-sm font-medium text-muted-foreground">
+            Status
+          </label>
           <div className="flex items-center space-x-2">
-            <StatusIcon status={(item.openai_output?.status as any) || 'pending'} /> {/* eslint-disable-line @typescript-eslint/no-explicit-any */}
-            <span className="text-sm">{item.openai_output?.status || 'unknown'}</span>
+            <StatusIcon
+              status={(item.openai_output?.status as any) || "pending"}
+            />{" "}
+            {/* eslint-disable-line @typescript-eslint/no-explicit-any */}
+            <span className="text-sm">
+              {item.openai_output?.status || "unknown"}
+            </span>
           </div>
         </div>
       </div>
@@ -47,10 +64,12 @@ export function TaskSplitView({
       {/* Content */}
       {item.openai_output?.content && (
         <div>
-          <label className="text-sm font-medium text-muted-foreground">Content</label>
+          <label className="text-sm font-medium text-muted-foreground">
+            Content
+          </label>
           <div className="text-sm bg-muted p-2 rounded mt-1 whitespace-pre-wrap break-words">
-            {Array.isArray(item.openai_output.content) 
-              ? item.openai_output.content.map(c => c.text).join('\n')
+            {Array.isArray(item.openai_output.content)
+              ? item.openai_output.content.map((c) => c.text).join("\n")
               : String(item.openai_output.content)}
           </div>
         </div>
@@ -59,21 +78,31 @@ export function TaskSplitView({
       {/* Tool-specific information */}
       {item.openai_output?.name && (
         <div>
-          <label className="text-sm font-medium text-muted-foreground">Tool Name</label>
-          <p className="text-sm font-mono bg-blue-50 dark:bg-blue-950/20 p-2 rounded mt-1">{item.openai_output.name}</p>
+          <label className="text-sm font-medium text-muted-foreground">
+            Tool Name
+          </label>
+          <p className="text-sm font-mono bg-blue-50 dark:bg-blue-950/20 p-2 rounded mt-1">
+            {item.openai_output.name}
+          </p>
         </div>
       )}
 
       {item.openai_output?.server_label && (
         <div>
-          <label className="text-sm font-medium text-muted-foreground">Server</label>
-          <p className="text-sm font-mono bg-blue-50 dark:bg-blue-950/20 p-2 rounded mt-1">{item.openai_output.server_label}</p>
+          <label className="text-sm font-medium text-muted-foreground">
+            Server
+          </label>
+          <p className="text-sm font-mono bg-blue-50 dark:bg-blue-950/20 p-2 rounded mt-1">
+            {item.openai_output.server_label}
+          </p>
         </div>
       )}
 
       {item.openai_output?.arguments && (
         <div>
-          <label className="text-sm font-medium text-muted-foreground">Arguments</label>
+          <label className="text-sm font-medium text-muted-foreground">
+            Arguments
+          </label>
           <pre className="text-xs bg-purple-50 dark:bg-purple-950/20 p-2 rounded mt-1 overflow-auto max-h-32 whitespace-pre-wrap break-words max-w-full">
             {JSON.stringify(item.openai_output.arguments, null, 2)}
           </pre>
@@ -82,10 +111,12 @@ export function TaskSplitView({
 
       {item.openai_output?.output && (
         <div>
-          <label className="text-sm font-medium text-muted-foreground">Tool Output</label>
+          <label className="text-sm font-medium text-muted-foreground">
+            Tool Output
+          </label>
           <pre className="text-xs bg-green-50 dark:bg-green-950/20 p-2 rounded mt-1 overflow-auto max-h-32 whitespace-pre-wrap break-words max-w-full">
-            {typeof item.openai_output.output === 'string' 
-              ? item.openai_output.output 
+            {typeof item.openai_output.output === "string"
+              ? item.openai_output.output
               : JSON.stringify(item.openai_output.output, null, 2)}
           </pre>
         </div>
@@ -93,16 +124,25 @@ export function TaskSplitView({
 
       {item.openai_output?.tools && Array.isArray(item.openai_output.tools) && (
         <div>
-          <label className="text-sm font-medium text-muted-foreground">Available Tools ({item.openai_output.tools.length})</label>
+          <label className="text-sm font-medium text-muted-foreground">
+            Available Tools ({item.openai_output.tools.length})
+          </label>
           <div className="space-y-2 mt-1 max-h-32 overflow-auto">
             {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-            {item.openai_output.tools.slice(0, 5).map((tool: any, index: number) => (
-              <div key={index} className="text-xs bg-muted p-2 rounded border">
-                <strong>{tool.name}</strong>: {tool.description}
-              </div>
-            ))}
+            {item.openai_output.tools
+              .slice(0, 5)
+              .map((tool: any, index: number) => (
+                <div
+                  key={index}
+                  className="text-xs bg-muted p-2 rounded border"
+                >
+                  <strong>{tool.name}</strong>: {tool.description}
+                </div>
+              ))}
             {item.openai_output.tools.length > 5 && (
-              <p className="text-xs text-muted-foreground">... and {item.openai_output.tools.length - 5} more</p>
+              <p className="text-xs text-muted-foreground">
+                ... and {item.openai_output.tools.length - 5} more
+              </p>
             )}
           </div>
         </div>
@@ -110,7 +150,9 @@ export function TaskSplitView({
 
       {item.openai_output?.action && (
         <div>
-          <label className="text-sm font-medium text-muted-foreground">Action Details</label>
+          <label className="text-sm font-medium text-muted-foreground">
+            Action Details
+          </label>
           <pre className="text-xs bg-orange-50 dark:bg-orange-950/20 p-2 rounded mt-1 overflow-auto max-h-32 whitespace-pre-wrap break-words max-w-full">
             {JSON.stringify(item.openai_output.action, null, 2)}
           </pre>
@@ -119,10 +161,12 @@ export function TaskSplitView({
 
       {item.openai_output?.summary && (
         <div>
-          <label className="text-sm font-medium text-muted-foreground">Summary</label>
+          <label className="text-sm font-medium text-muted-foreground">
+            Summary
+          </label>
           <div className="text-sm bg-yellow-50 dark:bg-yellow-950/20 p-2 rounded mt-1 whitespace-pre-wrap break-words">
-            {Array.isArray(item.openai_output.summary) 
-              ? item.openai_output.summary.map(s => s.text || s).join('\n\n')
+            {Array.isArray(item.openai_output.summary)
+              ? item.openai_output.summary.map((s) => s.text || s).join("\n\n")
               : String(item.openai_output.summary)}
           </div>
         </div>
@@ -132,40 +176,53 @@ export function TaskSplitView({
       {item.error && (
         <div className="space-y-3">
           <div>
-            <label className="text-sm font-medium text-muted-foreground">Error Type</label>
+            <label className="text-sm font-medium text-muted-foreground">
+              Error Type
+            </label>
             <p className="text-sm font-mono bg-red-50 dark:bg-red-950/20 p-2 rounded mt-1">
-              {item.error.error_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+              {item.error.error_type
+                .replace(/_/g, " ")
+                .replace(/\b\w/g, (l) => l.toUpperCase())}
             </p>
           </div>
-          
+
           <div>
-            <label className="text-sm font-medium text-muted-foreground">Error Source</label>
+            <label className="text-sm font-medium text-muted-foreground">
+              Error Source
+            </label>
             <p className="text-sm font-mono bg-red-50 dark:bg-red-950/20 p-2 rounded mt-1">
               {item.error.error_source}
             </p>
           </div>
-          
+
           <div>
-            <label className="text-sm font-medium text-muted-foreground">Error Message</label>
+            <label className="text-sm font-medium text-muted-foreground">
+              Error Message
+            </label>
             <div className="text-sm bg-red-50 dark:bg-red-950/20 p-2 rounded mt-1 whitespace-pre-wrap break-words">
               {item.error.error_message}
             </div>
           </div>
-          
-          {item.error.error_details && Object.keys(item.error.error_details).length > 0 && (
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">Technical Details</label>
-              <pre className="text-xs bg-muted p-2 rounded mt-1 overflow-auto max-h-32 whitespace-pre-wrap break-words max-w-full">
-                {JSON.stringify(item.error.error_details, null, 2)}
-              </pre>
-            </div>
-          )}
+
+          {item.error.error_details &&
+            Object.keys(item.error.error_details).length > 0 && (
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">
+                  Technical Details
+                </label>
+                <pre className="text-xs bg-muted p-2 rounded mt-1 overflow-auto max-h-32 whitespace-pre-wrap break-words max-w-full">
+                  {JSON.stringify(item.error.error_details, null, 2)}
+                </pre>
+              </div>
+            )}
         </div>
       )}
 
       {/* Timestamp */}
       <div>
-        <label className="text-sm font-medium text-muted-foreground">Timestamp</label>
+        <label className="text-sm font-medium text-muted-foreground">
+          Timestamp
+        </label>
         <p className="text-sm">{new Date(item.timestamp).toLocaleString()}</p>
       </div>
 
@@ -185,15 +242,41 @@ export function TaskSplitView({
 
   // Define tabs for the split view
   const tabs = [
-    ...(selectedCard ? [{
-      id: "details",
-      label: "Details",
-      content: selectedCard ? renderItemDetails(selectedCard) : null,
-    }] : []),
+    ...(selectedCard
+      ? [
+          {
+            id: "details",
+            label: "Details",
+            content: selectedCard ? renderItemDetails(selectedCard) : null,
+          },
+        ]
+      : []),
+    {
+      id: "files",
+      label: "Files",
+      content: (
+        <TaskFilesPanel taskId={task.id} refreshTrigger={filesRefreshTrigger} />
+      ),
+    },
+    ...(isBuildTask
+      ? [
+          {
+            id: "created",
+            label: "Created",
+            content: <TaskCreatedPanel task={task} />,
+          },
+        ]
+      : []),
     {
       id: "analytics",
       label: "Analytics",
-      content: <TaskAnalyticsTab taskId={task.id} agentId={task.agent_id} parentAgentId={task.parent_agent_id} />,
+      content: (
+        <TaskAnalyticsTab
+          taskId={task.id}
+          agentId={task.agent_id}
+          parentAgentId={task.parent_agent_id}
+        />
+      ),
     },
     {
       id: "info",
@@ -219,4 +302,4 @@ export function TaskSplitView({
       className="bg-muted"
     />
   );
-} 
+}

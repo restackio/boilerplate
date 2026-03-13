@@ -53,6 +53,10 @@ class ListDatasetFilesInput(BaseModel):
 
     workspace_id: str = Field(..., min_length=1)
     dataset_id: str = Field(..., min_length=1)
+    task_id: str | None = Field(
+        default=None,
+        description="If set, only return files uploaded for this task.",
+    )
 
 
 class DatasetFileSummary(BaseModel):
@@ -995,6 +999,8 @@ async def list_dataset_files(
             function_input.workspace_id,
             function_input.dataset_id,
         )
+        if function_input.task_id:
+            where_conditions.append(f"task_id = '{function_input.task_id}'")
         where_conditions.extend(
             _build_tag_filters(storage_config)
         )

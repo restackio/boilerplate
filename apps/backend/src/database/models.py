@@ -183,6 +183,23 @@ class User(Base):
     )
 
 
+class PasswordResetToken(Base):
+    __tablename__ = "password_reset_tokens"
+
+    id = Column(UUID(as_uuid=True), primary_key=True)
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    token = Column(String(64), nullable=False, unique=True)
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(
+        DateTime,
+        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+    )
+
+
 class Agent(Base):
     __tablename__ = "agents"
 

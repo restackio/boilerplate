@@ -666,7 +666,7 @@ async def agents_get_build_agent(
                 )
             )
             result = await db.execute(build_agent_query)
-            agent = result.scalars_one_or_none()
+            agent = result.scalars().one_or_none()
             if not agent:
                 return AgentGetByIdOutput(agent=None)
             out = AgentOutput(

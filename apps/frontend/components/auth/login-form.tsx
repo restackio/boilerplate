@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { AuthForm, useAuthFormState } from "@workspace/ui/components";
-import { Button } from "@workspace/ui/components/ui/button";
 import { executeWorkflow } from "@/app/actions/workflow";
 
 export function LoginForm({
@@ -57,17 +57,12 @@ export function LoginForm({
   };
 
   const forgotPasswordLink = (
-    <Button
-      type="button"
-      onClick={() => {
-        // TODO: Implement forgot password functionality
-        alert("Forgot password functionality coming soon!");
-      }}
-      variant="link"
-      className="ml-auto text-sm h-auto p-0"
+    <Link
+      href="/forgot-password"
+      className="ml-auto text-sm text-primary underline underline-offset-4 hover:text-primary/80"
     >
       Forgot your password?
-    </Button>
+    </Link>
   );
 
   const fields = [

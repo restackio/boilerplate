@@ -7,6 +7,7 @@ import {
   useWorkspaceScopedActions,
   type Task,
 } from "@/hooks/use-workspace-scoped-actions";
+import { AddOpenAITokenDialog } from "@/app/(dashboard)/integrations/components/add-openai-token-dialog";
 import { Button } from "@workspace/ui/components/ui/button";
 import { Textarea } from "@workspace/ui/components/ui/textarea";
 import {
@@ -18,8 +19,6 @@ import {
 } from "@workspace/ui/components/ui/select";
 import { ArrowUp, Lightbulb, Loader2 } from "lucide-react";
 import { CenteredLoading } from "@workspace/ui/components/loading-states";
-
-const BUILD_AGENT_ID_FALLBACK = "e0000000-0000-0000-0000-00000000000e";
 
 /** Short prompts that fill the box. The build agent will turn these into a plan (todos, diagram), then create agents, datasets, and views after approval. */
 const STARTER_PROMPTS: { title: string; prompt: string }[] = [
@@ -48,16 +47,26 @@ const STARTER_PROMPTS: { title: string; prompt: string }[] = [
 export default function NewAgentPage() {
   const router = useRouter();
   const { currentWorkspaceId, currentUser, isReady } = useDatabaseWorkspace();
-  const { createTask, getBuildAgent, teams, fetchTeams } =
-    useWorkspaceScopedActions();
+  const {
+    createTask,
+    getBuildAgent,
+    teams,
+    fetchTeams,
+    hasWorkspaceOpenAIToken,
+    fetchMcpServers,
+  } = useWorkspaceScopedActions();
   const [creating, setCreating] = useState(false);
   const [startMessage, setStartMessage] = useState("");
   const [selectedTeamId, setSelectedTeamId] = useState("");
+  const [addOpenAITokenDialogOpen, setAddOpenAITokenDialogOpen] =
+    useState(false);
+  const [buildAgentError, setBuildAgentError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isReady) return;
     fetchTeams();
-  }, [isReady, fetchTeams]);
+    fetchMcpServers();
+  }, [isReady, fetchTeams, fetchMcpServers]);
 
   useEffect(() => {
     if (teams.length > 0 && !selectedTeamId) {
@@ -69,13 +78,26 @@ export default function NewAgentPage() {
     async (message: string) => {
       if (!currentWorkspaceId || !message.trim() || creating || !isReady)
         return;
+      if (!hasWorkspaceOpenAIToken) {
+        setAddOpenAITokenDialogOpen(true);
+        return;
+      }
       setCreating(true);
+      setBuildAgentError(null);
       try {
         const buildRes = await getBuildAgent();
+        // executeWorkflow unwraps { agent } so data is the agent object directly
+        const buildAgent = buildRes.data as { id?: string } | null;
         const agentId =
-          buildRes.success && buildRes.data?.id
-            ? buildRes.data.id
-            : BUILD_AGENT_ID_FALLBACK;
+          buildRes.success && buildAgent?.id ? buildAgent.id : null;
+        if (!agentId) {
+          setBuildAgentError(
+            buildRes.error ||
+              "Build agent is not available. Please run the database admin seed to set up the build agent, or contact your administrator.",
+          );
+          setCreating(false);
+          return;
+        }
         const result = await createTask({
           title: "Build",
           description: message.trim(),
@@ -104,6 +126,7 @@ export default function NewAgentPage() {
       isReady,
       router,
       selectedTeamId,
+      hasWorkspaceOpenAIToken,
     ],
   );
 
@@ -148,6 +171,11 @@ export default function NewAgentPage() {
             className="flex-1 w-full resize-none min-h-[200px] max-h-[320px] text-base"
             disabled={creating}
           />
+          {buildAgentError && (
+            <div className="rounded-md bg-destructive/10 border border-destructive/20 px-3 py-2 text-sm text-destructive">
+              {buildAgentError}
+            </div>
+          )}
           <div className="flex items-center space-x-3">
             {teams.length > 0 && (
               <Select
@@ -215,6 +243,16 @@ export default function NewAgentPage() {
           </ul>
         </section>
       </div>
+
+      <AddOpenAITokenDialog
+        open={addOpenAITokenDialogOpen}
+        onOpenChange={setAddOpenAITokenDialogOpen}
+        onTokenAdded={() => {
+          fetchMcpServers().then(() => {
+            setTimeout(() => handleStartConversation(startMessage), 0);
+          });
+        }}
+      />
     </div>
   );
 }

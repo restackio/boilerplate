@@ -1,12 +1,19 @@
+import logging
+import os
+import secrets
 import uuid
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
+import resend
+
+logger = logging.getLogger(__name__)
 from pydantic import BaseModel, Field, field_validator
 from restack_ai.function import function
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from src.database.connection import get_async_db
-from src.database.models import User, UserWorkspace, Workspace
+from src.database.models import PasswordResetToken, User, UserWorkspace, Workspace
 from src.utils.password import hash_password, verify_password
 
 
@@ -16,7 +23,6 @@ class UserSignupInput(BaseModel):
         None,
         description="Optional workspace ID to add user to immediately",
     )
-    name: str = Field(..., min_length=1, max_length=255)
     email: str = Field(..., min_length=1, max_length=255)
     password: str = Field(..., min_length=6, max_length=100)
     avatar_url: str | None = None
@@ -48,6 +54,38 @@ class UserLoginInput(BaseModel):
 class AuthOutput(BaseModel):
     success: bool
     user: dict[str, Any] | None = None
+    error: str | None = None
+
+
+class RequestPasswordResetInput(BaseModel):
+    email: str = Field(..., min_length=1, max_length=255)
+    origin: str = Field(
+        ...,
+        min_length=1,
+        description="App origin for the reset link (e.g. https://app.example.com)",
+    )
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        if "@" not in v:
+            msg = "Email must contain @ symbol"
+            raise ValueError(msg)
+        return v.lower()
+
+
+class RequestPasswordResetOutput(BaseModel):
+    success: bool
+    error: str | None = None
+
+
+class ResetPasswordInput(BaseModel):
+    token: str = Field(..., min_length=1, max_length=64)
+    new_password: str = Field(..., min_length=6, max_length=100)
+
+
+class ResetPasswordOutput(BaseModel):
+    success: bool
     error: str | None = None
 
 
@@ -92,11 +130,12 @@ async def user_signup(user_data: UserSignupInput) -> AuthOutput:
             # Hash the password
             password_hash = hash_password(user_data.password)
 
-            # Create new user
+            # Create new user (name derived from email local part)
             user_id = uuid.uuid4()
+            name = (user_data.email.split("@")[0] or "User").strip()[:255]
             user = User(
                 id=user_id,
-                name=user_data.name,
+                name=name,
                 email=user_data.email,
                 password_hash=password_hash,
                 avatar_url=user_data.avatar_url,
@@ -235,3 +274,140 @@ async def user_login(login_data: UserLoginInput) -> AuthOutput:
         ) as e:
             return AuthOutput(success=False, error=str(e))
     return None
+
+
+RESET_TOKEN_EXPIRY_HOURS = 1
+
+
+@function.defn()
+async def request_password_reset(
+    data: RequestPasswordResetInput,
+) -> RequestPasswordResetOutput:
+    """Request a password reset for the given email. Always returns success to avoid leaking whether the email exists."""
+    async for db in get_async_db():
+        try:
+            user_query = select(User).where(User.email == data.email)
+            result = await db.execute(user_query)
+            user = result.scalar_one_or_none()
+            if not user:
+                return RequestPasswordResetOutput(success=True)
+
+            # Invalidate any existing tokens for this user
+            await db.execute(
+                delete(PasswordResetToken).where(
+                    PasswordResetToken.user_id == user.id
+                )
+            )
+
+            token = secrets.token_urlsafe(32)
+            expires_at = datetime.now(timezone.utc) + timedelta(
+                hours=RESET_TOKEN_EXPIRY_HOURS
+            )
+            reset_record = PasswordResetToken(
+                id=uuid.uuid4(),
+                user_id=user.id,
+                token=token,
+                expires_at=expires_at.replace(tzinfo=None),
+            )
+            db.add(reset_record)
+            await db.commit()
+
+            base_url = data.origin.rstrip("/")
+            reset_link = f"{base_url}/reset-password?token={token}"
+
+            api_key = os.getenv("RESEND_API_KEY")
+            if api_key:
+                resend.api_key = api_key
+                from_email = os.getenv(
+                    "RESEND_FROM_EMAIL",
+                    "Password Reset <onboarding@resend.dev>",
+                )
+                try:
+                    resend.Emails.send(
+                        {
+                            "from": from_email,
+                            "to": [user.email],
+                            "subject": "Reset your password",
+                            "html": f"""
+                            <p>You requested a password reset.</p>
+                            <p><a href="{reset_link}">Reset your password</a></p>
+                            <p>This link expires in {RESET_TOKEN_EXPIRY_HOURS} hour(s).</p>
+                            <p>If you didn't request this, you can ignore this email.</p>
+                            """,
+                        }
+                    )
+                except Exception as send_err:
+                    return RequestPasswordResetOutput(
+                        success=False,
+                        error=f"Failed to send email: {send_err!s}",
+                    )
+            else:
+                logger.info(
+                    "Password reset (no RESEND_API_KEY): %s",
+                    reset_link,
+                )
+            return RequestPasswordResetOutput(success=True)
+        except (
+            ValueError,
+            TypeError,
+            RuntimeError,
+            AttributeError,
+            ConnectionError,
+            OSError,
+        ) as e:
+            await db.rollback()
+            return RequestPasswordResetOutput(success=False, error=str(e))
+    return RequestPasswordResetOutput(success=False, error="Database unavailable")
+
+
+@function.defn()
+async def reset_password(data: ResetPasswordInput) -> ResetPasswordOutput:
+    """Reset password using a valid reset token."""
+    async for db in get_async_db():
+        try:
+            now = datetime.now(timezone.utc).replace(tzinfo=None)
+            token_query = select(PasswordResetToken).where(
+                PasswordResetToken.token == data.token,
+                PasswordResetToken.expires_at > now,
+            )
+            result = await db.execute(token_query)
+            reset_record = result.scalar_one_or_none()
+            if not reset_record:
+                return ResetPasswordOutput(
+                    success=False,
+                    error="Invalid or expired reset link. Please request a new one.",
+                )
+
+            user_query = select(User).where(User.id == reset_record.user_id)
+            user_result = await db.execute(user_query)
+            user = user_result.scalar_one_or_none()
+            if not user:
+                await db.execute(
+                    delete(PasswordResetToken).where(
+                        PasswordResetToken.id == reset_record.id
+                    )
+                )
+                await db.commit()
+                return ResetPasswordOutput(
+                    success=False, error="Invalid or expired reset link."
+                )
+
+            user.password_hash = hash_password(data.new_password)
+            await db.execute(
+                delete(PasswordResetToken).where(
+                    PasswordResetToken.user_id == user.id
+                )
+            )
+            await db.commit()
+            return ResetPasswordOutput(success=True)
+        except (
+            ValueError,
+            TypeError,
+            RuntimeError,
+            AttributeError,
+            ConnectionError,
+            OSError,
+        ) as e:
+            await db.rollback()
+            return ResetPasswordOutput(success=False, error=str(e))
+    return ResetPasswordOutput(success=False, error="Database unavailable")

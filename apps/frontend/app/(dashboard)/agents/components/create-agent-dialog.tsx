@@ -17,6 +17,7 @@ import {
   useQuickActionDialog,
 } from "@workspace/ui/components/quick-action-dialog";
 import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
+import { AddOpenAITokenDialog } from "@/app/(dashboard)/integrations/components/add-openai-token-dialog";
 import { Plus, MessageSquare, Workflow } from "lucide-react";
 import {
   Select,
@@ -39,14 +40,26 @@ export function CreateAgentDialog({
   triggerLabel = "New agent",
 }: CreateAgentDialogProps) {
   const router = useRouter();
-  const { createAgent, fetchTeams, teams } = useWorkspaceScopedActions();
+  const {
+    createAgent,
+    fetchTeams,
+    teams,
+    hasWorkspaceOpenAIToken,
+    fetchMcpServers,
+  } = useWorkspaceScopedActions();
   const { isOpen, open, close, isLoading, handleError, handleSuccess } =
     useQuickActionDialog();
   const [selectedTeamId, setSelectedTeamId] = useState(teamId || "");
+  const [addOpenAITokenDialogOpen, setAddOpenAITokenDialogOpen] =
+    useState(false);
 
   useEffect(() => {
     fetchTeams();
   }, [fetchTeams]);
+
+  useEffect(() => {
+    if (isOpen) fetchMcpServers();
+  }, [isOpen, fetchMcpServers]);
 
   const [agentName, setAgentName] = useState("");
   const [selectedAgentType, setSelectedAgentType] = useState<
@@ -78,6 +91,11 @@ export function CreateAgentDialog({
 
     if (!selectedAgentType) {
       throw new Error("Please select an agent type");
+    }
+
+    if (!hasWorkspaceOpenAIToken) {
+      setAddOpenAITokenDialogOpen(true);
+      throw new Error("OPENAI_TOKEN_REQUIRED");
     }
 
     // Create agent data based on type
@@ -136,7 +154,13 @@ export function CreateAgentDialog({
         isLoading={isLoading}
         closeOnSuccess={true}
         onSuccess={handleSuccess}
-        onError={handleError}
+        onError={(message) => {
+          if (message === "OPENAI_TOKEN_REQUIRED") {
+            setAddOpenAITokenDialogOpen(true);
+          } else {
+            handleError(message);
+          }
+        }}
         size="lg"
       >
         <div className="space-y-6">
@@ -242,6 +266,22 @@ export function CreateAgentDialog({
           </div>
         </div>
       </QuickActionDialog>
+
+      <AddOpenAITokenDialog
+        open={addOpenAITokenDialogOpen}
+        onOpenChange={setAddOpenAITokenDialogOpen}
+        onTokenAdded={async () => {
+          await fetchMcpServers();
+          setTimeout(async () => {
+            try {
+              await handleCreateAgent();
+              close();
+            } catch (e) {
+              handleError(e instanceof Error ? e.message : "Action failed");
+            }
+          }, 0);
+        }}
+      />
     </>
   );
 }
