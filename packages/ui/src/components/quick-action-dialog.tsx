@@ -12,7 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "./ui/dialog";
-import { ArrowUp, X, Loader2, type LucideIcon } from "lucide-react";
+import { ArrowUp, Loader2, type LucideIcon } from "lucide-react";
 import { cn } from "../lib/utils";
 
 interface QuickActionField {

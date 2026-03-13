@@ -639,9 +639,10 @@ async def datasets_update(
                         workspace_id=function_input.workspace_id,
                     )
                 )
+            # Column names in updates are from allowlisted fields (name, description only)
             await db.execute(
                 text(
-                    "UPDATE datasets SET "
+                    "UPDATE datasets SET "  # noqa: S608
                     + ", ".join(updates)
                     + ", updated_at = NOW() WHERE id = :dataset_id"
                 ),

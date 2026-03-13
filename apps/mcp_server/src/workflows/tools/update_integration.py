@@ -6,7 +6,7 @@ Single tool: create from remote URL if mcp_server_id is omitted; update if mcp_s
 from datetime import timedelta
 
 from pydantic import BaseModel, Field
-from restack_ai.workflow import NonRetryableError, log, workflow
+from restack_ai.workflow import log, workflow
 
 
 class UpdateIntegrationInput(BaseModel):
@@ -54,7 +54,7 @@ class UpdateIntegration:
     """Create or update an MCP server integration in the workspace via the backend."""
 
     @workflow.run
-    async def run(
+    async def run(  # noqa: PLR0911
         self, workflow_input: UpdateIntegrationInput
     ) -> UpdateIntegrationOutput:
         mcp_server_id = (workflow_input.mcp_server_id or "").strip()
@@ -140,7 +140,7 @@ class UpdateIntegration:
                 mcp_server_id=str(server_id),
                 created=True,
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             log.error("UpdateIntegration failed", error=str(e))
             return UpdateIntegrationOutput(
                 success=False,

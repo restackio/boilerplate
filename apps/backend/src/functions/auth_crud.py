@@ -2,19 +2,24 @@ import logging
 import os
 import secrets
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import resend
-
-logger = logging.getLogger(__name__)
 from pydantic import BaseModel, Field, field_validator
 from restack_ai.function import function
 from sqlalchemy import delete, select
 
 from src.database.connection import get_async_db
-from src.database.models import PasswordResetToken, User, UserWorkspace, Workspace
+from src.database.models import (
+    PasswordResetToken,
+    User,
+    UserWorkspace,
+    Workspace,
+)
 from src.utils.password import hash_password, verify_password
+
+logger = logging.getLogger(__name__)
 
 
 # Pydantic models for input validation
@@ -300,7 +305,7 @@ async def request_password_reset(
             )
 
             token = secrets.token_urlsafe(32)
-            expires_at = datetime.now(timezone.utc) + timedelta(
+            expires_at = datetime.now(UTC) + timedelta(
                 hours=RESET_TOKEN_EXPIRY_HOURS
             )
             reset_record = PasswordResetToken(
@@ -336,7 +341,7 @@ async def request_password_reset(
                             """,
                         }
                     )
-                except Exception as send_err:
+                except (OSError, RuntimeError) as send_err:
                     return RequestPasswordResetOutput(
                         success=False,
                         error=f"Failed to send email: {send_err!s}",
@@ -365,7 +370,7 @@ async def reset_password(data: ResetPasswordInput) -> ResetPasswordOutput:
     """Reset password using a valid reset token."""
     async for db in get_async_db():
         try:
-            now = datetime.now(timezone.utc).replace(tzinfo=None)
+            now = datetime.now(UTC).replace(tzinfo=None)
             token_query = select(PasswordResetToken).where(
                 PasswordResetToken.token == data.token,
                 PasswordResetToken.expires_at > now,

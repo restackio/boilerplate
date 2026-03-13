@@ -742,11 +742,11 @@ def _view_specs_for_dataset(
     """Return view specs that reference the given dataset_id."""
     if not view_specs or not isinstance(view_specs, list):
         return []
-    out = []
-    for v in view_specs:
-        if isinstance(v, dict) and v.get("dataset_id") == dataset_id:
-            out.append(v)
-    return out
+    return [
+        v
+        for v in view_specs
+        if isinstance(v, dict) and v.get("dataset_id") == dataset_id
+    ]
 
 
 @function.defn()
@@ -770,7 +770,7 @@ async def tasks_list_views_for_dataset(
                     _view_specs_for_dataset(specs, function_input.dataset_id)
                 )
             return ListViewsForDatasetOutput(success=True, views=views)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             log.error(f"tasks_list_views_for_dataset failed: {e!s}")
             return ListViewsForDatasetOutput(
                 success=False, views=[], error=str(e)
@@ -798,7 +798,7 @@ async def tasks_get_view_by_id(
                     if isinstance(v, dict) and v.get("id") == function_input.view_id:
                         return GetViewOutput(success=True, view=v)
             return GetViewOutput(success=True, view=None)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             log.error(f"tasks_get_view_by_id failed: {e!s}")
             return GetViewOutput(success=False, view=None, error=str(e))
     return GetViewOutput(success=False, view=None, error="No db")

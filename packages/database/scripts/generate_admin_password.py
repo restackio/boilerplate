@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """Generate a random admin password and bcrypt hash for admin seed.
-Outputs: (1) modified SQL with placeholder replaced, to stdout; (2) plain password to stderr.
-Usage: python generate_admin_password.py <path-to-postgres-admin.sql>
-Called from insert-admin.sh; expects to be run with PYTHONPATH including apps/backend (repo root).
+Outputs to stdout: line 1 = plain password, line 2 = empty, rest = modified SQL.
+Called from insert-admin.sh; expects PYTHONPATH including apps/backend (repo root).
 """
 import os
 import secrets
@@ -37,7 +36,9 @@ def main() -> None:
         sys.exit(1)
     sql_content = sql_content.replace("__ADMIN_PASSWORD_HASH__", password_hash.replace("'", "''"))
 
-    print(password, file=sys.stderr)
+    # Single run: first line = password (for display), then SQL for psql
+    print(password)
+    print()
     print(sql_content, end="")
 
 

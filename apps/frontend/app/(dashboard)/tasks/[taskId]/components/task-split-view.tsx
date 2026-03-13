@@ -43,9 +43,11 @@ export function TaskSplitView({
           </label>
           <div className="flex items-center space-x-2">
             <StatusIcon
-              status={(item.openai_output?.status as any) || "pending"}
+              status={
+                (item.openai_output?.status as "pending" | "success" | "error") ||
+                "pending"
+              }
             />{" "}
-            {/* eslint-disable-line @typescript-eslint/no-explicit-any */}
             <span className="text-sm">
               {item.openai_output?.status || "unknown"}
             </span>
@@ -120,10 +122,13 @@ export function TaskSplitView({
             Available Tools ({item.openai_output.tools.length})
           </label>
           <div className="space-y-2 mt-1 max-h-32 overflow-auto">
-            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
             {item.openai_output.tools
               .slice(0, 5)
-              .map((tool: any, index: number) => (
+              .map(
+                (
+                  tool: { name?: string; description?: string },
+                  index: number,
+                ) => (
                 <div
                   key={index}
                   className="text-xs bg-muted p-2 rounded border"

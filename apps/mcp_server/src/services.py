@@ -21,10 +21,6 @@ from src.functions.template_from_sample import (
 )
 from src.functions.update_todos import update_todos
 from src.workflows.tools.add_agent_tool import AddAgentTool
-from src.workflows.tools.update_agent import UpdateAgent
-from src.workflows.tools.update_dataset import UpdateDataset
-from src.workflows.tools.update_integration import UpdateIntegration
-from src.workflows.tools.update_file import UpdateFile
 from src.workflows.tools.clickhouse_crud import (
     ClickHouseListDatabases,
     ClickHouseListTables,
@@ -58,6 +54,12 @@ from src.workflows.tools.test_failures import (
 )
 from src.workflows.tools.transform_data import (
     TransformData,
+)
+from src.workflows.tools.update_agent import UpdateAgent
+from src.workflows.tools.update_dataset import UpdateDataset
+from src.workflows.tools.update_file import UpdateFile
+from src.workflows.tools.update_integration import (
+    UpdateIntegration,
 )
 from src.workflows.tools.update_todos import UpdateTodos
 from src.workflows.tools.update_view import UpdateView

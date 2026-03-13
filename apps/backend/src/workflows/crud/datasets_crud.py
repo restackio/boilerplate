@@ -31,14 +31,6 @@ with import_functions():
         list_dataset_files,
         query_dataset_events,
     )
-    from src.functions.tasks_crud import (
-        GetViewInput,
-        GetViewOutput,
-        ListViewsForDatasetInput,
-        ListViewsForDatasetOutput,
-        tasks_get_view_by_id,
-        tasks_list_views_for_dataset,
-    )
     from src.functions.embed_anything_ingestion import (
         EmbedAnythingPdfInput,
         embed_anything_pdf_to_events,
@@ -46,6 +38,14 @@ with import_functions():
     from src.functions.embed_model_loader import (
         EnsureEmbedModelInput,
         ensure_embed_model_loaded,
+    )
+    from src.functions.tasks_crud import (
+        GetViewInput,
+        GetViewOutput,
+        ListViewsForDatasetInput,
+        ListViewsForDatasetOutput,
+        tasks_get_view_by_id,
+        tasks_list_views_for_dataset,
     )
 
 

@@ -55,8 +55,13 @@ run_admin_sql() {
 if [ "$workspace_exists" = "0" ]; then
   echo "→ Inserting admin data (workspace, user, build agent, template)..."
   if [ -f "$ADMIN_SQL_FILE" ]; then
-    ADMIN_PASS=$(python3 "$SCRIPT_DIR/generate_admin_password.py" "$ADMIN_SQL_FILE" 2>&1 | head -1)
-    python3 "$SCRIPT_DIR/generate_admin_password.py" "$ADMIN_SQL_FILE" 2>/dev/null | psql "$DATABASE_URL" -f - > /dev/null
+    GEN_OUT=$(mktemp)
+    trap 'rm -f "$GEN_OUT"' EXIT
+    python3 "$SCRIPT_DIR/generate_admin_password.py" "$ADMIN_SQL_FILE" 2>/dev/null > "$GEN_OUT"
+    ADMIN_PASS=$(head -1 "$GEN_OUT")
+    tail -n +3 "$GEN_OUT" | psql "$DATABASE_URL" -f - > /dev/null
+    rm -f "$GEN_OUT"
+    trap - EXIT
     echo "✓ PostgreSQL admin data inserted"
   else
     echo "⚠ Warning: $ADMIN_SQL_FILE not found"
