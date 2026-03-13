@@ -23,7 +23,6 @@ export default function NewAgentTaskPage() {
   const [notFound, setNotFound] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [isUpdating, setIsUpdating] = useState(false);
 
   const loadTask = useCallback(async () => {
     if (!taskId || !getTaskById) return;
@@ -85,7 +84,6 @@ export default function NewAgentTaskPage() {
   const handleUpdateTask = useCallback(
     async (updates: Partial<Task>) => {
       if (!task?.id || !updateTask) return;
-      setIsUpdating(true);
       try {
         const updateData = {
           title: task.title ?? "Build",
@@ -104,8 +102,6 @@ export default function NewAgentTaskPage() {
       } catch (error) {
         console.error("Failed to update task:", error);
         throw error;
-      } finally {
-        setIsUpdating(false);
       }
     },
     [task, updateTask, handleTaskRefetch, router]
