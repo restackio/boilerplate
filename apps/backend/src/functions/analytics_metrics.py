@@ -113,8 +113,7 @@ async def get_analytics_metrics(
         log.error(f"Failed to fetch analytics metrics: {e}")
         # Return partial results if available
         return result
-    else:
-        return result
+    return result
 
 
 async def _get_performance_metrics(

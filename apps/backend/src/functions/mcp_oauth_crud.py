@@ -309,6 +309,7 @@ async def oauth_token_create_or_update(
                     function_input.auth_type
                 )
                 existing_token.is_default = should_be_default
+                existing_token.token_name = function_input.token_name
                 existing_token.updated_at = datetime.now(
                     UTC
                 ).replace(tzinfo=None)

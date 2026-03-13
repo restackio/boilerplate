@@ -7,7 +7,7 @@ import {
   type Task,
 } from "@/hooks/use-workspace-scoped-actions";
 import { CenteredLoading } from "@workspace/ui/components/loading-states";
-import { BuildSessionView } from "@/app/(dashboard)/build/build-session-view";
+import { BuildSessionView } from "../../../build/build-session-view";
 
 export default function NewAgentTaskPage() {
   const params = useParams();

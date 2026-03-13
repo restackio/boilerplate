@@ -25,6 +25,9 @@ from restack_ai.function import NonRetryableError, function, log
 
 from .mcp_oauth_crud import GetOAuthTokenInput
 
+# OAuth 2.0 token endpoint auth method (RFC 7591); not a secret.
+TOKEN_ENDPOINT_AUTH_METHOD_CLIENT_SECRET_POST = "client_secret_post"
+
 
 async def register_oauth_client(
     client: httpx.AsyncClient,
@@ -694,7 +697,7 @@ async def oauth_generate_auth_url(
             # Use client_secret_post so token exchange sends credentials in body; some
             # providers (e.g. Attio) reject Basic auth for dynamically registered clients.
             registration_data["token_endpoint_auth_method"] = (
-                "client_secret_post"  # noqa: S105
+                TOKEN_ENDPOINT_AUTH_METHOD_CLIENT_SECRET_POST
             )
 
             reg_response = await client.post(
