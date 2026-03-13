@@ -91,7 +91,7 @@ function PublicChatInner({ task }: { task: PublicTask }) {
       task={{
           id: task.id,
           title: "",
-          status: isTaskStatus(task.status) ? task.status : "in_progress",
+          status: (isTaskStatus(task.status) ? task.status : "in_progress") as TaskStatus,
           agent_id: "",
           agent_name: "",
           assigned_to_id: "",
