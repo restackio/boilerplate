@@ -52,6 +52,7 @@ class GenerateMockOutput(BaseModel):
 
 
 @workflow.defn(
+    mcp=True,
     description="Generate mock data for any integration"
 )
 class GenerateMock:

@@ -50,6 +50,7 @@ class UpdateViewOutput(BaseModel):
 
 
 @workflow.defn(
+    mcp=True,
     description="Create or update a view on the Build task. Pass task_id from meta_info and the view spec (id, name, columns, dataset_id). If view_id matches an existing view it is updated; otherwise the view is added. Use this single tool for both creating and updating views.",
 )
 class UpdateView:

@@ -1,7 +1,7 @@
 """MCP tool for creating or updating an agent (interactive or pipeline).
 
 Single tool: create if agent_id is omitted; update if agent_id is provided and exists.
-Tools are not added automatically; use addagenttool after creating/updating.
+Tools are not added automatically; use updateagenttool after creating/updating.
 """
 
 from datetime import timedelta
@@ -34,7 +34,7 @@ class UpdateAgentInput(BaseModel):
     description: str | None = Field(default=None, description="Optional description.")
     instructions: str | None = Field(default=None, description="Optional system instructions.")
     team_id: str | None = Field(default=None, description="Optional team ID.")
-    model: str | None = Field(default="gpt-5.2", description="Optional model (e.g. gpt-5.2).")
+    model: str | None = Field(default="gpt-5.4", description="Optional model (e.g. gpt-5.4).")
     reasoning_effort: str | None = Field(
         default=None,
         description="Optional: none, low, medium, high, xhigh",
@@ -54,7 +54,8 @@ class UpdateAgentOutput(BaseModel):
 
 
 @workflow.defn(
-    description="Create or update an agent. Omit agent_id to create; pass agent_id to update (e.g. after user tries the agent and wants changes). Use type pipeline for ETL agents, interactive for the parent/orchestrator. After create/update use addagenttool to add updatetodos and createsubtask to the parent.",
+    mcp=True,
+    description="Create or update an agent. Omit agent_id to create; pass agent_id to update (e.g. after user tries the agent and wants changes). Use type pipeline for ETL agents, interactive for the parent/orchestrator. After create/update use updateagenttool to add updatetodos and createsubtask to the parent.",
 )
 class UpdateAgent:
     """Workflow to create or update an agent via the backend."""
@@ -87,7 +88,7 @@ class UpdateAgent:
                     "status": workflow_input.status or "draft",
                 }
                 if workflow_input.model:
-                    update_payload["model"] = workflow_input.model.strip() or "gpt-5.2"
+                    update_payload["model"] = workflow_input.model.strip() or "gpt-5.4"
                 if workflow_input.reasoning_effort is not None:
                     update_payload["reasoning_effort"] = workflow_input.reasoning_effort
                 result = await workflow.step(
@@ -124,7 +125,7 @@ class UpdateAgent:
             }
             if team_id:
                 function_input["team_id"] = team_id
-            function_input["model"] = (workflow_input.model or "").strip() or "gpt-5.2"
+            function_input["model"] = (workflow_input.model or "").strip() or "gpt-5.4"
             if workflow_input.reasoning_effort is not None:
                 function_input["reasoning_effort"] = workflow_input.reasoning_effort
             result = await workflow.step(

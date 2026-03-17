@@ -95,7 +95,6 @@ export interface ToolListProps {
 
 export function ToolList({ tools, maxVisible = 3, className = "" }: ToolListProps) {
   const visibleTools = tools.slice(0, maxVisible);
-  const remainingCount = tools.length - maxVisible;
 
   return (
     <div className={`space-y-1 ${className}`}>
@@ -105,11 +104,6 @@ export function ToolList({ tools, maxVisible = 3, className = "" }: ToolListProp
           {tool.description && <span>: {tool.description}</span>}
         </div>
       ))}
-      {remainingCount > 0 && (
-        <p className="text-xs text-muted-foreground">
-          ... and {remainingCount} more tool{remainingCount === 1 ? '' : 's'}
-        </p>
-      )}
     </div>
   );
 }

@@ -47,6 +47,7 @@ class CreateSubtaskOutput(BaseModel):
 
 
 @workflow.defn(
+    mcp=True,
     description="""Create a subtask that runs another agent.
 
     Pass sub_agent_id = the agent that should run the subtask (e.g. pipeline agent for ETL, or the parent/orchestrator for a test run). You must pass parent_temporal_agent_id and parent_temporal_run_id from meta_info.

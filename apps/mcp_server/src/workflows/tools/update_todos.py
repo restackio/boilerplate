@@ -18,6 +18,7 @@ with import_functions():
 
 
 @workflow.defn(
+    mcp=True,
     description="Track multi-step task progress. Send full todo list each call: [{id, content, status: 'pending'|'in_progress'|'completed'}]. Add by including, complete by changing status, remove by excluding.",
 )
 class UpdateTodos:

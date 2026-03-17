@@ -51,9 +51,10 @@ async def llm_prepare_response(
             for msg in function_input.messages
         ]
 
+    resolved_model = function_input.model or "gpt-5.4"
     # Create OpenAI parameters
     create_params = {
-        "model": function_input.model or "gpt-5.4",
+        "model": resolved_model,
         "input": input_data,
         "tool_choice": "auto",
         "reasoning": {

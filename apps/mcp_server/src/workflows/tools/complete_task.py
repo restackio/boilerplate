@@ -88,6 +88,7 @@ class CompleteTaskOutput(BaseModel):
 
 
 @workflow.defn(
+    mcp=True,
     description="""Complete the current task and stop the agent.
 
     Use this when you have finished your work and want to mark the task as complete.

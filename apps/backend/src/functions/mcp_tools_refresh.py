@@ -133,7 +133,7 @@ class ListMcpServerToolsOutput(BaseModel):
     )
     tools: list[str] = Field(
         default_factory=list,
-        description="Tool names to pass to addagenttool",
+        description="Tool names to pass to updateagenttool",
     )
     error: str | None = Field(
         default=None, description="Error message if failed"
@@ -308,6 +308,13 @@ def _prepare_mcp_headers(
     return request_headers
 
 
+# Max pages when following tools/list pagination (MCP cursor-based).
+# Without pagination, only the first page is returned; the build agent's restack-core
+# has many tools (updatetodos, updateagenttool, updateview, etc.), so truncation
+# caused the LLM to see only a subset and report "missing updatetodos/updateview".
+MAX_TOOLS_LIST_PAGES = 100
+
+
 def _extract_tool_names_from_result(result: dict) -> list[str]:
     """Extract tool names from MCP result data."""
     if "tools" in result and isinstance(result["tools"], list):
@@ -319,106 +326,116 @@ def _extract_tool_names_from_result(result: dict) -> list[str]:
     return []
 
 
-async def _parse_sse_response(
+def _get_next_cursor(result: dict) -> str | None:
+    """Return nextCursor from MCP list result; None means no more pages."""
+    if not isinstance(result, dict):
+        return None
+    cursor = result.get("nextCursor")
+    if cursor is None:
+        return None
+    return cursor if isinstance(cursor, str) else None
+
+
+async def _parse_sse_tools_page(
     response_content: aiohttp.StreamReader,
-) -> McpToolsListOutput | None:
-    """Parse Server-Sent Events response for tools data."""
+) -> tuple[list[str], list[dict], str | None]:
+    """Parse one Server-Sent Events message for tools/list; returns (tool_names, tools_with_descriptions, next_cursor)."""
     current_data = ""
     async for line in response_content:
         line_text = line.decode("utf-8").strip()
         if line_text.startswith("data: "):
-            current_data += line_text[
-                6:
-            ]  # Remove "data: " prefix
+            current_data += line_text[6:]  # Remove "data: " prefix
         elif line_text == "" and current_data:
-            # End of event, try to parse JSON
             try:
                 tools_data = json.loads(current_data)
-                if (
-                    isinstance(tools_data, dict)
-                    and "result" in tools_data
-                ):
+                if isinstance(tools_data, dict) and "result" in tools_data:
                     result = tools_data["result"]
-                    tool_names = _extract_tool_names_from_result(
-                        result
-                    )
-                    if tool_names:
-                        return McpToolsSessionOutput(
-                            success=True, tools=tool_names
-                        )
-                current_data = ""  # Reset for next event
+                    tool_names = _extract_tool_names_from_result(result)
+                    tools_with_desc = _extract_tools_from_result(result)
+                    next_cursor = _get_next_cursor(result)
+                    return (tool_names, tools_with_desc, next_cursor)
             except json.JSONDecodeError:
-                current_data = ""  # Reset on parse error
-                continue
-            # Stop after first successful message
-            break
-    return None
+                pass
+            current_data = ""
+    return ([], [], None)
 
 
 @function.defn()
 async def mcp_tools_list(
     function_input: McpToolsSessionInput,
 ) -> McpToolsSessionOutput:
-    """Get tools list from an MCP server with an active session."""
+    """Get tools list from an MCP server with an active session (with cursor pagination)."""
     try:
+        all_tool_names: list[str] = []
+        all_tools_with_desc: list[dict] = []
+        cursor: str | None = None
+        request_id = 2
+
         async with aiohttp.ClientSession() as session:
             request_headers = _prepare_mcp_headers(
                 function_input.headers, function_input.session_id
             )
 
-            tools_payload = {
-                "jsonrpc": "2.0",
-                "id": 2,
-                "method": "tools/list",
-                "params": {},
-            }
+            for _ in range(MAX_TOOLS_LIST_PAGES):
+                tools_payload = {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "method": "tools/list",
+                    "params": {} if cursor is None else {"cursor": cursor},
+                }
+                request_id += 1
 
-            async with session.post(
-                function_input.mcp_endpoint,
-                json=tools_payload,
-                headers=request_headers,
-                timeout=10,
-            ) as tools_response:
-                if tools_response.status == 200:  # noqa: PLR2004
+                async with session.post(
+                    function_input.mcp_endpoint,
+                    json=tools_payload,
+                    headers=request_headers,
+                    timeout=10,
+                ) as tools_response:
+                    if tools_response.status != 200:  # noqa: PLR2004
+                        if not all_tool_names:
+                            return McpToolsSessionOutput(
+                                success=False,
+                                error=f"Failed to get tools list: HTTP {tools_response.status}",
+                            )
+                        break
+
                     content_type = tools_response.headers.get(
                         "content-type", ""
                     )
 
                     if "text/event-stream" in content_type:
-                        # Parse SSE format
-                        sse_result = await _parse_sse_response(
-                            tools_response.content
+                        tool_names, tools_with_desc, next_cursor = (
+                            await _parse_sse_tools_page(
+                                tools_response.content
+                            )
                         )
-                        if sse_result:
-                            return sse_result
                     else:
-                        # Regular JSON response
                         tools_data = await tools_response.json()
-                        if (
+                        if not (
                             isinstance(tools_data, dict)
                             and "result" in tools_data
                         ):
-                            result = tools_data["result"]
-                            tool_names = (
-                                _extract_tool_names_from_result(
-                                    result
-                                )
-                            )
-                            tools_with_desc = (
-                                _extract_tools_from_result(result)
-                            )
-                            if tool_names:
-                                return McpToolsSessionOutput(
-                                    success=True,
-                                    tools=tool_names,
-                                    tools_with_descriptions=tools_with_desc,
-                                )
+                            break
+                        result = tools_data["result"]
+                        tool_names = _extract_tool_names_from_result(
+                            result
+                        )
+                        tools_with_desc = _extract_tools_from_result(
+                            result
+                        )
+                        next_cursor = _get_next_cursor(result)
 
-                return McpToolsSessionOutput(
-                    success=False,
-                    error=f"Failed to get tools list: HTTP {tools_response.status}",
-                )
+                    all_tool_names.extend(tool_names)
+                    all_tools_with_desc.extend(tools_with_desc)
+                    cursor = next_cursor
+                    if cursor is None:
+                        break
 
+            return McpToolsSessionOutput(
+                success=True,
+                tools=all_tool_names,
+                tools_with_descriptions=all_tools_with_desc,
+            )
     except (
         ValueError,
         TypeError,
@@ -437,15 +454,18 @@ async def mcp_tools_list(
 async def mcp_tools_list_direct(
     function_input: McpToolsListDirectInput,
 ) -> McpToolsListDirectOutput:
-    """Get tools list from an MCP server without session management (for servers that don't require sessions)."""
+    """Get tools list from an MCP server without session management (with cursor pagination)."""
     try:
-        # Get the effective server URL (use RESTACK_ENGINE_MCP_ADDRESS for local servers)
         effective_url = _get_effective_server_url(
             local=function_input.local,
             server_url=function_input.server_url,
         )
-
         log.info(f"Effective URL: {effective_url}")
+
+        all_tool_names: list[str] = []
+        all_tools_with_desc: list[dict] = []
+        cursor: str | None = None
+        request_id = 1
 
         async with aiohttp.ClientSession() as session:
             request_headers = function_input.headers or {}
@@ -459,103 +479,66 @@ async def mcp_tools_list_direct(
                 "MCP-Protocol-Version", "2025-03-26"
             )
 
-            tools_payload = {
-                "jsonrpc": "2.0",
-                "id": 1,
-                "method": "tools/list",
-                "params": {},
-            }
+            for _ in range(MAX_TOOLS_LIST_PAGES):
+                tools_payload = {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "method": "tools/list",
+                    "params": {} if cursor is None else {"cursor": cursor},
+                }
+                request_id += 1
 
-            async with session.post(
-                effective_url,
-                json=tools_payload,
-                headers=request_headers,
-                timeout=10,
-            ) as tools_response:
-                if tools_response.status == 200:  # noqa: PLR2004
-                    # Parse response based on content type
+                async with session.post(
+                    effective_url,
+                    json=tools_payload,
+                    headers=request_headers,
+                    timeout=10,
+                ) as tools_response:
+                    if tools_response.status != 200:  # noqa: PLR2004
+                        if not all_tool_names:
+                            return McpToolsListDirectOutput(
+                                success=False,
+                                error=f"Failed to get tools list: HTTP {tools_response.status}",
+                            )
+                        break
+
                     content_type = tools_response.headers.get(
                         "content-type", ""
                     )
 
-                    # Debug: Log the response details
-
                     if "text/event-stream" in content_type:
-                        # Parse SSE format - read line by line to avoid timeout
-                        current_data = ""
-                        async for line in tools_response.content:
-                            line_text = line.decode(
-                                "utf-8"
-                            ).strip()
-                            if line_text.startswith("data: "):
-                                current_data += line_text[
-                                    6:
-                                ]  # Remove "data: " prefix
-                            elif line_text == "" and current_data:
-                                # End of event, try to parse JSON
-                                try:
-                                    tools_data = json.loads(
-                                        current_data
-                                    )
-                                    if (
-                                        isinstance(
-                                            tools_data, dict
-                                        )
-                                        and "result" in tools_data
-                                    ):
-                                        result = tools_data[
-                                            "result"
-                                        ]
-                                        tool_names = _extract_tool_names_from_result(
-                                            result
-                                        )
-                                        tools_with_desc = _extract_tools_from_result(
-                                            result
-                                        )
-                                        return McpToolsListDirectOutput(
-                                            success=True,
-                                            tools=tool_names,
-                                            tools_with_descriptions=tools_with_desc,
-                                        )
-                                    current_data = (
-                                        ""  # Reset for next event
-                                    )
-                                except json.JSONDecodeError:
-                                    current_data = (
-                                        ""  # Reset on parse error
-                                    )
-                                    continue
-                                # Stop after first successful message
-                                break
+                        tool_names, tools_with_desc, next_cursor = (
+                            await _parse_sse_tools_page(
+                                tools_response.content
+                            )
+                        )
                     else:
-                        # Regular JSON response
                         tools_data = await tools_response.json()
-
-                        if (
+                        if not (
                             isinstance(tools_data, dict)
                             and "result" in tools_data
                         ):
-                            result = tools_data["result"]
-                            tool_names = (
-                                _extract_tool_names_from_result(
-                                    result
-                                )
-                            )
-                            tools_with_desc = (
-                                _extract_tools_from_result(result)
-                            )
+                            break
+                        result = tools_data["result"]
+                        tool_names = _extract_tool_names_from_result(
+                            result
+                        )
+                        tools_with_desc = _extract_tools_from_result(
+                            result
+                        )
+                        next_cursor = _get_next_cursor(result)
 
-                            return McpToolsListDirectOutput(
-                                success=True,
-                                tools=tool_names,
-                                tools_with_descriptions=tools_with_desc,
-                            )
+                    all_tool_names.extend(tool_names)
+                    all_tools_with_desc.extend(tools_with_desc)
+                    cursor = next_cursor
+                    if cursor is None:
+                        break
 
-                return McpToolsListDirectOutput(
-                    success=False,
-                    error=f"Failed to get tools list: HTTP {tools_response.status}",
-                )
-
+        return McpToolsListDirectOutput(
+            success=True,
+            tools=all_tool_names,
+            tools_with_descriptions=all_tools_with_desc,
+        )
     except (
         ValueError,
         TypeError,
@@ -574,7 +557,7 @@ async def mcp_tools_list_direct(
 async def list_mcp_server_tools(
     function_input: ListMcpServerToolsInput,
 ) -> ListMcpServerToolsOutput:
-    """List tool names for an MCP server by ID (for build agent: use before addagenttool)."""
+    """List tool names for an MCP server by ID (for build agent: use before updateagenttool)."""
     try:
         async for db in get_async_db():
             server_row = await db.execute(

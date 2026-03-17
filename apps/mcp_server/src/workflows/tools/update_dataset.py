@@ -44,6 +44,7 @@ class UpdateDatasetOutput(BaseModel):
 
 
 @workflow.defn(
+    mcp=True,
     description="Create or update a dataset (table). Omit dataset_id to create; pass dataset_id to update name/description (e.g. after user feedback). Pass workspace_id from meta_info, name as slug, optional description.",
 )
 class UpdateDataset:

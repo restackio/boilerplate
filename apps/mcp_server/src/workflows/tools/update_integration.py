@@ -40,15 +40,16 @@ class UpdateIntegrationOutput(BaseModel):
     success: bool = Field(..., description="True if the integration was created or updated")
     mcp_server_id: str | None = Field(
         default=None,
-        description="ID of the MCP server; use in addagenttool to attach tools.",
+        description="ID of the MCP server; use in updateagenttool to attach tools.",
     )
     created: bool = Field(default=False, description="True if a new integration was created")
     error: str | None = Field(default=None, description="Error message if failed")
 
 
 @workflow.defn(
+    mcp=True,
     name="UpdateIntegration",
-    description="Create or update a workspace integration from a remote MCP URL. Omit mcp_server_id to create (after searchremotemcpdirectory); pass mcp_server_id to update label/description. Returns mcp_server_id; then use listintegrationtools and addagenttool to attach tools to agents.",
+    description="Create or update a workspace integration from a remote MCP URL. Omit mcp_server_id to create (after searchremotemcpdirectory); pass mcp_server_id to update label/description. Returns mcp_server_id; then use listintegrationtools and updateagenttool to attach tools to agents.",
 )
 class UpdateIntegration:
     """Create or update an MCP server integration in the workspace via the backend."""

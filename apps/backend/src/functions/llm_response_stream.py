@@ -1,4 +1,5 @@
 import asyncio
+import os
 import warnings
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
@@ -511,14 +512,17 @@ async def llm_response_stream(  # noqa: C901, PLR0915
     try:
         # Prefer workspace OpenAI key (stored encrypted in Integrations) so it is never logged
         client = None
+        api_key_used: str | None = None
         if function_input.workspace_id:
-            api_key = await get_workspace_openai_api_key(
+            api_key_used = await get_workspace_openai_api_key(
                 function_input.workspace_id
             )
-            if api_key:
-                client = AsyncOpenAI(api_key=api_key)
+            if api_key_used:
+                client = AsyncOpenAI(api_key=api_key_used)
         if client is None:
             client = get_openai_client()
+            if client is not None:
+                api_key_used = os.environ.get("OPENAI_API_KEY")
 
         if client is None:
             msg = (
@@ -526,6 +530,15 @@ async def llm_response_stream(  # noqa: C901, PLR0915
                 "Add your key in Integrations (OpenAI), or set OPENAI_API_KEY for development."
             )
             raise ValueError(msg)
+
+        # Use same key for trace export (avoids "OPENAI_API_KEY is not set, skipping trace export" when key is from DB)
+        if api_key_used:
+            try:
+                from agents import set_tracing_export_api_key
+
+                set_tracing_export_api_key(api_key_used)
+            except ImportError:
+                pass
 
         # Check if tracing SDK is available
         try:

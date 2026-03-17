@@ -58,6 +58,7 @@ class UpdateFileOutput(BaseModel):
 
 
 @workflow.defn(
+    mcp=True,
     description="Create or update a file (e.g. markdown) in a dataset. Pass workspace_id, dataset_id, source (file path like notes.md), content (full text), and agent_id from meta_info. Overwrites any existing event with the same source so the same agent or others can read then update the file. Use for shared notes, plans, or state that agents can refer to and modify.",
 )
 class UpdateFile:

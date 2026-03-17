@@ -138,6 +138,7 @@ class TestFailuresOutput(BaseModel):
 
 
 @workflow.defn(
+    mcp=True,
     description="Mock MCP tool that fails on purpose for testing error handling"
 )
 class TestFailures:

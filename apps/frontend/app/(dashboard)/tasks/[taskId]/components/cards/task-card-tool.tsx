@@ -23,7 +23,8 @@ interface TaskCardToolProps {
 export function TaskCardTool({ item, onClick }: TaskCardToolProps) {
   const [isOpen, setIsOpen] = useState(false);
   const { toolOutput, isFailed, toolArguments, isCompleted, isPending, toolName } = useConversationItem(item);
-  const tools = item.openai_output?.tools;
+  const streamTools = item.openai_output?.tools as { name?: string; description?: string }[] | undefined;
+  const tools = streamTools?.map((t) => ({ name: t?.name ?? "", description: t?.description })).filter((t) => t.name) ?? [];
   const hasError = item.openai_output?.error;
   const duration = typeof item.duration_seconds === 'number' 
     ? item.duration_seconds 

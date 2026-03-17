@@ -66,6 +66,7 @@ with import_functions():
 
 
 @workflow.defn(
+    mcp=True,
     description="Transform data using AI with structured output"
 )
 class TransformData:
