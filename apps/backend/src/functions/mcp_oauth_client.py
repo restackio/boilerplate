@@ -854,9 +854,7 @@ async def oauth_exchange_code_for_token(  # noqa: PLR0915
                 client_id=final_client_id,
                 client_secret=final_client_secret,
                 # Include provider-specific metadata
-                provider_metadata=provider_metadata
-                if provider_metadata
-                else None,
+                provider_metadata=provider_metadata or None,
             )
 
             return TokenExchangeResultOutput(
