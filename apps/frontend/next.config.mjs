@@ -29,8 +29,16 @@ const nextConfig = {
     // Optimize package imports
     optimizePackageImports: ["@workspace/ui"],
     // Allow large payloads for Server Actions (e.g. base64 file content)
+    // allowedOrigins: when behind Restack proxy, x-forwarded-host (e.g. *.restack.it)
+    // can differ from origin (e.g. ai.restack.io); whitelist both so actions are accepted
     serverActions: {
       bodySizeLimit: "50mb",
+      allowedOrigins: [
+        "rehdiqqp.cl921olb.usa.restack.it",
+        "ai.restack.io",
+        "*.restack.it",
+        "localhost:3000",
+      ],
     },
   },
 };
