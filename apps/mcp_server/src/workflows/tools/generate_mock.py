@@ -52,8 +52,7 @@ class GenerateMockOutput(BaseModel):
 
 
 @workflow.defn(
-    mcp=True,
-    description="Generate mock data for any integration"
+    mcp=True, description="Generate mock data for any integration"
 )
 class GenerateMock:
     """Generate mock data for any integration using templates."""

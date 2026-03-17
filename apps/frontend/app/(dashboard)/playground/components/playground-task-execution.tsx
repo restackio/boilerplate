@@ -258,7 +258,7 @@ export function PlaygroundTaskExecution({
         if (!isMounted) return;
 
         if (result.success && result.data) {
-          setTask(result.data);
+          setTask(result.data as Task);
           setError(null);
         } else {
           setError(result.error || "Failed to load task");

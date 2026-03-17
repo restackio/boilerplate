@@ -194,7 +194,7 @@ export default function TaskDetailPage() {
     try {
       const result = await getTaskById(taskId);
       if (result.success && result.data) {
-        setTask(result.data);
+        setTask(result.data as Task);
       } else {
         setError(result.error || "Failed to load task");
       }

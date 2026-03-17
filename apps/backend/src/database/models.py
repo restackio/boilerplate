@@ -507,6 +507,11 @@ class Task(Base):
         nullable=False,
         server_default="[]",
     )  # View definitions for Build: [{id, name, columns, dataset_id, ...}]
+    pattern_specs = Column(
+        JSONB,
+        nullable=False,
+        server_default="{}",
+    )  # Agent design pattern: { title?, nodes, edges } for React Flow; updated as build creates/updates entities
     created_at = Column(
         DateTime,
         default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),

@@ -35,10 +35,6 @@ with import_functions():
         EmbedAnythingPdfInput,
         embed_anything_pdf_to_events,
     )
-    from src.functions.embed_model_loader import (
-        EnsureEmbedModelInput,
-        ensure_embed_model_loaded,
-    )
     from src.functions.tasks_crud import (
         GetViewInput,
         GetViewOutput,
@@ -226,7 +222,9 @@ class ListViewsForDatasetWorkflow:
                 task_queue=TASK_QUEUE,
             )
         except Exception as e:
-            log.error("Error during tasks_list_views_for_dataset: %s", e)
+            log.error(
+                "Error during tasks_list_views_for_dataset: %s", e
+            )
             raise NonRetryableError(
                 message=f"Error during tasks_list_views_for_dataset: {e}"
             ) from e
@@ -237,7 +235,9 @@ class GetViewWorkflow:
     """Get a single view spec by id for the given dataset."""
 
     @workflow.run
-    async def run(self, function_input: GetViewInput) -> GetViewOutput:
+    async def run(
+        self, function_input: GetViewInput
+    ) -> GetViewOutput:
         log.info("GetViewWorkflow started")
         try:
             return await workflow.step(
@@ -302,15 +302,6 @@ class AddFilesToDatasetWorkflow:
 
         log.info(
             f"AddFilesToDatasetWorkflow started: dataset_id={workflow_input.dataset_id}, files={len(workflow_input.files_with_content)}"
-        )
-
-        # Ensure embed model is loaded on this worker (once per worker; later steps reuse)
-        await workflow.step(
-            function=ensure_embed_model_loaded,
-            function_input=EnsureEmbedModelInput(),
-            start_to_close_timeout=timedelta(minutes=5),
-            task_queue=TASK_QUEUE_EMBED,
-            max_attempts=2,
         )
 
         for item in workflow_input.files_with_content:

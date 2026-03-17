@@ -219,7 +219,9 @@ class LoadIntoDataset:
             storage_type = "clickhouse"
             for dataset in datasets_result["datasets"]:
                 if dataset["name"] == workflow_input.dataset_name:
-                    storage_type = dataset.get("storage_type", "clickhouse")
+                    storage_type = dataset.get(
+                        "storage_type", "clickhouse"
+                    )
                     break
 
             # Build events list (same shape regardless of storage backend)

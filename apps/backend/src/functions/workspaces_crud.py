@@ -48,6 +48,7 @@ class WorkspaceOutput(BaseModel):
     is_admin: bool = False
     created_at: str | None = None
     updated_at: str | None = None
+    openai_mcp_server_id: str | None = None
 
 
 class WorkspaceSingleOutput(BaseModel):
@@ -174,6 +175,7 @@ async def workspaces_create(
                 updated_at=workspace.updated_at.isoformat()
                 if workspace.updated_at
                 else None,
+                openai_mcp_server_id=str(openai_server.id),
             )
 
             return WorkspaceSingleOutput(workspace=result)

@@ -13,12 +13,60 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@workspace/ui/components/ui/button";
-import { Task } from "@/hooks/use-workspace-scoped-actions";
+import { PatternFlowViewer } from "@workspace/ui/components/pattern-flow-viewer";
+import {
+  Task,
+  type PatternSpecs,
+} from "@/hooks/use-workspace-scoped-actions";
 
 interface CreatedItem {
   id: string;
   name: string;
   href?: string;
+}
+
+/** Derive created agents, datasets, views, integrations from task.pattern_specs nodes (single source of truth when present). */
+function deriveCreatedFromPatternSpecs(patternSpecs: PatternSpecs | undefined): {
+  agents: CreatedItem[];
+  datasets: CreatedItem[];
+  views: { id: string; name: string; href: string }[];
+  integrations: CreatedItem[];
+} {
+  const nodes = patternSpecs?.nodes ?? [];
+  const agents: CreatedItem[] = [];
+  const datasets: CreatedItem[] = [];
+  const views: { id: string; name: string; href: string }[] = [];
+  const integrations: CreatedItem[] = [];
+  const seen = {
+    agent: new Set<string>(),
+    dataset: new Set<string>(),
+    view: new Set<string>(),
+    integration: new Set<string>(),
+  };
+  for (const node of nodes) {
+    const et = node.data?.entityType;
+    const id = node.data?.entityId ?? node.id;
+    const name = node.data?.label ?? "Unnamed";
+    const href = node.data?.href;
+    if (et === "agent" && id && !seen.agent.has(id)) {
+      seen.agent.add(id);
+      agents.push({ id, name, href: href ?? `/agents/${id}` });
+    } else if (et === "dataset" && id && !seen.dataset.has(id)) {
+      seen.dataset.add(id);
+      datasets.push({ id, name, href: href ?? `/datasets/${id}` });
+    } else if (et === "view" && id && !seen.view.has(id)) {
+      seen.view.add(id);
+      views.push({
+        id,
+        name,
+        href: href ?? "#",
+      });
+    } else if (et === "integration" && id && !seen.integration.has(id)) {
+      seen.integration.add(id);
+      integrations.push({ id, name, href: href ?? `/integrations/${id}` });
+    }
+  }
+  return { agents, datasets, views, integrations };
 }
 
 /** Single row: icon + link + category label (e.g. "• View"). */
@@ -159,44 +207,77 @@ export function TaskCreatedList({
       }
     | undefined;
 
+  const fromPatternSpecs = useMemo(
+    () => deriveCreatedFromPatternSpecs(task.pattern_specs),
+    [task.pattern_specs],
+  );
   const derived = useMemo(
-    () =>
-      deriveCreatedFromEvents(liveState ?? task.agent_state),
+    () => deriveCreatedFromEvents(liveState ?? task.agent_state),
     [liveState, task.agent_state],
   );
 
-  const createdAgents =
-    (agentState?.created_agents?.length
-      ? agentState.created_agents
-      : derived.agents) ?? [];
-  const createdDatasets =
-    (agentState?.created_datasets?.length
-      ? agentState.created_datasets
-      : derived.datasets) ?? [];
-  const createdIntegrations =
-    (agentState?.created_integrations?.length
-      ? agentState.created_integrations
-      : derived.integrations) ?? [];
+  const hasPatternEntities =
+    (task.pattern_specs?.nodes?.length ?? 0) > 0 &&
+    (fromPatternSpecs.agents.length > 0 ||
+      fromPatternSpecs.datasets.length > 0 ||
+      fromPatternSpecs.views.length > 0 ||
+      fromPatternSpecs.integrations.length > 0);
+
+  const createdAgents = hasPatternEntities
+    ? fromPatternSpecs.agents
+    : (agentState?.created_agents?.length
+        ? agentState.created_agents
+        : derived.agents) ?? [];
+  const createdDatasets = hasPatternEntities
+    ? fromPatternSpecs.datasets
+    : (agentState?.created_datasets?.length
+        ? agentState.created_datasets
+        : derived.datasets) ?? [];
+  const createdIntegrations = hasPatternEntities
+    ? fromPatternSpecs.integrations
+    : (agentState?.created_integrations?.length
+        ? agentState.created_integrations
+        : derived.integrations) ?? [];
+  const createdViewsFromPattern = hasPatternEntities
+    ? fromPatternSpecs.views
+    : [];
+
+  const viewItems =
+    viewSpecs.length > 0
+      ? viewSpecs.map((view) => ({
+          id: view.id,
+          name: view.name,
+          href: `/datasets/${view.dataset_id}/views/${view.id}`,
+        }))
+      : createdViewsFromPattern;
 
   const hasAny =
-    viewSpecs.length > 0 ||
+    viewItems.length > 0 ||
     createdAgents.length > 0 ||
     createdDatasets.length > 0 ||
     createdIntegrations.length > 0;
 
+  const hasPatternFlow =
+    (task.pattern_specs?.nodes?.length ?? 0) > 0;
+
   const totalCount =
-    viewSpecs.length +
+    viewItems.length +
     createdAgents.length +
     createdDatasets.length +
     createdIntegrations.length;
 
-  const [isExpanded, setIsExpanded] = useState(hasAny);
+  const sectionTitle =
+    task.status === "in_progress" ? "Plan" : "Created";
+
+  const hasContent = hasPatternFlow || hasAny;
+
+  const [isExpanded, setIsExpanded] = useState(hasContent);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Auto-expand when items appear (e.g. after refresh)
+  // Auto-expand when content appears (flow or list)
   useEffect(() => {
-    if (hasAny) setIsExpanded(true);
-  }, [hasAny]);
+    if (hasContent) setIsExpanded(true);
+  }, [hasContent]);
 
   const handleRefresh = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -209,10 +290,7 @@ export function TaskCreatedList({
     }
   };
 
-  // Hide list when there are no items (don't show "Created" with 0 items)
-  if (!hasAny) {
-    return null;
-  }
+  if (!hasContent) return null;
 
   return (
     <div className="max-w-4xl mx-auto border border-border/40 bg-muted/90 p-2 rounded-lg space-y-2">
@@ -227,10 +305,12 @@ export function TaskCreatedList({
             <ChevronRight className="h-4 w-4" />
           )}
         </Button>
-        <span className="text-sm font-medium text-foreground">Created</span>
-        <span className="text-sm text-muted-foreground">
-          {totalCount} item{totalCount !== 1 ? "s" : ""}
-        </span>
+        <span className="text-sm font-medium text-foreground">{sectionTitle}</span>
+        {hasAny && (
+          <span className="text-sm text-muted-foreground">
+            {totalCount} item{totalCount !== 1 ? "s" : ""}
+          </span>
+        )}
         {onRefresh && (
           <Button
             variant="ghost"
@@ -248,16 +328,22 @@ export function TaskCreatedList({
       </div>
 
       {isExpanded && (
-        <div className="space-y-2 pl-1">
-          <CreatedSection
-            icon={LayoutGrid}
-            items={viewSpecs.map((view) => ({
-              id: view.id,
-              name: view.name,
-              href: `/datasets/${view.dataset_id}/views/${view.id}`,
-            }))}
-            categoryLabel="View"
-          />
+        <div className="space-y-3 pl-1">
+          {hasPatternFlow && task.pattern_specs && (
+            <div className="rounded-md border border-border/60 bg-background/80 overflow-hidden">
+              <PatternFlowViewer
+                patternSpecs={task.pattern_specs}
+                height={260}
+                className="w-full"
+              />
+            </div>
+          )}
+          <div className="space-y-2">
+            <CreatedSection
+              icon={LayoutGrid}
+              items={viewItems}
+              categoryLabel="View"
+            />
           <CreatedSection
             icon={Bot}
             items={createdAgents.map((item) => ({
@@ -285,6 +371,7 @@ export function TaskCreatedList({
             }))}
             categoryLabel="Integration"
           />
+          </div>
         </div>
       )}
     </div>

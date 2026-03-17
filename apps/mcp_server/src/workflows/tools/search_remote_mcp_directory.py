@@ -33,12 +33,17 @@ class RemoteMcpEntry(BaseModel):
 class SearchRemoteMcpDirectoryOutput(BaseModel):
     """Search results from the remote MCP directory."""
 
-    success: bool = Field(..., description="True if the directory was read successfully")
+    success: bool = Field(
+        ...,
+        description="True if the directory was read successfully",
+    )
     entries: list[RemoteMcpEntry] = Field(
         default_factory=list,
         description="Matching remote MCP entries (use server_url and server_label to create integration)",
     )
-    error: str | None = Field(default=None, description="Error message if failed")
+    error: str | None = Field(
+        default=None, description="Error message if failed"
+    )
 
 
 @workflow.defn(
@@ -62,7 +67,8 @@ class SearchRemoteMcpDirectory:
             )
             if result is None:
                 return SearchRemoteMcpDirectoryOutput(
-                    success=False, error="Backend returned no result"
+                    success=False,
+                    error="Backend returned no result",
                 )
             entries = (
                 result.get("entries", [])
@@ -88,7 +94,9 @@ class SearchRemoteMcpDirectory:
                     RemoteMcpEntry(
                         id=getattr(e, "id", ""),
                         name=getattr(e, "name", ""),
-                        server_label=getattr(e, "server_label", ""),
+                        server_label=getattr(
+                            e, "server_label", ""
+                        ),
                         server_url=getattr(e, "server_url", ""),
                         description=getattr(e, "description", ""),
                         tags=e.tags or [],
@@ -96,9 +104,13 @@ class SearchRemoteMcpDirectory:
                     )
                     for e in entries
                 ]
-            return SearchRemoteMcpDirectoryOutput(success=True, entries=out_entries)
+            return SearchRemoteMcpDirectoryOutput(
+                success=True, entries=out_entries
+            )
         except Exception as e:  # noqa: BLE001
-            log.error("SearchRemoteMcpDirectory failed", error=str(e))
+            log.error(
+                "SearchRemoteMcpDirectory failed", error=str(e)
+            )
             return SearchRemoteMcpDirectoryOutput(
                 success=False,
                 error=f"Failed to search directory: {e!s}",

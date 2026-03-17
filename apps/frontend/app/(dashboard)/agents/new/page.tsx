@@ -7,6 +7,7 @@ import {
   useWorkspaceScopedActions,
   type Task,
 } from "@/hooks/use-workspace-scoped-actions";
+import { getOrCreateTaskFilesDatasetId } from "@/app/actions/workflow";
 import { AddOpenAITokenDialog } from "@/app/(dashboard)/integrations/components/add-openai-token-dialog";
 import { Button } from "@workspace/ui/components/ui/button";
 import { Textarea } from "@workspace/ui/components/ui/textarea";
@@ -42,6 +43,11 @@ const STARTER_PROMPTS: { title: string; prompt: string }[] = [
     prompt:
       "Build a support triage agent that reads tickets, classifies by priority and category, and suggests responses. I need a table of tickets and views for open vs resolved.",
   },
+  {
+    title: "Content marketing policy validation",
+    prompt:
+      "Build a content marketing policy validation agent only: no pipeline agent. I will upload my policy PDFs to this task (they go into the workspace task-files dataset). Create one interactive agent that uses that dataset to check whether marketing content (copy, campaigns, assets) complies with the policy and reports violations with suggested fixes.",
+  },
 ];
 
 export default function NewAgentPage() {
@@ -75,10 +81,7 @@ export default function NewAgentPage() {
   }, [teams, selectedTeamId]);
 
   const handleStartConversation = useCallback(
-    async (
-      message: string,
-      options?: { skipTokenCheck?: boolean },
-    ) => {
+    async (message: string, options?: { skipTokenCheck?: boolean }) => {
       if (!currentWorkspaceId || !message.trim() || creating || !isReady)
         return;
       if (!options?.skipTokenCheck && !hasWorkspaceOpenAIToken) {
@@ -88,6 +91,18 @@ export default function NewAgentPage() {
       setCreating(true);
       setBuildAgentError(null);
       try {
+        let description = message.trim();
+        const isPolicyValidationStarter =
+          /content marketing policy validation/i.test(description) &&
+          /no pipeline|task-files/i.test(description);
+        if (isPolicyValidationStarter) {
+          const policyDatasetId = await getOrCreateTaskFilesDatasetId(
+            currentWorkspaceId,
+          );
+          if (policyDatasetId) {
+            description += `\n\n[Build instruction: dataset_id for policy docs is ${policyDatasetId}. Do not create a pipeline agent or a new dataset. Create only one interactive agent attached to this dataset (use this dataset_id for the view). Add context-store tools so the agent can query the dataset.]`;
+          }
+        }
         const buildRes = await getBuildAgent();
         // executeWorkflow unwraps { agent } so data is the agent object directly
         const buildAgent = buildRes.data as { id?: string } | null;
@@ -103,7 +118,7 @@ export default function NewAgentPage() {
         }
         const result = await createTask({
           title: "Build",
-          description: message.trim(),
+          description,
           status: "in_progress",
           agent_id: agentId,
           assigned_to_id: currentUser?.id ?? "",

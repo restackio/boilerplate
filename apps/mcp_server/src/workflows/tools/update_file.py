@@ -52,9 +52,15 @@ class UpdateFileInput(BaseModel):
 class UpdateFileOutput(BaseModel):
     """Output after creating or updating a file."""
 
-    success: bool = Field(..., description="True if the file was written")
-    source: str | None = Field(default=None, description="File source path")
-    error: str | None = Field(default=None, description="Error message if failed")
+    success: bool = Field(
+        ..., description="True if the file was written"
+    )
+    source: str | None = Field(
+        default=None, description="File source path"
+    )
+    error: str | None = Field(
+        default=None, description="Error message if failed"
+    )
 
 
 @workflow.defn(
@@ -65,7 +71,9 @@ class UpdateFile:
     """Workflow to write or overwrite a file in a dataset (delete by source + ingest one event)."""
 
     @workflow.run
-    async def run(self, workflow_input: UpdateFileInput) -> UpdateFileOutput:
+    async def run(
+        self, workflow_input: UpdateFileInput
+    ) -> UpdateFileOutput:
         """Remove existing events for this source, then ingest one event with the new content."""
         log.info(
             "UpdateFile started",
@@ -113,13 +121,23 @@ class UpdateFile:
                     error="Backend returned no result from ingest",
                 )
             success = getattr(result, "success", None) or (
-                result.get("success") if isinstance(result, dict) else False
+                result.get("success")
+                if isinstance(result, dict)
+                else False
             )
             if not success:
-                err = getattr(result, "error", None) or (
-                    result.get("error") if isinstance(result, dict) else None
-                ) or "Ingest failed"
-                return UpdateFileOutput(success=False, error=str(err))
+                err = (
+                    getattr(result, "error", None)
+                    or (
+                        result.get("error")
+                        if isinstance(result, dict)
+                        else None
+                    )
+                    or "Ingest failed"
+                )
+                return UpdateFileOutput(
+                    success=False, error=str(err)
+                )
             return UpdateFileOutput(
                 success=True,
                 source=workflow_input.source,

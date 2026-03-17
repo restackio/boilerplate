@@ -137,7 +137,9 @@ async def user_signup(user_data: UserSignupInput) -> AuthOutput:
 
             # Create new user (name derived from email local part)
             user_id = uuid.uuid4()
-            name = (user_data.email.split("@")[0] or "User").strip()[:255]
+            name = (
+                user_data.email.split("@")[0] or "User"
+            ).strip()[:255]
             user = User(
                 id=user_id,
                 name=name,
@@ -291,7 +293,9 @@ async def request_password_reset(
     """Request a password reset for the given email. Always returns success to avoid leaking whether the email exists."""
     async for db in get_async_db():
         try:
-            user_query = select(User).where(User.email == data.email)
+            user_query = select(User).where(
+                User.email == data.email
+            )
             result = await db.execute(user_query)
             user = result.scalar_one_or_none()
             if not user:
@@ -318,7 +322,9 @@ async def request_password_reset(
             await db.commit()
 
             base_url = data.origin.rstrip("/")
-            reset_link = f"{base_url}/reset-password?token={token}"
+            reset_link = (
+                f"{base_url}/reset-password?token={token}"
+            )
 
             api_key = os.getenv("RESEND_API_KEY")
             if api_key:
@@ -361,12 +367,18 @@ async def request_password_reset(
             OSError,
         ) as e:
             await db.rollback()
-            return RequestPasswordResetOutput(success=False, error=str(e))
-    return RequestPasswordResetOutput(success=False, error="Database unavailable")
+            return RequestPasswordResetOutput(
+                success=False, error=str(e)
+            )
+    return RequestPasswordResetOutput(
+        success=False, error="Database unavailable"
+    )
 
 
 @function.defn()
-async def reset_password(data: ResetPasswordInput) -> ResetPasswordOutput:
+async def reset_password(
+    data: ResetPasswordInput,
+) -> ResetPasswordOutput:
     """Reset password using a valid reset token."""
     async for db in get_async_db():
         try:
@@ -383,7 +395,9 @@ async def reset_password(data: ResetPasswordInput) -> ResetPasswordOutput:
                     error="Invalid or expired reset link. Please request a new one.",
                 )
 
-            user_query = select(User).where(User.id == reset_record.user_id)
+            user_query = select(User).where(
+                User.id == reset_record.user_id
+            )
             user_result = await db.execute(user_query)
             user = user_result.scalar_one_or_none()
             if not user:
@@ -394,7 +408,8 @@ async def reset_password(data: ResetPasswordInput) -> ResetPasswordOutput:
                 )
                 await db.commit()
                 return ResetPasswordOutput(
-                    success=False, error="Invalid or expired reset link."
+                    success=False,
+                    error="Invalid or expired reset link.",
                 )
 
             user.password_hash = hash_password(data.new_password)
@@ -414,5 +429,9 @@ async def reset_password(data: ResetPasswordInput) -> ResetPasswordOutput:
             OSError,
         ) as e:
             await db.rollback()
-            return ResetPasswordOutput(success=False, error=str(e))
-    return ResetPasswordOutput(success=False, error="Database unavailable")
+            return ResetPasswordOutput(
+                success=False, error=str(e)
+            )
+    return ResetPasswordOutput(
+        success=False, error="Database unavailable"
+    )

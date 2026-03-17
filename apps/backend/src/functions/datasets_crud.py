@@ -1067,7 +1067,9 @@ async def list_dataset_files(
             function_input.dataset_id,
         )
         if function_input.task_id:
-            where_conditions.append(f"task_id = '{function_input.task_id}'")
+            where_conditions.append(
+                f"task_id = '{function_input.task_id}'"
+            )
         where_conditions.extend(
             _build_tag_filters(storage_config)
         )

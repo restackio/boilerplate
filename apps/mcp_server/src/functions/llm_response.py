@@ -68,9 +68,7 @@ async def llm_response(  # noqa: C901
 
         def _require_client() -> None:
             if client is None:
-                msg = (
-                    "OpenAI API key is not configured. Add it to the workspace or set OPENAI_API_KEY."
-                )
+                msg = "OpenAI API key is not configured. Add it to the workspace or set OPENAI_API_KEY."
                 raise ValueError(msg)  # noqa: TRY301
 
         _require_client()

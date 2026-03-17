@@ -26,7 +26,9 @@ class UpdateDatasetInput(BaseModel):
         max_length=255,
         description="Dataset name (slug: lowercase letters, numbers, hyphens, underscores).",
     )
-    description: str | None = Field(default=None, description="Optional description.")
+    description: str | None = Field(
+        default=None, description="Optional description."
+    )
     storage_type: str = Field(
         default="clickhouse",
         description="Storage backend; use clickhouse for pipeline events.",
@@ -36,11 +38,22 @@ class UpdateDatasetInput(BaseModel):
 class UpdateDatasetOutput(BaseModel):
     """Output after creating or updating a dataset."""
 
-    success: bool = Field(..., description="True if dataset was created or updated")
-    dataset_id: str | None = Field(default=None, description="ID of the dataset")
-    name: str | None = Field(default=None, description="Name of the dataset")
-    created: bool = Field(default=False, description="True if a new dataset was created")
-    error: str | None = Field(default=None, description="Error message if failed")
+    success: bool = Field(
+        ..., description="True if dataset was created or updated"
+    )
+    dataset_id: str | None = Field(
+        default=None, description="ID of the dataset"
+    )
+    name: str | None = Field(
+        default=None, description="Name of the dataset"
+    )
+    created: bool = Field(
+        default=False,
+        description="True if a new dataset was created",
+    )
+    error: str | None = Field(
+        default=None, description="Error message if failed"
+    )
 
 
 @workflow.defn(
@@ -51,7 +64,9 @@ class UpdateDataset:
     """Workflow to create or update a dataset via the backend."""
 
     @workflow.run
-    async def run(self, workflow_input: UpdateDatasetInput) -> UpdateDatasetOutput:
+    async def run(
+        self, workflow_input: UpdateDatasetInput
+    ) -> UpdateDatasetOutput:
         """Create dataset if no dataset_id; otherwise update existing dataset."""
         dataset_id = (workflow_input.dataset_id or "").strip()
         do_update = bool(dataset_id)
@@ -74,18 +89,46 @@ class UpdateDataset:
                     task_queue="backend",
                     start_to_close_timeout=timedelta(seconds=30),
                 )
-                if result and (getattr(result, "dataset", None) or (isinstance(result, dict) and result.get("dataset"))):
-                    dataset = getattr(result, "dataset", None) or result.get("dataset")
-                    did = getattr(dataset, "id", None) or (dataset.get("id") if isinstance(dataset, dict) else None)
-                    dname = getattr(dataset, "name", None) or (dataset.get("name") if isinstance(dataset, dict) else None)
+                if result and (
+                    getattr(result, "dataset", None)
+                    or (
+                        isinstance(result, dict)
+                        and result.get("dataset")
+                    )
+                ):
+                    dataset = getattr(
+                        result, "dataset", None
+                    ) or result.get("dataset")
+                    did = getattr(dataset, "id", None) or (
+                        dataset.get("id")
+                        if isinstance(dataset, dict)
+                        else None
+                    )
+                    dname = getattr(dataset, "name", None) or (
+                        dataset.get("name")
+                        if isinstance(dataset, dict)
+                        else None
+                    )
                     return UpdateDatasetOutput(
                         success=True,
-                        dataset_id=str(did) if did else dataset_id,
+                        dataset_id=str(did)
+                        if did
+                        else dataset_id,
                         name=dname,
                         created=False,
                     )
-                err = getattr(result, "error", None) or (result.get("error") if isinstance(result, dict) else None) or "Update failed"
-                return UpdateDatasetOutput(success=False, error=str(err))
+                err = (
+                    getattr(result, "error", None)
+                    or (
+                        result.get("error")
+                        if isinstance(result, dict)
+                        else None
+                    )
+                    or "Update failed"
+                )
+                return UpdateDatasetOutput(
+                    success=False, error=str(err)
+                )
             # Create (idempotent by workspace_id + name)
             result = await workflow.step(
                 function="datasets_create",
@@ -98,7 +141,11 @@ class UpdateDataset:
                 task_queue="backend",
                 start_to_close_timeout=timedelta(seconds=30),
             )
-            if result and isinstance(result, dict) and result.get("dataset"):
+            if (
+                result
+                and isinstance(result, dict)
+                and result.get("dataset")
+            ):
                 dataset = result["dataset"]
                 return UpdateDatasetOutput(
                     success=True,
@@ -117,9 +164,13 @@ class UpdateDataset:
             if result and isinstance(result, dict):
                 return UpdateDatasetOutput(
                     success=False,
-                    error=result.get("error", "Unknown error from backend"),
+                    error=result.get(
+                        "error", "Unknown error from backend"
+                    ),
                 )
-            return UpdateDatasetOutput(success=False, error="Backend returned no dataset")
+            return UpdateDatasetOutput(
+                success=False, error="Backend returned no dataset"
+            )
         except Exception as e:
             log.error("UpdateDataset failed", error=str(e))
             raise NonRetryableError(

@@ -69,9 +69,7 @@ class McpServerCreateInput(BaseModel):
     def validate_server_label_slug(cls, v: str) -> str:
         """Must be a slug: letter first, then only [a-z0-9_-] (e.g. my-integration)."""
         if len(v) > SERVER_LABEL_MAX_LENGTH:
-            msg = (
-                f"server_label must be at most {SERVER_LABEL_MAX_LENGTH} characters"
-            )
+            msg = f"server_label must be at most {SERVER_LABEL_MAX_LENGTH} characters"
             raise ValueError(msg)
         if not SERVER_LABEL_SLUG_PATTERN.match(v):
             msg = (
@@ -118,9 +116,7 @@ class McpServerUpdateInput(BaseModel):
         if v is None:
             return None
         if len(v) > SERVER_LABEL_MAX_LENGTH:
-            msg = (
-                f"server_label must be at most {SERVER_LABEL_MAX_LENGTH} characters"
-            )
+            msg = f"server_label must be at most {SERVER_LABEL_MAX_LENGTH} characters"
             raise ValueError(msg)
         if not SERVER_LABEL_SLUG_PATTERN.match(v):
             msg = (

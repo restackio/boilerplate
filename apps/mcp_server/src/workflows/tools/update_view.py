@@ -10,7 +10,9 @@ class ViewColumnSpec(BaseModel):
     """Column definition for a view."""
 
     key: str = Field(..., description="Field key in the data")
-    label: str = Field(..., description="Display label for the column")
+    label: str = Field(
+        ..., description="Display label for the column"
+    )
 
 
 class ViewSpec(BaseModel):
@@ -19,7 +21,9 @@ class ViewSpec(BaseModel):
     id: str = Field(..., description="Unique view id")
     name: str = Field(..., description="Display name")
     columns: list[ViewColumnSpec] = Field(default_factory=list)
-    dataset_id: str = Field(..., description="Dataset UUID that backs this view")
+    dataset_id: str = Field(
+        ..., description="Dataset UUID that backs this view"
+    )
     entity_id_field: str | None = Field(default=None)
     activity_filter: dict | None = Field(default=None)
 
@@ -44,7 +48,9 @@ class UpdateViewInput(BaseModel):
 class UpdateViewOutput(BaseModel):
     """Output after updating a view."""
 
-    success: bool = Field(..., description="True if view was updated")
+    success: bool = Field(
+        ..., description="True if view was updated"
+    )
     view_id: str | None = Field(default=None)
     error: str | None = Field(default=None)
 
@@ -57,7 +63,9 @@ class UpdateView:
     """Workflow to replace a view spec in the task's view_specs JSON."""
 
     @workflow.run
-    async def run(self, workflow_input: UpdateViewInput) -> UpdateViewOutput:
+    async def run(
+        self, workflow_input: UpdateViewInput
+    ) -> UpdateViewOutput:
         """Get current task view_specs, replace view by id, update task."""
         log.info(
             "UpdateView started",
@@ -67,7 +75,9 @@ class UpdateView:
         try:
             get_result = await workflow.step(
                 function="tasks_get_by_id",
-                function_input={"task_id": workflow_input.task_id},
+                function_input={
+                    "task_id": workflow_input.task_id
+                },
                 task_queue="backend",
                 start_to_close_timeout=timedelta(seconds=30),
             )
@@ -76,14 +86,22 @@ class UpdateView:
                     success=False,
                     error="Task not found or no task returned",
                 )
-            task = get_result.get("task", None) if isinstance(get_result, dict) else getattr(get_result, "task", None)
+            task = (
+                get_result.get("task", None)
+                if isinstance(get_result, dict)
+                else getattr(get_result, "task", None)
+            )
             if not task:
                 return UpdateViewOutput(
                     success=False,
                     error="Task not found or no task returned",
                 )
             current_specs = list(
-                (task.get("view_specs", None) if isinstance(task, dict) else getattr(task, "view_specs", None))
+                (
+                    task.get("view_specs", None)
+                    if isinstance(task, dict)
+                    else getattr(task, "view_specs", None)
+                )
                 or []
             )
             view_dict = workflow_input.view.model_dump()
@@ -92,7 +110,10 @@ class UpdateView:
             updated = False
             new_specs = []
             for v in current_specs:
-                if isinstance(v, dict) and v.get("id") == workflow_input.view_id:
+                if (
+                    isinstance(v, dict)
+                    and v.get("id") == workflow_input.view_id
+                ):
                     new_specs.append(view_dict)
                     updated = True
                 else:

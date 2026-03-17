@@ -371,6 +371,42 @@ export async function getDatasets(workspaceId: string) {
   });
 }
 
+const TASK_FILES_DATASET_NAME = "task-files";
+
+/** Get or create the workspace "task-files" dataset; returns dataset id or null. Used so "Add files to task" and build flows share the same dataset. */
+export async function getOrCreateTaskFilesDatasetId(
+  workspaceId: string,
+): Promise<string | null> {
+  const listResult = await getDatasets(workspaceId);
+  const list =
+    listResult && typeof listResult === "object" && "datasets" in listResult
+      ? (listResult as { datasets: { id: string; name: string }[] })
+      : null;
+  const datasets =
+    list?.datasets ?? (Array.isArray(listResult) ? listResult : []);
+  const existing = Array.isArray(datasets)
+    ? datasets.find(
+        (d: { name?: string }) => d.name === TASK_FILES_DATASET_NAME,
+      )
+    : null;
+  if (existing && typeof existing.id === "string") {
+    return existing.id;
+  }
+  const createResult = await createDataset({
+    workspace_id: workspaceId,
+    name: TASK_FILES_DATASET_NAME,
+    description: "Files uploaded from tasks",
+    storage_type: "clickhouse",
+  });
+  const created =
+    createResult &&
+    typeof createResult === "object" &&
+    "dataset" in createResult
+      ? (createResult as { dataset: { id: string } }).dataset
+      : null;
+  return created?.id ?? null;
+}
+
 /** Get a public agent by id (for /chat/[agentId] - no auth). Returns null if not found or not public. */
 export async function getPublicAgent(agentId: string) {
   try {

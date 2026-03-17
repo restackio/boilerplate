@@ -55,6 +55,9 @@ from src.workflows.tools.update_file import UpdateFile
 from src.workflows.tools.update_integration import (
     UpdateIntegration,
 )
+from src.workflows.tools.update_pattern_specs import (
+    UpdatePatternSpecs,
+)
 from src.workflows.tools.update_todos import UpdateTodos
 from src.workflows.tools.update_view import UpdateView
 
@@ -73,6 +76,7 @@ async def run_restack_service() -> None:
             UpdateIntegration,
             UpdateFile,
             UpdateView,
+            UpdatePatternSpecs,
             ListIntegrationTools,
             SearchRemoteMcpDirectory,
             GenerateMock,

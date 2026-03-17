@@ -1235,9 +1235,7 @@ async def agents_update_status(
             agent = result.scalar_one_or_none()
 
             if not agent:
-                raise NonRetryableError(
-                    message="Agent not found"
-                )
+                raise NonRetryableError(message="Agent not found")
 
             archived_agent_id = None
 

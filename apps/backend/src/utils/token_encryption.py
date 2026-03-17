@@ -48,7 +48,9 @@ def encrypt_token(token: str) -> str:
 
     except (ValueError, TypeError) as e:
         # Do not store tokens in plaintext on encryption failure (security best practice)
-        msg = "Token encryption failed; cannot store token securely"
+        msg = (
+            "Token encryption failed; cannot store token securely"
+        )
         raise RuntimeError(msg) from e
 
 

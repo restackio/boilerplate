@@ -344,16 +344,29 @@ async def _parse_sse_tools_page(
     async for line in response_content:
         line_text = line.decode("utf-8").strip()
         if line_text.startswith("data: "):
-            current_data += line_text[6:]  # Remove "data: " prefix
+            current_data += line_text[
+                6:
+            ]  # Remove "data: " prefix
         elif line_text == "" and current_data:
             try:
                 tools_data = json.loads(current_data)
-                if isinstance(tools_data, dict) and "result" in tools_data:
+                if (
+                    isinstance(tools_data, dict)
+                    and "result" in tools_data
+                ):
                     result = tools_data["result"]
-                    tool_names = _extract_tool_names_from_result(result)
-                    tools_with_desc = _extract_tools_from_result(result)
+                    tool_names = _extract_tool_names_from_result(
+                        result
+                    )
+                    tools_with_desc = _extract_tools_from_result(
+                        result
+                    )
                     next_cursor = _get_next_cursor(result)
-                    return (tool_names, tools_with_desc, next_cursor)
+                    return (
+                        tool_names,
+                        tools_with_desc,
+                        next_cursor,
+                    )
             except json.JSONDecodeError:
                 pass
             current_data = ""
@@ -381,7 +394,9 @@ async def mcp_tools_list(
                     "jsonrpc": "2.0",
                     "id": request_id,
                     "method": "tools/list",
-                    "params": {} if cursor is None else {"cursor": cursor},
+                    "params": {}
+                    if cursor is None
+                    else {"cursor": cursor},
                 }
                 request_id += 1
 
@@ -404,10 +419,12 @@ async def mcp_tools_list(
                     )
 
                     if "text/event-stream" in content_type:
-                        tool_names, tools_with_desc, next_cursor = (
-                            await _parse_sse_tools_page(
-                                tools_response.content
-                            )
+                        (
+                            tool_names,
+                            tools_with_desc,
+                            next_cursor,
+                        ) = await _parse_sse_tools_page(
+                            tools_response.content
                         )
                     else:
                         tools_data = await tools_response.json()
@@ -417,11 +434,13 @@ async def mcp_tools_list(
                         ):
                             break
                         result = tools_data["result"]
-                        tool_names = _extract_tool_names_from_result(
-                            result
+                        tool_names = (
+                            _extract_tool_names_from_result(
+                                result
+                            )
                         )
-                        tools_with_desc = _extract_tools_from_result(
-                            result
+                        tools_with_desc = (
+                            _extract_tools_from_result(result)
                         )
                         next_cursor = _get_next_cursor(result)
 
@@ -484,7 +503,9 @@ async def mcp_tools_list_direct(
                     "jsonrpc": "2.0",
                     "id": request_id,
                     "method": "tools/list",
-                    "params": {} if cursor is None else {"cursor": cursor},
+                    "params": {}
+                    if cursor is None
+                    else {"cursor": cursor},
                 }
                 request_id += 1
 
@@ -507,10 +528,12 @@ async def mcp_tools_list_direct(
                     )
 
                     if "text/event-stream" in content_type:
-                        tool_names, tools_with_desc, next_cursor = (
-                            await _parse_sse_tools_page(
-                                tools_response.content
-                            )
+                        (
+                            tool_names,
+                            tools_with_desc,
+                            next_cursor,
+                        ) = await _parse_sse_tools_page(
+                            tools_response.content
                         )
                     else:
                         tools_data = await tools_response.json()
@@ -520,11 +543,13 @@ async def mcp_tools_list_direct(
                         ):
                             break
                         result = tools_data["result"]
-                        tool_names = _extract_tool_names_from_result(
-                            result
+                        tool_names = (
+                            _extract_tool_names_from_result(
+                                result
+                            )
                         )
-                        tools_with_desc = _extract_tools_from_result(
-                            result
+                        tools_with_desc = (
+                            _extract_tools_from_result(result)
                         )
                         next_cursor = _get_next_cursor(result)
 

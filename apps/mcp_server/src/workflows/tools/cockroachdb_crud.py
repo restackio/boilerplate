@@ -45,7 +45,7 @@ FROM pipeline_events
 WHERE 'YOUR_TAG' = ANY(tags)
 ORDER BY event_timestamp DESC
 LIMIT 50;
-"""
+""",
 )
 class CockroachDBRunSelectQuery:
     """Workflow to run a SELECT query in CockroachDB."""
@@ -79,7 +79,8 @@ class CockroachDBListDatabases:
     @workflow.run
     async def run(
         self,
-        workflow_input: CockroachDBListDatabasesInput | None = None,
+        workflow_input: CockroachDBListDatabasesInput
+        | None = None,
     ) -> CockroachDBListDatabasesOutput:
         log.info("CockroachDBListDatabases started")
         try:

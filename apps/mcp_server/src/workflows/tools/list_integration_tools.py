@@ -30,7 +30,9 @@ class ListIntegrationToolsOutput(BaseModel):
         default_factory=list,
         description="Tool names; call updateagenttool once per tool with this mcp_server_id and agent_id",
     )
-    error: str | None = Field(default=None, description="Error message if failed")
+    error: str | None = Field(
+        default=None, description="Error message if failed"
+    )
 
 
 @workflow.defn(
@@ -56,7 +58,8 @@ class ListIntegrationTools:
             )
             if result is None:
                 return ListIntegrationToolsOutput(
-                    success=False, error="Backend returned no result"
+                    success=False,
+                    error="Backend returned no result",
                 )
             if isinstance(result, dict):
                 return ListIntegrationToolsOutput(

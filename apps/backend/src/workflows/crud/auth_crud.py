@@ -96,7 +96,9 @@ class RequestPasswordResetWorkflow:
                 start_to_close_timeout=timedelta(seconds=30),
             )
         except Exception as e:
-            error_message = f"Error during request_password_reset: {e}"
+            error_message = (
+                f"Error during request_password_reset: {e}"
+            )
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e
 

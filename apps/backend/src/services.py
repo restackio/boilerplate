@@ -66,9 +66,6 @@ from src.functions.datasets_crud import (
 from src.functions.embed_anything_ingestion import (
     embed_anything_pdf_to_events,
 )
-from src.functions.embed_model_loader import (
-    ensure_embed_model_loaded,
-)
 from src.functions.feedback_metrics import (
     get_detailed_feedbacks,
     get_feedback_analytics,
@@ -596,14 +593,15 @@ async def run_restack_service() -> None:
 
 
 async def run_embed_service() -> None:
-    """Run the embedding service."""
+    """Run the embedding service (one concurrent run per worker; scale horizontally).
+
+    Memory: subprocess runs in the same container as the worker; parent + child
+    share the container limit. Recommend >= 1.5 GiB for the embed worker to avoid OOM.
+    """
     await client.start_service(
         task_queue=TASK_QUEUE_EMBED,
         workflows=[AddFilesToDatasetWorkflow],
-        functions=[
-            ensure_embed_model_loaded,
-            embed_anything_pdf_to_events,
-        ],
+        functions=[embed_anything_pdf_to_events],
         options=ServiceOptions(
             rate_limit=1,
             max_concurrent_function_runs=1,

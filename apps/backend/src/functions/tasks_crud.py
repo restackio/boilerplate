@@ -34,6 +34,10 @@ class TaskCreateInput(BaseModel):
     )
     temporal_schedule_id: str | None = None
     team_id: str | None = None
+    view_specs: list | None = None  # Build task view definitions
+    pattern_specs: dict | None = (
+        None  # Agent design pattern for React Flow
+    )
 
 
 class TaskUpdateInput(BaseModel):
@@ -60,7 +64,12 @@ class TaskUpdateInput(BaseModel):
     )
     temporal_schedule_id: str | None = None
     view_specs: list | None = None  # Build task view definitions
-    temporal_run_id: str | None = None  # For sending end event to the correct run
+    pattern_specs: dict | None = (
+        None  # Agent design pattern for React Flow
+    )
+    temporal_run_id: str | None = (
+        None  # For sending end event to the correct run
+    )
 
     @field_validator(
         "assigned_to_id",
@@ -154,6 +163,9 @@ class TaskOutput(BaseModel):
     schedule_status: str | None = None
     temporal_schedule_id: str | None
     view_specs: list | None = None  # Build task view definitions
+    pattern_specs: dict | None = (
+        None  # Agent design pattern: { title?, nodes, edges } for React Flow
+    )
     created_at: str | None
     updated_at: str | None
 
@@ -271,6 +283,10 @@ async def tasks_read(
                     if getattr(task, "view_specs", None)
                     is not None
                     else [],
+                    pattern_specs=task.pattern_specs
+                    if getattr(task, "pattern_specs", None)
+                    is not None
+                    else {},
                     created_at=task.created_at.isoformat()
                     if task.created_at
                     else None,
@@ -331,6 +347,12 @@ async def tasks_create(
                 team_id=uuid.UUID(task_data.team_id)
                 if task_data.team_id
                 else None,
+                view_specs=task_data.view_specs
+                if task_data.view_specs is not None
+                else [],
+                pattern_specs=task_data.pattern_specs
+                if task_data.pattern_specs is not None
+                else {},
             )
 
             db.add(task)
@@ -383,6 +405,10 @@ async def tasks_create(
                 view_specs=task.view_specs
                 if getattr(task, "view_specs", None) is not None
                 else [],
+                pattern_specs=task.pattern_specs
+                if getattr(task, "pattern_specs", None)
+                is not None
+                else {},
                 created_at=task.created_at.isoformat()
                 if task.created_at
                 else None,
@@ -452,6 +478,10 @@ async def tasks_update(
                             and value is not None
                         )
                         or (
+                            key == "pattern_specs"
+                            and value is not None
+                        )
+                        or (
                             key
                             in [
                                 "is_scheduled",
@@ -513,6 +543,10 @@ async def tasks_update(
                 view_specs=task.view_specs
                 if getattr(task, "view_specs", None) is not None
                 else [],
+                pattern_specs=task.pattern_specs
+                if getattr(task, "pattern_specs", None)
+                is not None
+                else {},
                 created_at=task.created_at.isoformat()
                 if task.created_at
                 else None,
@@ -608,6 +642,10 @@ async def tasks_save_agent_state(
                 view_specs=task.view_specs
                 if getattr(task, "view_specs", None) is not None
                 else [],
+                pattern_specs=task.pattern_specs
+                if getattr(task, "pattern_specs", None)
+                is not None
+                else {},
                 created_at=task.created_at.isoformat(),
                 updated_at=task.updated_at.isoformat(),
             )
@@ -723,6 +761,10 @@ async def tasks_get_by_id(
                 view_specs=task.view_specs
                 if getattr(task, "view_specs", None) is not None
                 else [],
+                pattern_specs=task.pattern_specs
+                if getattr(task, "pattern_specs", None)
+                is not None
+                else {},
                 created_at=task.created_at.isoformat()
                 if task.created_at
                 else None,
@@ -748,7 +790,8 @@ def _view_specs_for_dataset(
     return [
         v
         for v in view_specs
-        if isinstance(v, dict) and v.get("dataset_id") == dataset_id
+        if isinstance(v, dict)
+        and v.get("dataset_id") == dataset_id
     ]
 
 
@@ -758,11 +801,14 @@ async def tasks_list_views_for_dataset(
 ) -> ListViewsForDatasetOutput:
     """List view specs that reference the given dataset (from tasks.view_specs)."""
     if isinstance(function_input, dict):
-        function_input = ListViewsForDatasetInput.model_validate(function_input)
+        function_input = ListViewsForDatasetInput.model_validate(
+            function_input
+        )
     async for db in get_async_db():
         try:
             tasks_query = select(Task).where(
-                Task.workspace_id == uuid.UUID(function_input.workspace_id)
+                Task.workspace_id
+                == uuid.UUID(function_input.workspace_id)
             )
             result = await db.execute(tasks_query)
             tasks = result.scalars().all()
@@ -770,15 +816,23 @@ async def tasks_list_views_for_dataset(
             for task in tasks:
                 specs = getattr(task, "view_specs", None) or []
                 views.extend(
-                    _view_specs_for_dataset(specs, function_input.dataset_id)
+                    _view_specs_for_dataset(
+                        specs, function_input.dataset_id
+                    )
                 )
-            return ListViewsForDatasetOutput(success=True, views=views)
+            return ListViewsForDatasetOutput(
+                success=True, views=views
+            )
         except Exception as e:  # noqa: BLE001
-            log.error(f"tasks_list_views_for_dataset failed: {e!s}")
+            log.error(
+                f"tasks_list_views_for_dataset failed: {e!s}"
+            )
             return ListViewsForDatasetOutput(
                 success=False, views=[], error=str(e)
             )
-    return ListViewsForDatasetOutput(success=False, views=[], error="No db")
+    return ListViewsForDatasetOutput(
+        success=False, views=[], error="No db"
+    )
 
 
 @function.defn()
@@ -787,23 +841,33 @@ async def tasks_get_view_by_id(
 ) -> GetViewOutput:
     """Get a single view spec by id that references the given dataset."""
     if isinstance(function_input, dict):
-        function_input = GetViewInput.model_validate(function_input)
+        function_input = GetViewInput.model_validate(
+            function_input
+        )
     async for db in get_async_db():
         try:
             tasks_query = select(Task).where(
-                Task.workspace_id == uuid.UUID(function_input.workspace_id)
+                Task.workspace_id
+                == uuid.UUID(function_input.workspace_id)
             )
             result = await db.execute(tasks_query)
             tasks = result.scalars().all()
             for task in tasks:
                 specs = getattr(task, "view_specs", None) or []
-                for v in _view_specs_for_dataset(specs, function_input.dataset_id):
-                    if isinstance(v, dict) and v.get("id") == function_input.view_id:
+                for v in _view_specs_for_dataset(
+                    specs, function_input.dataset_id
+                ):
+                    if (
+                        isinstance(v, dict)
+                        and v.get("id") == function_input.view_id
+                    ):
                         return GetViewOutput(success=True, view=v)
             return GetViewOutput(success=True, view=None)
         except Exception as e:  # noqa: BLE001
             log.error(f"tasks_get_view_by_id failed: {e!s}")
-            return GetViewOutput(success=False, view=None, error=str(e))
+            return GetViewOutput(
+                success=False, view=None, error=str(e)
+            )
     return GetViewOutput(success=False, view=None, error="No db")
 
 
@@ -874,6 +938,10 @@ async def tasks_get_by_parent_id(
                     if getattr(task, "view_specs", None)
                     is not None
                     else [],
+                    pattern_specs=task.pattern_specs
+                    if getattr(task, "pattern_specs", None)
+                    is not None
+                    else {},
                     created_at=task.created_at.isoformat()
                     if task.created_at
                     else None,
@@ -956,6 +1024,10 @@ async def tasks_get_by_status(
                     if getattr(task, "view_specs", None)
                     is not None
                     else [],
+                    pattern_specs=task.pattern_specs
+                    if getattr(task, "pattern_specs", None)
+                    is not None
+                    else {},
                     created_at=task.created_at.isoformat()
                     if task.created_at
                     else None,
@@ -1048,6 +1120,10 @@ async def tasks_update_agent_task_id(
                 view_specs=task.view_specs
                 if getattr(task, "view_specs", None) is not None
                 else [],
+                pattern_specs=task.pattern_specs
+                if getattr(task, "pattern_specs", None)
+                is not None
+                else {},
                 created_at=task.created_at.isoformat()
                 if task.created_at
                 else None,

@@ -11,16 +11,14 @@ import { FileUp, FileText } from "lucide-react";
 import {
   scheduleAddFilesToDatasetWorkflow,
   getWorkflowResult,
+  getOrCreateTaskFilesDatasetId,
 } from "@/app/actions/workflow";
-import { getDatasets, createDataset } from "@/app/actions/workflow";
 import {
   GRPC_MESSAGE_LIMIT_BYTES,
   SAFE_PAYLOAD_BYTES,
   splitPdfIntoParts,
   batchUnderLimit,
 } from "@/app/(dashboard)/datasets/lib/pdf-split";
-
-const TASK_FILES_DATASET_NAME = "task-files";
 
 function readFileAsBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -51,40 +49,6 @@ interface AddTaskFilesDialogProps {
   /** When provided, dialog open state is controlled by parent (e.g. from dropdown). */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
-}
-
-/** Get or create the workspace "task-files" dataset; returns dataset id or null. */
-async function getOrCreateTaskFilesDataset(
-  workspaceId: string,
-): Promise<string | null> {
-  const listResult = await getDatasets(workspaceId);
-  const list =
-    listResult && typeof listResult === "object" && "datasets" in listResult
-      ? (listResult as { datasets: { id: string; name: string }[] })
-      : null;
-  const datasets =
-    list?.datasets ?? (Array.isArray(listResult) ? listResult : []);
-  const existing = Array.isArray(datasets)
-    ? datasets.find(
-        (d: { name?: string }) => d.name === TASK_FILES_DATASET_NAME,
-      )
-    : null;
-  if (existing && typeof existing.id === "string") {
-    return existing.id;
-  }
-  const createResult = await createDataset({
-    workspace_id: workspaceId,
-    name: TASK_FILES_DATASET_NAME,
-    description: "Files uploaded from tasks",
-    storage_type: "clickhouse",
-  });
-  const created =
-    createResult &&
-    typeof createResult === "object" &&
-    "dataset" in createResult
-      ? (createResult as { dataset: { id: string } }).dataset
-      : null;
-  return created?.id ?? null;
 }
 
 export function AddTaskFilesDialog({
@@ -151,7 +115,7 @@ export function AddTaskFilesDialog({
 
     startLoading();
     try {
-      const datasetId = await getOrCreateTaskFilesDataset(workspaceId);
+      const datasetId = await getOrCreateTaskFilesDatasetId(workspaceId);
       if (!datasetId) {
         handleError("Could not get or create task files dataset");
         stopLoading();

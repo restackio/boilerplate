@@ -82,6 +82,8 @@ export interface Task {
   updated_at?: string;
   // Build task: view specs for right-panel tables and row timelines
   view_specs?: ViewSpec[];
+  // Build task: agent design pattern (nodes + edges) for React Flow; updated as agents/datasets/views/tools are created
+  pattern_specs?: PatternSpecs;
 }
 
 export interface ViewSpec {
@@ -91,6 +93,38 @@ export interface ViewSpec {
   dataset_id: string;
   entity_id_field?: string;
   activity_filter?: Record<string, unknown>;
+}
+
+/** Agent design pattern: nodes + edges for React Flow. Powers flow diagram and Created list. */
+export interface PatternSpecs {
+  title?: string;
+  nodes?: PatternSpecNode[];
+  edges?: PatternSpecEdge[];
+}
+
+export interface PatternSpecNode {
+  id: string;
+  type: string;
+  position: { x: number; y: number };
+  data: {
+    label: string;
+    description?: string;
+    icon?: string;
+    entityType?: "agent" | "dataset" | "view" | "integration";
+    entityId?: string;
+    href?: string;
+    handles?: { id: string; type: "source" | "target"; position: string }[];
+  };
+}
+
+export interface PatternSpecEdge {
+  id: string;
+  source: string;
+  target: string;
+  type?: string;
+  sourceHandle?: string;
+  targetHandle?: string;
+  label?: string;
 }
 
 export interface Team {
@@ -745,12 +779,23 @@ export function useWorkspaceScopedActions() {
       }
 
       try {
-        const result = await executeWorkflow<Task>("TasksGetByIdWorkflow", {
-          task_id: taskId,
-          workspace_id: currentWorkspaceId,
-        });
+        const result = await executeWorkflow<{ task?: Task }>(
+          "TasksGetByIdWorkflow",
+          {
+            task_id: taskId,
+            workspace_id: currentWorkspaceId,
+          },
+        );
 
-        return result;
+        // Backend returns TaskSingleOutput { task: TaskOutput }; unwrap so callers get the task object
+        const taskPayload =
+          result.success && result.data && typeof result.data === "object" && "task" in result.data
+            ? (result.data as { task: Task }).task
+            : result.data;
+
+        return result.success
+          ? { ...result, data: taskPayload as Task }
+          : result;
       } catch (error) {
         console.error(
           "[useWorkspaceScopedActions] Error in getTaskById:",

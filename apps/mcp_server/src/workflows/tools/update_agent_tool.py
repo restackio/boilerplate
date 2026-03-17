@@ -9,7 +9,9 @@ from pydantic import BaseModel, Field
 from restack_ai.workflow import log, workflow
 
 # Restack-core MCP server ID (must match admin seed)
-RESTACK_CORE_MCP_SERVER_ID = "c0000000-0000-0000-0000-000000000001"
+RESTACK_CORE_MCP_SERVER_ID = (
+    "c0000000-0000-0000-0000-000000000001"
+)
 
 
 class UpdateAgentToolInput(BaseModel):
@@ -48,8 +50,13 @@ class UpdateAgentToolInput(BaseModel):
 class UpdateAgentToolOutput(BaseModel):
     """Result of creating or updating an agent tool."""
 
-    success: bool = Field(..., description="True if the tool was created, updated, or already present")
-    error: str | None = Field(default=None, description="Error message if failed")
+    success: bool = Field(
+        ...,
+        description="True if the tool was created, updated, or already present",
+    )
+    error: str | None = Field(
+        default=None, description="Error message if failed"
+    )
 
 
 @workflow.defn(
@@ -60,27 +67,37 @@ class UpdateAgentTool:
     """MCP workflow to create or update an agent tool via the backend."""
 
     @workflow.run
-    async def run(self, workflow_input: UpdateAgentToolInput) -> UpdateAgentToolOutput:  # noqa: C901, PLR0911, PLR0912
+    async def run(  # noqa: C901, PLR0911, PLR0912
+        self, workflow_input: UpdateAgentToolInput
+    ) -> UpdateAgentToolOutput:
         """Call backend agent_tools_update when agent_tool_id given; else agent_tools_create."""
-        agent_tool_id = (workflow_input.agent_tool_id or "").strip()
+        agent_tool_id = (
+            workflow_input.agent_tool_id or ""
+        ).strip()
         do_update = bool(agent_tool_id)
 
         mcp_server_id = (
-            (workflow_input.mcp_server_id or "").strip()
-            or RESTACK_CORE_MCP_SERVER_ID
-        )
+            workflow_input.mcp_server_id or ""
+        ).strip() or RESTACK_CORE_MCP_SERVER_ID
         if not do_update:
             use_default = not (
                 workflow_input.mcp_server_id
                 and workflow_input.mcp_server_id.strip()
             )
-            if use_default or mcp_server_id == RESTACK_CORE_MCP_SERVER_ID:
+            if (
+                use_default
+                or mcp_server_id == RESTACK_CORE_MCP_SERVER_ID
+            ):
                 try:
                     resolved = await workflow.step(
                         function="get_restack_core_mcp_server_id_for_agent",
-                        function_input={"agent_id": workflow_input.agent_id},
+                        function_input={
+                            "agent_id": workflow_input.agent_id
+                        },
                         task_queue="backend",
-                        start_to_close_timeout=timedelta(seconds=15),
+                        start_to_close_timeout=timedelta(
+                            seconds=15
+                        ),
                     )
                     if resolved and isinstance(resolved, str):
                         mcp_server_id = resolved
@@ -99,20 +116,34 @@ class UpdateAgentTool:
                     "agent_tool_id": agent_tool_id,
                 }
                 if workflow_input.custom_description is not None:
-                    update_input["custom_description"] = workflow_input.custom_description
+                    update_input["custom_description"] = (
+                        workflow_input.custom_description
+                    )
                 if workflow_input.require_approval is not None:
-                    update_input["require_approval"] = workflow_input.require_approval
+                    update_input["require_approval"] = (
+                        workflow_input.require_approval
+                    )
                 if workflow_input.enabled is not None:
-                    update_input["enabled"] = workflow_input.enabled
+                    update_input["enabled"] = (
+                        workflow_input.enabled
+                    )
                 result = await workflow.step(
                     function="agent_tools_update",
                     function_input=update_input,
                     task_queue="backend",
                     start_to_close_timeout=timedelta(seconds=30),
                 )
-                if result and getattr(result, "agent_tool", None) is not None:
+                if (
+                    result
+                    and getattr(result, "agent_tool", None)
+                    is not None
+                ):
                     return UpdateAgentToolOutput(success=True)
-                if result and isinstance(result, dict) and result.get("agent_tool"):
+                if (
+                    result
+                    and isinstance(result, dict)
+                    and result.get("agent_tool")
+                ):
                     return UpdateAgentToolOutput(success=True)
                 return UpdateAgentToolOutput(
                     success=False,
@@ -137,9 +168,17 @@ class UpdateAgentTool:
                 task_queue="backend",
                 start_to_close_timeout=timedelta(seconds=30),
             )
-            if result and getattr(result, "agent_tool", None) is not None:
+            if (
+                result
+                and getattr(result, "agent_tool", None)
+                is not None
+            ):
                 return UpdateAgentToolOutput(success=True)
-            if result and isinstance(result, dict) and result.get("agent_tool"):
+            if (
+                result
+                and isinstance(result, dict)
+                and result.get("agent_tool")
+            ):
                 return UpdateAgentToolOutput(success=True)
             return UpdateAgentToolOutput(
                 success=False,
