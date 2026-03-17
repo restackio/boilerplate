@@ -15,6 +15,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+from anyio import Path as AnyioPath
 from pydantic import BaseModel, Field
 from restack_ai.function import function, heartbeat, log
 
@@ -107,7 +108,7 @@ async def embed_anything_pdf_to_events(
             prefix="embed_", suffix=".json"
         )
         os.close(fd)
-        Path(json_path).write_text(json.dumps(payload))
+        await AnyioPath(json_path).write_text(json.dumps(payload))
 
         async def send_heartbeats() -> None:
             while True:
@@ -169,6 +170,6 @@ async def embed_anything_pdf_to_events(
     finally:
         if json_path is not None:
             with contextlib.suppress(OSError):
-                Path(json_path).unlink(missing_ok=True)
+                await AnyioPath(json_path).unlink(missing_ok=True)
         with contextlib.suppress(OSError):
-            Path(path).unlink(missing_ok=True)
+            await AnyioPath(path).unlink(missing_ok=True)
