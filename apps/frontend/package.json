@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@radix-ui/react-use-controllable-state": "^1.2.2",
-    "@restackio/ai": "^0.0.151",
+    "@restackio/ai": "^0.0.152",
     "@restackio/react": "^0.10.19",
     "@workspace/ui": "workspace:*",
     "dotenv": "^16.4.5",
