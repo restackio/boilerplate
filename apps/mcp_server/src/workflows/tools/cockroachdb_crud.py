@@ -78,7 +78,8 @@ class CockroachDBListDatabases:
     @workflow.run
     async def run(
         self,
-        workflow_input: CockroachDBListDatabasesInput | None = None,
+        workflow_input: CockroachDBListDatabasesInput
+        | None = None,
     ) -> CockroachDBListDatabasesOutput:
         log.info("CockroachDBListDatabases started")
         try:

@@ -60,7 +60,6 @@ class TaskUpdateInput(BaseModel):
         return v
 
 
-
 class CompleteTaskInput(BaseModel):
     """Input for completing a task."""
 
@@ -72,7 +71,7 @@ class CompleteTaskInput(BaseModel):
     )
     result: str | None = Field(
         default=None,
-        description="Optional completion message or result summary"
+        description="Optional completion message or result summary",
     )
     task_id: str = Field(
         description="task_id from meta_info (this is the ID of the task to complete)"
@@ -121,13 +120,13 @@ class CompleteTask:
                 event_input["result"] = workflow_input.result
 
             await workflow.child_execute(
-              workflow="TasksUpdateWorkflow",
-              workflow_id=f"task_update_{workflow_info().workflow_id}",
-              workflow_input=TaskUpdateInput(
-                task_id=workflow_input.task_id,
-                status="completed",
-              ),
-              task_queue="backend",
+                workflow="TasksUpdateWorkflow",
+                workflow_id=f"task_update_{workflow_info().workflow_id}",
+                workflow_input=TaskUpdateInput(
+                    task_id=workflow_input.task_id,
+                    status="completed",
+                ),
+                task_queue="backend",
             )
 
             return CompleteTaskOutput(

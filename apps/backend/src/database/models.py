@@ -480,6 +480,9 @@ class Task(Base):
         String(50), nullable=True, default="inactive"
     )  # Schedule status: active, inactive, paused
     temporal_schedule_id = Column(String(255), nullable=True)
+    task_metadata = Column(
+        JSONB, nullable=True, default=dict
+    )  # Integration context (e.g., slack_channel, slack_thread_ts, source)
     created_at = Column(
         DateTime,
         default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
@@ -575,6 +578,8 @@ class UserOAuthConnection(Base):
     )
     expires_at = Column(DateTime)
     scope = Column(ARRAY(String))
+    # Provider-specific metadata (e.g., Slack team_id for multi-tenancy)
+    provider_metadata = Column(JSONB, default=dict)
     # Default token flag for workspace
     is_default = Column(Boolean, nullable=False, default=False)
     last_refreshed_at = Column(DateTime)

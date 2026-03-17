@@ -34,6 +34,7 @@ class TaskCreateInput(BaseModel):
     )
     temporal_schedule_id: str | None = None
     team_id: str | None = None
+    task_metadata: dict | None = None
 
 
 class TaskUpdateInput(BaseModel):
@@ -136,6 +137,7 @@ class TaskOutput(BaseModel):
     is_scheduled: bool = False
     schedule_status: str | None = None
     temporal_schedule_id: str | None
+    task_metadata: dict | None = None
     created_at: str | None
     updated_at: str | None
 
@@ -237,6 +239,7 @@ async def tasks_read(
                     is_scheduled=task.is_scheduled,
                     schedule_status=task.schedule_status,
                     temporal_schedule_id=task.temporal_schedule_id,
+                    task_metadata=task.task_metadata,
                     created_at=task.created_at.isoformat()
                     if task.created_at
                     else None,
@@ -297,6 +300,7 @@ async def tasks_create(
                 team_id=uuid.UUID(task_data.team_id)
                 if task_data.team_id
                 else None,
+                task_metadata=task_data.task_metadata or {},
             )
 
             db.add(task)
@@ -346,6 +350,7 @@ async def tasks_create(
                 is_scheduled=task.is_scheduled,
                 schedule_status=task.schedule_status,
                 temporal_schedule_id=task.temporal_schedule_id,
+                task_metadata=task.task_metadata,
                 created_at=task.created_at.isoformat()
                 if task.created_at
                 else None,
@@ -467,6 +472,7 @@ async def tasks_update(
                 is_scheduled=task.is_scheduled,
                 schedule_status=task.schedule_status,
                 temporal_schedule_id=task.temporal_schedule_id,
+                task_metadata=task.task_metadata,
                 created_at=task.created_at.isoformat()
                 if task.created_at
                 else None,
@@ -559,6 +565,7 @@ async def tasks_save_agent_state(
                 is_scheduled=task.is_scheduled,
                 schedule_status=task.schedule_status,
                 temporal_schedule_id=task.temporal_schedule_id,
+                task_metadata=task.task_metadata,
                 created_at=task.created_at.isoformat(),
                 updated_at=task.updated_at.isoformat(),
             )
@@ -671,6 +678,7 @@ async def tasks_get_by_id(
                 is_scheduled=task.is_scheduled,
                 schedule_status=task.schedule_status,
                 temporal_schedule_id=task.temporal_schedule_id,
+                task_metadata=task.task_metadata,
                 created_at=task.created_at.isoformat()
                 if task.created_at
                 else None,
@@ -750,6 +758,7 @@ async def tasks_get_by_parent_id(
                     is_scheduled=task.is_scheduled,
                     schedule_status=task.schedule_status,
                     temporal_schedule_id=task.temporal_schedule_id,
+                    task_metadata=task.task_metadata,
                     created_at=task.created_at.isoformat()
                     if task.created_at
                     else None,
@@ -828,6 +837,7 @@ async def tasks_get_by_status(
                     is_scheduled=task.is_scheduled,
                     schedule_status=task.schedule_status,
                     temporal_schedule_id=task.temporal_schedule_id,
+                    task_metadata=task.task_metadata,
                     created_at=task.created_at.isoformat()
                     if task.created_at
                     else None,
@@ -917,6 +927,7 @@ async def tasks_update_agent_task_id(
                 is_scheduled=task.is_scheduled,
                 schedule_status=task.schedule_status,
                 temporal_schedule_id=task.temporal_schedule_id,
+                task_metadata=task.task_metadata,
                 created_at=task.created_at.isoformat()
                 if task.created_at
                 else None,
@@ -930,6 +941,101 @@ async def tasks_update_agent_task_id(
             await db.rollback()
             raise NonRetryableError(
                 message=f"Failed to update temporal agent ID: {e!s}"
+            ) from e
+    return None
+
+
+class TaskGetByMetadataInput(BaseModel):
+    metadata_key: str = Field(..., min_length=1)
+    metadata_value: str = Field(..., min_length=1)
+    workspace_id: str | None = None
+
+
+@function.defn()
+async def tasks_get_by_metadata(
+    function_input: TaskGetByMetadataInput,
+) -> TaskSingleOutput | None:
+    """Find a task by a metadata key-value pair (e.g., slack_thread_ts)."""
+    async for db in get_async_db():
+        try:
+            query = (
+                select(Task)
+                .options(
+                    selectinload(Task.agent),
+                    selectinload(Task.assigned_to_user),
+                    selectinload(Task.team),
+                )
+                .where(
+                    Task.task_metadata[
+                        function_input.metadata_key
+                    ].astext
+                    == function_input.metadata_value
+                )
+                .order_by(Task.created_at.desc())
+                .limit(1)
+            )
+
+            if function_input.workspace_id:
+                query = query.where(
+                    Task.workspace_id
+                    == uuid.UUID(function_input.workspace_id)
+                )
+
+            result = await db.execute(query)
+            task = result.scalar_one_or_none()
+
+            if not task:
+                return None
+
+            output_result = TaskOutput(
+                id=str(task.id),
+                workspace_id=str(task.workspace_id),
+                team_id=str(task.team_id)
+                if task.team_id
+                else None,
+                team_name=task.team.name if task.team else None,
+                title=task.title,
+                description=task.description,
+                status=task.status,
+                agent_id=str(task.agent_id),
+                agent_name=task.agent.name
+                if task.agent
+                else "N/A",
+                parent_agent_id=str(task.agent.parent_agent_id)
+                if task.agent and task.agent.parent_agent_id
+                else None,
+                assigned_to_id=str(task.assigned_to_id)
+                if task.assigned_to_id
+                else None,
+                assigned_to_name=task.assigned_to_user.name
+                if task.assigned_to_user
+                else None,
+                temporal_agent_id=task.temporal_agent_id,
+                agent_state=task.agent_state,
+                parent_task_id=str(task.parent_task_id)
+                if task.parent_task_id
+                else None,
+                temporal_parent_agent_id=task.temporal_parent_agent_id,
+                schedule_spec=task.schedule_spec,
+                schedule_task_id=str(task.schedule_task_id)
+                if task.schedule_task_id
+                else None,
+                is_scheduled=task.is_scheduled,
+                schedule_status=task.schedule_status,
+                temporal_schedule_id=task.temporal_schedule_id,
+                task_metadata=task.task_metadata,
+                created_at=task.created_at.isoformat()
+                if task.created_at
+                else None,
+                updated_at=task.updated_at.isoformat()
+                if task.updated_at
+                else None,
+            )
+
+            return TaskSingleOutput(task=output_result)
+        except Exception as e:
+            raise NonRetryableError(
+                message=f"Failed to find task by metadata: {e!s}"
             ) from e
     return None
 

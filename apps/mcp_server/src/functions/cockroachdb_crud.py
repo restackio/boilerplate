@@ -11,7 +11,9 @@ from restack_ai.function import NonRetryableError, function
 class CockroachDBRunSelectQueryInput(BaseModel):
     """Input for running a read-only SELECT query in CockroachDB."""
 
-    query: str = Field(..., description="The SELECT query to execute")
+    query: str = Field(
+        ..., description="The SELECT query to execute"
+    )
 
 
 class CockroachDBRunSelectQueryOutput(BaseModel):
@@ -44,7 +46,8 @@ class CockroachDBListTablesInput(BaseModel):
         ..., description="Database name to list tables from"
     )
     like: str | None = Field(
-        None, description="Filter tables with LIKE pattern (matches table name)"
+        None,
+        description="Filter tables with LIKE pattern (matches table name)",
     )
 
 
@@ -86,7 +89,10 @@ _mcp_cockroachdb_pool: asyncpg.Pool | None = None
 async def _get_mcp_cockroachdb_pool() -> asyncpg.Pool:
     """Return shared MCP CockroachDB pool, creating on first call."""
     global _mcp_cockroachdb_pool  # noqa: PLW0603
-    if _mcp_cockroachdb_pool is None or _mcp_cockroachdb_pool._closed:  # noqa: SLF001
+    if (
+        _mcp_cockroachdb_pool is None
+        or _mcp_cockroachdb_pool._closed  # noqa: SLF001
+    ):
         _mcp_cockroachdb_pool = await _create_cockroachdb_pool()
     return _mcp_cockroachdb_pool
 
@@ -101,11 +107,15 @@ async def cockroachdb_run_select_query(
 
         async with pool.acquire() as conn:
             # Enforce read-only for safety
-            await conn.execute("SET default_transaction_read_only = true")
+            await conn.execute(
+                "SET default_transaction_read_only = true"
+            )
             rows = await conn.fetch(function_input.query)
 
         if not rows:
-            return CockroachDBRunSelectQueryOutput(columns=[], rows=[])
+            return CockroachDBRunSelectQueryOutput(
+                columns=[], rows=[]
+            )
 
         columns = list(rows[0].keys())
         result_rows = [list(row.values()) for row in rows]

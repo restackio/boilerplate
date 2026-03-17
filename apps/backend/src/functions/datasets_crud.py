@@ -267,7 +267,9 @@ async def _get_cockroachdb_stats(
             storage_config, workspace_id
         )
         where_clause = " AND ".join(where_conditions)
-        table_name = storage_config.get("table", "pipeline_events")
+        table_name = storage_config.get(
+            "table", "pipeline_events"
+        )
 
         _validate_table_name(table_name)
 
@@ -285,7 +287,8 @@ async def _get_cockroachdb_stats(
 
         if row:
             return {
-                "unique_event_names": row["unique_event_names"] or 0,
+                "unique_event_names": row["unique_event_names"]
+                or 0,
                 "unique_agents": row["unique_agents"] or 0,
                 "last_updated_at": row["last_updated_at"],
             }
@@ -503,13 +506,19 @@ async def datasets_create(
 
         # Set up default storage config based on storage type
         storage_config = function_input.storage_config.copy()
-        if function_input.storage_type == "clickhouse" and not storage_config:
+        if (
+            function_input.storage_type == "clickhouse"
+            and not storage_config
+        ):
             storage_config = {
                 "database": "boilerplate_clickhouse",
                 "table": "pipeline_events",
                 "filter": {},
             }
-        elif function_input.storage_type == "cockroachdb" and not storage_config:
+        elif (
+            function_input.storage_type == "cockroachdb"
+            and not storage_config
+        ):
             storage_config = {
                 "database": "boilerplate_cockroachdb",
                 "table": "pipeline_events",
@@ -643,7 +652,9 @@ async def _query_cockroachdb_events(
         )
 
         where_clause = " AND ".join(where_conditions)
-        table_name = storage_config.get("table", "pipeline_events")
+        table_name = storage_config.get(
+            "table", "pipeline_events"
+        )
 
         _validate_table_name(table_name)
 
@@ -655,9 +666,7 @@ async def _query_cockroachdb_events(
             f"ORDER BY event_timestamp DESC "
             f"LIMIT {function_input.limit} OFFSET {function_input.offset}"
         )
-        count_query = (
-            f"SELECT COUNT(*) FROM {table_name} WHERE {where_clause}"  # noqa: S608
-        )
+        count_query = f"SELECT COUNT(*) FROM {table_name} WHERE {where_clause}"  # noqa: S608
 
         async with pool.acquire() as conn:
             rows = await conn.fetch(events_query)
@@ -669,14 +678,20 @@ async def _query_cockroachdb_events(
             {
                 "id": str(row["id"]),
                 "agent_id": str(row["agent_id"]),
-                "task_id": str(row["task_id"]) if row["task_id"] else None,
+                "task_id": str(row["task_id"])
+                if row["task_id"]
+                else None,
                 "event_name": row["event_name"],
-                "raw_data": dict(row["raw_data"]) if row["raw_data"] else {},
+                "raw_data": dict(row["raw_data"])
+                if row["raw_data"]
+                else {},
                 "transformed_data": dict(row["transformed_data"])
                 if row["transformed_data"]
                 else None,
                 "tags": list(row["tags"]) if row["tags"] else [],
-                "event_timestamp": row["event_timestamp"].isoformat()
+                "event_timestamp": row[
+                    "event_timestamp"
+                ].isoformat()
                 if row["event_timestamp"]
                 else None,
             }

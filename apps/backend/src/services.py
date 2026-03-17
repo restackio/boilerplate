@@ -124,6 +124,13 @@ from src.functions.schedule_crud import (
     schedule_update_workflow,
 )
 from src.functions.send_agent_event import send_agent_event
+from src.functions.slack_callback import (
+    notify_slack_on_task_complete,
+    slack_add_reaction,
+    slack_post_message,
+    slack_remove_reaction,
+    slack_update_message,
+)
 from src.functions.subtask_notify import subtask_notify
 from src.functions.task_metrics_crud import (
     get_task_metrics_clickhouse,
@@ -136,6 +143,7 @@ from src.functions.tasks_crud import (
     tasks_create,
     tasks_delete,
     tasks_get_by_id,
+    tasks_get_by_metadata,
     tasks_get_by_parent_id,
     tasks_get_stats,
     tasks_read,
@@ -430,6 +438,12 @@ async def run_restack_service() -> None:
         functions=[
             send_agent_event,
             subtask_notify,
+            slack_post_message,
+            slack_update_message,
+            slack_add_reaction,
+            slack_remove_reaction,
+            notify_slack_on_task_complete,
+            tasks_get_by_metadata,
             llm_response_stream,
             llm_prepare_response,
             agents_read,

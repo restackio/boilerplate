@@ -196,6 +196,39 @@ services:
       - boilerplate-network
     restart: unless-stopped
 
+  # Slack Bot (optional - set SLACK_BOT_TOKEN to enable)
+  slack-bot:
+    build:
+      context: ./apps/slack-bot
+      dockerfile: Dockerfile
+    container_name: boilerplate_slack_bot
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/boilerplate_postgres}
+      - RESTACK_ENGINE_ADDRESS=${RESTACK_ENGINE_ADDRESS:-restack:7233}
+      - RESTACK_ENGINE_API_ADDRESS=${RESTACK_ENGINE_API_ADDRESS:-restack:6233}
+      - RESTACK_ENGINE_STREAM_ADDRESS=${RESTACK_ENGINE_STREAM_ADDRESS:-restack:9233}
+      - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN:-}
+      - SLACK_APP_TOKEN=${SLACK_APP_TOKEN:-}
+      - SLACK_SIGNING_SECRET=${SLACK_SIGNING_SECRET:-}
+      - DEFAULT_WORKSPACE_ID=${DEFAULT_WORKSPACE_ID:-}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+      - NO_COLOR=1
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      backend:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      restack:
+        condition: service_healthy
+    networks:
+      - boilerplate-network
+    restart: unless-stopped
+    profiles:
+      - slack
+
   # Frontend Service
   frontend:
     build:
