@@ -60,7 +60,7 @@ class UpdateAgentTool:
     """MCP workflow to create or update an agent tool via the backend."""
 
     @workflow.run
-    async def run(self, workflow_input: UpdateAgentToolInput) -> UpdateAgentToolOutput:
+    async def run(self, workflow_input: UpdateAgentToolInput) -> UpdateAgentToolOutput:  # noqa: C901, PLR0911, PLR0912
         """Call backend agent_tools_update when agent_tool_id given; else agent_tools_create."""
         agent_tool_id = (workflow_input.agent_tool_id or "").strip()
         do_update = bool(agent_tool_id)

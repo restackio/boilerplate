@@ -502,7 +502,7 @@ def _convert_response_usage(usage: Any) -> dict | None:
 
 
 @function.defn()
-async def llm_response_stream(  # noqa: C901, PLR0915
+async def llm_response_stream(  # noqa: C901, PLR0912, PLR0915
     function_input: LlmResponseInput,
 ) -> LlmResponseOutput:
     # Initialize tracing variables to ensure they're always defined for finally block
