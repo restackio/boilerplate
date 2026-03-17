@@ -490,6 +490,9 @@ class Task(Base):
         String(50), nullable=True, default="inactive"
     )  # Schedule status: active, inactive, paused
     temporal_schedule_id = Column(String(255), nullable=True)
+    task_metadata = Column(
+        JSONB, nullable=True, default=dict
+    )  # Integration context (e.g., slack_channel, slack_thread_ts, source)
     created_at = Column(
         DateTime,
         default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
@@ -766,4 +769,6 @@ class MetricAgent(Base):
     metric_definition = relationship(
         "MetricDefinition", back_populates="metric_agents"
     )
-    parent_agent = relationship("Agent", back_populates="metric_agents")
+    parent_agent = relationship(
+        "Agent", back_populates="metric_agents"
+    )

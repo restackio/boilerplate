@@ -133,4 +133,6 @@ async def get_clickhouse_async_client() -> (
         "http://clickhouse:clickhouse@localhost:8123/boilerplate_clickhouse",
     )
     conn_params = _parse_clickhouse_url(clickhouse_url)
-    return await clickhouse_connect.get_async_client(**conn_params)
+    return await clickhouse_connect.get_async_client(
+        **conn_params
+    )

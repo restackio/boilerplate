@@ -1,20 +1,21 @@
 """Server entry point for the Slack bot."""
+
 import logging
 import sys
 
 
 def start() -> None:
     """Start the Slack bot in production mode."""
-    from .services import start as services_start
-    
+    from .runner import start as runner_start
+
     logging.info("Starting Slack bot in production mode...")
-    services_start()
+    runner_start()
 
 
 def dev() -> None:
     """Start the Slack bot in development mode with hot-reloading."""
-    from .services import dev_watch
-    
+    from .runner import dev_watch
+
     logging.info("Starting Slack bot in development mode with hot-reloading...")
     dev_watch()
 
@@ -24,4 +25,3 @@ if __name__ == "__main__":
         dev()
     else:
         start()
-

@@ -1,105 +1,54 @@
-"""Slack Bolt app configuration."""
+"""Slack Bolt app configuration with Socket Mode."""
+
 import logging
-import os
-from dotenv import load_dotenv
+import sys
+
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
-from slack_bolt.oauth.oauth_settings import OAuthSettings
-from slack_sdk.oauth.installation_store import FileInstallationStore
-from slack_sdk.oauth.state_store import FileOAuthStateStore
 
-# Load environment variables
-load_dotenv()
+from .config import config
 
-# Configure logging
 logging.basicConfig(
-    level=os.getenv("LOG_LEVEL", "INFO"),
-    format="%(asctime)s [%(levelname)s] %(message)s"
+    level=config.LOG_LEVEL,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 logger = logging.getLogger(__name__)
 
-# Check if Slack credentials are configured
-slack_configured = os.getenv("SLACK_SIGNING_SECRET") is not None
+app: App | None = None
 
-if not slack_configured:
-    logger.warning("⚠️  Slack credentials not configured. Bot will not start.")
-    logger.warning("   Set SLACK_SIGNING_SECRET and either:")
-    logger.warning("   - SLACK_BOT_TOKEN (single workspace)")
-    logger.warning("   - SLACK_CLIENT_ID + SLACK_CLIENT_SECRET (OAuth)")
-    app = None
+if not config.is_configured():
+    logger.warning(
+        "Slack credentials not configured. "
+        "Set SLACK_BOT_TOKEN, SLACK_APP_TOKEN, and SLACK_SIGNING_SECRET. "
+        "See SETUP.md for instructions."
+    )
 else:
-    # Determine if we're using OAuth or single-workspace mode
-    use_oauth = os.getenv("SLACK_CLIENT_ID") and os.getenv("SLACK_CLIENT_SECRET")
+    app = App(
+        token=config.SLACK_BOT_TOKEN,
+        signing_secret=config.SLACK_SIGNING_SECRET,
+    )
 
-    if use_oauth:
-        # Multi-workspace mode with OAuth
-        logger.info("Initializing Bolt app with OAuth for multi-workspace support")
-        
-        oauth_settings = OAuthSettings(
-            client_id=os.environ["SLACK_CLIENT_ID"],
-            client_secret=os.environ["SLACK_CLIENT_SECRET"],
-            scopes=[
-                "app_mentions:read",
-                "channels:history",
-                "channels:read",
-                "chat:write",
-                "chat:write.public",
-                "commands",
-                "im:history",
-                "im:read",
-                "im:write",
-                "reactions:write",
-                "users:read",
-            ],
-            user_scopes=[],  # No user scopes needed for bot-only app
-            installation_store=FileInstallationStore(base_dir="./data/installations"),
-            state_store=FileOAuthStateStore(
-                expiration_seconds=600,
-                base_dir="./data/states"
-            ),
-            install_path="/slack/install",
-            redirect_uri_path="/slack/oauth_redirect",
-        )
-        
-        app = App(
-            signing_secret=os.environ["SLACK_SIGNING_SECRET"],
-            oauth_settings=oauth_settings,
-        )
-    else:
-        # Single-workspace mode (development)
-        logger.info("Initializing Bolt app in single-workspace mode")
-        
-        app = App(
-            token=os.getenv("SLACK_BOT_TOKEN"),
-            signing_secret=os.getenv("SLACK_SIGNING_SECRET"),
-        )
-
-# Import listeners only if app is configured
 if app is not None:
-    # Import order matters - do events first, then actions
-    from .listeners import assistant, commands, events, actions  # noqa: E402, F401
-    logger.info("Slack bot initialized successfully")
-else:
-    logger.info("Slack bot NOT initialized - missing credentials")
+    from .listeners import actions, commands, events  # noqa: F401
+
+    logger.info("Slack bot listeners registered")
 
 
-def start_socket_mode():
-    """Start the app in Socket Mode."""
+def start_socket_mode() -> None:
+    """Start the app in Socket Mode (WebSocket, no public URL needed)."""
     if app is None:
-        logger.error("Cannot start: Slack credentials not configured")
-        logger.info("The bot will not run until you configure Slack credentials.")
-        logger.info("See SLACK_SIMPLE_SETUP.md for setup instructions.")
-        return
-    
-    app_token = os.getenv("SLACK_APP_TOKEN")
-    if not app_token:
-        logger.error("SLACK_APP_TOKEN not set - required for Socket Mode")
-        return
-    
-    handler = SocketModeHandler(app, app_token)
-    logger.info("⚡️ Slack bot is running in Socket Mode!")
+        logger.info(
+            "Slack bot not configured -- exiting cleanly. "
+            "Set SLACK_BOT_TOKEN, SLACK_APP_TOKEN, and SLACK_SIGNING_SECRET to enable."
+        )
+        sys.exit(0)
+
+    if not config.SLACK_APP_TOKEN:
+        logger.info(
+            "SLACK_APP_TOKEN not set -- exiting cleanly. Required for Socket Mode."
+        )
+        sys.exit(0)
+
+    handler = SocketModeHandler(app, config.SLACK_APP_TOKEN)
+    logger.info("Slack bot is running in Socket Mode")
     handler.start()
-
-
-if __name__ == "__main__":
-    start_socket_mode()

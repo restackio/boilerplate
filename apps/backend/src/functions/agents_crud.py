@@ -46,7 +46,10 @@ class AgentCreateInput(BaseModel):
     reasoning_effort: str = Field(
         default="medium", pattern="^(minimal|low|medium|high)$"
     )
-    team_id: str | None = Field(default=None, description="If provided, create the agent in the specified team")
+    team_id: str | None = Field(
+        default=None,
+        description="If provided, create the agent in the specified team",
+    )
     # Note: MCP relationships are now created through the agent tools workflow
     # which requires specific tool names, not through agent creation
 
@@ -132,7 +135,10 @@ class AgentGetByWorkspaceInput(BaseModel):
         default=False,
         description="If true, return only parent agents",
     )
-    team_id: str | None = Field(default=None, description="If provided, return only agents in the specified team")
+    team_id: str | None = Field(
+        default=None,
+        description="If provided, return only agents in the specified team",
+    )
 
 
 # Pydantic models for output serialization
@@ -566,7 +572,8 @@ async def agents_read_table(
             # Apply team_id filter if requested
             if function_input.team_id:
                 all_agents_query = all_agents_query.where(
-                    Agent.team_id == uuid.UUID(function_input.team_id)
+                    Agent.team_id
+                    == uuid.UUID(function_input.team_id)
                 )
 
             all_agents_query = all_agents_query.order_by(
@@ -638,7 +645,9 @@ async def agents_create(
                 # New GPT-5 model configuration fields
                 model=agent_data.model,
                 reasoning_effort=agent_data.reasoning_effort,
-                team_id=uuid.UUID(agent_data.team_id) if agent_data.team_id else None,
+                team_id=uuid.UUID(agent_data.team_id)
+                if agent_data.team_id
+                else None,
             )
             db.add(agent)
             await db.commit()

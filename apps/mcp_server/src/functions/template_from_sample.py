@@ -121,9 +121,15 @@ TEMPLATE_CONFIGS = {
         "sample": LINKEDIN_PROFILES_POST_SAMPLE
     },
     "kaiser_policy": {"sample": KAISER_POLICY_SAMPLE},
-    "crm_salesforce_contacts": {"sample": SALESFORCE_CONTACTS_SAMPLE},
-    "crm_salesforce_contact_activities": {"sample": SALESFORCE_CONTACT_ACTIVITIES_SAMPLE},
-    "erp_eci_contact_activities": {"sample": ERP_ECI_CONTACT_ACTIVITIES_SAMPLE},
+    "crm_salesforce_contacts": {
+        "sample": SALESFORCE_CONTACTS_SAMPLE
+    },
+    "crm_salesforce_contact_activities": {
+        "sample": SALESFORCE_CONTACT_ACTIVITIES_SAMPLE
+    },
+    "erp_eci_contact_activities": {
+        "sample": ERP_ECI_CONTACT_ACTIVITIES_SAMPLE
+    },
 }
 
 # Generate the integration templates using the factory function

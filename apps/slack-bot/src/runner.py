@@ -1,4 +1,5 @@
 """Service module for Slack bot with hot reloading support."""
+
 import logging
 from pathlib import Path
 
@@ -10,7 +11,7 @@ logger = logging.getLogger(__name__)
 def start() -> None:
     """Start the Slack bot in Socket Mode."""
     from .app import start_socket_mode
-    
+
     logger.info("Starting Slack bot...")
     start_socket_mode()
 
@@ -32,4 +33,3 @@ def dev_watch() -> None:
 
 if __name__ == "__main__":
     start()
-

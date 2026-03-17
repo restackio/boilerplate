@@ -1,5 +1,5 @@
-"""Slack event listeners."""
-# Import all listener modules to register handlers
-from . import assistant, commands, events, actions
+"""Slack listener registration."""
 
-__all__ = ["assistant", "commands", "events", "actions"]
+from . import actions, commands, events
+
+__all__ = ["events", "commands", "actions"]

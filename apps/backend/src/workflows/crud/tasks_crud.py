@@ -24,6 +24,10 @@ with import_functions():
         SendAgentEventInput,
         send_agent_event,
     )
+    from src.functions.slack_callback import (
+        TaskSlackCallbackInput,
+        notify_slack_on_task_complete,
+    )
     from src.functions.tasks_crud import (
         TaskCreateInput,
         TaskDeleteOutput,
@@ -140,6 +144,7 @@ class TasksCreateWorkflow:
                     task_id=result.task.id,
                     parent_task_id=result.task.parent_task_id,
                     temporal_parent_agent_id=temporal_parent_agent_id,
+                    task_metadata=result.task.task_metadata,
                 ),
                 task_queue=TASK_QUEUE,
                 parent_close_policy=ParentClosePolicy.ABANDON,
@@ -262,12 +267,48 @@ class TasksUpdateWorkflow:
                         )
 
             # Then update the task in the database
-            return await workflow.step(
+            result = await workflow.step(
                 function=tasks_update,
                 function_input=workflow_input,
                 task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=30),
             )
+
+            # Notify Slack if task has Slack metadata and reached a terminal status
+            if (
+                result
+                and result.task
+                and result.task.task_metadata
+                and result.task.task_metadata.get("slack_channel")
+                and workflow_input.status
+                in ["completed", "closed", "failed"]
+            ):
+                try:
+                    await workflow.step(
+                        function=notify_slack_on_task_complete,
+                        function_input=TaskSlackCallbackInput(
+                            task_id=result.task.id,
+                            task_title=result.task.title,
+                            task_status=result.task.status,
+                            agent_name=result.task.agent_name
+                            or "Unknown Agent",
+                            task_metadata=result.task.task_metadata,
+                        ),
+                        task_queue=TASK_QUEUE,
+                        start_to_close_timeout=timedelta(
+                            seconds=10
+                        ),
+                    )
+                except (
+                    OSError,
+                    ValueError,
+                    RuntimeError,
+                ) as slack_err:
+                    log.warning(
+                        f"Failed to notify Slack: {slack_err}"
+                    )
+
+            return result  # noqa: TRY300
 
         except Exception as e:
             error_message = f"Error during tasks_update: {e}"

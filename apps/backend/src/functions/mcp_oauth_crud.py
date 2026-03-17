@@ -279,7 +279,9 @@ async def oauth_token_create_or_update(
                 existing_token.auth_type = (
                     function_input.auth_type
                 )
-                existing_token.provider_metadata = function_input.provider_metadata or {}
+                existing_token.provider_metadata = (
+                    function_input.provider_metadata or {}
+                )
                 existing_token.is_default = should_be_default
                 existing_token.updated_at = datetime.now(
                     UTC
@@ -302,7 +304,8 @@ async def oauth_token_create_or_update(
                     expires_at=expires_at,
                     scope=function_input.scope,
                     auth_type=function_input.auth_type,
-                    provider_metadata=function_input.provider_metadata or {},
+                    provider_metadata=function_input.provider_metadata
+                    or {},
                     is_default=should_be_default,
                 )
                 db.add(token)

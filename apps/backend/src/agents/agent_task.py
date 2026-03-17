@@ -18,6 +18,8 @@ from restack_ai.agent import (
 
 from src.constants import TASK_QUEUE
 
+SLACK_FLUSH_THRESHOLD = 200
+
 
 def create_agent_error_event(
     message: str,
@@ -61,6 +63,12 @@ with import_functions():
     from src.functions.send_agent_event import (
         SendAgentEventInput,
         send_agent_event,
+    )
+    from src.functions.slack_callback import (
+        SlackPostMessageInput,
+        SlackUpdateMessageInput,
+        slack_post_message,
+        slack_update_message,
     )
     from src.functions.subtask_notify import (
         SubtaskNotifyInput,
@@ -109,6 +117,7 @@ class AgentTaskInput(BaseModel):
     temporal_parent_agent_id: str | None = (
         None  # Temporal workflow ID for event routing
     )
+    task_metadata: dict | None = None
 
 
 @agent.defn()
@@ -122,6 +131,7 @@ class AgentTask:
         self.assigned_to_id = None
         self.workspace_id = None
         self.agent_type = None
+        self.task_metadata = {}
         self.messages = []
         self.tools = []
         self.events = []
@@ -146,6 +156,9 @@ class AgentTask:
         self.response_in_progress = (
             False  # Track if currently responding
         )
+        self._slack_msg_ts = None
+        self._slack_text_buf = ""
+        self._slack_flush_len = 0
 
     def _format_todos_for_llm(
         self,
@@ -678,6 +691,67 @@ class AgentTask:
                 start_to_close_timeout=timedelta(seconds=10),
             )
 
+    def _has_slack_context(self) -> bool:
+        meta = self.task_metadata or {}
+        return bool(meta.get("slack_channel"))
+
+    async def _slack_post_or_update(
+        self, text: str, *, final: bool = False
+    ) -> None:
+        """Post or progressively update a Slack message in the originating thread."""
+        if not self._has_slack_context():
+            return
+        meta = self.task_metadata
+        channel = meta["slack_channel"]
+        thread_ts = meta.get("slack_thread_ts") or None
+
+        display = text.strip()
+        if not display:
+            return
+
+        if not final:
+            display += " ..."
+
+        try:
+            if self._slack_msg_ts is None:
+                result = await agent.step(
+                    function=slack_post_message,
+                    function_input=SlackPostMessageInput(
+                        channel=channel,
+                        text=display,
+                        thread_ts=thread_ts,
+                    ),
+                    task_queue=TASK_QUEUE,
+                    start_to_close_timeout=timedelta(seconds=10),
+                )
+                if (
+                    result
+                    and getattr(result, "ok", False)
+                    and getattr(result, "message_ts", None)
+                ):
+                    self._slack_msg_ts = result.message_ts
+                    self._slack_flush_len = len(text)
+            else:
+                update_result = await agent.step(
+                    function=slack_update_message,
+                    function_input=SlackUpdateMessageInput(
+                        channel=channel,
+                        ts=self._slack_msg_ts,
+                        text=display,
+                    ),
+                    task_queue=TASK_QUEUE,
+                    start_to_close_timeout=timedelta(seconds=10),
+                )
+                if update_result and getattr(
+                    update_result, "ok", False
+                ):
+                    self._slack_flush_len = len(text)
+                else:
+                    self._slack_msg_ts = None
+        except (OSError, ValueError, TypeError) as e:
+            log.warning(f"Slack streaming error: {e}")
+            self._slack_msg_ts = None
+
     def _extract_assistant_content(self, response: dict) -> str:
         """Extract assistant content from response output."""
         assistant_content = ""
@@ -848,7 +922,9 @@ class AgentTask:
         )
 
     @agent.event
-    async def response_item(self, event_data: dict) -> dict:
+    async def response_item(  # noqa: C901
+        self, event_data: dict
+    ) -> dict:
         """Store OpenAI ResponseStreamEvent in insertion order."""
         try:
             event_type = event_data.get("type", "")
@@ -876,6 +952,31 @@ class AgentTask:
                 # Store normal events
                 self.events.append(event_data)
 
+            # Progressive Slack streaming: accumulate text deltas
+            if (
+                event_type == "response.output_text.delta"
+                and self._has_slack_context()
+            ):
+                delta = event_data.get("delta") or ""
+                self._slack_text_buf += delta
+                if (
+                    len(self._slack_text_buf)
+                    - self._slack_flush_len
+                    >= SLACK_FLUSH_THRESHOLD
+                ):
+                    await self._slack_post_or_update(
+                        self._slack_text_buf
+                    )
+
+            # On response.created, reset the Slack streaming buffer
+            if (
+                event_type == "response.created"
+                and self._has_slack_context()
+            ):
+                self._slack_text_buf = ""
+                self._slack_flush_len = 0
+                self._slack_msg_ts = None
+
             # Handle response.completed events with metrics
             if (
                 event_data.get("type") == "response.completed"
@@ -892,6 +993,15 @@ class AgentTask:
                 await self._trigger_metrics_evaluation(
                     response, response_id, assistant_content
                 )
+
+                # Post or finalize the response in the Slack thread
+                if (
+                    assistant_content
+                    and self._has_slack_context()
+                ):
+                    await self._slack_post_or_update(
+                        assistant_content, final=True
+                    )
 
             # Handle pipeline MCP call completion
             if (
@@ -926,7 +1036,9 @@ class AgentTask:
         return {"end": True}
 
     @agent.run
-    async def run(self, agent_input: AgentTaskInput) -> None:
+    async def run(  # noqa: PLR0915
+        self, agent_input: AgentTaskInput
+    ) -> None:
         self.agent_id = agent_input.agent_id
         self.task_id = agent_input.task_id
         self.user_id = agent_input.user_id
@@ -941,6 +1053,7 @@ class AgentTask:
         self.temporal_parent_agent_id = (
             agent_input.temporal_parent_agent_id
         )
+        self.task_metadata = agent_input.task_metadata or {}
 
         meta_info = {
             "agent_id": self.agent_id,

@@ -131,7 +131,9 @@ class McpOAuthInitializeWorkflow:
 
             # Extract OAuth config from server headers (if present)
             headers = server.headers or {}
-            oauth_authorize_url = headers.get("oauth_authorize_url")
+            oauth_authorize_url = headers.get(
+                "oauth_authorize_url"
+            )
             oauth_token_url = headers.get("oauth_token_url")
             client_id = headers.get("client_id")
             client_secret = headers.get("client_secret")
@@ -269,7 +271,9 @@ class McpOAuthCallbackWorkflow:
 
             # Extract OAuth token URL from server headers (if present)
             server_headers = server_result.server.headers or {}
-            oauth_token_url = server_headers.get("oauth_token_url")
+            oauth_token_url = server_headers.get(
+                "oauth_token_url"
+            )
 
             token_result = await workflow.step(
                 function=oauth_exchange_code_for_token,
