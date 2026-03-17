@@ -9,10 +9,13 @@ import {
 } from "lucide-react";
 import { Button } from "@workspace/ui/components/ui/button";
 import { PageHeader } from "@workspace/ui/components/page-header";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@workspace/ui/components/ui/tabs";
 import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
 import { Dataset } from "../components/datasets-table";
 import { EventsTable, PipelineEvent } from "../components/events-table";
+import { AddFilesDialog } from "../components/add-files-dialog";
+import { DatasetFilesTable, DatasetFileSummary } from "../components/dataset-files-table";
 
 
 export default function DatasetDetailPage() {
@@ -21,8 +24,10 @@ export default function DatasetDetailPage() {
   const { currentWorkspaceId, isReady } = useDatabaseWorkspace();
   const [dataset, setDataset] = useState<Dataset | null>(null);
   const [events, setEvents] = useState<PipelineEvent[]>([]);
+  const [files, setFiles] = useState<DatasetFileSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [eventsLoading, setEventsLoading] = useState(false);
+  const [filesLoading, setFilesLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
   const { executeWorkflow } = useWorkspaceScopedActions();
@@ -97,6 +102,46 @@ export default function DatasetDetailPage() {
     }
   }, [currentWorkspaceId, isReady, datasetId, executeWorkflow]);
 
+  // Fetch files (unique sources with chunk counts)
+  const fetchFiles = useCallback(async () => {
+    if (!currentWorkspaceId || !isReady) return;
+    try {
+      setFilesLoading(true);
+      const result = await executeWorkflow("ListDatasetFilesWorkflow", {
+        workspace_id: currentWorkspaceId,
+        dataset_id: datasetId,
+      });
+      const data = result.data as { success?: boolean; files?: DatasetFileSummary[] };
+      if (result.success && data?.success && Array.isArray(data.files)) {
+        setFiles(data.files);
+      } else {
+        setFiles([]);
+      }
+    } catch (err) {
+      console.error("Failed to load files:", err);
+      setFiles([]);
+    } finally {
+      setFilesLoading(false);
+    }
+  }, [currentWorkspaceId, isReady, datasetId, executeWorkflow]);
+
+  const handleDeleteFile = useCallback(
+    async (source: string) => {
+      if (!currentWorkspaceId || !isReady) return;
+      const result = await executeWorkflow("DeleteDatasetEventsBySourceWorkflow", {
+        workspace_id: currentWorkspaceId,
+        dataset_id: datasetId,
+        source,
+      });
+      if (result.success) {
+        await Promise.all([fetchFiles(), fetchEvents()]);
+      } else {
+        throw new Error(result.error ?? "Failed to delete file chunks");
+      }
+    },
+    [currentWorkspaceId, isReady, datasetId, executeWorkflow, fetchFiles, fetchEvents]
+  );
+
   useEffect(() => {
     fetchDataset();
   }, [currentWorkspaceId, isReady, datasetId, fetchDataset]);
@@ -107,9 +152,16 @@ export default function DatasetDetailPage() {
     }
   }, [currentWorkspaceId, isReady, datasetId, fetchEvents]);
 
+  useEffect(() => {
+    if (currentWorkspaceId && isReady && datasetId) {
+      fetchFiles();
+    }
+  }, [currentWorkspaceId, isReady, datasetId, fetchFiles]);
+
   const handleRefresh = () => {
     fetchDataset();
     fetchEvents();
+    fetchFiles();
   };
 
   // Format date
@@ -158,10 +210,19 @@ export default function DatasetDetailPage() {
           { label: dataset.name }
         ]}
         actions={
-          <Button variant="outline" onClick={handleRefresh} disabled={loading || eventsLoading}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${(loading || eventsLoading) ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
+          <div className="flex items-center gap-2">
+            <AddFilesDialog
+              datasetId={dataset.id}
+              onSeeded={() => {
+                fetchEvents();
+                fetchFiles();
+              }}
+            />
+            <Button variant="outline" onClick={handleRefresh} disabled={loading || eventsLoading || filesLoading}>
+              <RefreshCw className={`h-4 w-4 mr-2 ${(loading || eventsLoading) ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </div>
         }
         fixed={true}
       />
@@ -191,8 +252,23 @@ export default function DatasetDetailPage() {
         </div>
       </div>
 
-      {/* Events Table */}
-      <EventsTable events={events} loading={eventsLoading} />
+      {/* Events and Files tabs */}
+      <Tabs defaultValue="events" className="w-full">
+        <TabsList>
+          <TabsTrigger value="events">Events</TabsTrigger>
+          <TabsTrigger value="files">Files</TabsTrigger>
+        </TabsList>
+        <TabsContent value="events" className="mt-4">
+          <EventsTable events={events} loading={eventsLoading} />
+        </TabsContent>
+        <TabsContent value="files" className="mt-4">
+          <DatasetFilesTable
+            files={files}
+            loading={filesLoading}
+            onDeleteFile={handleDeleteFile}
+          />
+        </TabsContent>
+      </Tabs>
         </div>
       </div>
     </div>

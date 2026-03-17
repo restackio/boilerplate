@@ -10,9 +10,10 @@ import {
   Settings,
   Webhook,
   History,
+  Share2,
 } from "lucide-react";
 import { Agent, ApiResponse } from "@/hooks/use-workspace-scoped-actions";
-import { AgentSetupTab, AgentVersionsTab, WebhookTab, AgentConfigData } from "./";
+import { AgentSetupTab, AgentSharingTab, AgentVersionsTab, WebhookTab, AgentConfigData } from "./";
 
 import AgentFlow from "@workspace/ui/components/agent-flow";
 
@@ -36,6 +37,7 @@ interface AgentTabNavigationProps {
   workspaceId: string;
   agentId: string;
   getAgentVersions: (agentId: string) => Promise<ApiResponse<RawAgent[]>>;
+  onAgentUpdated?: () => void;
 }
 
 const tabsConfig = [
@@ -51,12 +53,12 @@ const tabsConfig = [
     icon: Webhook,
     enabled: true,
   },
-  // {
-  //   id: "flow",
-  //   label: "Flow",
-  //   icon: Workflow,
-  //   enabled: true,
-  // },
+  {
+    id: "sharing",
+    label: "Public URL",
+    icon: Share2,
+    enabled: true,
+  },
   {
     id: "versions",
     label: "Version history",
@@ -75,6 +77,7 @@ export function AgentTabNavigation({
   workspaceId,
   agentId,
   getAgentVersions,
+  onAgentUpdated,
 }: AgentTabNavigationProps) {
   return (
     <div className="bg-background rounded-lg border">
@@ -120,6 +123,7 @@ export function AgentTabNavigation({
             onChange={onChange}
             isSaving={isSaving}
             workspaceId={workspaceId}
+            onAgentUpdated={onAgentUpdated}
           />
         </TabsContent>
 
@@ -128,6 +132,15 @@ export function AgentTabNavigation({
           <WebhookTab
             agent={agent}
             workspaceId={workspaceId}
+          />
+        </TabsContent>
+
+        {/* Sharing / Public URL Tab */}
+        <TabsContent value="sharing">
+          <AgentSharingTab
+            agent={agent}
+            isSaving={isSaving}
+            onAgentUpdated={onAgentUpdated}
           />
         </TabsContent>
 

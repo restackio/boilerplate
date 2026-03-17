@@ -2,12 +2,19 @@ import uuid
 from datetime import UTC, datetime
 
 from pydantic import BaseModel, Field
-from restack_ai.function import NonRetryableError, function
+from restack_ai.function import NonRetryableError, function, log
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import selectinload
 
 from src.database.connection import get_async_db
 from src.database.models import Agent, AgentSubagent, AgentTool
+
+# Allowed OpenAI model IDs (must match DB constraint and dropdowns)
+AGENT_MODEL_PATTERN = (
+    r"^(gpt-5.4|gpt-5.3-chat-latest|gpt-5.2|gpt-5.1|gpt-5|gpt-5-mini|gpt-5-nano|"
+    r"o3-deep-research|o4-mini-deep-research)$"
+)
+DEFAULT_AGENT_MODEL = "gpt-5.4"
 
 
 def _raise_source_agent_not_found_error(
@@ -40,11 +47,10 @@ class AgentCreateInput(BaseModel):
     )
     # New GPT-5 model configuration fields
     model: str = Field(
-        default="gpt-5",
-        pattern=r"^(gpt-5|gpt-5-mini|gpt-5-nano|gpt-5-2025-08-07|gpt-5-mini-2025-08-07|gpt-5-nano-2025-08-07|gpt-4\.1|gpt-4\.1-mini|gpt-4\.1-nano|gpt-4o|gpt-4o-mini|o3-deep-research|o4-mini-deep-research)$",
+        default=DEFAULT_AGENT_MODEL, pattern=AGENT_MODEL_PATTERN
     )
     reasoning_effort: str = Field(
-        default="medium", pattern="^(minimal|low|medium|high)$"
+        default="medium", pattern="^(none|low|medium|high|xhigh)$"
     )
     team_id: str | None = Field(
         default=None,
@@ -74,11 +80,10 @@ class AgentCloneInput(BaseModel):
     )
     # New GPT-5 model configuration fields
     model: str = Field(
-        default="gpt-5",
-        pattern=r"^(gpt-5|gpt-5-mini|gpt-5-nano|gpt-5-2025-08-07|gpt-5-mini-2025-08-07|gpt-5-nano-2025-08-07|gpt-4\.1|gpt-4\.1-mini|gpt-4\.1-nano|gpt-4o|gpt-4o-mini|o3-deep-research|o4-mini-deep-research)$",
+        default=DEFAULT_AGENT_MODEL, pattern=AGENT_MODEL_PATTERN
     )
     reasoning_effort: str = Field(
-        default="medium", pattern="^(minimal|low|medium|high)$"
+        default="medium", pattern="^(none|low|medium|high|xhigh)$"
     )
 
 
@@ -101,17 +106,19 @@ class AgentUpdateInput(BaseModel):
         None, pattern="^(interactive|pipeline)$"
     )
     # New GPT-5 model configuration fields
-    model: str | None = Field(
-        None,
-        pattern=r"^(gpt-5|gpt-5-mini|gpt-5-nano|gpt-5-2025-08-07|gpt-5-mini-2025-08-07|gpt-5-nano-2025-08-07|gpt-4\.1|gpt-4\.1-mini|gpt-4\.1-nano|gpt-4o|gpt-4o-mini|o3-deep-research|o4-mini-deep-research)$",
-    )
+    model: str | None = Field(None, pattern=AGENT_MODEL_PATTERN)
     reasoning_effort: str | None = Field(
-        None, pattern="^(minimal|low|medium|high)$"
+        None, pattern="^(none|low|medium|high|xhigh)$"
     )
+    is_public: bool | None = None
 
 
 class AgentIdInput(BaseModel):
     agent_id: str = Field(..., min_length=1)
+    public_only: bool = Field(
+        default=False,
+        description="If True, return agent only when is_public and status=published",
+    )
 
 
 class AgentGetByStatusInput(BaseModel):
@@ -155,8 +162,9 @@ class AgentOutput(BaseModel):
     # Agent type: interactive (user-facing) or pipeline (data processing)
     type: str = "interactive"
     # New GPT-5 model configuration fields
-    model: str = "gpt-5"
+    model: str = DEFAULT_AGENT_MODEL
     reasoning_effort: str = "medium"
+    is_public: bool = False
 
     created_at: str | None
     updated_at: str | None
@@ -175,6 +183,12 @@ class AgentListOutput(BaseModel):
 
 class AgentSingleOutput(BaseModel):
     agent: AgentOutput
+
+
+class AgentGetByIdOutput(BaseModel):
+    """Result of get-by-id; agent is None when not found."""
+
+    agent: AgentOutput | None
 
 
 class AgentDeleteOutput(BaseModel):
@@ -206,8 +220,10 @@ def get_latest_agent_versions(
             # Sort by updated_at descending and take the first (latest)
             latest_agent = max(
                 group_agents,
-                key=lambda x: x.updated_at
-                or datetime.min.replace(tzinfo=UTC),
+                key=lambda x: (
+                    x.updated_at
+                    or datetime.min.replace(tzinfo=UTC)
+                ),
             )
 
             # Calculate version count
@@ -221,14 +237,17 @@ def get_latest_agent_versions(
                     description=latest_agent.description,
                     instructions=latest_agent.instructions,
                     status=latest_agent.status,
-                    is_draft=latest_agent.is_draft,
+                    is_public=getattr(
+                        latest_agent, "is_public", False
+                    ),
                     parent_agent_id=str(
                         latest_agent.parent_agent_id
                     )
                     if latest_agent.parent_agent_id
                     else None,
                     # New GPT-5 model configuration fields
-                    model=latest_agent.model or "gpt-5",
+                    model=latest_agent.model
+                    or DEFAULT_AGENT_MODEL,
                     reasoning_effort=latest_agent.reasoning_effort
                     or "medium",
                     created_at=latest_agent.created_at.isoformat()
@@ -338,13 +357,16 @@ async def agents_read(
                         else None,
                         name=agent.name,
                         description=agent.description,
+                        is_public=getattr(
+                            agent, "is_public", False
+                        ),
                         instructions=agent.instructions,
                         status=agent.status,
                         parent_agent_id=str(agent.parent_agent_id)
                         if agent.parent_agent_id
                         else None,
                         # New GPT-5 model configuration fields
-                        model=agent.model or "gpt-5",
+                        model=agent.model or DEFAULT_AGENT_MODEL,
                         reasoning_effort=agent.reasoning_effort
                         or "medium",
                         created_at=agent.created_at.isoformat()
@@ -378,7 +400,7 @@ class AgentTableOutput(BaseModel):
     type: str | None = None
     status: str
     parent_agent_id: str | None = None
-    model: str | None = "gpt-5"
+    model: str | None = DEFAULT_AGENT_MODEL
     reasoning_effort: str | None = "medium"
     created_at: str | None = None
     updated_at: str | None = None
@@ -413,20 +435,18 @@ def _process_agent_group(
     if published_agents:
         published_agent = max(
             published_agents,
-            key=lambda x: x.updated_at
-            or datetime.min.replace(tzinfo=UTC),
+            key=lambda x: (
+                x.updated_at or datetime.min.replace(tzinfo=UTC)
+            ),
         )
 
     # Determine which agent to show in the table
     # Priority: latest published version, fallback to latest overall if no published version
-    display_agent = (
-        published_agent
-        if published_agent
-        else max(
-            group_agents,
-            key=lambda x: x.updated_at
-            or datetime.min.replace(tzinfo=UTC),
-        )
+    display_agent = published_agent or max(
+        group_agents,
+        key=lambda x: (
+            x.updated_at or datetime.min.replace(tzinfo=UTC)
+        ),
     )
 
     # Create short UUID for published version
@@ -440,8 +460,9 @@ def _process_agent_group(
     if draft_agents:
         latest_draft_agent = max(
             draft_agents,
-            key=lambda x: x.updated_at
-            or datetime.min.replace(tzinfo=UTC),
+            key=lambda x: (
+                x.updated_at or datetime.min.replace(tzinfo=UTC)
+            ),
         )
         latest_draft_version_short = str(latest_draft_agent.id)[
             -5:
@@ -464,7 +485,7 @@ def _process_agent_group(
         parent_agent_id=str(display_agent.parent_agent_id)
         if display_agent.parent_agent_id
         else None,
-        model=display_agent.model or "gpt-5",
+        model=display_agent.model or DEFAULT_AGENT_MODEL,
         reasoning_effort=display_agent.reasoning_effort
         or "medium",
         created_at=display_agent.created_at.isoformat()
@@ -519,7 +540,7 @@ async def agents_read_all(
                     parent_agent_id=str(agent.parent_agent_id)
                     if agent.parent_agent_id
                     else None,
-                    model=agent.model or "gpt-5",
+                    model=agent.model or DEFAULT_AGENT_MODEL,
                     reasoning_effort=agent.reasoning_effort
                     or "medium",
                     created_at=agent.created_at.isoformat()
@@ -670,9 +691,10 @@ async def agents_create(
                 # Agent type
                 type=agent.type or "interactive",
                 # New GPT-5 model configuration fields
-                model=agent.model or "gpt-5",
+                model=agent.model or DEFAULT_AGENT_MODEL,
                 reasoning_effort=agent.reasoning_effort
                 or "medium",
+                is_public=getattr(agent, "is_public", False),
                 created_at=agent.created_at.isoformat()
                 if agent.created_at
                 else None,
@@ -753,9 +775,10 @@ async def agents_update(
                 # Agent type
                 type=agent.type or "interactive",
                 # New GPT-5 model configuration fields
-                model=agent.model or "gpt-5",
+                model=agent.model or DEFAULT_AGENT_MODEL,
                 reasoning_effort=agent.reasoning_effort
                 or "medium",
+                is_public=getattr(agent, "is_public", False),
                 created_at=agent.created_at.isoformat()
                 if agent.created_at
                 else None,
@@ -834,26 +857,35 @@ async def agents_delete(
 @function.defn()
 async def agents_get_by_id(
     function_input: AgentIdInput,
-) -> AgentSingleOutput:
-    """Get agent by ID."""
+) -> AgentGetByIdOutput:
+    """Get agent by ID. Returns agent=None when not found (no exception)."""
+    if isinstance(function_input, dict):
+        function_input = AgentIdInput.model_validate(
+            function_input
+        )
+    agent_id = function_input.agent_id
     async for db in get_async_db():
         try:
-            # Get the specific agent by ID
             agent_query = (
                 select(Agent)
                 .options(selectinload(Agent.team))
-                .where(
-                    Agent.id == uuid.UUID(function_input.agent_id)
-                )
+                .where(Agent.id == uuid.UUID(agent_id))
             )
             result = await db.execute(agent_query)
             agent = result.scalar_one_or_none()
 
+            log.info(
+                f"agents_get_by_id: agent_id={agent_id} agent={'found' if agent else 'None'}"
+            )
+
             if not agent:
-                raise NonRetryableError(  # noqa: TRY301
-                    message=f"Agent with id {function_input.agent_id} not found"
-                )
-            result = AgentOutput(
+                return AgentGetByIdOutput(agent=None)
+            if function_input.public_only and (
+                not getattr(agent, "is_public", False)
+                or agent.status != "published"
+            ):
+                return AgentGetByIdOutput(agent=None)
+            out = AgentOutput(
                 id=str(agent.id),
                 workspace_id=str(agent.workspace_id),
                 team_id=str(agent.team_id)
@@ -870,9 +902,10 @@ async def agents_get_by_id(
                 # Agent type
                 type=agent.type or "interactive",
                 # New GPT-5 model configuration fields
-                model=agent.model or "gpt-5",
+                model=agent.model or DEFAULT_AGENT_MODEL,
                 reasoning_effort=agent.reasoning_effort
                 or "medium",
+                is_public=getattr(agent, "is_public", False),
                 created_at=agent.created_at.isoformat()
                 if agent.created_at
                 else None,
@@ -880,12 +913,14 @@ async def agents_get_by_id(
                 if agent.updated_at
                 else None,
             )
-            return AgentSingleOutput(agent=result)
+            return AgentGetByIdOutput(agent=out)
+        except (ValueError, TypeError):
+            return AgentGetByIdOutput(agent=None)
         except Exception as e:
             raise NonRetryableError(
                 message=f"Failed to get agent: {e!s}"
             ) from e
-    return None
+    return AgentGetByIdOutput(agent=None)
 
 
 @function.defn()
@@ -966,7 +1001,7 @@ async def agents_get_by_status(
                         if agent.parent_agent_id
                         else None,
                         # New GPT-5 model configuration fields
-                        model=agent.model or "gpt-5",
+                        model=agent.model or DEFAULT_AGENT_MODEL,
                         reasoning_effort=agent.reasoning_effort
                         or "medium",
                         created_at=agent.created_at.isoformat()
@@ -1046,7 +1081,7 @@ async def agents_get_versions(
                     if agent.parent_agent_id
                     else None,
                     # New GPT-5 model configuration fields
-                    model=agent.model or "gpt-5",
+                    model=agent.model or DEFAULT_AGENT_MODEL,
                     reasoning_effort=agent.reasoning_effort
                     or "medium",
                     created_at=agent.created_at.isoformat()
@@ -1095,9 +1130,11 @@ async def agents_update_status(
                     message="Invalid agent_id format"
                 ) from e
 
-            # Get the agent to update
-            agent_query = select(Agent).where(
-                Agent.id == agent_id
+            # Get the agent to update (eager load team to avoid lazy load in async)
+            agent_query = (
+                select(Agent)
+                .where(Agent.id == agent_id)
+                .options(selectinload(Agent.team))
             )
             result = await db.execute(agent_query)
             agent = result.scalar_one_or_none()
@@ -1109,12 +1146,13 @@ async def agents_update_status(
 
             archived_agent_id = None
 
-            # Handle publish workflow - archive any currently published version
+            # Handle publish workflow - archive all currently published versions
+            # (only one published version per agent group is allowed)
             if function_input.status == "published":
                 # Find the root agent ID (parent or self)
                 root_agent_id = agent.parent_agent_id or agent.id
 
-                # Find any currently published agent in this group
+                # Find all currently published agents in this group
                 published_query = select(Agent).where(
                     and_(
                         func.coalesce(
@@ -1127,29 +1165,30 @@ async def agents_update_status(
                 published_result = await db.execute(
                     published_query
                 )
-                currently_published = (
-                    published_result.scalar_one_or_none()
+                currently_published_list = list(
+                    published_result.scalars().all()
                 )
 
-                if (
-                    currently_published
-                    and currently_published.id != agent.id
-                ):
-                    currently_published.status = "archived"
-                    currently_published.updated_at = datetime.now(
-                        UTC
-                    )
-                    archived_agent_id = str(
-                        currently_published.id
-                    )
+                for published_agent in currently_published_list:
+                    if published_agent.id != agent.id:
+                        published_agent.status = "archived"
+                        published_agent.updated_at = datetime.now(
+                            UTC
+                        ).replace(tzinfo=None)
+                        if archived_agent_id is None:
+                            archived_agent_id = str(
+                                published_agent.id
+                            )
 
             # Update the target agent status
             agent.status = function_input.status
-            agent.updated_at = datetime.now(UTC)
+            agent.updated_at = datetime.now(UTC).replace(
+                tzinfo=None
+            )
 
             await db.commit()
-            await db.refresh(agent)
-
+            # Build response from in-memory state (avoid refresh to prevent
+            # expiring agent.team and triggering lazy load in async context)
             return AgentUpdateStatusOutput(
                 agent=AgentOutput(
                     id=str(agent.id),
@@ -1167,7 +1206,7 @@ async def agents_update_status(
                     parent_agent_id=str(agent.parent_agent_id)
                     if agent.parent_agent_id
                     else None,
-                    model=agent.model or "gpt-5",
+                    model=agent.model or DEFAULT_AGENT_MODEL,
                     reasoning_effort=agent.reasoning_effort
                     or "medium",
                     created_at=agent.created_at.isoformat()
@@ -1390,7 +1429,7 @@ async def agents_clone(
                 else None,
                 # Agent type
                 type=new_agent.type or "interactive",
-                model=new_agent.model or "gpt-5",
+                model=new_agent.model or DEFAULT_AGENT_MODEL,
                 reasoning_effort=new_agent.reasoning_effort
                 or "medium",
                 created_at=new_agent.created_at.isoformat()

@@ -20,6 +20,7 @@ with import_functions():
         AgentCloneInput,
         AgentCreateInput,
         AgentDeleteOutput,
+        AgentGetByIdOutput,
         AgentGetByStatusInput,
         AgentGetByWorkspaceInput,
         AgentGetVersionsInput,
@@ -209,25 +210,19 @@ class AgentsDeleteWorkflow:
 
 @workflow.defn()
 class AgentsGetByIdWorkflow:
-    """Workflow to get a specific agent by ID."""
+    """Workflow to get a specific agent by ID. Returns agent=null when not found."""
 
     @workflow.run
     async def run(
         self, workflow_input: AgentIdInput
-    ) -> AgentSingleOutput:
+    ) -> AgentGetByIdOutput:
         log.info("AgentsGetByIdWorkflow started")
-        try:
-            return await workflow.step(
-                function=agents_get_by_id,
-                function_input=workflow_input,
-                task_queue=TASK_QUEUE,
-                start_to_close_timeout=timedelta(seconds=30),
-            )
-
-        except Exception as e:
-            error_message = f"Error during agents_get_by_id: {e}"
-            log.error(error_message)
-            raise NonRetryableError(message=error_message) from e
+        return await workflow.step(
+            function=agents_get_by_id,
+            function_input=workflow_input,
+            task_queue=TASK_QUEUE,
+            start_to_close_timeout=timedelta(seconds=30),
+        )
 
 
 @workflow.defn()

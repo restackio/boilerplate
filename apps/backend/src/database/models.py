@@ -212,10 +212,11 @@ class Agent(Base):
         String(20), nullable=False, default="interactive"
     )
     # New GPT-5 model configuration fields
-    model = Column(String(100), nullable=False, default="gpt-5")
+    model = Column(String(100), nullable=False, default="gpt-5.4")
     reasoning_effort = Column(
         String(20), nullable=False, default="medium"
     )
+    is_public = Column(Boolean, nullable=False, default=False)
 
     created_at = Column(
         DateTime,
@@ -240,23 +241,12 @@ class Agent(Base):
             name="valid_type",
         ),
         CheckConstraint(
-            model.in_(
-                [
-                    "gpt-5",
-                    "gpt-5-mini",
-                    "gpt-5-nano",
-                    "gpt-5-2025-08-07",
-                    "gpt-5-mini-2025-08-07",
-                    "gpt-5-nano-2025-08-07",
-                    "o3-deep-research",
-                    "o4-mini-deep-research",
-                ]
-            ),
+            "length(model) > 0 AND length(model) <= 100",
             name="valid_model",
         ),
         CheckConstraint(
             reasoning_effort.in_(
-                ["minimal", "low", "medium", "high"]
+                ["none", "low", "medium", "high"]
             ),
             name="valid_reasoning_effort",
         ),
@@ -655,7 +645,7 @@ class Dataset(Base):
     __table_args__ = (
         CheckConstraint(
             storage_type.in_(
-                ["clickhouse"]
+                ["clickhouse", "cockroachdb"]
             ),  # Future: 'postgres', 's3', 'bigquery', etc.
             name="valid_storage_type",
         ),

@@ -123,7 +123,7 @@ export function useToolsManager({ agentId, enrichWithMcpLabels = false }: UseToo
     const toolGroups: Record<string, string[]> = {
       "subtasks": ["createsubtask"],
       "todos": ["updatetodos"],
-      "context-store": ["clickhouselisttables", "clickhouserunselectquery"]
+      "context-store": ["clickhouselisttables", "clickhouserunselectquery", "cockroachdblisttables", "cockroachdbrunselectquery"]
     };
 
     const toolNames = toolGroups[groupId];

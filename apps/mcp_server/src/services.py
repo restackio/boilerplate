@@ -10,6 +10,11 @@ from src.functions.clickhouse_crud import (
     clickhouse_list_tables,
     clickhouse_run_select_query,
 )
+from src.functions.cockroachdb_crud import (
+    cockroachdb_list_databases,
+    cockroachdb_list_tables,
+    cockroachdb_run_select_query,
+)
 from src.functions.llm_response import llm_response
 from src.functions.template_from_sample import (
     template_from_sample,
@@ -19,6 +24,11 @@ from src.workflows.tools.clickhouse_crud import (
     ClickHouseListDatabases,
     ClickHouseListTables,
     ClickHouseRunSelectQuery,
+)
+from src.workflows.tools.cockroachdb_crud import (
+    CockroachDBListDatabases,
+    CockroachDBListTables,
+    CockroachDBRunSelectQuery,
 )
 from src.workflows.tools.complete_task import CompleteTask
 from src.workflows.tools.create_subtask import CreateSubtask
@@ -50,6 +60,9 @@ async def run_restack_service() -> None:
             ClickHouseListDatabases,
             ClickHouseListTables,
             ClickHouseRunSelectQuery,
+            CockroachDBListDatabases,
+            CockroachDBListTables,
+            CockroachDBRunSelectQuery,
             CreateSubtask,
             UpdateTodos,
             CompleteTask,
@@ -60,6 +73,9 @@ async def run_restack_service() -> None:
             clickhouse_list_databases,
             clickhouse_list_tables,
             clickhouse_run_select_query,
+            cockroachdb_list_databases,
+            cockroachdb_list_tables,
+            cockroachdb_run_select_query,
             update_todos,
         ],
     )

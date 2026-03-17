@@ -841,9 +841,7 @@ async def oauth_exchange_code_for_token(  # noqa: PLR0915
                 function_input.client_id or fallback_client_id
             )
             final_client_secret = (
-                client_secret
-                if client_secret
-                else fallback_client_secret
+                client_secret or fallback_client_secret
             )
 
             result = TokenExchangeOutput(

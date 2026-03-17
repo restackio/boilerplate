@@ -74,13 +74,8 @@ CREATE TABLE IF NOT EXISTS agents (
     status VARCHAR(50) NOT NULL DEFAULT 'draft' CHECK (status IN ('published', 'draft', 'archived')),
     parent_agent_id UUID REFERENCES agents(id) ON DELETE SET NULL,
     type VARCHAR(20) NOT NULL DEFAULT 'interactive' CHECK (type IN ('interactive', 'pipeline')),
-    model VARCHAR(100) DEFAULT 'gpt-5' CHECK (model IN (
-        'gpt-5', 'gpt-5-mini', 'gpt-5-nano',
-        'gpt-5-2025-08-07', 'gpt-5-mini-2025-08-07', 'gpt-5-nano-2025-08-07',
-        'gpt-4.1', 'gpt-4.1-mini', 'gpt-4.1-nano', 'gpt-4o', 'gpt-4o-mini',
-        'o3-deep-research', 'o4-mini-deep-research'
-    )),
-    reasoning_effort VARCHAR(20) DEFAULT 'medium' CHECK (reasoning_effort IN ('minimal', 'low', 'medium', 'high')),
+    model VARCHAR(100) NOT NULL DEFAULT 'gpt-5.2' CHECK (length(model) > 0 AND length(model) <= 100),
+    reasoning_effort VARCHAR(20) DEFAULT 'medium' CHECK (reasoning_effort IN ('none', 'low', 'medium', 'high')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -105,7 +100,7 @@ CREATE TABLE IF NOT EXISTS datasets (
     description TEXT,
     
     -- Storage configuration (storage-agnostic)
-    storage_type VARCHAR(50) NOT NULL DEFAULT 'clickhouse' CHECK (storage_type IN ('clickhouse')), -- Future: 'postgres', 's3', 'bigquery', etc.
+    storage_type VARCHAR(50) NOT NULL DEFAULT 'clickhouse' CHECK (storage_type IN ('clickhouse', 'cockroachdb')), -- Future: 'postgres', 's3', 'bigquery', etc.
     storage_config JSONB NOT NULL, -- Storage-specific configuration (table names, connection details, etc.)
     last_updated_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

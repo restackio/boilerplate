@@ -1,7 +1,7 @@
 import uuid
 
 from pydantic import BaseModel, Field, field_validator
-from restack_ai.function import NonRetryableError, function
+from restack_ai.function import NonRetryableError, function, log
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
@@ -263,6 +263,9 @@ async def tasks_create(
     task_data: TaskCreateInput,
 ) -> TaskSingleOutput:
     """Create a new task."""
+    # Normalize input (activity may receive dict from SDK)
+    if isinstance(task_data, dict):
+        task_data = TaskCreateInput.model_validate(task_data)
     async for db in get_async_db():
         try:
             # Create task with UUID
@@ -359,6 +362,7 @@ async def tasks_create(
             return TaskSingleOutput(task=result)
         except Exception as e:
             await db.rollback()
+            log.error(f"tasks_create activity failed: {e!s}")
             raise NonRetryableError(
                 message=f"Failed to create task: {e!s}"
             ) from e

@@ -21,6 +21,13 @@ from src.constants import TASK_QUEUE
 SLACK_FLUSH_THRESHOLD = 200
 
 
+def _get(obj: object, key: str) -> object:
+    """Get a value from a dict or object attribute (Restack may return either)."""
+    if isinstance(obj, dict):
+        return obj.get(key)
+    return getattr(obj, key, None)
+
+
 def create_agent_error_event(
     message: str,
     error_type: str = "unknown_error",
@@ -724,12 +731,10 @@ class AgentTask:
                     task_queue=TASK_QUEUE,
                     start_to_close_timeout=timedelta(seconds=10),
                 )
-                if (
-                    result
-                    and getattr(result, "ok", False)
-                    and getattr(result, "message_ts", None)
-                ):
-                    self._slack_msg_ts = result.message_ts
+                ok = _get(result, "ok")
+                msg_ts = _get(result, "message_ts")
+                if ok and msg_ts:
+                    self._slack_msg_ts = msg_ts
                     self._slack_flush_len = len(text)
             else:
                 update_result = await agent.step(
@@ -742,9 +747,7 @@ class AgentTask:
                     task_queue=TASK_QUEUE,
                     start_to_close_timeout=timedelta(seconds=10),
                 )
-                if update_result and getattr(
-                    update_result, "ok", False
-                ):
+                if _get(update_result, "ok"):
                     self._slack_flush_len = len(text)
                 else:
                     self._slack_msg_ts = None

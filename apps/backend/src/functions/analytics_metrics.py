@@ -566,7 +566,7 @@ async def _get_feedback_metrics(
         {
             "taskId": row["task_id"],
             "isPositive": bool(row["is_positive"]),
-            "comment": row["comment"] if row["comment"] else None,
+            "comment": row["comment"] or None,
             "createdAt": str(row["created_at"]),
         }
         for row in detailed_result.named_results()
