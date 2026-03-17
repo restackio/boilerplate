@@ -20,6 +20,8 @@ class ModelPricing(NamedTuple):
 MODEL_PRICING = {
     # GPT-5.4 Family (flagship, per https://developers.openai.com/api/docs/guides/latest-model)
     "gpt-5.4": ModelPricing(1.75, 0.175, 14.00),
+    "gpt-5.4-mini": ModelPricing(0.25, 0.025, 2.00),  # GPT-5.4-class, high-volume
+    "gpt-5.4-nano": ModelPricing(0.05, 0.005, 0.40),  # Simple high-volume, speed/cost
     # GPT-5.2/5.3 Family
     "gpt-5.3-chat-latest": ModelPricing(1.75, 0.175, 14.00),
     "gpt-5.2": ModelPricing(1.75, 0.175, 14.00),

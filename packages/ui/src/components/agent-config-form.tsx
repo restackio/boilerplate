@@ -69,6 +69,8 @@ interface PromptTemplate {
 // Default model options (OpenAI + early preview; per https://developers.openai.com/api/docs/guides/latest-model)
 export const DEFAULT_MODEL_OPTIONS = [
   { value: "gpt-5.4", label: "GPT-5.4" },
+  { value: "gpt-5.4-mini", label: "GPT-5.4 Mini" },
+  { value: "gpt-5.4-nano", label: "GPT-5.4 Nano" },
   { value: "gpt-5.3-chat-latest", label: "GPT-5.3 Chat" },
   { value: "gpt-5.2", label: "GPT-5.2" },
   { value: "gpt-5.1", label: "GPT-5.1" },
