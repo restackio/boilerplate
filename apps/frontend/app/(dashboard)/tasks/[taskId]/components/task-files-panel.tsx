@@ -75,9 +75,7 @@ export function TaskFilesPanel({
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        Files uploaded to this task (via the + Add files button). They are
-        stored in the workspace &quot;task-files&quot; dataset and linked to
-        this task.
+        Files in the task-files dataset (added via + Add files).
       </p>
       <DatasetFilesTable files={files} loading={loading} />
     </div>

@@ -11,6 +11,7 @@ import {
   TaskChatInterface,
   TaskHeader,
 } from "@/app/(dashboard)/tasks/[taskId]/components";
+import { getBuildCreatedDatasetId } from "@/app/(dashboard)/tasks/[taskId]/components/task-created-list";
 import { DeployAgentDialog } from "@/app/(dashboard)/agents/[agentId]/components/deploy-agent-dialog";
 
 function BuildChatInner({
@@ -73,6 +74,8 @@ function BuildChatInner({
     }
   }, [chatMessage, sendMessageToAgent]);
 
+  const preferredDatasetId = getBuildCreatedDatasetId(task);
+
   return (
     <TaskChatInterface
       conversation={conversation}
@@ -90,6 +93,8 @@ function BuildChatInner({
       onFilesAdded={onFilesAdded}
       filesRefreshTrigger={filesRefreshTrigger}
       onRefreshTask={onRefreshTask}
+      preferredDatasetId={preferredDatasetId}
+      temporalAgentId={agentTaskId ?? undefined}
     />
   );
 }

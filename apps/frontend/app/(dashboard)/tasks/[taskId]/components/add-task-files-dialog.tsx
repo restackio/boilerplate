@@ -1,17 +1,28 @@
 "use client";
 
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 import { Button } from "@workspace/ui/components/ui/button";
+import { Input } from "@workspace/ui/components/ui/input";
 import { Label } from "@workspace/ui/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@workspace/ui/components/ui/select";
 import {
   QuickActionDialog,
   useQuickActionDialog,
 } from "@workspace/ui/components/quick-action-dialog";
-import { FileUp, FileText } from "lucide-react";
+import { FileUp, FileText, Plus, Loader2 } from "lucide-react";
+import { sendAgentEvent } from "@/app/actions/agent";
 import {
   scheduleAddFilesToDatasetWorkflow,
   getWorkflowResult,
   getOrCreateTaskFilesDatasetId,
+  getDatasets,
+  createDataset,
 } from "@/app/actions/workflow";
 import {
   GRPC_MESSAGE_LIMIT_BYTES,
@@ -49,6 +60,10 @@ interface AddTaskFilesDialogProps {
   /** When provided, dialog open state is controlled by parent (e.g. from dropdown). */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  /** If set (e.g. from agent builder), preselect this dataset. */
+  preferredDatasetId?: string | null;
+  /** If set (e.g. build task temporal_agent_id), notify agent with a message (file names + dataset id) after upload. */
+  temporalAgentId?: string | null;
 }
 
 export function AddTaskFilesDialog({
@@ -58,6 +73,8 @@ export function AddTaskFilesDialog({
   trigger,
   open: controlledOpen,
   onOpenChange,
+  preferredDatasetId,
+  temporalAgentId,
 }: AddTaskFilesDialogProps) {
   const {
     isOpen: internalOpen,
@@ -83,6 +100,100 @@ export function AddTaskFilesDialog({
   }, [handleSuccess, isControlled, onOpenChange]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+
+  type DatasetOption = { id: string; name: string };
+  const [datasets, setDatasets] = useState<DatasetOption[]>([]);
+  const [datasetsLoading, setDatasetsLoading] = useState(false);
+  const [selectedDatasetId, setSelectedDatasetId] = useState<string>("");
+  const [createNewName, setCreateNewName] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [createNameError, setCreateNameError] = useState("");
+
+  const fetchDatasets = useCallback(async () => {
+    if (!workspaceId) return;
+    setDatasetsLoading(true);
+    try {
+      const result = await getDatasets(workspaceId);
+      const list =
+        result && typeof result === "object" && "datasets" in result
+          ? (result as { datasets: { id: string; name: string }[] })
+          : null;
+      const listDatasets = list?.datasets ?? [];
+      setDatasets(Array.isArray(listDatasets) ? listDatasets : []);
+    } catch {
+      setDatasets([]);
+    } finally {
+      setDatasetsLoading(false);
+    }
+  }, [workspaceId]);
+
+  useEffect(() => {
+    if (isOpen && workspaceId) fetchDatasets();
+  }, [isOpen, workspaceId, fetchDatasets]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setSelectedDatasetId("");
+      setCreateNewName("");
+      setCreateNameError("");
+      return;
+    }
+    if (preferredDatasetId && datasets.some((d) => d.id === preferredDatasetId)) {
+      setSelectedDatasetId(preferredDatasetId);
+    } else if (datasets.length > 0 && !selectedDatasetId) {
+      setSelectedDatasetId(datasets[0].id);
+    }
+    // Intentionally omit selectedDatasetId: we only set initial selection when dialog opens or datasets load, not when user changes selection
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, preferredDatasetId, datasets]);
+
+  const handleCreateDataset = useCallback(async () => {
+    const name = createNewName.trim().toLowerCase().replace(/\s+/g, "-");
+    const slugPattern = /^[a-z0-9_-]+$/;
+    if (!name) {
+      setCreateNameError("Name is required");
+      return;
+    }
+    if (!slugPattern.test(name)) {
+      setCreateNameError(
+        "Use only lowercase letters, numbers, hyphens, and underscores",
+      );
+      return;
+    }
+    if (!workspaceId) return;
+    setCreating(true);
+    setCreateNameError("");
+    try {
+      const result = await createDataset({
+        workspace_id: workspaceId,
+        name,
+        description: "",
+        storage_type: "clickhouse",
+      });
+      const created =
+        result &&
+        typeof result === "object" &&
+        "dataset" in result &&
+        result.dataset &&
+        typeof result.dataset === "object" &&
+        "id" in result.dataset
+          ? (result as { dataset: { id: string } }).dataset
+          : null;
+      if (created?.id) {
+        await fetchDatasets();
+        setSelectedDatasetId(created.id);
+        setCreateNewName("");
+      } else {
+        setCreateNameError("Failed to create dataset");
+      }
+    } catch (err) {
+      setCreateNameError(
+        err instanceof Error ? err.message : "Failed to create dataset",
+      );
+    } finally {
+      setCreating(false);
+    }
+  }, [workspaceId, createNewName, fetchDatasets]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSelectedFiles(Array.from(e.target.files || []));
@@ -113,14 +224,20 @@ export function AddTaskFilesDialog({
       return;
     }
 
+    if (selectedDatasetId === "__new__") {
+      handleError("Create a dataset first using the form above, or select an existing dataset.");
+      return;
+    }
+    const resolvedDatasetId =
+      selectedDatasetId || (await getOrCreateTaskFilesDatasetId(workspaceId));
+    if (!resolvedDatasetId) {
+      handleError("Select or create a dataset first");
+      return;
+    }
+
     startLoading();
     try {
-      const datasetId = await getOrCreateTaskFilesDatasetId(workspaceId);
-      if (!datasetId) {
-        handleError("Could not get or create task files dataset");
-        stopLoading();
-        return;
-      }
+      const datasetId = resolvedDatasetId;
 
       const filesWithContent: { filename: string; content_base64: string }[] =
         [];
@@ -186,6 +303,19 @@ export function AddTaskFilesDialog({
       if (errors.length > 0) {
         throw new Error(errors.join("; "));
       }
+      if (temporalAgentId) {
+        const filenames = filesWithContent.map((f) => f.filename);
+        const parts = [`User uploaded file(s): ${filenames.join(", ")}.`];
+        if (datasetId) parts.push(` dataset_id: ${datasetId}`);
+        const content = parts.join(" ");
+        await sendAgentEvent({
+          agentId: temporalAgentId,
+          eventName: "messages",
+          eventInput: {
+            messages: [{ role: "user", content }],
+          },
+        });
+      }
       handleSuccessAndClose();
       setSelectedFiles([]);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -199,6 +329,8 @@ export function AddTaskFilesDialog({
     workspaceId,
     taskId,
     selectedFiles,
+    selectedDatasetId,
+    temporalAgentId,
     handleError,
     handleSuccessAndClose,
     startLoading,
@@ -220,8 +352,8 @@ export function AddTaskFilesDialog({
       <QuickActionDialog
         isOpen={isOpen}
         onClose={handleClose}
-        title="Add files to task"
-        description="Upload PDFs, text, markdown, or images. Files are stored and linked to this task."
+        title="Add files"
+        description="Upload PDFs, text, markdown, or images to a dataset. The agent is notified with the file names and dataset id."
         onPrimaryAction={handleAddFiles}
         primaryActionLabel="Add files"
         primaryActionIcon={FileUp}
@@ -232,6 +364,73 @@ export function AddTaskFilesDialog({
         size="lg"
       >
         <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>Dataset</Label>
+            {datasetsLoading ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading datasets...
+              </div>
+            ) : (
+              <>
+                <Select
+                  value={
+                    selectedDatasetId === "__new__" ? "__new__" : selectedDatasetId || ""
+                  }
+                  onValueChange={(value) => {
+                    setSelectedDatasetId(value);
+                    if (value !== "__new__") setCreateNameError("");
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select dataset" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {datasets.map((d) => (
+                      <SelectItem key={d.id} value={d.id}>
+                        {d.name}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="__new__">
+                      <span className="flex items-center gap-2">
+                        <Plus className="h-3.5 w-3.5" />
+                        Create new dataset
+                      </span>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                {selectedDatasetId === "__new__" && (
+                  <div className="flex gap-2 pt-1">
+                    <Input
+                      placeholder="Dataset name (e.g. my-docs)"
+                      value={createNewName}
+                      onChange={(e) => {
+                        setCreateNewName(e.target.value);
+                        setCreateNameError("");
+                      }}
+                      className="flex-1"
+                    />
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={handleCreateDataset}
+                      disabled={creating || !createNewName.trim()}
+                    >
+                      {creating ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        "Create"
+                      )}
+                    </Button>
+                  </div>
+                )}
+                {createNameError && (
+                  <p className="text-xs text-destructive">{createNameError}</p>
+                )}
+              </>
+            )}
+          </div>
           <input
             ref={fileInputRef}
             type="file"
