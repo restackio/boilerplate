@@ -26,8 +26,7 @@ export function ForgotPasswordForm({
     try {
       const result = await executeWorkflow("RequestPasswordResetWorkflow", {
         email,
-        origin:
-          typeof window !== "undefined" ? window.location.origin : "",
+        origin: typeof window !== "undefined" ? window.location.origin : "",
       });
 
       if (result?.success) {
@@ -75,7 +74,7 @@ export function ForgotPasswordForm({
 
   return (
     <AuthForm
-      title="Forgot your password?"
+      title="Forgot password?"
       description="Enter your email and we'll send you a link to reset your password."
       fields={fields}
       submitText="Send reset link"
@@ -84,8 +83,8 @@ export function ForgotPasswordForm({
       error={error}
       onSubmit={handleSubmit}
       footerLink={{
-        text: "Remember your password?",
-        linkText: "Back to login",
+        text: "Remember password?",
+        linkText: "Back to log in",
         href: "/login",
       }}
       className={className}

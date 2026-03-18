@@ -61,7 +61,7 @@ export function LoginForm({
       href="/forgot-password"
       className="ml-auto text-sm text-primary underline underline-offset-4 hover:text-primary/80"
     >
-      Forgot your password?
+      Forgot password?
     </Link>
   );
 
@@ -79,7 +79,7 @@ export function LoginForm({
       id: "password",
       label: "Password",
       type: "password",
-      placeholder: "password",
+      placeholder: "********",
       value: password,
       onChange: setPassword,
       required: true,
@@ -89,10 +89,10 @@ export function LoginForm({
 
   return (
     <AuthForm
-      title="Login to your account"
-      description="Enter your email below to login to your account"
+      title="Log in"
+      description="Enter details below to log in."
       fields={fields}
-      submitText="Login"
+      submitText="Log in"
       loadingText="Logging in..."
       isLoading={isLoading}
       error={error}

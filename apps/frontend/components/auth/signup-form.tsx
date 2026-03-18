@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import { AuthForm, useAuthFormState } from "@workspace/ui/components";
 import { executeWorkflow } from "@/app/actions/workflow";
 
+const TERMS_URL = "https://www.restack.io/terms";
+const PRIVACY_URL = "https://www.restack.io/privacy";
+
 export function SignupForm({
   className,
   ...props
@@ -82,16 +85,16 @@ export function SignupForm({
       id: "password",
       label: "Password",
       type: "password",
-      placeholder: "Enter your password",
+      placeholder: "********",
       value: password,
       onChange: setPassword,
       required: true,
     },
     {
       id: "confirmPassword",
-      label: "Confirm Password",
+      label: "Confirm password",
       type: "password",
-      placeholder: "Confirm your password",
+      placeholder: "********",
       value: confirmPassword,
       onChange: setConfirmPassword,
       required: true,
@@ -100,8 +103,8 @@ export function SignupForm({
 
   return (
     <AuthForm
-      title="Create your account"
-      description="Enter your details below to create your account"
+      title="Sign up"
+      description="Enter details below to create an account."
       fields={fields}
       submitText="Create account"
       loadingText="Creating account..."
@@ -113,6 +116,29 @@ export function SignupForm({
         linkText: "Log in",
         href: "/login",
       }}
+      footerBottom={
+        <p className="text-xs text-muted-foreground">
+          By signing up, I acknowledge I read and agree to Restack{" "}
+          <a
+            href={TERMS_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline underline-offset-4 hover:text-primary"
+          >
+            Terms of Service
+          </a>{" "}
+          and{" "}
+          <a
+            href={PRIVACY_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline underline-offset-4 hover:text-primary"
+          >
+            Privacy Policy
+          </a>
+          .
+        </p>
+      }
       className={className}
       {...props}
     />

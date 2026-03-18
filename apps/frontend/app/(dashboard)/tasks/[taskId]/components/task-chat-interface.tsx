@@ -578,6 +578,8 @@ interface TaskChatInterfaceProps {
   preferredDatasetId?: string | null;
   /** When set (e.g. build task temporal_agent_id), notify agent with file names and dataset id after upload. */
   temporalAgentId?: string | null;
+  /** When set (build task), called when user clicks Build to send the approval message. */
+  onBuildClick?: () => void;
 }
 
 export function TaskChatInterface({
@@ -601,6 +603,7 @@ export function TaskChatInterface({
   onRefreshTask,
   preferredDatasetId,
   temporalAgentId,
+  onBuildClick,
 }: TaskChatInterfaceProps) {
   const conversationEndRef = useRef<HTMLDivElement>(null);
   const [addFilesDialogOpen, setAddFilesDialogOpen] = useState(false);
@@ -694,6 +697,11 @@ export function TaskChatInterface({
               task={task}
               onRefresh={onRefreshTask}
               responseState={responseState}
+              onBuildClick={
+                task.title === "Build" && task.status === "in_progress"
+                  ? onBuildClick
+                  : undefined
+              }
             />
           )}
 

@@ -48,22 +48,24 @@ function deriveCreatedFromPatternSpecs(patternSpecs: PatternSpecs | undefined): 
     const id = node.data?.entityId ?? node.id;
     const name = node.data?.label ?? "Unnamed";
     const href = node.data?.href;
+    // Only set href when explicitly set on the node (created entity); plan-only items have no link.
+    const linkHref = href && String(href).startsWith("/") ? href : undefined;
     if (et === "agent" && id && !seen.agent.has(id)) {
       seen.agent.add(id);
-      agents.push({ id, name, href: href ?? `/agents/${id}` });
+      agents.push({ id, name, href: linkHref });
     } else if (et === "dataset" && id && !seen.dataset.has(id)) {
       seen.dataset.add(id);
-      datasets.push({ id, name, href: href ?? `/datasets/${id}` });
+      datasets.push({ id, name, href: linkHref });
     } else if (et === "view" && id && !seen.view.has(id)) {
       seen.view.add(id);
       views.push({
         id,
         name,
-        href: href ?? "#",
+        href: linkHref ?? "",
       });
     } else if (et === "integration" && id && !seen.integration.has(id)) {
       seen.integration.add(id);
-      integrations.push({ id, name, href: href ?? `/integrations/${id}` });
+      integrations.push({ id, name, href: linkHref });
     }
   }
   return { agents, datasets, views, integrations };
@@ -78,14 +80,14 @@ export function getBuildCreatedDatasetId(task: Task): string | null {
   return null;
 }
 
-/** Single row: icon + link + category label (e.g. "• View"). */
+/** Single row: icon + link (or plain text if not yet created) + category label. */
 function CreatedSection({
   icon: Icon,
   items,
   categoryLabel,
 }: {
   icon: LucideIcon;
-  items: { id: string; name: string; href: string }[];
+  items: { id: string; name: string; href?: string }[];
   categoryLabel: string;
 }) {
   if (items.length === 0) return null;
@@ -96,13 +98,17 @@ function CreatedSection({
           <li key={item.id}>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Icon className="h-3.5 w-3.5 shrink-0" />
-              <Link
-                href={item.href}
-                target="_blank"
-                className="text-primary hover:underline"
-              >
+              {item.href && item.href.startsWith("/") ? (
+                <Link
+                  href={item.href}
+                  target="_blank"
+                  className="text-primary hover:underline"
+                >
+                  <span className="truncate">{item.name}</span>
+                </Link>
+              ) : (
                 <span className="truncate">{item.name}</span>
-              </Link>
+              )}
               <span className="text-muted-foreground shrink-0">
                 • {categoryLabel}
               </span>
@@ -180,18 +186,35 @@ function deriveCreatedFromEvents(agentState: Task["agent_state"]): {
   return { agents, datasets, integrations };
 }
 
+const CREATION_TOOL_NAMES = ["updateagent", "updatedataset", "updateview"];
+
+function hasCreationStarted(responseState: unknown, agentState: Task["agent_state"]): boolean {
+  const events =
+    (responseState && typeof responseState === "object" && Array.isArray((responseState as { events?: unknown[] }).events)
+      ? (responseState as { events: unknown[] }).events
+      : (agentState as { events?: unknown[] } | undefined)?.events) ?? [];
+  for (const ev of events) {
+    const name = (ev as { openai_output?: { name?: string } })?.openai_output?.name;
+    if (name && CREATION_TOOL_NAMES.includes(name.toLowerCase())) return true;
+  }
+  return false;
+}
+
 interface TaskCreatedListProps {
   task: Task;
   /** Callback to refetch task (updates agent_state / view_specs so created items appear). */
   onRefresh?: () => void | Promise<void>;
   /** Live agent state while task is in progress (so created list appears during build without refresh). */
   responseState?: unknown;
+  /** When set (build task in progress), called when user clicks Build to send approval message. */
+  onBuildClick?: () => void;
 }
 
 export function TaskCreatedList({
   task,
   onRefresh,
   responseState,
+  onBuildClick,
 }: TaskCreatedListProps) {
   const viewSpecs = task.view_specs ?? [];
   const isTaskActive = task?.status === "in_progress";
@@ -275,8 +298,18 @@ export function TaskCreatedList({
     createdDatasets.length +
     createdIntegrations.length;
 
+  const creationStarted = useMemo(
+    () => hasCreationStarted(responseState, task.agent_state),
+    [responseState, task.agent_state],
+  );
   const sectionTitle =
-    task.status === "in_progress" ? "Plan" : "Created";
+    task.status !== "in_progress"
+      ? "Built"
+      : creationStarted
+        ? "Building"
+        : "Plan";
+
+  const showBuildButton = Boolean(onBuildClick && sectionTitle === "Plan");
 
   const hasContent = hasPatternFlow || hasAny;
 
@@ -320,6 +353,19 @@ export function TaskCreatedList({
             {totalCount} item{totalCount !== 1 ? "s" : ""}
           </span>
         )}
+        {showBuildButton && (
+          <Button
+            variant="default"
+            size="sm"
+            className="ml-auto"
+            onClick={(e) => {
+              e.stopPropagation();
+              onBuildClick?.();
+            }}
+          >
+            Build
+          </Button>
+        )}
         {onRefresh && (
           <Button
             variant="ghost"
@@ -358,7 +404,7 @@ export function TaskCreatedList({
             items={createdAgents.map((item) => ({
               id: item.id,
               name: item.name,
-              href: item.href ?? `/agents/${item.id}`,
+              href: item.href,
             }))}
             categoryLabel="Agent"
           />
@@ -367,7 +413,7 @@ export function TaskCreatedList({
             items={createdDatasets.map((item) => ({
               id: item.id,
               name: item.name,
-              href: item.href ?? `/datasets/${item.id}`,
+              href: item.href,
             }))}
             categoryLabel="Dataset"
           />
@@ -376,7 +422,7 @@ export function TaskCreatedList({
             items={createdIntegrations.map((item) => ({
               id: item.id,
               name: item.name,
-              href: item.href ?? `/integrations/${item.id}`,
+              href: item.href,
             }))}
             categoryLabel="Integration"
           />

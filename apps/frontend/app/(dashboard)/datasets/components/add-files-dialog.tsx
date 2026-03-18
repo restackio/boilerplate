@@ -40,9 +40,9 @@ function isPdf(file: File): boolean {
   return name.endsWith(".pdf") || file.type === "application/pdf";
 }
 
-/** File types supported by EmbedAnything: PDF, text, markdown, images */
+/** File types supported by EmbedAnything: documents, text, markdown, CSV, images */
 const ACCEPT_FILE_TYPES =
-  "application/pdf,.pdf,.txt,text/plain,.md,text/markdown,image/jpeg,image/png,.jpg,.jpeg,.png";
+  "application/pdf,.pdf,.txt,text/plain,.md,text/markdown,text/csv,.csv,image/jpeg,image/png,.jpg,.jpeg,.png";
 
 interface AddFilesDialogProps {
   datasetId: string;
@@ -83,13 +83,13 @@ export function AddFilesDialog({ datasetId, onSeeded }: AddFilesDialogProps) {
       return;
     }
 
-    const tooLargeNonPdf = selectedFiles.filter(
+    const tooLarge = selectedFiles.filter(
       (f) => !isPdf(f) && f.size > GRPC_MESSAGE_LIMIT_BYTES,
     );
-    if (tooLargeNonPdf.length > 0) {
-      const names = tooLargeNonPdf.map((f) => f.name).join(", ");
+    if (tooLarge.length > 0) {
+      const names = tooLarge.map((f) => f.name).join(", ");
       handleError(
-        `Restack has a 4 MB limit per message. The following non-PDF files exceed 4 MB and cannot be uploaded: ${names}. Please use smaller files or split PDFs (PDFs are split automatically).`,
+        `Restack has a 4 MB limit per message. The following files exceed 4 MB: ${names}. Use smaller files or split them; large documents are split automatically.`,
       );
       return;
     }
@@ -202,7 +202,7 @@ export function AddFilesDialog({ datasetId, onSeeded }: AddFilesDialogProps) {
         isOpen={isOpen}
         onClose={close}
         title="Add files to dataset"
-        description="Upload PDFs, text, markdown, or images. The backend will extract content, generate embeddings, and store them in this dataset."
+        description="Upload documents, text, markdown, CSV, or images. The backend will extract content, generate embeddings, and store them in this dataset."
         onPrimaryAction={handleAddFiles}
         primaryActionLabel="Add files"
         primaryActionIcon={FileUp}
@@ -242,8 +242,8 @@ export function AddFilesDialog({ datasetId, onSeeded }: AddFilesDialogProps) {
               </ul>
             )}
             <p className="text-xs text-muted-foreground">
-              PDF, TXT, MD, JPEG, PNG supported. Max 4 MB per file for non-PDFs;
-              large PDFs are split automatically.
+              TXT, MD, CSV, JPEG, PNG and documents supported. Max 4 MB per file;
+              large documents are split automatically.
             </p>
           </div>
         </div>

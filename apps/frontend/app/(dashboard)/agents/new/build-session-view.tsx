@@ -76,6 +76,14 @@ function BuildChatInner({
 
   const preferredDatasetId = getBuildCreatedDatasetId(task);
 
+  const handleBuildClick = useCallback(async () => {
+    try {
+      await sendMessageToAgent("Build");
+    } catch (err) {
+      console.error("Build send failed:", err);
+    }
+  }, [sendMessageToAgent]);
+
   return (
     <TaskChatInterface
       conversation={conversation}
@@ -95,6 +103,7 @@ function BuildChatInner({
       onRefreshTask={onRefreshTask}
       preferredDatasetId={preferredDatasetId}
       temporalAgentId={agentTaskId ?? undefined}
+      onBuildClick={handleBuildClick}
     />
   );
 }

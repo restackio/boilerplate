@@ -103,8 +103,8 @@ export function ResetPasswordForm({
       error={error}
       onSubmit={handleSubmit}
       footerLink={{
-        text: "Remember your password?",
-        linkText: "Back to login",
+        text: "Remember password?",
+        linkText: "Back to log in",
         href: "/login",
       }}
       className={className}

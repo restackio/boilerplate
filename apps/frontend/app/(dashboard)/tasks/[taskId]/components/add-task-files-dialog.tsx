@@ -50,7 +50,7 @@ function isPdf(file: File): boolean {
 }
 
 const ACCEPT_FILE_TYPES =
-  "application/pdf,.pdf,.txt,text/plain,.md,text/markdown,image/jpeg,image/png,.jpg,.jpeg,.png";
+  "application/pdf,.pdf,.txt,text/plain,.md,text/markdown,text/csv,.csv,image/jpeg,image/png,.jpg,.jpeg,.png";
 
 interface AddTaskFilesDialogProps {
   workspaceId: string;
@@ -213,13 +213,13 @@ export function AddTaskFilesDialog({
       return;
     }
 
-    const tooLargeNonPdf = selectedFiles.filter(
+    const tooLarge = selectedFiles.filter(
       (f) => !isPdf(f) && f.size > GRPC_MESSAGE_LIMIT_BYTES,
     );
-    if (tooLargeNonPdf.length > 0) {
-      const names = tooLargeNonPdf.map((f) => f.name).join(", ");
+    if (tooLarge.length > 0) {
+      const names = tooLarge.map((f) => f.name).join(", ");
       handleError(
-        `Restack has a 4 MB limit per message. The following non-PDF files exceed 4 MB: ${names}. Use smaller files or split PDFs (PDFs are split automatically).`,
+        `Restack has a 4 MB limit per message. The following files exceed 4 MB: ${names}. Use smaller files or split them; large documents are split automatically.`,
       );
       return;
     }
@@ -353,7 +353,7 @@ export function AddTaskFilesDialog({
         isOpen={isOpen}
         onClose={handleClose}
         title="Add files"
-        description="Upload PDFs, text, markdown, or images to a dataset. The agent is notified with the file names and dataset id."
+        description="Upload documents, text, markdown, CSV, or images to a dataset. The agent is notified with the file names and dataset id."
         onPrimaryAction={handleAddFiles}
         primaryActionLabel="Add files"
         primaryActionIcon={FileUp}
@@ -460,8 +460,8 @@ export function AddTaskFilesDialog({
               </ul>
             )}
             <p className="text-xs text-muted-foreground">
-              PDF, TXT, MD, JPEG, PNG supported. Max 4 MB per file for non-PDFs;
-              large PDFs are split automatically.
+              TXT, MD, CSV, JPEG, PNG and documents supported. Max 4 MB per file;
+              large documents are split automatically.
             </p>
           </div>
         </div>

@@ -20,14 +20,11 @@ export default async function ResetPasswordPage({
               This link is missing a token. Please request a new password reset
               from the login page.
             </p>
-            <Link
-              href="/forgot-password"
-              className="text-primary underline"
-            >
+            <Link href="/forgot-password" className="text-primary underline">
               Forgot password
             </Link>
             <Link href="/login" className="text-primary underline">
-              Back to login
+              Back to log in
             </Link>
           </div>
         </div>

@@ -229,7 +229,7 @@ export default function NewAgentPage() {
               ) : (
                 <ArrowUp className="h-4 w-4" />
               )}
-              {creating ? "Creating…" : "Create agent"}
+              {creating ? "Building…" : "Build agent"}
             </Button>
           </div>
         </div>
@@ -241,7 +241,7 @@ export default function NewAgentPage() {
           </h2>
           <p className="text-xs text-muted-foreground mb-3">
             Use a starter to fill the prompt above; edit if you like, then click
-            Create agent. The builder will propose a plan then create the
+            Build agent. The builder will propose a plan then create the
             necessary agents and datasets after you approve.
           </p>
           <ul className="space-y-2">
