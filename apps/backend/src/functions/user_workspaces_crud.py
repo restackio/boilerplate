@@ -183,7 +183,7 @@ async def user_workspaces_create(
             user = user_result.scalar_one_or_none()
 
             if not user:
-                raise NonRetryableError(  # noqa: TRY301
+                raise NonRetryableError(
                     message=f"User with id {function_input.user_id} not found"
                 )
             workspace_query = select(Workspace).where(
@@ -194,7 +194,7 @@ async def user_workspaces_create(
             workspace = workspace_result.scalar_one_or_none()
 
             if not workspace:
-                raise NonRetryableError(  # noqa: TRY301
+                raise NonRetryableError(
                     message=f"Workspace with id {function_input.workspace_id} not found"
                 )
             # Check if relationship already exists
@@ -208,7 +208,7 @@ async def user_workspaces_create(
             existing = existing_result.scalar_one_or_none()
 
             if existing:
-                raise NonRetryableError(  # noqa: TRY301
+                raise NonRetryableError(
                     message="User is already a member of this workspace"
                 )
             user_workspace_id = uuid.uuid4()
@@ -272,7 +272,7 @@ async def user_workspaces_update(
             user_workspace = result.scalar_one_or_none()
 
             if not user_workspace:
-                raise NonRetryableError(  # noqa: TRY301
+                raise NonRetryableError(
                     message="User is not a member of this workspace"
                 )
             user_workspace.role = function_input.role
@@ -326,7 +326,7 @@ async def user_workspaces_delete(
             user_workspace = result.scalar_one_or_none()
 
             if not user_workspace:
-                raise NonRetryableError(  # noqa: TRY301
+                raise NonRetryableError(
                     message="User is not a member of this workspace"
                 )
             await db.delete(user_workspace)

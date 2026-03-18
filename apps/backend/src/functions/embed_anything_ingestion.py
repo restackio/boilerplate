@@ -1,39 +1,25 @@
-"""PDF → extract (OCR), chunk, embed → pipeline events using EmbedAnything.
+"""PDF → extract, chunk, embed → pipeline_events via EmbedAnything and ClickHouse adapter.
 
-Single activity: receives PDF base64; EmbedAnything does extract/OCR, chunking, and
-embeddings. Uses a ClickHouse adapter to stream embeddings directly to pipeline_events
-(vector streaming), avoiding high RAM from accumulating all chunks in memory.
-PDF splitting for the 4 MB gRPC limit is done in the frontend; each payload is one part.
-See https://github.com/StarlightSearch/EmbedAnything and memory_leak blog (vector streaming).
-
-We stream-decode base64 to a temp file so the full decoded PDF is never held in RAM
-(OOM-safe for large files). Chunk/batch sizes in embed_model_loader are tuned so only
-a small number of chunks are in memory at once. Override with EMBED_* env vars.
+One subprocess per PDF (child exits so OS reclaims memory). Vector streaming to ClickHouse.
+Env: EMBED_CHUNK_SIZE, EMBED_BATCH_SIZE, EMBED_BUFFER_SIZE.
 """
 
 import asyncio
 import base64
 import contextlib
+import json
+import os
+import subprocess
+import sys
 import tempfile
 from pathlib import Path
 from typing import Any
 
+from anyio import Path as AnyioPath
 from pydantic import BaseModel, Field
 from restack_ai.function import function, heartbeat, log
 
-from src.adapters.clickhouse_embed_adapter import (
-    ClickHouseEmbedAdapter,
-)
-from src.database.connection import get_clickhouse_async_client
-from src.functions.embed_model_loader import (
-    get_embed_model_and_config_once,
-)
-
-# Send heartbeat every N seconds during long-running embed_file (activity heartbeat_timeout is 2 min)
 HEARTBEAT_INTERVAL_SECONDS = 45
-
-# Sentinel UUID when ingestion is dataset-only (no agent context)
-DATASET_ONLY_AGENT_ID = "00000000-0000-0000-0000-000000000000"
 
 
 class EmbedAnythingPdfInput(BaseModel):
@@ -84,9 +70,6 @@ async def embed_anything_pdf_to_events(
     instead of accumulated in memory. Returns chunks_count and ingested_via_adapter=True;
     caller should skip ingest_pipeline_events.
     """
-    log.info(
-        f"embed_anything: start filename={input_data.filename}"
-    )
     try:
         content = base64.b64decode(
             input_data.content_base64, validate=True
@@ -99,11 +82,6 @@ async def embed_anything_pdf_to_events(
             error=f"Invalid base64: {e}"
         )
 
-    size_mb = len(content) / (1024 * 1024)
-    log.info(
-        f"embed_anything: decoded size={size_mb:.2f} MiB for {input_data.filename}"
-    )
-
     suffix = Path(input_data.filename).suffix or ".pdf"
     with tempfile.NamedTemporaryFile(
         delete=False,
@@ -112,74 +90,86 @@ async def embed_anything_pdf_to_events(
     ) as tmp:
         tmp.write(content)
         path = tmp.name
-    del content  # Free decoded PDF so we don't hold it during embed_file (<1GiB friendly)
-    log.info(f"embed_anything: temp file written path={path}")
+    del content
 
+    json_path = None
     try:
-        import embed_anything
-
-        model, config = await get_embed_model_and_config_once()
-
-        def run_embed() -> int:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            try:
-                client = loop.run_until_complete(
-                    get_clickhouse_async_client()
-                )
-                adapter = ClickHouseEmbedAdapter(
-                    client,
-                    agent_id=input_data.agent_id
-                    or DATASET_ONLY_AGENT_ID,
-                    task_id=input_data.task_id,
-                    workspace_id=input_data.workspace_id,
-                    dataset_id=input_data.dataset_id,
-                    event_name=input_data.event_name,
-                    source_filename=input_data.filename,
-                    tags=input_data.tags
-                    or ["pdf", "embed_anything"],
-                )
-                embed_anything.embed_file(
-                    path,
-                    embedder=model,
-                    config=config,
-                    adapter=adapter,
-                )
-                return adapter.insert_count
-            finally:
-                loop.close()
+        payload = {
+            "pdf_path": path,
+            "agent_id": input_data.agent_id,
+            "task_id": input_data.task_id,
+            "workspace_id": input_data.workspace_id,
+            "dataset_id": input_data.dataset_id,
+            "event_name": input_data.event_name,
+            "source_filename": input_data.filename,
+            "tags": input_data.tags or ["pdf", "embed_anything"],
+        }
+        fd, json_path = tempfile.mkstemp(
+            prefix="embed_", suffix=".json"
+        )
+        os.close(fd)
+        await AnyioPath(json_path).write_text(json.dumps(payload))
 
         async def send_heartbeats() -> None:
             while True:
                 await asyncio.sleep(HEARTBEAT_INTERVAL_SECONDS)
                 heartbeat("embed_anything: processing...")
 
+        def run_subprocess() -> subprocess.CompletedProcess[str]:
+            return subprocess.run(  # noqa: S603 (json_path is our temp file path)
+                [
+                    sys.executable,
+                    "-m",
+                    "src.functions.embed_subprocess_runner",
+                    json_path,
+                ],
+                capture_output=True,
+                check=False,
+                text=True,
+                timeout=600,
+                env=os.environ,
+            )
+
         heartbeat_task = asyncio.create_task(send_heartbeats())
         try:
-            chunks_count = await asyncio.to_thread(run_embed)
+            proc = await asyncio.to_thread(run_subprocess)
         finally:
             heartbeat_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await heartbeat_task
 
+        if proc.returncode != 0:
+            err = (
+                proc.stderr or ""
+            ).strip() or f"exit code {proc.returncode}"
+            log.error(
+                f"embed_anything: subprocess failed filename={input_data.filename} {err}"
+            )
+            return EmbedAnythingPdfOutput(error=err)
+        chunks_count = int(proc.stdout.strip().splitlines()[0])
         log.info(
-            f"embed_anything: streamed {chunks_count} chunks to ClickHouse for "
-            f"{input_data.filename}"
+            f"embed_anything: streamed {chunks_count} chunks for {input_data.filename}"
         )
         return EmbedAnythingPdfOutput(
             events=[],
             chunks_count=chunks_count,
             ingested_via_adapter=True,
         )
-    except (OSError, ValueError, TypeError, AttributeError) as e:
-        err_type = type(e).__name__
+    except subprocess.TimeoutExpired as e:
         log.error(
-            f"embed_anything: failed filename={input_data.filename} "
-            f"error_type={err_type} error={e}"
+            f"embed_anything: subprocess timeout filename={input_data.filename} {e}"
+        )
+        return EmbedAnythingPdfOutput(
+            error=f"Subprocess timeout: {e}"
+        )
+    except (ValueError, OSError) as e:
+        log.error(
+            f"embed_anything: subprocess error filename={input_data.filename} {e}"
         )
         return EmbedAnythingPdfOutput(error=str(e))
     finally:
+        if json_path is not None:
+            with contextlib.suppress(OSError):
+                await AnyioPath(json_path).unlink(missing_ok=True)
         with contextlib.suppress(OSError):
-            await asyncio.to_thread(
-                lambda: Path(path).unlink(missing_ok=True)
-            )
+            await AnyioPath(path).unlink(missing_ok=True)

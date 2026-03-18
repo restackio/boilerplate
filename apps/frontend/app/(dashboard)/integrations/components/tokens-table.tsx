@@ -23,6 +23,7 @@ import {
   Plus,
   Star,
   StarOff,
+  Tag,
 } from "lucide-react";
 
 export interface TokenData {
@@ -38,6 +39,7 @@ export interface TokenData {
   created_at: string | null;
   updated_at: string | null;
   is_default: boolean;
+  token_name?: string | null;
 }
 
 interface TokensTableProps {
@@ -55,6 +57,13 @@ const dtf = createColumnConfigHelper<TokenData>();
 
 // Column configurations
 export const tokenColumnsConfig = [
+  dtf
+    .text()
+    .id("token_name")
+    .accessor((row: TokenData) => row.token_name?.trim() || "—")
+    .displayName("Name")
+    .icon(Tag)
+    .build(),
   dtf
     .text()
     .id("auth_type")
@@ -79,8 +88,10 @@ export const tokenColumnsConfig = [
   dtf
     .text()
     .id("connected_at")
-    .accessor((row: TokenData) => 
-      row.connected_at ? new Date(row.connected_at).toLocaleDateString() : "Unknown"
+    .accessor((row: TokenData) =>
+      row.connected_at
+        ? new Date(row.connected_at).toLocaleDateString()
+        : "Unknown",
     )
     .displayName("Connected")
     .icon(Calendar)
@@ -88,8 +99,8 @@ export const tokenColumnsConfig = [
   dtf
     .text()
     .id("expires_at")
-    .accessor((row: TokenData) => 
-      row.expires_at ? new Date(row.expires_at).toLocaleDateString() : "Never"
+    .accessor((row: TokenData) =>
+      row.expires_at ? new Date(row.expires_at).toLocaleDateString() : "Never",
     )
     .displayName("Expires")
     .icon(Calendar)
@@ -100,11 +111,23 @@ export const tokenColumnsConfig = [
 const getAuthTypeBadge = (authType: string) => {
   switch (authType) {
     case "oauth":
-      return <Badge variant="default" className="text-xs">OAuth</Badge>;
+      return (
+        <Badge variant="default" className="text-xs">
+          OAuth
+        </Badge>
+      );
     case "bearer":
-      return <Badge variant="secondary" className="text-xs">Bearer</Badge>;
+      return (
+        <Badge variant="secondary" className="text-xs">
+          Bearer
+        </Badge>
+      );
     default:
-      return <Badge variant="outline" className="text-xs">{authType}</Badge>;
+      return (
+        <Badge variant="outline" className="text-xs">
+          {authType}
+        </Badge>
+      );
   }
 };
 
@@ -114,39 +137,50 @@ const getStatusBadge = (token: TokenData) => {
     const expiresAt = new Date(token.expires_at);
     const now = new Date();
     if (expiresAt < now) {
-      return <Badge variant="destructive" className="text-xs flex items-center gap-1">
-        <AlertCircle className="h-3 w-3" />
-        Expired
-      </Badge>;
+      return (
+        <Badge
+          variant="destructive"
+          className="text-xs flex items-center gap-1"
+        >
+          <AlertCircle className="h-3 w-3" />
+          Expired
+        </Badge>
+      );
     }
   }
-  return <Badge variant="default" className="text-xs flex items-center gap-1">
-    <CheckCircle className="h-3 w-3" />
-    Active
-  </Badge>;
+  return (
+    <Badge variant="default" className="text-xs flex items-center gap-1">
+      <CheckCircle className="h-3 w-3" />
+      Active
+    </Badge>
+  );
 };
 
 // Default badge
 const getDefaultBadge = (isDefault: boolean) => {
   if (isDefault) {
-    return <Badge variant="default" className="text-xs flex items-center gap-1 bg-yellow-100 text-yellow-800 border-yellow-300">
-      <Star className="h-3 w-3 fill-current" />
-      Default
-    </Badge>;
+    return (
+      <Badge
+        variant="default"
+        className="text-xs flex items-center gap-1 bg-yellow-100 text-yellow-800 border-yellow-300"
+      >
+        <Star className="h-3 w-3 fill-current" />
+        Default
+      </Badge>
+    );
   }
   return null;
 };
 
-export function TokensTable({ 
-  data, 
+export function TokensTable({
+  data,
   onDeleteToken,
   onMakeDefault,
   onAddOAuth,
   onAddBearerToken,
   onAddToken,
-  isLoading = false
+  isLoading = false,
 }: TokensTableProps) {
-
   // Create data table filters instance
   const { columns, filters, actions, strategy, filteredData } =
     useDataTableFilters({
@@ -170,7 +204,8 @@ export function TokensTable({
       <div className="flex flex-col items-center justify-center py-12 text-center">
         <h3 className="text-lg font-semibold mb-2">No tokens found</h3>
         <p className="text-muted-foreground mb-4 max-w-md">
-          Add a token to authenticate with this integration and start using its tools.
+          Add a token to authenticate with this integration and start using its
+          tools.
         </p>
         <div className="flex gap-2">
           {onAddToken ? (
@@ -208,7 +243,7 @@ export function TokensTable({
           actions={actions}
           strategy={strategy}
         />
-        
+
         <div className="flex gap-2 shrink-0">
           {onAddToken ? (
             <Button onClick={onAddToken} size="sm">
@@ -236,15 +271,22 @@ export function TokensTable({
 
       <div className="w-full overflow-hidden">
         <div className="rounded-md border overflow-x-auto max-w-full">
-          <Table className="w-full" style={{ tableLayout: 'fixed' }}>
+          <Table className="w-full" style={{ tableLayout: "fixed" }}>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-1/7">Name</TableHead>
                 <TableHead className="w-1/7">Type</TableHead>
                 <TableHead className="w-1/7">Status</TableHead>
                 <TableHead className="w-1/7">Default</TableHead>
-                <TableHead className="hidden sm:table-cell w-1/7">Connected</TableHead>
-                <TableHead className="hidden md:table-cell w-1/7">Expires</TableHead>
-                <TableHead className="hidden lg:table-cell w-2/7">Scope</TableHead>
+                <TableHead className="hidden sm:table-cell w-1/7">
+                  Connected
+                </TableHead>
+                <TableHead className="hidden md:table-cell w-1/7">
+                  Expires
+                </TableHead>
+                <TableHead className="hidden lg:table-cell w-2/7">
+                  Scope
+                </TableHead>
                 <TableHead className="w-1/7">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -253,23 +295,36 @@ export function TokensTable({
                 return (
                   <TableRow key={token.id}>
                     <TableCell>
+                      <span className="font-medium">
+                        {token.token_name?.trim() || "—"}
+                      </span>
+                    </TableCell>
+                    <TableCell>
                       <div className="space-y-1">
                         {getAuthTypeBadge(token.auth_type)}
                         {/* Show additional info on mobile when columns are hidden */}
                         <div className="sm:hidden flex flex-col gap-1 mt-2 text-xs">
                           <div className="flex items-center gap-2 text-muted-foreground">
                             <Calendar className="h-3 w-3" />
-                            <span>Connected: {token.connected_at 
-                              ? new Date(token.connected_at).toLocaleDateString()
-                              : "Unknown"
-                            }</span>
+                            <span>
+                              Connected:{" "}
+                              {token.connected_at
+                                ? new Date(
+                                    token.connected_at,
+                                  ).toLocaleDateString()
+                                : "Unknown"}
+                            </span>
                           </div>
                           <div className="flex items-center gap-2 text-muted-foreground">
                             <Calendar className="h-3 w-3" />
-                            <span>Expires: {token.expires_at 
-                              ? new Date(token.expires_at).toLocaleDateString()
-                              : "Never"
-                            }</span>
+                            <span>
+                              Expires:{" "}
+                              {token.expires_at
+                                ? new Date(
+                                    token.expires_at,
+                                  ).toLocaleDateString()
+                                : "Never"}
+                            </span>
                           </div>
                           {token.is_default && (
                             <div className="flex items-center gap-2">
@@ -279,19 +334,14 @@ export function TokensTable({
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell>
-                      {getStatusBadge(token)}
-                    </TableCell>
-                    <TableCell>
-                      {getDefaultBadge(token.is_default)}
-                    </TableCell>
+                    <TableCell>{getStatusBadge(token)}</TableCell>
+                    <TableCell>{getDefaultBadge(token.is_default)}</TableCell>
                     <TableCell className="hidden sm:table-cell">
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Calendar className="h-4 w-4" />
-                        {token.connected_at 
+                        {token.connected_at
                           ? new Date(token.connected_at).toLocaleDateString()
-                          : "Unknown"
-                        }
+                          : "Unknown"}
                       </div>
                     </TableCell>
                     <TableCell className="hidden md:table-cell">
@@ -300,19 +350,27 @@ export function TokensTable({
                           {new Date(token.expires_at).toLocaleDateString()}
                         </div>
                       ) : (
-                        <span className="text-sm text-muted-foreground">Never</span>
+                        <span className="text-sm text-muted-foreground">
+                          Never
+                        </span>
                       )}
                     </TableCell>
                     <TableCell className="hidden lg:table-cell">
                       <div className="flex flex-wrap gap-1">
                         {token.scope && token.scope.length > 0 ? (
                           token.scope.map((scope, index) => (
-                            <Badge key={index} variant="outline" className="text-xs">
+                            <Badge
+                              key={index}
+                              variant="outline"
+                              className="text-xs"
+                            >
                               {scope}
                             </Badge>
                           ))
                         ) : (
-                          <span className="text-sm text-muted-foreground">No scope</span>
+                          <span className="text-sm text-muted-foreground">
+                            No scope
+                          </span>
                         )}
                       </div>
                     </TableCell>
@@ -350,4 +408,3 @@ export function TokensTable({
     </div>
   );
 }
-

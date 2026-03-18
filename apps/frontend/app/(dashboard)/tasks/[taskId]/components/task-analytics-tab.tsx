@@ -6,9 +6,33 @@ import { getTaskFeedback } from "@/app/actions/feedback";
 import type { FeedbackRecord } from "@/app/actions/feedback";
 import { Button } from "@workspace/ui/components/ui/button";
 import { Badge } from "@workspace/ui/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@workspace/ui/components/ui/table";
-import { CheckCircle2, XCircle, Clock, DollarSign, RefreshCw, Zap, MessageSquare, FunctionSquare, ThumbsUp, ThumbsDown, ClipboardCheck, FlaskConical } from "lucide-react";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@workspace/ui/components/ui/collapsible";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@workspace/ui/components/ui/table";
+import {
+  CheckCircle2,
+  XCircle,
+  Clock,
+  DollarSign,
+  RefreshCw,
+  Zap,
+  MessageSquare,
+  FunctionSquare,
+  ThumbsUp,
+  ThumbsDown,
+  ClipboardCheck,
+  FlaskConical,
+} from "lucide-react";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@workspace/ui/components/ui/collapsible";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { ScrollArea } from "@workspace/ui/components/ui/scroll-area";
 import { MetricCard } from "./metric-card";
@@ -56,12 +80,20 @@ interface TaskAnalyticsTabProps {
   parentAgentId?: string; // Parent agent ID from backend
 }
 
-export function TaskAnalyticsTab({ taskId, agentId, parentAgentId }: TaskAnalyticsTabProps) {
+export function TaskAnalyticsTab({
+  taskId,
+  agentId,
+  parentAgentId,
+}: TaskAnalyticsTabProps) {
   const router = useRouter();
   const { currentWorkspaceId, currentUserId } = useDatabaseWorkspace();
   const [metrics, setMetrics] = useState<TaskQualityMetric[]>([]);
-  const [performanceMetrics, setPerformanceMetrics] = useState<TaskPerformanceMetric[]>([]);
-  const [tracesData, setTracesData] = useState<GetTaskTracesOutput | null>(null);
+  const [performanceMetrics, setPerformanceMetrics] = useState<
+    TaskPerformanceMetric[]
+  >([]);
+  const [tracesData, setTracesData] = useState<GetTaskTracesOutput | null>(
+    null,
+  );
   const [feedbacks, setFeedbacks] = useState<FeedbackRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
@@ -74,11 +106,15 @@ export function TaskAnalyticsTab({ taskId, agentId, parentAgentId }: TaskAnalyti
         getTaskTraces(taskId),
         getTaskFeedback(taskId),
       ]);
-      
+
       // Extract performance and quality metrics from the result
-      const performanceData = Array.isArray(allMetrics?.performance) ? allMetrics.performance : [];
-      const qualityData = Array.isArray(allMetrics?.quality) ? allMetrics.quality : [];
-      
+      const performanceData = Array.isArray(allMetrics?.performance)
+        ? allMetrics.performance
+        : [];
+      const qualityData = Array.isArray(allMetrics?.quality)
+        ? allMetrics.quality
+        : [];
+
       setPerformanceMetrics(performanceData as TaskPerformanceMetric[]);
       setMetrics(qualityData as TaskQualityMetric[]);
       setTracesData(tracesResults);
@@ -104,7 +140,7 @@ export function TaskAnalyticsTab({ taskId, agentId, parentAgentId }: TaskAnalyti
   // Auto-fetch on mount only
   useEffect(() => {
     fetchData();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [taskId]);
 
   // Use parent_agent_id if available (for child agents), otherwise use agentId (for parent agents)
@@ -112,27 +148,34 @@ export function TaskAnalyticsTab({ taskId, agentId, parentAgentId }: TaskAnalyti
 
   // Group metrics by response index for timeline view
   const groupedMetrics: ResponseMetrics[] = [];
-  const metricsByResponse = (metrics || []).reduce((acc, metric) => {
-    const key = metric.responseIndex ?? 0;
-    if (!acc[key]) {
-      acc[key] = [];
-    }
-    acc[key].push(metric);
-    return acc;
-  }, {} as Record<number, TaskQualityMetric[]>);
+  const metricsByResponse = (metrics || []).reduce(
+    (acc, metric) => {
+      const key = metric.responseIndex ?? 0;
+      if (!acc[key]) {
+        acc[key] = [];
+      }
+      acc[key].push(metric);
+      return acc;
+    },
+    {} as Record<number, TaskQualityMetric[]>,
+  );
 
-  Object.entries(metricsByResponse).forEach(([responseIndex, responseMetrics]) => {
-    const passed = responseMetrics.filter((m) => m.passed).length;
-    const passRate = (passed / responseMetrics.length) * 100;
-    groupedMetrics.push({
-      responseIndex: Number(responseIndex),
-      metrics: responseMetrics,
-      passRate,
-    });
-  });
+  Object.entries(metricsByResponse).forEach(
+    ([responseIndex, responseMetrics]) => {
+      const passed = responseMetrics.filter((m) => m.passed).length;
+      const passRate = (passed / responseMetrics.length) * 100;
+      groupedMetrics.push({
+        responseIndex: Number(responseIndex),
+        metrics: responseMetrics,
+        passRate,
+      });
+    },
+  );
 
   // Sort by response index
-  groupedMetrics.sort((a, b) => (a.responseIndex || 0) - (b.responseIndex || 0));
+  groupedMetrics.sort(
+    (a, b) => (a.responseIndex || 0) - (b.responseIndex || 0),
+  );
 
   // Calculate summary statistics - for potential future use
   // const totalMetrics = metrics.length;
@@ -163,7 +206,9 @@ export function TaskAnalyticsTab({ taskId, agentId, parentAgentId }: TaskAnalyti
             onClick={fetchData}
             disabled={loading}
           >
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+            <RefreshCw
+              className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`}
+            />
             Refresh
           </Button>
         </div>
@@ -174,22 +219,18 @@ export function TaskAnalyticsTab({ taskId, agentId, parentAgentId }: TaskAnalyti
             <MetricCard
               label="Duration"
               value={`${((tracesData.total_duration_ms || 0) / 1000).toFixed(1)}s`}
-              
             />
             <MetricCard
               label="Tokens"
               value={(tracesData.total_tokens || 0).toLocaleString()}
-              
             />
             <MetricCard
               label="Cost"
               value={`$${(tracesData.total_cost_usd || 0).toFixed(3)}`}
-              
             />
             <MetricCard
               label="LLM Calls"
               value={tracesData.generation_count || 0}
-              
             />
           </div>
         )}
@@ -208,7 +249,7 @@ export function TaskAnalyticsTab({ taskId, agentId, parentAgentId }: TaskAnalyti
             <h4 className="text-sm font-semibold flex items-center gap-2">
               Performance metrics ({performanceMetrics.length})
             </h4>
-            
+
             {performanceMetrics.map((perfMetric, idx) => (
               <div
                 key={idx}
@@ -216,7 +257,9 @@ export function TaskAnalyticsTab({ taskId, agentId, parentAgentId }: TaskAnalyti
               >
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
-                    <p className="text-sm font-medium">{perfMetric.agentName}</p>
+                    <p className="text-sm font-medium">
+                      {perfMetric.agentName}
+                    </p>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Badge variant="outline" className="font-mono">
                         {perfMetric.agentVersion}
@@ -229,19 +272,31 @@ export function TaskAnalyticsTab({ taskId, agentId, parentAgentId }: TaskAnalyti
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <div className="space-y-1">
                     <p className="text-xs text-muted-foreground">Duration</p>
-                    <p className="text-sm font-medium">{perfMetric.durationMs}ms</p>
+                    <p className="text-sm font-medium">
+                      {perfMetric.durationMs}ms
+                    </p>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-xs text-muted-foreground">Input Tokens</p>
-                    <p className="text-sm font-medium">{perfMetric.inputTokens.toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Input Tokens
+                    </p>
+                    <p className="text-sm font-medium">
+                      {perfMetric.inputTokens.toLocaleString()}
+                    </p>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-xs text-muted-foreground">Output Tokens</p>
-                    <p className="text-sm font-medium">{perfMetric.outputTokens.toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Output Tokens
+                    </p>
+                    <p className="text-sm font-medium">
+                      {perfMetric.outputTokens.toLocaleString()}
+                    </p>
                   </div>
                   <div className="space-y-1">
                     <p className="text-xs text-muted-foreground">Cost</p>
-                    <p className="text-sm font-medium">${perfMetric.costUsd.toFixed(3)}</p>
+                    <p className="text-sm font-medium">
+                      ${perfMetric.costUsd.toFixed(3)}
+                    </p>
                   </div>
                 </div>
 
@@ -261,90 +316,90 @@ export function TaskAnalyticsTab({ taskId, agentId, parentAgentId }: TaskAnalyti
             <h4 className="text-sm font-semibold flex items-center gap-2">
               Quality metrics ({metrics.length})
             </h4>
-            
+
             {groupedMetrics.map((responseGroup, groupIdx) => (
-            <div key={groupIdx} className="space-y-2">
-              {/* Response header if there are multiple responses */}
-              {groupedMetrics.length > 1 && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Badge variant="outline" className="font-mono">
-                    Response #{responseGroup.responseIndex + 1}
-                  </Badge>
-                  <span className="text-xs">
-                    Pass rate: {responseGroup.passRate.toFixed(0)}%
-                  </span>
-                </div>
-              )}
+              <div key={groupIdx} className="space-y-2">
+                {/* Response header if there are multiple responses */}
+                {groupedMetrics.length > 1 && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Badge variant="outline" className="font-mono">
+                      Response #{responseGroup.responseIndex + 1}
+                    </Badge>
+                    <span className="text-xs">
+                      Pass rate: {responseGroup.passRate.toFixed(0)}%
+                    </span>
+                  </div>
+                )}
 
-              {/* Metrics for this response */}
-              {responseGroup.metrics.map((metric, idx) => (
-                <div
-                  key={idx}
-                  className="bg-background rounded-lg border p-3 space-y-2"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                      {metric.passed ? (
-                        <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
-                      ) : (
-                        <XCircle className="h-4 w-4 text-red-600 flex-shrink-0" />
+                {/* Metrics for this response */}
+                {responseGroup.metrics.map((metric, idx) => (
+                  <div
+                    key={idx}
+                    className="bg-background rounded-lg border p-3 space-y-2"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        {metric.passed ? (
+                          <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+                        ) : (
+                          <XCircle className="h-4 w-4 text-red-600 flex-shrink-0" />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">
+                            {metric.metricName}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {metric.metricType.replace(/_/g, " ")}
+                          </p>
+                        </div>
+                      </div>
+                      {metric.score !== undefined && (
+                        <Badge
+                          variant={metric.passed ? "default" : "destructive"}
+                          className="flex-shrink-0"
+                        >
+                          {metric.score.toFixed(0)}/100
+                        </Badge>
                       )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">
-                          {metric.metricName}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {metric.metricType.replace(/_/g, " ")}
-                        </p>
-                      </div>
                     </div>
-                    {metric.score !== undefined && (
-                      <Badge
-                        variant={metric.passed ? "default" : "destructive"}
-                        className="flex-shrink-0"
+
+                    {metric.reasoning && (
+                      <p className="text-xs text-muted-foreground bg-muted p-2 rounded">
+                        {metric.reasoning}
+                      </p>
+                    )}
+
+                    {agentId && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleImproveInPlayground}
+                        className="w-full"
                       >
-                        {metric.score.toFixed(0)}/100
-                      </Badge>
+                        <FlaskConical className="h-3.5 w-3.5 mr-1.5" />
+                        Improve in Playground
+                      </Button>
                     )}
-                  </div>
 
-                  {metric.reasoning && (
-                    <p className="text-xs text-muted-foreground bg-muted p-2 rounded">
-                      {metric.reasoning}
-                    </p>
-                  )}
-
-                  {agentId && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleImproveInPlayground}
-                      className="w-full"
-                    >
-                      <FlaskConical className="h-3.5 w-3.5 mr-1.5" />
-                      Improve in Playground
-                    </Button>
-                  )}
-
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      {metric.evalDurationMs}ms
-                    </div>
-                    {metric.evalCostUsd > 0 && (
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
                       <div className="flex items-center gap-1">
-                        <DollarSign className="h-3 w-3" />
-                        ${metric.evalCostUsd.toFixed(4)}
+                        <Clock className="h-3 w-3" />
+                        {metric.evalDurationMs}ms
                       </div>
-                    )}
-                    <div className="flex-1 text-right">
-                      {new Date(metric.evaluatedAt).toLocaleTimeString()}
+                      {metric.evalCostUsd > 0 && (
+                        <div className="flex items-center gap-1">
+                          <DollarSign className="h-3 w-3" />$
+                          {metric.evalCostUsd.toFixed(4)}
+                        </div>
+                      )}
+                      <div className="flex-1 text-right">
+                        {new Date(metric.evaluatedAt).toLocaleTimeString()}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          ))}
+                ))}
+              </div>
+            ))}
           </div>
         )}
 
@@ -353,17 +408,17 @@ export function TaskAnalyticsTab({ taskId, agentId, parentAgentId }: TaskAnalyti
           <h4 className="text-sm font-semibold flex items-center gap-2">
             User feedbacks {feedbacks.length > 0 && `(${feedbacks.length})`}
           </h4>
-          
+
           {feedbacks.length > 0 ? (
             <div className="space-y-2">
               <div className="grid grid-cols-2 gap-2 mb-3">
                 <MetricCard
                   label="Positive"
-                  value={feedbacks.filter(f => f.isPositive).length}
+                  value={feedbacks.filter((f) => f.isPositive).length}
                 />
                 <MetricCard
                   label="Negative"
-                  value={feedbacks.filter(f => !f.isPositive).length}
+                  value={feedbacks.filter((f) => !f.isPositive).length}
                 />
               </div>
 
@@ -377,25 +432,36 @@ export function TaskAnalyticsTab({ taskId, agentId, parentAgentId }: TaskAnalyti
                 <TableBody>
                   {feedbacks.map((feedback, index) => (
                     <TableRow key={index}>
-                        <TableCell className="text-sm max-w-md whitespace-normal break-words space-y-2">
-                          <div className="flex items-center gap-2">
-                            {feedback.isPositive ? (
-                            <Badge variant="outline" className="gap-1 text-green-600 border-green-600 bg-green-600/10">
+                      <TableCell className="text-sm max-w-md whitespace-normal break-words space-y-2">
+                        <div className="flex items-center gap-2">
+                          {feedback.isPositive ? (
+                            <Badge
+                              variant="outline"
+                              className="gap-1 text-green-600 border-green-600 bg-green-600/10"
+                            >
                               <ThumbsUp className="h-3 w-3" />
                               Positive
                             </Badge>
                           ) : (
-                            <Badge variant="outline" className="gap-1 text-red-600 border-red-600 bg-red-600/10">
+                            <Badge
+                              variant="outline"
+                              className="gap-1 text-red-600 border-red-600 bg-red-600/10"
+                            >
                               <ThumbsDown className="h-3 w-3" />
                               Negative
                             </Badge>
                           )}
                           <p className="text-xs text-muted-foreground">
-                            {formatDate(feedback.createdAt)} #{feedback.responseIndex + 1}
+                            {formatDate(feedback.createdAt)} #
+                            {feedback.responseIndex + 1}
                           </p>
                         </div>
                         <p>
-                          {feedback.feedbackText || <span className="text-muted-foreground italic">No details provided</span>}
+                          {feedback.feedbackText || (
+                            <span className="text-muted-foreground italic">
+                              No details provided
+                            </span>
+                          )}
                         </p>
                       </TableCell>
                       <TableCell>
@@ -408,9 +474,17 @@ export function TaskAnalyticsTab({ taskId, agentId, parentAgentId }: TaskAnalyti
                               isPositive: feedback.isPositive,
                               feedbackText: feedback.feedbackText,
                             }}
-                            defaultParentAgentIds={defaultParentAgentId ? [defaultParentAgentId] : undefined}
+                            defaultParentAgentIds={
+                              defaultParentAgentId
+                                ? [defaultParentAgentId]
+                                : undefined
+                            }
                             trigger={
-                              <Button variant="outline" size="sm" className="h-7 px-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 px-2"
+                              >
                                 <ClipboardCheck className="h-3.5 w-3.5" />
                                 Create metric
                               </Button>
@@ -426,7 +500,7 @@ export function TaskAnalyticsTab({ taskId, agentId, parentAgentId }: TaskAnalyti
           ) : (
             <div className="text-center py-8 text-muted-foreground border rounded-lg">
               <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">No feedback yet</p>
+              <p className="text-sm">No feedback</p>
               <p className="text-xs mt-2">
                 Feedback will appear here when users rate responses
               </p>
@@ -439,7 +513,7 @@ export function TaskAnalyticsTab({ taskId, agentId, parentAgentId }: TaskAnalyti
           <h4 className="text-sm font-semibold flex items-center gap-2">
             Traces {tracesData && `(${tracesData.spans.length})`}
           </h4>
-          
+
           {tracesData && tracesData.spans.length > 0 ? (
             <div className="space-y-3">
               {tracesData.spans.map((span) => (
@@ -448,7 +522,7 @@ export function TaskAnalyticsTab({ taskId, agentId, parentAgentId }: TaskAnalyti
             </div>
           ) : (
             <div className="text-center py-8 text-muted-foreground border rounded-lg">
-              <p className="text-sm">No traces captured yet</p>
+              <p className="text-sm">No traces captured</p>
               <p className="text-xs mt-2">
                 Traces will appear here as the agent executes
               </p>
@@ -483,9 +557,13 @@ function TraceSpanCard({ span }: TraceSpanCardProps) {
 
   const getStatusBadge = (status: string) => {
     return status === "error" ? (
-      <Badge variant="destructive" className="ml-2">Error</Badge>
+      <Badge variant="destructive" className="ml-2">
+        Error
+      </Badge>
     ) : (
-      <Badge variant="secondary" className="ml-2">OK</Badge>
+      <Badge variant="secondary" className="ml-2">
+        OK
+      </Badge>
     );
   };
 
@@ -498,15 +576,24 @@ function TraceSpanCard({ span }: TraceSpanCardProps) {
     <div className="bg-background rounded-lg border">
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
         <CollapsibleTrigger asChild>
-          <Button variant="ghost" className="w-full justify-start p-4 h-auto hover:bg-muted/50">
+          <Button
+            variant="ghost"
+            className="w-full justify-start p-4 h-auto hover:bg-muted/50"
+          >
             <div className="flex items-center w-full gap-2">
               {getSpanIcon(span.span_type)}
-              <span className="font-medium">{span.span_name || span.span_type}</span>
+              <span className="font-medium">
+                {span.span_name || span.span_type}
+              </span>
               {getStatusBadge(span.status)}
               <span className="ml-auto text-xs text-muted-foreground">
                 {formatDuration(span.duration_ms)}
               </span>
-              {isOpen ? <ChevronDown className="h-4 w-4 ml-2" /> : <ChevronRight className="h-4 w-4 ml-2" />}
+              {isOpen ? (
+                <ChevronDown className="h-4 w-4 ml-2" />
+              ) : (
+                <ChevronRight className="h-4 w-4 ml-2" />
+              )}
             </div>
           </Button>
         </CollapsibleTrigger>
@@ -523,13 +610,17 @@ function TraceSpanCard({ span }: TraceSpanCardProps) {
               {span.input_tokens > 0 && (
                 <div>
                   <span className="text-muted-foreground">Input Tokens:</span>
-                  <span className="ml-2">{span.input_tokens.toLocaleString()}</span>
+                  <span className="ml-2">
+                    {span.input_tokens.toLocaleString()}
+                  </span>
                 </div>
               )}
               {span.output_tokens > 0 && (
                 <div>
                   <span className="text-muted-foreground">Output Tokens:</span>
-                  <span className="ml-2">{span.output_tokens.toLocaleString()}</span>
+                  <span className="ml-2">
+                    {span.output_tokens.toLocaleString()}
+                  </span>
                 </div>
               )}
               {span.cost_usd > 0 && (
@@ -543,7 +634,9 @@ function TraceSpanCard({ span }: TraceSpanCardProps) {
             {/* Error Message */}
             {span.error_message && (
               <div className="bg-red-50 border border-red-200 text-red-800 p-3 rounded-md text-xs">
-                <p className="font-semibold">Error: {span.error_type || "Unknown"}</p>
+                <p className="font-semibold">
+                  Error: {span.error_type || "Unknown"}
+                </p>
                 <p>{span.error_message}</p>
               </div>
             )}
@@ -551,18 +644,26 @@ function TraceSpanCard({ span }: TraceSpanCardProps) {
             {/* Input/Output */}
             {span.input && (
               <div>
-                <p className="text-xs font-semibold mb-1 text-muted-foreground">Input:</p>
+                <p className="text-xs font-semibold mb-1 text-muted-foreground">
+                  Input:
+                </p>
                 <div className="bg-muted p-2 rounded text-xs font-mono whitespace-pre-wrap break-all max-h-40 overflow-y-auto">
-                  {typeof span.input === 'string' ? span.input : JSON.stringify(JSON.parse(span.input), null, 2)}
+                  {typeof span.input === "string"
+                    ? span.input
+                    : JSON.stringify(JSON.parse(span.input), null, 2)}
                 </div>
               </div>
             )}
 
             {span.output && (
               <div>
-                <p className="text-xs font-semibold mb-1 text-muted-foreground">Output:</p>
+                <p className="text-xs font-semibold mb-1 text-muted-foreground">
+                  Output:
+                </p>
                 <div className="bg-muted p-2 rounded text-xs font-mono whitespace-pre-wrap break-all max-h-40 overflow-y-auto">
-                  {typeof span.output === 'string' ? span.output : JSON.stringify(JSON.parse(span.output), null, 2)}
+                  {typeof span.output === "string"
+                    ? span.output
+                    : JSON.stringify(JSON.parse(span.output), null, 2)}
                 </div>
               </div>
             )}
@@ -575,15 +676,17 @@ function TraceSpanCard({ span }: TraceSpanCardProps) {
 
 function formatDate(dateString: string | undefined | null): string {
   if (!dateString) return "—";
-  
+
   try {
     // Handle various date formats
     const date = new Date(dateString);
-    
+
     // Check if date is valid
     if (isNaN(date.getTime())) {
       // Try parsing ISO format manually if auto-parse fails
-      const isoMatch = dateString.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/);
+      const isoMatch = dateString.match(
+        /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/,
+      );
       if (isoMatch) {
         const [, year, month, day] = isoMatch;
         const parsedDate = new Date(`${year}-${month}-${day}T00:00:00Z`);
@@ -597,7 +700,7 @@ function formatDate(dateString: string | undefined | null): string {
       }
       return "—";
     }
-    
+
     return date.toLocaleDateString(undefined, {
       year: "numeric",
       month: "short",
@@ -607,4 +710,3 @@ function formatDate(dateString: string | undefined | null): string {
     return "—";
   }
 }
-

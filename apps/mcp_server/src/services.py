@@ -33,8 +33,14 @@ from src.workflows.tools.cockroachdb_crud import (
 from src.workflows.tools.complete_task import CompleteTask
 from src.workflows.tools.create_subtask import CreateSubtask
 from src.workflows.tools.generate_mock import GenerateMock
+from src.workflows.tools.list_integration_tools import (
+    ListIntegrationTools,
+)
 from src.workflows.tools.load_into_dataset import (
     LoadIntoDataset,
+)
+from src.workflows.tools.search_remote_mcp_directory import (
+    SearchRemoteMcpDirectory,
 )
 from src.workflows.tools.test_failures import (
     TestFailures,
@@ -42,7 +48,18 @@ from src.workflows.tools.test_failures import (
 from src.workflows.tools.transform_data import (
     TransformData,
 )
+from src.workflows.tools.update_agent import UpdateAgent
+from src.workflows.tools.update_agent_tool import UpdateAgentTool
+from src.workflows.tools.update_dataset import UpdateDataset
+from src.workflows.tools.update_file import UpdateFile
+from src.workflows.tools.update_integration import (
+    UpdateIntegration,
+)
+from src.workflows.tools.update_pattern_specs import (
+    UpdatePatternSpecs,
+)
 from src.workflows.tools.update_todos import UpdateTodos
+from src.workflows.tools.update_view import UpdateView
 
 # Create logger for this module
 logger = logging.getLogger(__name__)
@@ -53,6 +70,15 @@ async def run_restack_service() -> None:
     await client.start_service(
         task_queue="mcp_server",
         workflows=[
+            UpdateAgentTool,
+            UpdateAgent,
+            UpdateDataset,
+            UpdateIntegration,
+            UpdateFile,
+            UpdateView,
+            UpdatePatternSpecs,
+            ListIntegrationTools,
+            SearchRemoteMcpDirectory,
             GenerateMock,
             TestFailures,
             TransformData,

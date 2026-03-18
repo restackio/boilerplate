@@ -33,6 +33,8 @@ export interface PromptInputProps {
   maxHeight?: string;
   /** Show AI indicator icon */
   showAIIndicator?: boolean;
+  /** Optional actions rendered inside the input area (e.g. Add files), to the left of the textarea */
+  leadingActions?: React.ReactNode;
 }
 
 export function PromptInput({
@@ -48,9 +50,10 @@ export function PromptInput({
   className = "",
   minHeight = "min-h-[40px]",
   maxHeight = "max-h-[80px]",
+  leadingActions,
 }: PromptInputProps) {
   const isDisabled = disabled || isLoading || isInitializing;
-  
+
   const getPlaceholder = () => {
     if (isInitializing) return initializingPlaceholder;
     if (isLoading) return loadingPlaceholder;
@@ -67,20 +70,23 @@ export function PromptInput({
   };
 
   return (
-    <div className={`p-4 border-t bg-background ${className}`}>
-      <div className="flex space-x-2">       
+    <div
+      className={`max-w-4xl mx-auto border border-border/40 p-2 rounded-lg space-y-2 bg-muted/90 mb-4 ${className} `}
+    >
+      <div className="flex items-center gap-2">
+        {leadingActions}
         <Textarea
           placeholder={getPlaceholder()}
           value={prompt}
           onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
             onPromptChange(e.target.value)
           }
-          className={`flex-1 ${minHeight} ${maxHeight} resize-none`}
+          className={`flex-1 bg-background ${minHeight} ${maxHeight} resize-none`}
           onKeyDown={handleKeyDown}
           disabled={isDisabled}
         />
-        
-        <Button 
+
+        <Button
           onClick={onSubmit}
           disabled={!prompt.trim() || isDisabled}
           className="p-5"

@@ -78,7 +78,7 @@ export function DatasetFilesTable({
                 >
                   <EmptyState
                     icon={<FileText className="h-8 w-8" />}
-                    title="No files yet"
+                    title="No files"
                     description="Upload files with the Add files button above. Files will appear here once chunks are ingested."
                   />
                 </TableCell>
@@ -87,7 +87,10 @@ export function DatasetFilesTable({
               files.map((file) => (
                 <TableRow key={file.source}>
                   <TableCell className="font-medium">
-                    <span className="truncate block max-w-md" title={file.source}>
+                    <span
+                      className="truncate block max-w-md"
+                      title={file.source}
+                    >
                       {file.source}
                     </span>
                   </TableCell>
@@ -125,8 +128,10 @@ export function DatasetFilesTable({
         title="Delete all chunks for this file?"
         description={
           <>
-            This will remove all {files.find((f) => f.source === confirmSource)?.chunk_count ?? 0} chunks
-            for &quot;{confirmSource}&quot; from the dataset. This cannot be undone.
+            This will remove all{" "}
+            {files.find((f) => f.source === confirmSource)?.chunk_count ?? 0}{" "}
+            chunks for &quot;{confirmSource}&quot; from the dataset. This cannot
+            be undone.
           </>
         }
         variant="destructive"

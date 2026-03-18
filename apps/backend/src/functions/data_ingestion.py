@@ -313,7 +313,9 @@ async def _insert_data_to_cockroachdb(
             row["dataset_id"],
             row["event_name"],
             _json.dumps(row["raw_data"]),
-            _json.dumps(row["transformed_data"]) if row["transformed_data"] is not None else None,
+            _json.dumps(row["transformed_data"])
+            if row["transformed_data"] is not None
+            else None,
             row["tags"] or [],
             row["embedding"] or [],
             row["event_timestamp"],
@@ -326,7 +328,8 @@ async def _insert_data_to_cockroachdb(
         await conn.executemany(insert_sql, records)
 
     logger.info(
-        "Successfully inserted %d rows into CockroachDB", len(records)
+        "Successfully inserted %d rows into CockroachDB",
+        len(records),
     )
 
 
@@ -371,7 +374,8 @@ async def ingest_pipeline_events_cockroachdb(
         await _insert_data_to_cockroachdb(pool, data_rows)
 
         execution_time = int(
-            (datetime.now(tz=UTC) - start_time).total_seconds() * 1000
+            (datetime.now(tz=UTC) - start_time).total_seconds()
+            * 1000
         )
 
         return DataIngestionOutput(
@@ -382,7 +386,9 @@ async def ingest_pipeline_events_cockroachdb(
         )
 
     except (ValueError, TypeError, ConnectionError, OSError) as e:
-        logger.exception("Exception in ingest_pipeline_events_cockroachdb")
+        logger.exception(
+            "Exception in ingest_pipeline_events_cockroachdb"
+        )
         error_msg = f"{type(e).__name__}: {e!s}"
         return DataIngestionOutput(
             success=False,

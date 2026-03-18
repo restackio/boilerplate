@@ -126,7 +126,7 @@ export const extractTextContent = (item: ConversationItem): string => {
 };
 
 export const extractToolName = (item: ConversationItem): string => {
-  return item.openai_output?.name || "";
+  return item.openai_output?.name || (item.openai_output?.tool as string) || "";
 };
 
 export const extractServerLabel = (item: ConversationItem): string => {

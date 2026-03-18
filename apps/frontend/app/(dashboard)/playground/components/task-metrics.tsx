@@ -1,7 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { CheckCircle2, XCircle, CircleCheck, CircleX, RefreshCw, Zap } from "lucide-react";
+import {
+  CheckCircle2,
+  XCircle,
+  CircleCheck,
+  CircleX,
+  RefreshCw,
+  Zap,
+} from "lucide-react";
 import { Button } from "@workspace/ui/components/ui/button";
 import { Badge } from "@workspace/ui/components/ui/badge";
 import { getTaskMetrics } from "@/app/actions/metrics";
@@ -39,7 +46,12 @@ interface PerformanceMetric {
 
 type Metric = QualityMetric | PerformanceMetric;
 
-export function TaskMetrics({ taskId, task, onUpdateTask, refreshTrigger }: TaskMetricsProps) {
+export function TaskMetrics({
+  taskId,
+  task,
+  onUpdateTask,
+  refreshTrigger,
+}: TaskMetricsProps) {
   const [metrics, setMetrics] = useState<Metric[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
@@ -50,7 +62,7 @@ export function TaskMetrics({ taskId, task, onUpdateTask, refreshTrigger }: Task
     if (!hasLoaded) {
       fetchMetrics();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [taskId, hasLoaded]);
 
   // Auto-refresh when triggered externally (e.g., response completion)
@@ -58,7 +70,7 @@ export function TaskMetrics({ taskId, task, onUpdateTask, refreshTrigger }: Task
     if (refreshTrigger && refreshTrigger > 0 && hasLoaded) {
       handleRefresh();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshTrigger]);
 
   async function fetchMetrics() {
@@ -67,7 +79,7 @@ export function TaskMetrics({ taskId, task, onUpdateTask, refreshTrigger }: Task
       const results = await getTaskMetrics(taskId);
       const combined = [
         ...(Array.isArray(results.performance) ? results.performance : []),
-        ...(Array.isArray(results.quality) ? results.quality : [])
+        ...(Array.isArray(results.quality) ? results.quality : []),
       ] as Metric[];
       setMetrics(combined);
       setHasLoaded(true);
@@ -85,7 +97,7 @@ export function TaskMetrics({ taskId, task, onUpdateTask, refreshTrigger }: Task
       const results = await getTaskMetrics(taskId);
       const combined = [
         ...(Array.isArray(results.performance) ? results.performance : []),
-        ...(Array.isArray(results.quality) ? results.quality : [])
+        ...(Array.isArray(results.quality) ? results.quality : []),
       ] as Metric[];
       setMetrics(combined);
     } catch (error) {
@@ -97,7 +109,7 @@ export function TaskMetrics({ taskId, task, onUpdateTask, refreshTrigger }: Task
 
   async function handleMarkAsCompleted() {
     if (!onUpdateTask || !task) return;
-    
+
     setIsUpdating(true);
     try {
       await onUpdateTask({ status: "completed" });
@@ -110,7 +122,7 @@ export function TaskMetrics({ taskId, task, onUpdateTask, refreshTrigger }: Task
 
   async function handleMarkAsFailed() {
     if (!onUpdateTask || !task) return;
-    
+
     setIsUpdating(true);
     try {
       await onUpdateTask({ status: "failed" });
@@ -122,7 +134,10 @@ export function TaskMetrics({ taskId, task, onUpdateTask, refreshTrigger }: Task
   }
 
   // Check if task is in a terminal state
-  const isTaskCompleted = task?.status === "completed" || task?.status === "failed" || task?.status === "closed";
+  const isTaskCompleted =
+    task?.status === "completed" ||
+    task?.status === "failed" ||
+    task?.status === "closed";
 
   return (
     <div className="max-w-4xl mx-auto border border-border/40 bg-muted/25 rounded-lg overflow-hidden">
@@ -134,25 +149,27 @@ export function TaskMetrics({ taskId, task, onUpdateTask, refreshTrigger }: Task
             <span className="text-xs text-muted-foreground">Loading...</span>
           )}
           {!loading && metrics.length === 0 && (
-            <span className="text-xs text-muted-foreground">No metrics yet</span>
+            <span className="text-xs text-muted-foreground">No metrics</span>
           )}
         </div>
         <div className="flex items-center gap-2">
-          <Button 
-            variant="ghost" 
-            size="sm" 
+          <Button
+            variant="ghost"
+            size="sm"
             className="h-7 w-7 p-0"
             onClick={handleRefresh}
             disabled={isRefreshing}
             title="Refresh metrics"
           >
-            <RefreshCw className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <RefreshCw
+              className={`h-3 w-3 ${isRefreshing ? "animate-spin" : ""}`}
+            />
           </Button>
           {task && onUpdateTask && !isTaskCompleted && (
             <>
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 className="h-7 gap-1.5"
                 onClick={handleMarkAsFailed}
                 disabled={isUpdating}
@@ -160,9 +177,9 @@ export function TaskMetrics({ taskId, task, onUpdateTask, refreshTrigger }: Task
                 <CircleX className="h-3 w-3" />
                 Mark Failed
               </Button>
-              <Button 
-                variant="default" 
-                size="sm" 
+              <Button
+                variant="default"
+                size="sm"
                 className="h-7 gap-1.5"
                 onClick={handleMarkAsCompleted}
                 disabled={isUpdating}
@@ -194,9 +211,12 @@ export function TaskMetrics({ taskId, task, onUpdateTask, refreshTrigger }: Task
                 const isQuality = metric.metricCategory === "quality";
                 const qualityMetric = metric as QualityMetric;
                 const performanceMetric = metric as PerformanceMetric;
-                
+
                 return (
-                  <tr key={idx} className="border-b hover:bg-accent/50 transition-colors">
+                  <tr
+                    key={idx}
+                    className="border-b hover:bg-accent/50 transition-colors"
+                  >
                     <td className="p-2">
                       {isQuality ? (
                         qualityMetric.passed ? (
@@ -211,7 +231,9 @@ export function TaskMetrics({ taskId, task, onUpdateTask, refreshTrigger }: Task
                     <td className="p-2">
                       {isQuality ? (
                         <>
-                          <div className="font-medium">{qualityMetric.metricName}</div>
+                          <div className="font-medium">
+                            {qualityMetric.metricName}
+                          </div>
                           {qualityMetric.reasoning && (
                             <div className="text-xs text-muted-foreground mt-0.5 max-w-md line-clamp-2">
                               {qualityMetric.reasoning}
@@ -222,13 +244,16 @@ export function TaskMetrics({ taskId, task, onUpdateTask, refreshTrigger }: Task
                         <>
                           <div className="font-medium">Performance</div>
                           <div className="text-xs text-muted-foreground mt-0.5">
-                            Response {performanceMetric.responseIndex} • {performanceMetric.status}
+                            Response {performanceMetric.responseIndex} •{" "}
+                            {performanceMetric.status}
                           </div>
                         </>
                       )}
                     </td>
                     <td className="p-2 capitalize text-muted-foreground text-xs">
-                      {isQuality ? qualityMetric.metricType.replace("_", " ") : "performance"}
+                      {isQuality
+                        ? qualityMetric.metricType.replace("_", " ")
+                        : "performance"}
                     </td>
                     <td className="p-2 text-right">
                       {isQuality ? (
@@ -239,18 +264,25 @@ export function TaskMetrics({ taskId, task, onUpdateTask, refreshTrigger }: Task
                         )
                       ) : (
                         <div className="text-xs text-muted-foreground">
-                          {performanceMetric.inputTokens + performanceMetric.outputTokens} tokens
+                          {performanceMetric.inputTokens +
+                            performanceMetric.outputTokens}{" "}
+                          tokens
                         </div>
                       )}
                     </td>
                     <td className="p-2 text-right text-muted-foreground text-xs">
-                      {isQuality ? `${qualityMetric.evalDurationMs}ms` : `${performanceMetric.durationMs}ms`}
+                      {isQuality
+                        ? `${qualityMetric.evalDurationMs}ms`
+                        : `${performanceMetric.durationMs}ms`}
                     </td>
                     <td className="p-2 text-right text-muted-foreground text-xs">
-                      {isQuality 
-                        ? (qualityMetric.evalCostUsd > 0 ? `$${qualityMetric.evalCostUsd.toFixed(4)}` : '-')
-                        : (performanceMetric.costUsd > 0 ? `$${performanceMetric.costUsd.toFixed(4)}` : '-')
-                      }
+                      {isQuality
+                        ? qualityMetric.evalCostUsd > 0
+                          ? `$${qualityMetric.evalCostUsd.toFixed(4)}`
+                          : "-"
+                        : performanceMetric.costUsd > 0
+                          ? `$${performanceMetric.costUsd.toFixed(4)}`
+                          : "-"}
                     </td>
                   </tr>
                 );
@@ -262,4 +294,3 @@ export function TaskMetrics({ taskId, task, onUpdateTask, refreshTrigger }: Task
     </div>
   );
 }
-

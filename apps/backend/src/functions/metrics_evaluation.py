@@ -111,6 +111,11 @@ async def evaluate_llm_judge_metric(
 
         # Get singleton OpenAI client to prevent file descriptor leaks
         client = get_openai_client()
+        if client is None:
+            log.error(
+                "OpenAI API key not configured; skipping metrics evaluation"
+            )
+            return None
 
         # Construct evaluation prompt
         full_prompt = f"""{judge_prompt}
@@ -405,7 +410,7 @@ async def ingest_performance_metrics(
         # Import here to avoid circular dependencies
         from src.utils.pricing import calculate_cost
 
-        # Use the model from input_data if available, otherwise default to GPT-5.2
+        # Use the model from input_data if available, otherwise default to GPT-5.4
         model_name = (
             getattr(input_data, "model", None) or "gpt-5.4"
         )

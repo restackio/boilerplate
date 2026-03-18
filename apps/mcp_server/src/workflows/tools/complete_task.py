@@ -41,6 +41,9 @@ class TaskUpdateInput(BaseModel):
         None, pattern="^(active|inactive|paused)$"
     )
     temporal_schedule_id: str | None = None
+    temporal_run_id: str | None = (
+        None  # For backend to send end event to correct run
+    )
 
     @field_validator(
         "assigned_to_id",
@@ -60,7 +63,6 @@ class TaskUpdateInput(BaseModel):
         return v
 
 
-
 class CompleteTaskInput(BaseModel):
     """Input for completing a task."""
 
@@ -72,7 +74,7 @@ class CompleteTaskInput(BaseModel):
     )
     result: str | None = Field(
         default=None,
-        description="Optional completion message or result summary"
+        description="Optional completion message or result summary",
     )
     task_id: str = Field(
         description="task_id from meta_info (this is the ID of the task to complete)"
@@ -87,6 +89,7 @@ class CompleteTaskOutput(BaseModel):
 
 
 @workflow.defn(
+    mcp=True,
     description="""Complete the current task and stop the agent.
 
     Use this when you have finished your work and want to mark the task as complete.
@@ -97,7 +100,7 @@ class CompleteTaskOutput(BaseModel):
     Example: After completing a research task, call this to signal completion and mark task as completed.
     Example: When all subtasks are done and you're ready to finish.
 
-    """
+    """,
 )
 class CompleteTask:
     """MCP workflow to complete a task via agent event."""
@@ -121,13 +124,14 @@ class CompleteTask:
                 event_input["result"] = workflow_input.result
 
             await workflow.child_execute(
-              workflow="TasksUpdateWorkflow",
-              workflow_id=f"task_update_{workflow_info().workflow_id}",
-              workflow_input=TaskUpdateInput(
-                task_id=workflow_input.task_id,
-                status="completed",
-              ),
-              task_queue="backend",
+                workflow="TasksUpdateWorkflow",
+                workflow_id=f"task_update_{workflow_info().workflow_id}",
+                workflow_input=TaskUpdateInput(
+                    task_id=workflow_input.task_id,
+                    status="completed",
+                    temporal_run_id=workflow_input.temporal_run_id,
+                ),
+                task_queue="backend",
             )
 
             return CompleteTaskOutput(

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@workspace/ui/components/ui/button";
+import { Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -13,7 +14,12 @@ import {
 import { Input } from "@workspace/ui/components/ui/input";
 import { Label } from "@workspace/ui/components/ui/label";
 import { Textarea } from "@workspace/ui/components/ui/textarea";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@workspace/ui/components/ui/tabs";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@workspace/ui/components/ui/tabs";
 import { ExternalLink, Key, Link } from "lucide-react";
 import { McpServer } from "@/hooks/use-workspace-scoped-actions";
 
@@ -22,30 +28,36 @@ interface AddTokenDialogProps {
   onOpenChange: (open: boolean) => void;
   server: McpServer | null;
   onStartOAuth: () => void;
-  onSaveBearerToken: (token: string, name: string) => void;
+  onSaveBearerToken: (token: string, name: string) => void | Promise<void>;
   defaultTab?: "oauth" | "bearer";
 }
 
-export function AddTokenDialog({ 
-  open, 
-  onOpenChange, 
-  server, 
-  onStartOAuth, 
+export function AddTokenDialog({
+  open,
+  onOpenChange,
+  server,
+  onStartOAuth,
   onSaveBearerToken,
-  defaultTab 
+  defaultTab,
 }: AddTokenDialogProps) {
   const [bearerToken, setBearerToken] = useState("");
   const [tokenName, setTokenName] = useState("");
   const [activeTab, setActiveTab] = useState(defaultTab || "oauth");
+  const [saving, setSaving] = useState(false);
 
   if (!server) return null;
 
-  const handleBearerTokenSave = () => {
+  const handleBearerTokenSave = async () => {
     if (!bearerToken.trim()) return;
-    onSaveBearerToken(bearerToken, tokenName);
-    setBearerToken("");
-    setTokenName("");
-    onOpenChange(false);
+    setSaving(true);
+    try {
+      await onSaveBearerToken(bearerToken, tokenName);
+      setBearerToken("");
+      setTokenName("");
+      // Parent is responsible for closing the dialog on success (onOpenChange(false))
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleOAuthStart = () => {
@@ -81,35 +93,44 @@ export function AddTokenDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "oauth" | "bearer")}>
-          <TabsList className="grid w-full grid-cols-2">
-            {hasOAuth && (
+        <Tabs
+          value={activeTab}
+          onValueChange={(value) => setActiveTab(value as "oauth" | "bearer")}
+        >
+          {hasOAuth && (
+            <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="oauth" className="flex items-center gap-2">
                 <Link className="h-4 w-4" />
                 OAuth
               </TabsTrigger>
-            )}
-            <TabsTrigger value="bearer" className="flex items-center gap-2">
-              <Key className="h-4 w-4" />
-              Bearer Token
-            </TabsTrigger>
-          </TabsList>
+
+              <TabsTrigger value="bearer" className="flex items-center gap-2">
+                <Key className="h-4 w-4" />
+                Bearer Token
+              </TabsTrigger>
+            </TabsList>
+          )}
 
           {hasOAuth && (
             <TabsContent value="oauth" className="space-y-4">
               <div className="text-center space-y-4">
                 <div className="p-4 bg-muted rounded-lg">
                   <p className="text-sm text-muted-foreground">
-                    <strong>Recommended:</strong> OAuth provides secure, token-based authentication 
-                    without exposing your credentials.
+                    <strong>Recommended:</strong> OAuth provides secure,
+                    token-based authentication without exposing your
+                    credentials.
                   </p>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  You&apos;ll be redirected to {server.server_label} to authorize this connection.
+                  You&apos;ll be redirected to {server.server_label} to
+                  authorize this connection.
                 </p>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => handleOpenChange(false)}>
+                <Button
+                  variant="outline"
+                  onClick={() => handleOpenChange(false)}
+                >
                   Cancel
                 </Button>
                 <Button onClick={handleOAuthStart}>
@@ -123,7 +144,7 @@ export function AddTokenDialog({
           <TabsContent value="bearer" className="space-y-4">
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="token-name">Token Name (Optional)</Label>
+                <Label htmlFor="token-name">Name</Label>
                 <Input
                   id="token-name"
                   value={tokenName}
@@ -132,7 +153,7 @@ export function AddTokenDialog({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="bearer-token">Bearer Token</Label>
+                <Label htmlFor="bearer-token">Token</Label>
                 <Textarea
                   id="bearer-token"
                   value={bearerToken}
@@ -141,7 +162,8 @@ export function AddTokenDialog({
                   rows={3}
                 />
                 <p className="text-xs text-muted-foreground">
-                  This token will be securely stored and used for API authentication.
+                  This token will be securely stored and used for API
+                  authentication.
                 </p>
               </div>
             </div>
@@ -149,8 +171,18 @@ export function AddTokenDialog({
               <Button variant="outline" onClick={() => handleOpenChange(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleBearerTokenSave} disabled={!bearerToken.trim()}>
-                Save
+              <Button
+                onClick={handleBearerTokenSave}
+                disabled={!bearerToken.trim() || saving}
+              >
+                {saving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Saving…
+                  </>
+                ) : (
+                  "Save"
+                )}
               </Button>
             </DialogFooter>
           </TabsContent>

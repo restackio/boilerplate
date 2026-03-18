@@ -35,9 +35,13 @@ with import_functions():
         EmbedAnythingPdfInput,
         embed_anything_pdf_to_events,
     )
-    from src.functions.embed_model_loader import (
-        EnsureEmbedModelInput,
-        ensure_embed_model_loaded,
+    from src.functions.tasks_crud import (
+        GetViewInput,
+        GetViewOutput,
+        ListViewsForDatasetInput,
+        ListViewsForDatasetOutput,
+        tasks_get_view_by_id,
+        tasks_list_views_for_dataset,
     )
 
 
@@ -201,6 +205,54 @@ class DeleteDatasetEventsBySourceWorkflow:
             ) from e
 
 
+@workflow.defn()
+class ListViewsForDatasetWorkflow:
+    """List view specs that reference the given dataset (from tasks.view_specs)."""
+
+    @workflow.run
+    async def run(
+        self, function_input: ListViewsForDatasetInput
+    ) -> ListViewsForDatasetOutput:
+        log.info("ListViewsForDatasetWorkflow started")
+        try:
+            return await workflow.step(
+                function=tasks_list_views_for_dataset,
+                function_input=function_input,
+                start_to_close_timeout=timedelta(seconds=30),
+                task_queue=TASK_QUEUE,
+            )
+        except Exception as e:
+            log.error(
+                "Error during tasks_list_views_for_dataset: %s", e
+            )
+            raise NonRetryableError(
+                message=f"Error during tasks_list_views_for_dataset: {e}"
+            ) from e
+
+
+@workflow.defn()
+class GetViewWorkflow:
+    """Get a single view spec by id for the given dataset."""
+
+    @workflow.run
+    async def run(
+        self, function_input: GetViewInput
+    ) -> GetViewOutput:
+        log.info("GetViewWorkflow started")
+        try:
+            return await workflow.step(
+                function=tasks_get_view_by_id,
+                function_input=function_input,
+                start_to_close_timeout=timedelta(seconds=30),
+                task_queue=TASK_QUEUE,
+            )
+        except Exception as e:
+            log.error("Error during tasks_get_view_by_id: %s", e)
+            raise NonRetryableError(
+                message=f"Error during tasks_get_view_by_id: {e}"
+            ) from e
+
+
 # --- Seed dataset from PDFs (EmbedAnything: one workflow, no API key) ---
 
 
@@ -250,15 +302,6 @@ class AddFilesToDatasetWorkflow:
 
         log.info(
             f"AddFilesToDatasetWorkflow started: dataset_id={workflow_input.dataset_id}, files={len(workflow_input.files_with_content)}"
-        )
-
-        # Ensure embed model is loaded on this worker (once per worker; later steps reuse)
-        await workflow.step(
-            function=ensure_embed_model_loaded,
-            function_input=EnsureEmbedModelInput(),
-            start_to_close_timeout=timedelta(minutes=5),
-            task_queue=TASK_QUEUE_EMBED,
-            max_attempts=2,
         )
 
         for item in workflow_input.files_with_content:

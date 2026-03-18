@@ -24,6 +24,7 @@ with import_functions():
 
 
 @workflow.defn(
+    mcp=True,
     description="""Run a read-only SELECT query against CockroachDB.
 
 The pipeline_events table stores event data with JSONB columns. Access fields using PostgreSQL JSON operators:
@@ -44,7 +45,7 @@ FROM pipeline_events
 WHERE 'YOUR_TAG' = ANY(tags)
 ORDER BY event_timestamp DESC
 LIMIT 50;
-"""
+""",
 )
 class CockroachDBRunSelectQuery:
     """Workflow to run a SELECT query in CockroachDB."""
@@ -71,14 +72,15 @@ class CockroachDBRunSelectQuery:
             raise NonRetryableError(message=error_message) from e
 
 
-@workflow.defn()
+@workflow.defn(mcp=True)
 class CockroachDBListDatabases:
     """Workflow to list CockroachDB databases."""
 
     @workflow.run
     async def run(
         self,
-        workflow_input: CockroachDBListDatabasesInput | None = None,
+        workflow_input: CockroachDBListDatabasesInput
+        | None = None,
     ) -> CockroachDBListDatabasesOutput:
         log.info("CockroachDBListDatabases started")
         try:
@@ -99,7 +101,7 @@ class CockroachDBListDatabases:
             raise NonRetryableError(message=error_message) from e
 
 
-@workflow.defn()
+@workflow.defn(mcp=True)
 class CockroachDBListTables:
     """Workflow to list tables in a CockroachDB database."""
 

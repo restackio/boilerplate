@@ -38,3 +38,5 @@ export * from "./ui/switch";
 export * from "./ui/separator";
 export * from "./agent-status-badge";
 export * from "./lucide-icon-picker";
+export { PatternFlowViewer } from "./pattern-flow-viewer";
+export type { PatternFlowSpec } from "./pattern-flow-viewer";

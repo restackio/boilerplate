@@ -1,11 +1,23 @@
 "use client";
 
 import { useState } from "react";
-import { ActionButtonGroup, commonActions, type ActionButton } from "@workspace/ui/components/action-button-group";
-import { AgentStatusBadge, type AgentStatus } from "@workspace/ui/components/agent-status-badge";
-import { Play } from "lucide-react";
+import {
+  ActionButtonGroup,
+  commonActions,
+  type ActionButton,
+} from "@workspace/ui/components/action-button-group";
+import {
+  AgentStatusBadge,
+  type AgentStatus,
+} from "@workspace/ui/components/agent-status-badge";
+import { Cloud } from "lucide-react";
 import { Agent } from "@/hooks/use-workspace-scoped-actions";
-import { DeleteAgentDialog, ArchiveAgentDialog, TestAgentDialog } from "./";
+import {
+  DeleteAgentDialog,
+  ArchiveAgentDialog,
+  TestAgentDialog,
+  DeployAgentDialog,
+} from "./";
 
 interface AgentActionsProps {
   agent: Agent;
@@ -33,6 +45,7 @@ export function AgentActions({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const [showTestDialog, setShowTestDialog] = useState(false);
+  const [showDeployDialog, setShowDeployDialog] = useState(false);
 
   const handleDeleteAgent = async () => {
     await onDelete();
@@ -53,7 +66,8 @@ export function AgentActions({
       label: agent?.status === "published" ? "New version" : "Save",
       variant: agent.status === "published" ? "default" : "outline",
       loading: isSaving,
-      loadingLabel: agent?.status === "published" ? "Creating version..." : "Saving...",
+      loadingLabel:
+        agent?.status === "published" ? "Creating version..." : "Saving...",
       onClick: onSave,
     },
     {
@@ -63,13 +77,13 @@ export function AgentActions({
       onClick: () => setShowTestDialog(true),
     },
     {
-      key: "publish",
-      label: "Publish",
-      icon: Play,
+      key: "deploy",
+      label: "Deploy",
+      icon: Cloud,
       variant: "default",
       loading: isPublishing,
-      loadingLabel: "Publishing...",
-      onClick: onPublish,
+      loadingLabel: "Deploying...",
+      onClick: () => setShowDeployDialog(true),
       show: agent.status === "draft",
     },
   ];
@@ -78,7 +92,9 @@ export function AgentActions({
     <>
       <ActionButtonGroup
         actions={actions}
-        statusBadge={<AgentStatusBadge status={agent.status as AgentStatus} size="sm" />}
+        statusBadge={
+          <AgentStatusBadge status={agent.status as AgentStatus} size="sm" />
+        }
       />
 
       {/* Dialogs */}
@@ -102,6 +118,13 @@ export function AgentActions({
         isOpen={showTestDialog}
         onClose={() => setShowTestDialog(false)}
         agent={agent}
+      />
+
+      <DeployAgentDialog
+        isOpen={showDeployDialog}
+        onClose={() => setShowDeployDialog(false)}
+        onPublish={onPublish}
+        isPublishing={isPublishing}
       />
     </>
   );

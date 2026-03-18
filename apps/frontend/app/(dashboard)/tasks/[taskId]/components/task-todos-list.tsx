@@ -21,18 +21,25 @@ export function TaskTodosList({ todos: todosRaw }: TaskTodosListProps) {
   // Parse and calculate progress from todos
   const { todos, progress } = useMemo(() => {
     if (!todosRaw || todosRaw.length === 0) {
-      return { todos: [], progress: { completed: 0, in_progress: 0, total: 0, percentage: 0 } };
+      return {
+        todos: [],
+        progress: { completed: 0, in_progress: 0, total: 0, percentage: 0 },
+      };
     }
 
     const parsedTodos = todosRaw as Todo[];
-    const completed = parsedTodos.filter(t => t.status === "completed").length;
-    const in_progress = parsedTodos.filter(t => t.status === "in_progress").length;
+    const completed = parsedTodos.filter(
+      (t) => t.status === "completed",
+    ).length;
+    const in_progress = parsedTodos.filter(
+      (t) => t.status === "in_progress",
+    ).length;
     const total = parsedTodos.length;
     const percentage = total > 0 ? (completed / total) * 100 : 0;
 
     return {
       todos: parsedTodos,
-      progress: { completed, in_progress, total, percentage }
+      progress: { completed, in_progress, total, percentage },
     };
   }, [todosRaw]);
 
@@ -43,9 +50,9 @@ export function TaskTodosList({ todos: todosRaw }: TaskTodosListProps) {
   const { completed: completedCount, total: totalCount } = progress;
 
   return (
-    <div className="max-w-4xl mx-auto border border-border/40 bg-muted/25 p-2 rounded-lg space-y-2">
+    <div className="max-w-4xl mx-auto border border-border/40 bg-muted/90 p-2 rounded-lg space-y-2">
       {/* Header with progress and toggle */}
-      <div 
+      <div
         className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
         onClick={() => setIsExpanded(!isExpanded)}
       >
@@ -66,12 +73,15 @@ export function TaskTodosList({ todos: todosRaw }: TaskTodosListProps) {
       {isExpanded && (
         <div className="space-y-1 pl-1">
           {todos.map((todo) => (
-            <div
-              key={todo.id}
-              className="flex items-center gap-2 text-sm"
-            >
+            <div key={todo.id} className="flex items-center gap-2 text-sm">
               {getStatusIcon(todo.status)}
-              <span className={todo.status === "completed" ? "text-muted-foreground line-through" : "text-foreground"}>
+              <span
+                className={
+                  todo.status === "completed"
+                    ? "text-muted-foreground line-through"
+                    : "text-foreground"
+                }
+              >
                 {todo.content}
               </span>
             </div>
@@ -81,4 +91,3 @@ export function TaskTodosList({ todos: todosRaw }: TaskTodosListProps) {
     </div>
   );
 }
-

@@ -7,12 +7,18 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import selectinload
 
 from src.database.connection import get_async_db
-from src.database.models import Agent, AgentSubagent, AgentTool
+from src.database.models import (
+    Agent,
+    AgentSubagent,
+    AgentTool,
+    Team,
+    Workspace,
+)
 
-# Allowed OpenAI model IDs (must match DB constraint and dropdowns)
+# Allowed model IDs (OpenAI + early preview / custom; must match frontend dropdowns)
 AGENT_MODEL_PATTERN = (
-    r"^(gpt-5.4|gpt-5.3-chat-latest|gpt-5.2|gpt-5.1|gpt-5|gpt-5-mini|gpt-5-nano|"
-    r"o3-deep-research|o4-mini-deep-research)$"
+    r"^(gpt-5.4|gpt-5.4-mini|gpt-5.4-nano|gpt-5.3-chat-latest|gpt-5.2|gpt-5.1|gpt-5|gpt-5-mini|gpt-5-nano|"
+    r"o3-deep-research|o4-mini-deep-research|gemini|anthropic|custom)$"
 )
 DEFAULT_AGENT_MODEL = "gpt-5.4"
 
@@ -146,6 +152,10 @@ class AgentGetByWorkspaceInput(BaseModel):
         default=None,
         description="If provided, return only agents in the specified team",
     )
+
+
+class AgentGetBuildAgentInput(BaseModel):
+    """Resolve the build agent (Agent builder) from the admin workspace. Returns None if no admin workspace or no is_public build agent."""
 
 
 # Pydantic models for output serialization
@@ -631,6 +641,68 @@ async def agents_read_table(
     return None
 
 
+@function.defn()
+async def agents_get_build_agent(
+    _function_input: AgentGetBuildAgentInput,
+) -> AgentGetByIdOutput:
+    """Return the build agent (Agent builder) from the admin workspace. Returns None if not found."""
+    async for db in get_async_db():
+        try:
+            admin_ws = await db.execute(
+                select(Workspace.id).where(Workspace.is_admin)
+            )
+            admin_id = admin_ws.scalar_one_or_none()
+            if not admin_id:
+                return AgentGetByIdOutput(agent=None)
+            build_agent_query = (
+                select(Agent)
+                .options(selectinload(Agent.team))
+                .where(
+                    and_(
+                        Agent.workspace_id == admin_id,
+                        Agent.is_public == True,  # noqa: E712
+                        Agent.name == "build",
+                    )
+                )
+            )
+            result = await db.execute(build_agent_query)
+            agent = result.scalars().one_or_none()
+            if not agent:
+                return AgentGetByIdOutput(agent=None)
+            out = AgentOutput(
+                id=str(agent.id),
+                workspace_id=str(agent.workspace_id),
+                team_id=str(agent.team_id)
+                if agent.team_id
+                else None,
+                team_name=agent.team.name if agent.team else None,
+                name=agent.name,
+                description=agent.description,
+                instructions=agent.instructions,
+                status=agent.status,
+                parent_agent_id=str(agent.parent_agent_id)
+                if agent.parent_agent_id
+                else None,
+                model=agent.model or DEFAULT_AGENT_MODEL,
+                reasoning_effort=agent.reasoning_effort
+                or "medium",
+                is_public=getattr(agent, "is_public", False),
+                created_at=agent.created_at.isoformat()
+                if agent.created_at
+                else None,
+                updated_at=agent.updated_at.isoformat()
+                if agent.updated_at
+                else None,
+                version_count=1,
+            )
+            return AgentGetByIdOutput(agent=out)
+        except Exception as e:
+            raise NonRetryableError(
+                message=f"agents_get_build_agent error: {e!s}"
+            ) from e
+    return AgentGetByIdOutput(agent=None)
+
+
 # Version-related utility functions removed - no longer needed with simplified versioning
 
 
@@ -653,9 +725,34 @@ async def agents_create(
                         message="Invalid parent_agent_id format"
                     ) from e
 
+            # Resolve team_id when provided: must reference a team in this workspace (avoid FK violation)
+            workspace_uuid = uuid.UUID(agent_data.workspace_id)
+            effective_team_id = None
+            if agent_data.team_id:
+                try:
+                    team_uuid = uuid.UUID(agent_data.team_id)
+                    team_result = await db.execute(
+                        select(Team)
+                        .where(
+                            and_(
+                                Team.id == team_uuid,
+                                Team.workspace_id
+                                == workspace_uuid,
+                            )
+                        )
+                        .limit(1)
+                    )
+                    if (
+                        team_result.scalar_one_or_none()
+                        is not None
+                    ):
+                        effective_team_id = team_uuid
+                except ValueError:
+                    pass
+
             agent = Agent(
                 id=uuid.uuid4(),
-                workspace_id=uuid.UUID(agent_data.workspace_id),
+                workspace_id=workspace_uuid,
                 name=agent_data.name,
                 description=agent_data.description,
                 instructions=agent_data.instructions,
@@ -666,9 +763,7 @@ async def agents_create(
                 # New GPT-5 model configuration fields
                 model=agent_data.model,
                 reasoning_effort=agent_data.reasoning_effort,
-                team_id=uuid.UUID(agent_data.team_id)
-                if agent_data.team_id
-                else None,
+                team_id=effective_team_id,
             )
             db.add(agent)
             await db.commit()
@@ -728,7 +823,7 @@ async def agents_update(
             agent = result.scalar_one_or_none()
 
             if not agent:
-                raise NonRetryableError(  # noqa: TRY301
+                raise NonRetryableError(
                     message=f"Agent with id {function_input.agent_id} not found"
                 )
             update_data = function_input.dict(
@@ -810,7 +905,7 @@ async def agents_delete(
             agent = result.scalar_one_or_none()
 
             if not agent:
-                raise NonRetryableError(  # noqa: TRY301
+                raise NonRetryableError(
                     message=f"Agent with id {function_input.agent_id} not found"
                 )
             # Determine the group key (parent_agent_id or agent's own id if it's a parent)
@@ -1140,9 +1235,7 @@ async def agents_update_status(
             agent = result.scalar_one_or_none()
 
             if not agent:
-                raise NonRetryableError(  # noqa: TRY301
-                    message="Agent not found"
-                )
+                raise NonRetryableError(message="Agent not found")
 
             archived_agent_id = None
 
@@ -1226,28 +1319,6 @@ async def agents_update_status(
     return None
 
 
-# Legacy functions for backward compatibility
-class AgentArchiveInput(BaseModel):
-    agent_id: str = Field(..., min_length=1)
-
-
-class AgentArchiveOutput(BaseModel):
-    agent: AgentOutput
-
-
-@function.defn()
-async def agents_archive(
-    function_input: AgentArchiveInput,
-) -> AgentArchiveOutput:
-    """Archive an agent - legacy wrapper for agents_update_status."""
-    result = await agents_update_status(
-        AgentUpdateStatusInput(
-            agent_id=function_input.agent_id, status="archived"
-        )
-    )
-    return AgentArchiveOutput(agent=result.agent)
-
-
 class AgentResolveInput(BaseModel):
     workspace_id: str = Field(..., min_length=1)
     agent_name: str = Field(
@@ -1318,7 +1389,7 @@ async def agents_resolve_by_name(
             agent = result.scalars().first()
 
             if not agent:
-                raise NonRetryableError(  # noqa: TRY301
+                raise NonRetryableError(
                     message=f"Agent '{function_input.agent_name}' not found or not published in workspace"
                 )
 

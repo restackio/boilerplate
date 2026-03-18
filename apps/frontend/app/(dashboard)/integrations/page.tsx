@@ -6,9 +6,13 @@ import { IntegrationsTable } from "./components/integrations-table";
 import { PageHeader } from "@workspace/ui/components/page-header";
 import { Button } from "@workspace/ui/components/ui/button";
 import { RefreshCw, Plus } from "lucide-react";
-import { useWorkspaceScopedActions, McpServer } from "../../../hooks/use-workspace-scoped-actions";
+import {
+  useWorkspaceScopedActions,
+  McpServer,
+} from "../../../hooks/use-workspace-scoped-actions";
 import { useOAuthFlow } from "../../../hooks/use-oauth-flow";
 import { useDatabaseWorkspace } from "../../../lib/database-workspace-context";
+import { AddFromDirectory } from "./components/add-from-directory";
 import { AddMcpServerDialog } from "./components/add-mcp-server-dialog";
 import { AddTokenDialog } from "./components/add-token-dialog";
 
@@ -26,7 +30,8 @@ const mapServerToIntegration = (server: McpServer) => ({
 
 export default function IntegrationsPage() {
   const router = useRouter();
-  const { mcpServers, mcpServersLoading, fetchMcpServers, executeWorkflow } = useWorkspaceScopedActions();
+  const { mcpServers, mcpServersLoading, fetchMcpServers, executeWorkflow } =
+    useWorkspaceScopedActions();
   const { startOAuthFlow } = useOAuthFlow();
   const { currentUser } = useDatabaseWorkspace();
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -43,7 +48,7 @@ export default function IntegrationsPage() {
 
   const handleConnectIntegration = (integrationId: string) => {
     // Find the server
-    const server = mcpServers.find(s => s.id === integrationId);
+    const server = mcpServers.find((s) => s.id === integrationId);
     if (!server) {
       console.error("Server not found");
       return;
@@ -85,10 +90,10 @@ export default function IntegrationsPage() {
         user_id: currentUser.id,
         workspace_id: selectedServer.workspace_id,
         mcp_server_id: selectedServer.id,
-        bearer_token: token,
+        access_token: token,
         token_name: name || undefined,
       });
-      
+
       if (result.success) {
         fetchMcpServers(); // Refresh the list to update connection counts
       }
@@ -97,7 +102,6 @@ export default function IntegrationsPage() {
     }
   };
 
-
   // Convert servers to integration format for the table
   const integrationData = mcpServers.map(mapServerToIntegration);
 
@@ -105,13 +109,15 @@ export default function IntegrationsPage() {
 
   const actions = (
     <div className="flex gap-2">
-      <Button 
-        size="sm" 
-        variant="outline" 
+      <Button
+        size="sm"
+        variant="outline"
         onClick={handleRefresh}
         disabled={mcpServersLoading.isLoading}
       >
-        <RefreshCw className={`h-4 w-4 mr-1 ${mcpServersLoading.isLoading ? 'animate-spin' : ''}`} />
+        <RefreshCw
+          className={`h-4 w-4 mr-1 ${mcpServersLoading.isLoading ? "animate-spin" : ""}`}
+        />
         Refresh
       </Button>
       <Button size="sm" onClick={handleAddIntegration}>
@@ -126,7 +132,7 @@ export default function IntegrationsPage() {
       <PageHeader breadcrumbs={breadcrumbs} actions={actions} fixed={true} />
 
       {/* Main Content - with top padding for fixed header */}
-      <div className="pt-8 p-4">
+      <div className="p-4 space-y-8">
         {mcpServersLoading.error && (
           <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
             <p className="text-red-800 text-sm">
@@ -134,6 +140,7 @@ export default function IntegrationsPage() {
             </p>
           </div>
         )}
+
         {mcpServersLoading.isLoading && mcpServers.length === 0 ? (
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
@@ -142,12 +149,15 @@ export default function IntegrationsPage() {
             </div>
           </div>
         ) : (
-          <IntegrationsTable 
-            data={integrationData} 
+          <IntegrationsTable
+            data={integrationData}
             onEditIntegration={handleEditIntegration}
             onConnectIntegration={handleConnectIntegration}
           />
         )}
+        <div className="mb-2">
+          <AddFromDirectory onSuccess={handleDialogSuccess} />
+        </div>
       </div>
 
       {/* Add Integration Dialog */}
@@ -166,7 +176,6 @@ export default function IntegrationsPage() {
         onSaveBearerToken={handleBearerTokenSave}
         defaultTab="oauth"
       />
-
     </div>
   );
 }

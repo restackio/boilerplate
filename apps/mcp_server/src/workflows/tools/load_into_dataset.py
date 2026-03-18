@@ -153,7 +153,7 @@ class LoadIntoDatasetOutput(BaseModel):
     )
 
 
-@workflow.defn(description="Load data into dataset")
+@workflow.defn(mcp=True, description="Load data into dataset")
 class LoadIntoDataset:
     """Workflow to load data into a dataset."""
 
@@ -219,7 +219,9 @@ class LoadIntoDataset:
             storage_type = "clickhouse"
             for dataset in datasets_result["datasets"]:
                 if dataset["name"] == workflow_input.dataset_name:
-                    storage_type = dataset.get("storage_type", "clickhouse")
+                    storage_type = dataset.get(
+                        "storage_type", "clickhouse"
+                    )
                     break
 
             # Build events list (same shape regardless of storage backend)
