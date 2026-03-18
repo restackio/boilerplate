@@ -69,6 +69,15 @@ function deriveCreatedFromPatternSpecs(patternSpecs: PatternSpecs | undefined): 
   return { agents, datasets, views, integrations };
 }
 
+/** First dataset id created by the build (from pattern_specs or agent_state), or null. Use when adding files in agent builder to prefer that dataset. */
+export function getBuildCreatedDatasetId(task: Task): string | null {
+  const fromPattern = deriveCreatedFromPatternSpecs(task.pattern_specs);
+  if (fromPattern.datasets.length > 0) return fromPattern.datasets[0].id;
+  const fromEvents = deriveCreatedFromEvents(task.agent_state);
+  if (fromEvents.datasets.length > 0) return fromEvents.datasets[0].id;
+  return null;
+}
+
 /** Single row: icon + link + category label (e.g. "• View"). */
 function CreatedSection({
   icon: Icon,

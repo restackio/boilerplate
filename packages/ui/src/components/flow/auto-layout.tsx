@@ -1,15 +1,15 @@
 "use client";
 
 import ELK from "elkjs/lib/elk.bundled.js";
+import type { ElkExtendedEdge, ElkNode, ElkPort } from "elkjs/lib/elk-api.js";
 import type { Node, Edge } from "@xyflow/react";
 
 // Initialize ELK
 const elk = new ELK();
 
 // Enhanced ELK layout options for complex flows
-const elkOptions = {
+const elkOptionsBase = {
   "elk.algorithm": "layered",
-  "elk.direction": "DOWN",
 
   // Improved spacing for better readability
   "elk.layered.spacing.nodeNodeBetweenLayers": "100",
@@ -49,13 +49,22 @@ const elkOptions = {
   // Interactive layout
   "elk.interactive": "true",
   "elk.layered.considerModelOrder.strategy": "NODES_AND_EDGES",
+} as const;
+
+const elkOptionsDown = {
+  ...elkOptionsBase,
+  "elk.direction": "DOWN",
 };
 
 // Convert React Flow nodes and edges to ELK format with enhanced configuration
-const toElkGraph = (nodes: Node[], edges: Edge[]) => {
+function toElkGraph(
+  nodes: Node[],
+  edges: Edge[],
+  layoutOptions: Record<string, string>,
+) {
   return {
     id: "root",
-    layoutOptions: elkOptions,
+    layoutOptions,
     children: nodes.map((node) => {
       // Determine node size based on content
       const baseWidth = 180;
@@ -71,7 +80,7 @@ const toElkGraph = (nodes: Node[], edges: Edge[]) => {
         width,
         height,
         // Simplified - let ELK handle ports automatically
-        ports: [],
+        ports: [] as ElkPort[],
       };
     }),
     edges: edges.map((edge) => ({
@@ -79,19 +88,21 @@ const toElkGraph = (nodes: Node[], edges: Edge[]) => {
       sources: [edge.source],
       targets: [edge.target],
       sections: [],
-    })),
-  };
-};
+    })) as ElkExtendedEdge[],
+  } as ElkNode;
+}
 
-// Apply ELK layout to React Flow nodes with enhanced positioning
-export const getLayoutedElements = async (nodes: Node[], edges: Edge[]) => {
+async function applyElkLayout(
+  nodes: Node[],
+  edges: Edge[],
+  layoutOptions: Record<string, string>,
+): Promise<{ nodes: Node[]; edges: Edge[] }> {
   if (!nodes.length) return { nodes, edges };
 
   try {
-    const elkGraph = toElkGraph(nodes, edges);
+    const elkGraph = toElkGraph(nodes, edges, layoutOptions);
     const layoutedGraph = await elk.layout(elkGraph);
 
-    // Apply the layout to the nodes with improved positioning
     const layoutedNodes = nodes.map((node) => {
       const elkNode = layoutedGraph.children?.find((n) => n.id === node.id);
       if (elkNode && elkNode.x !== undefined && elkNode.y !== undefined) {
@@ -101,7 +112,6 @@ export const getLayoutedElements = async (nodes: Node[], edges: Edge[]) => {
             x: elkNode.x,
             y: elkNode.y,
           },
-          // Update node dimensions if they were adjusted
           ...(elkNode.width &&
             elkNode.height && {
               width: elkNode.width,
@@ -115,10 +125,25 @@ export const getLayoutedElements = async (nodes: Node[], edges: Edge[]) => {
     return { nodes: layoutedNodes, edges };
   } catch (error) {
     console.error("ELK layout error:", error);
-    // Return original layout if ELK fails
     return { nodes, edges };
   }
-};
+}
+
+// Apply ELK layout to React Flow nodes with enhanced positioning (top-to-bottom)
+export const getLayoutedElements = async (nodes: Node[], edges: Edge[]) =>
+  applyElkLayout(nodes, edges, elkOptionsDown);
+
+// Left-to-right layout for pattern / flow diagrams (agent → dataset → view)
+export const getLayoutedElementsHorizontal = async (
+  nodes: Node[],
+  edges: Edge[],
+) =>
+  applyElkLayout(nodes, edges, {
+    ...elkOptionsBase,
+    "elk.direction": "RIGHT",
+    "elk.layered.spacing.nodeNodeBetweenLayers": "220",
+    "elk.layered.spacing.edgeNodeBetweenLayers": "160",
+  });
 
 // Create nodes with better default positioning
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

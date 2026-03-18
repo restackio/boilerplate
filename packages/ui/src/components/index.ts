@@ -3,6 +3,7 @@ export * from "./schedules-table";
 
 // AI-specific components
 export * from "./ai-elements/prompt-input";
+export * from "./ai-elements/chain-of-thought";
 export * from "./ai-elements/reasoning";
 export * from "./ai-elements/response";
 export * from "./ai-elements/shimmer";
