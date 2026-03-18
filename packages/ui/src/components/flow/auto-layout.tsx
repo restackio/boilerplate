@@ -1,6 +1,7 @@
 "use client";
 
 import ELK from "elkjs/lib/elk.bundled.js";
+import type { ElkExtendedEdge, ElkNode, ElkPort } from "elkjs/lib/elk-api.js";
 import type { Node, Edge } from "@xyflow/react";
 
 // Initialize ELK
@@ -79,16 +80,16 @@ function toElkGraph(
         width,
         height,
         // Simplified - let ELK handle ports automatically
-        ports: [] as unknown[],
+        ports: [] as ElkPort[],
       };
     }),
     edges: edges.map((edge) => ({
       id: edge.id,
       sources: [edge.source],
       targets: [edge.target],
-      sections: [] as unknown[],
-    })),
-  };
+      sections: [],
+    })) as ElkExtendedEdge[],
+  } as ElkNode;
 }
 
 async function applyElkLayout(
