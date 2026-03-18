@@ -159,15 +159,27 @@ function toReactFlowNodes(specNodes: PatternFlowSpec["nodes"]): Node[] {
 
 function toReactFlowEdges(specEdges: PatternFlowSpec["edges"]): Edge[] {
   if (!specEdges?.length) return [];
-  return specEdges.map((e) => ({
-    id: e.id,
-    source: e.source,
-    target: e.target,
-    type: "patternEdge",
-    sourceHandle: e.sourceHandle,
-    targetHandle: e.targetHandle,
-    data: { label: e.label },
-  }));
+  return specEdges.map((e) => {
+    // Only pass handle ids when they're valid; otherwise React Flow uses the default handle.
+    // Passing null or "null" causes error #008 (no handle with that id on the node).
+    const sourceHandle =
+      e.sourceHandle != null && String(e.sourceHandle) !== "null"
+        ? e.sourceHandle
+        : undefined;
+    const targetHandle =
+      e.targetHandle != null && String(e.targetHandle) !== "null"
+        ? e.targetHandle
+        : undefined;
+    return {
+      id: e.id,
+      source: e.source,
+      target: e.target,
+      type: "patternEdge",
+      ...(sourceHandle !== undefined && { sourceHandle }),
+      ...(targetHandle !== undefined && { targetHandle }),
+      data: { label: e.label },
+    };
+  });
 }
 
 function PatternFlowViewerInner({

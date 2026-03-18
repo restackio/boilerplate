@@ -1,7 +1,8 @@
-import { useRef, useMemo, useState } from "react";
+import { useRef, useMemo, useState, useEffect } from "react";
 import type { Task } from "@/hooks/use-workspace-scoped-actions";
 import { ConversationItem } from "../types";
 import { EmptyState } from "@workspace/ui/components/empty-state";
+import { ContentSection, CodeBlock } from "@workspace/ui/components/content-display";
 import { PromptInput } from "@workspace/ui/components/ai-elements/prompt-input";
 import { Response } from "@workspace/ui/components/ai-elements/response";
 import {
@@ -10,6 +11,12 @@ import {
   TaskCardWebSearch,
   TaskCardError,
 } from "./cards";
+import {
+  ChainOfThought,
+  ChainOfThoughtContent,
+  ChainOfThoughtHeader,
+  ChainOfThoughtStep,
+} from "@workspace/ui/components/ai-elements/chain-of-thought";
 import {
   Reasoning,
   ReasoningTrigger,
@@ -28,8 +35,37 @@ import {
   DropdownMenuTrigger,
 } from "@workspace/ui/components/ui/dropdown-menu";
 import { Button } from "@workspace/ui/components/ui/button";
-import { Plus, FileUp } from "lucide-react";
+import {
+  Plus,
+  FileUp,
+  Brain,
+  MessageSquare,
+  Search,
+  Wrench,
+  Bot,
+  Database,
+  LayoutGrid,
+  Plug,
+  ListChecks,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { AddTaskFilesDialog } from "./add-task-files-dialog";
+import {
+  isUserMessage,
+  isReasoning,
+  isToolCall,
+  isWebSearch,
+  isApprovalRequest,
+  isError,
+  getDisplayTitle,
+  extractTextContent,
+  extractToolArguments,
+  extractToolOutput,
+  getItemStatus,
+  isItemCompleted,
+  isItemPending,
+} from "../utils/conversation-utils";
+import type { ReactNode } from "react";
 
 /** Detect assistant content that is only raw tool-call JSON (duplicate of tool card). */
 function isToolCallSpilloverContent(text: string): boolean {
@@ -45,6 +81,475 @@ function isToolCallSpilloverContent(text: string): boolean {
         t.includes("updatedataset") ||
         t.includes("createview") ||
         t.includes("updateview")))
+  );
+}
+
+type ChatBlock =
+  | { kind: "user"; item: ConversationItem; index: number }
+  | {
+      kind: "agent_run";
+      items: ConversationItem[];
+      startIndex: number;
+    };
+
+/** Partition conversation into user messages and agent runs (until next user message). */
+function partitionConversation(conversation: ConversationItem[]): ChatBlock[] {
+  const blocks: ChatBlock[] = [];
+  let i = 0;
+  while (i < conversation.length) {
+    const item = conversation[i];
+    if (isUserMessage(item)) {
+      blocks.push({ kind: "user", item, index: i });
+      i += 1;
+      continue;
+    }
+    const runStart = i;
+    const runItems: ConversationItem[] = [];
+    while (i < conversation.length && !isUserMessage(conversation[i])) {
+      runItems.push(conversation[i]);
+      i += 1;
+    }
+    blocks.push({ kind: "agent_run", items: runItems, startIndex: runStart });
+  }
+  return blocks;
+}
+
+/** Whether this item should be shown as a step inside ChainOfThought (not approval/error, not final assistant). */
+function isChainStep(item: ConversationItem): boolean {
+  return (
+    isReasoning(item) ||
+    item.type === "mcp_call" ||
+    item.type === "mcp_list_tools" ||
+    isWebSearch(item) ||
+    (item.type === "assistant" && item.openai_output?.role === "assistant")
+  );
+}
+
+/** Get the final assistant message only if it is the very last item in the run (so we don't split the chain when steps come after an assistant). */
+function getFinalAssistantInRun(
+  items: ConversationItem[]
+): ConversationItem | null {
+  if (items.length === 0) return null;
+  const last = items[items.length - 1];
+  if (last.openai_output?.role === "assistant") return last;
+  return null;
+}
+
+/** One node in the unified chain: either a step or an inline card (approval/error). */
+type ChainNode =
+  | { type: "step"; item: ConversationItem }
+  | { type: "card"; item: ConversationItem };
+
+/** Segment an agent run into one chain (steps + cards in order) and optional final assistant. */
+function segmentAgentRun(items: ConversationItem[]): {
+  nodes: ChainNode[];
+  finalAssistant: ConversationItem | null;
+} {
+  const finalAssistant = getFinalAssistantInRun(items);
+  const nodes: ChainNode[] = [];
+
+  for (const item of items) {
+    if (item === finalAssistant) continue; // final assistant rendered at end
+    if (isApprovalRequest(item) || isError(item)) {
+      nodes.push({ type: "card", item });
+    } else if (isChainStep(item)) {
+      nodes.push({ type: "step", item });
+    }
+  }
+
+  return { nodes, finalAssistant };
+}
+
+/** Turn camelCase or lowercase tool names into a short title (e.g. "updateTodos" → "Update todos"). */
+function humanizeToolName(name: string): string {
+  if (!name || name.length === 0) return "Tool";
+  const lower = name.toLowerCase();
+  const known: Record<string, string> = {
+    updatetodos: "Update todos",
+    updatepatternspecs: "Update pattern specs",
+    updateagenttool: "Update agent tool",
+    mcp_list_tools: "List tools",
+  };
+  if (known[lower]) return known[lower];
+  const withSpaces = name.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/_/g, " ");
+  return withSpaces.charAt(0).toUpperCase() + withSpaces.slice(1).toLowerCase();
+}
+
+/** Icons for chain steps – match task-created-list style (Bot, Database, LayoutGrid, Plug). */
+const TOOL_ICON_MAP: Record<string, LucideIcon> = {
+  updatetodos: ListChecks,
+  updatepatternspecs: LayoutGrid,
+  updateagenttool: Bot,
+  updateagent: Bot,
+  createagent: Bot,
+  mcp_list_tools: Plug,
+  listtools: Plug,
+  updatedataset: Database,
+  createdataset: Database,
+  updateview: LayoutGrid,
+  createview: LayoutGrid,
+  updateintegration: Plug,
+  createintegrationfromremotemcp: Plug,
+  create_integration_from_remote_mcp: Plug,
+};
+
+/** Icon for a chain step: tool-specific when available, otherwise default by type. */
+function getStepIcon(item: ConversationItem): LucideIcon | undefined {
+  if (isReasoning(item)) return Brain;
+  if (item.type === "assistant" && item.openai_output?.role === "assistant")
+    return MessageSquare;
+  if (isWebSearch(item)) return Search;
+  if (item.type === "mcp_list_tools") return Plug;
+  if (item.type === "mcp_call") {
+    const name =
+      ((item.openai_output?.name ?? item.openai_output?.tool) as string) ?? "";
+    const key = name.replace(/_/g, "").toLowerCase();
+    return TOOL_ICON_MAP[key] ?? Wrench;
+  }
+  return Wrench;
+}
+
+/** Expandable "View details" content: full reasoning text or tool arguments + output JSON. */
+function getStepDetailsContent(item: ConversationItem): ReactNode {
+  if (isReasoning(item)) {
+    const summary = item.openai_output?.summary;
+    const text = Array.isArray(summary)
+      ? summary.map((s) => (s as { text?: string }).text ?? "").join("\n\n")
+      : typeof summary === "string"
+        ? summary
+        : "";
+    if (!text.trim()) return null;
+    return (
+      <div className="whitespace-pre-wrap font-mono text-xs">
+        <Response>{text}</Response>
+      </div>
+    );
+  }
+  if (item.type === "assistant" && item.openai_output?.role === "assistant") {
+    const text = extractTextContent(item);
+    if (!text.trim()) return null;
+    return (
+      <div className="whitespace-pre-wrap">
+        <Response>{text}</Response>
+      </div>
+    );
+  }
+  if (item.type === "mcp_call" || item.type === "mcp_list_tools") {
+    const args = extractToolArguments(item);
+    const output = extractToolOutput(item);
+    const hasError = !!item.openai_output?.error || getItemStatus(item) === "failed";
+    const parts: ReactNode[] = [];
+    if (args !== undefined && args !== null) {
+      const argsStr =
+        typeof args === "string" ? args : JSON.stringify(args, null, 2);
+      parts.push(
+        <ContentSection key="args" label="Arguments">
+          <CodeBlock content={argsStr} />
+        </ContentSection>
+      );
+    }
+    if (output !== undefined && output !== null) {
+      const outputStr =
+        typeof output === "string"
+          ? output
+          : JSON.stringify(output, null, 2);
+      parts.push(
+        <ContentSection key="output" label={hasError ? "Error details" : "Output"}>
+          <CodeBlock content={outputStr} isError={hasError} />
+        </ContentSection>
+      );
+    }
+    if (parts.length === 0) return null;
+    return <div className="space-y-3">{parts}</div>;
+  }
+  if (isWebSearch(item)) {
+    const output = item.openai_output?.output ?? item.openai_output?.result;
+    if (output == null) return null;
+    const str =
+      typeof output === "string" ? output : JSON.stringify(output, null, 2);
+    return (
+      <ContentSection label="Result">
+        <CodeBlock content={str} />
+      </ContentSection>
+    );
+  }
+  return null;
+}
+
+/** First line of tool output for use as step description (e.g. "Workflow 'X' completed successfully"). */
+function getToolOutputPreview(item: ConversationItem): string | undefined {
+  const output = item.openai_output?.output ?? item.openai_output?.result;
+  if (output == null) return undefined;
+  if (typeof output === "string") {
+    const first = output.split("\n")[0]?.trim();
+    return first && first.length < 120 ? first : undefined;
+  }
+  if (typeof output === "object" && output !== null) {
+    const o = output as Record<string, unknown>;
+    const msg = [o.message, o.summary, (Array.isArray(o.content) ? (o.content[0] as { text?: string })?.text : o.content)].find(
+      (v): v is string => typeof v === "string" && v.length > 0 && v.length < 120
+    );
+    return msg ?? undefined;
+  }
+  return undefined;
+}
+
+/** Label and status for a ChainOfThoughtStep from a conversation item. */
+function getStepLabelAndStatus(item: ConversationItem): {
+  label: string;
+  description?: string;
+  status: "complete" | "active" | "pending";
+} {
+  const status = getItemStatus(item);
+  const pending = isItemPending(item);
+  const completed = isItemCompleted(item);
+  const stepStatus: "complete" | "active" | "pending" = completed
+    ? "complete"
+    : pending
+      ? "active"
+      : "pending";
+
+  if (isReasoning(item)) {
+    const duration =
+      typeof item.reasoning_duration_seconds === "number"
+        ? item.reasoning_duration_seconds
+        : 0;
+    const streaming = item.isStreaming ?? false;
+    return {
+      label: streaming ? "Thinking..." : `Thought for ${duration >= 1 ? `${duration} seconds` : "<1s"}`,
+      description: streaming ? "Reasoning in progress…" : undefined,
+      status: streaming ? "active" : "complete",
+    };
+  }
+  if (item.type === "assistant" && item.openai_output?.role === "assistant") {
+    const text = extractTextContent(item);
+    const short =
+      text.length > 100 ? `${text.slice(0, 100).trim()}…` : text || "Progress update";
+    return { label: short, status: "complete" };
+  }
+  if (item.type === "mcp_call" || item.type === "mcp_list_tools") {
+    const rawName =
+      (item.openai_output?.name ?? item.openai_output?.tool ?? "Tool") as string;
+    const name = humanizeToolName(rawName);
+    const statusText =
+      status === "completed" || status === "success"
+        ? "Completed"
+        : pending
+          ? "Processing…"
+          : status;
+    const duration =
+      typeof item.duration_seconds === "number" && item.duration_seconds > 0
+        ? ` · ${item.duration_seconds}s`
+        : "";
+    const outputPreview = getToolOutputPreview(item);
+    const description = outputPreview
+      ? `${statusText}${duration} · ${outputPreview}`
+      : `${statusText}${duration}`.trim();
+    return {
+      label: name,
+      description: description || undefined,
+      status: stepStatus,
+    };
+  }
+  if (isWebSearch(item)) {
+    const query = item.openai_output?.action?.query ?? "Search";
+    const q = typeof query === "string" ? query.slice(0, 50) : "";
+    return {
+      label: q ? `Search: "${q}"` : "Web search",
+      description: completed ? "Search completed" : pending ? "Searching…" : undefined,
+      status: stepStatus,
+    };
+  }
+  return {
+    label: getDisplayTitle(item),
+    status: stepStatus,
+  };
+}
+
+const AGENT_PROGRESS_AUTO_CLOSE_DELAY_MS = 1000;
+
+/** Renders one Agent progress chain: open by default, auto-collapse when all steps complete unless user toggled. Steps and cards (approval/error) are interleaved in order. */
+function AgentProgressChain({
+  nodes,
+  chainKey,
+  onApproveRequest,
+  onDenyRequest,
+  onCardClick,
+}: {
+  nodes: ChainNode[];
+  chainKey: string;
+  onApproveRequest?: (itemId: string) => void;
+  onDenyRequest?: (itemId: string) => void;
+  onCardClick?: (item: ConversationItem) => void;
+}) {
+  const [open, setOpen] = useState(true);
+  const [userToggled, setUserToggled] = useState(false);
+  const hasAutoClosedRef = useRef(false);
+
+  const stepNodes = useMemo(
+    () => nodes.filter((n): n is ChainNode & { type: "step" } => n.type === "step"),
+    [nodes]
+  );
+  const allStepsComplete = useMemo(
+    () =>
+      stepNodes.every(
+        (n) => getStepLabelAndStatus(n.item).status === "complete"
+      ),
+    [stepNodes]
+  );
+
+  useEffect(() => {
+    if (userToggled) return;
+    if (!allStepsComplete || !open || hasAutoClosedRef.current) return;
+    hasAutoClosedRef.current = true;
+    const timer = setTimeout(() => setOpen(false), AGENT_PROGRESS_AUTO_CLOSE_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [allStepsComplete, open, userToggled]);
+
+  const handleOpenChange = (next: boolean) => {
+    setUserToggled(true);
+    setOpen(next);
+  };
+
+  return (
+    <ChainOfThought key={chainKey} open={open} onOpenChange={handleOpenChange}>
+      <ChainOfThoughtHeader>Agent progress</ChainOfThoughtHeader>
+      <ChainOfThoughtContent>
+        {nodes.map((node) =>
+          node.type === "step" ? (
+            (() => {
+              const { label, description, status } = getStepLabelAndStatus(node.item);
+              const StepIcon = getStepIcon(node.item);
+              const detailsContent = getStepDetailsContent(node.item);
+              return (
+                <ChainOfThoughtStep
+                  key={node.item.id}
+                  icon={StepIcon}
+                  label={label}
+                  description={description}
+                  status={status}
+                >
+                  {detailsContent}
+                </ChainOfThoughtStep>
+              );
+            })()
+          ) : (
+            <div key={node.item.id} className="my-2">
+              {node.item.type === "mcp_approval_request" ? (
+                <TaskCardMcp
+                  item={node.item}
+                  onApprove={() =>
+                    onApproveRequest?.(node.item.openai_output?.id || node.item.id)
+                  }
+                  onDeny={() =>
+                    onDenyRequest?.(node.item.openai_output?.id || node.item.id)
+                  }
+                  onClick={onCardClick || (() => {})}
+                />
+              ) : (
+                <TaskCardError item={node.item} onClick={onCardClick || (() => {})} />
+              )}
+            </div>
+          )
+        )}
+      </ChainOfThoughtContent>
+    </ChainOfThought>
+  );
+}
+
+function AgentRunBlock({
+  runItems,
+  startIndex,
+  conversationLength,
+  onApproveRequest,
+  onDenyRequest,
+  onCardClick,
+  taskId,
+  agentId,
+  workspaceId,
+}: {
+  runItems: ConversationItem[];
+  startIndex: number;
+  conversationLength: number;
+  onApproveRequest?: (itemId: string) => void;
+  onDenyRequest?: (itemId: string) => void;
+  onCardClick?: (item: ConversationItem) => void;
+  taskId?: string;
+  agentId?: string;
+  workspaceId?: string;
+}) {
+  const { nodes, finalAssistant } = segmentAgentRun(runItems);
+
+  // Single assistant message only: render as before (no chain)
+  if (
+    runItems.length === 1 &&
+    finalAssistant &&
+    runItems[0] === finalAssistant
+  ) {
+    return (
+      <div key={finalAssistant.id}>
+        <RenderConversationItem
+          item={finalAssistant}
+          onApproveRequest={onApproveRequest}
+          onDenyRequest={onDenyRequest}
+          onCardClick={onCardClick}
+          taskId={taskId}
+          agentId={agentId}
+          workspaceId={workspaceId}
+          responseIndex={startIndex}
+          messageCount={conversationLength}
+          reasoningDuration={undefined}
+        />
+      </div>
+    );
+  }
+
+  const finalIndex =
+    finalAssistant != null
+      ? startIndex + runItems.indexOf(finalAssistant)
+      : -1;
+
+  return (
+    <div className="flex flex-col gap-4 justify-start">
+      {nodes.length > 0 && (
+        <AgentProgressChain
+          nodes={nodes}
+          chainKey={`chain-${startIndex}`}
+          onApproveRequest={onApproveRequest}
+          onDenyRequest={onDenyRequest}
+          onCardClick={onCardClick}
+        />
+      )}
+      {finalAssistant && (
+        <div key={finalAssistant.id} className="flex justify-start">
+          <div className="flex flex-col max-w-[85%]">
+            <div className="flex items-start space-x-2">
+              <div className="bg-transparent">
+                <div className="text-sm whitespace-pre-wrap break-words">
+                  {isToolCallSpilloverContent(extractTextContent(finalAssistant)) ? (
+                    <span className="text-muted-foreground italic">
+                      Tool output shown above
+                    </span>
+                  ) : (
+                    <Response>{extractTextContent(finalAssistant)}</Response>
+                  )}
+                </div>
+              </div>
+            </div>
+            {taskId && agentId && workspaceId && (
+              <FeedbackButtons
+                item={finalAssistant}
+                taskId={taskId}
+                agentId={agentId}
+                workspaceId={workspaceId}
+                responseIndex={finalIndex}
+                messageCount={conversationLength}
+              />
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -137,29 +642,37 @@ export function TaskChatInterface({
           <EmptyState title="No messages" description="Start a conversation!" />
         ) : (
           <>
-            {/* Render conversation items from RxJS store */}
-            {conversation.map((item, index) => (
-              <div key={item.id}>
-                <RenderConversationItem
-                  item={item}
+            {partitionConversation(conversation).map((block, blockIdx) =>
+              block.kind === "user" ? (
+                <div key={block.item.id}>
+                  <RenderConversationItem
+                    item={block.item}
+                    onApproveRequest={onApproveRequest}
+                    onDenyRequest={onDenyRequest}
+                    onCardClick={onCardClick}
+                    taskId={taskId}
+                    agentId={agentId}
+                    workspaceId={workspaceId}
+                    responseIndex={block.index}
+                    messageCount={conversation.length}
+                    reasoningDuration={undefined}
+                  />
+                </div>
+              ) : (
+                <AgentRunBlock
+                  key={`run-${block.startIndex}`}
+                  runItems={block.items}
+                  startIndex={block.startIndex}
+                  conversationLength={conversation.length}
                   onApproveRequest={onApproveRequest}
                   onDenyRequest={onDenyRequest}
                   onCardClick={onCardClick}
                   taskId={taskId}
                   agentId={agentId}
                   workspaceId={workspaceId}
-                  responseIndex={index}
-                  messageCount={conversation.length}
-                  reasoningDuration={
-                    item.type === "reasoning"
-                      ? typeof item.reasoning_duration_seconds === "number"
-                        ? item.reasoning_duration_seconds
-                        : undefined
-                      : undefined
-                  }
                 />
-              </div>
-            ))}
+              )
+            )}
           </>
         )}
         <div ref={conversationEndRef} />
