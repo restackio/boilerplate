@@ -11,7 +11,12 @@ import {
 } from "@workspace/ui/components/ui/card";
 import { Input } from "@workspace/ui/components/ui/input";
 import { Label } from "@workspace/ui/components/ui/label";
-import { Building, ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
+import {
+  Building,
+  ArrowLeft,
+  ArrowRight,
+  Loader2,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 import { executeWorkflow } from "@/app/actions/workflow";
@@ -227,13 +232,13 @@ export default function CreateWorkspacePage() {
                   OpenAI integration
                 </CardTitle>
                 <CardDescription>
-                  Required to create tasks and run agents. The key is encrypted
-                  and never exposed.
+                  For running agents. Encrypted and stored securely. You can add
+                  it later in Integrations.
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="my-6 space-y-2">
-                  <Label htmlFor="openaiApiKey">API key</Label>
+                  <Label htmlFor="openaiApiKey">API key (optional)</Label>
                   <Input
                     id="openaiApiKey"
                     type="password"
