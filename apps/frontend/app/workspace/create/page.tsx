@@ -11,12 +11,7 @@ import {
 } from "@workspace/ui/components/ui/card";
 import { Input } from "@workspace/ui/components/ui/input";
 import { Label } from "@workspace/ui/components/ui/label";
-import {
-  Building,
-  ArrowLeft,
-  ArrowRight,
-  Loader2,
-} from "lucide-react";
+import { Building, ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 import { executeWorkflow } from "@/app/actions/workflow";
@@ -75,12 +70,9 @@ export default function CreateWorkspacePage() {
     }
   };
 
-  const handleCreateWorkspace = async () => {
-    const apiKey = formData.openaiApiKey.trim();
-    if (!apiKey) {
-      setError("OpenAI API key is required.");
-      return;
-    }
+  const handleCreateWorkspace = async (options?: { skipKey?: boolean }) => {
+    const skipKey = options?.skipKey ?? false;
+    const apiKey = skipKey ? "" : formData.openaiApiKey.trim();
 
     setIsLoading(true);
     setError("");
@@ -104,20 +96,25 @@ export default function CreateWorkspacePage() {
 
       setCurrentWorkspaceId(createdWorkspace.id);
 
-      // Save OpenAI API key to the workspace's OpenAI integration
-      const openaiMcpServerId = createdWorkspace.openai_mcp_server_id;
-      if (openaiMcpServerId) {
-        const tokenResult = await executeWorkflow("BearerTokenCreateWorkflow", {
-          user_id: userData.id,
-          workspace_id: createdWorkspace.id,
-          mcp_server_id: openaiMcpServerId,
-          access_token: apiKey,
-          token_name: "Workspace API key",
-        });
-        if (!tokenResult?.success) {
-          setError(
-            "Workspace created but failed to save OpenAI API key. You can add it later in Integrations.",
+      // Save OpenAI API key to the workspace's OpenAI integration (only if provided and not skipping)
+      if (apiKey) {
+        const openaiMcpServerId = createdWorkspace.openai_mcp_server_id;
+        if (openaiMcpServerId) {
+          const tokenResult = await executeWorkflow(
+            "BearerTokenCreateWorkflow",
+            {
+              user_id: userData.id,
+              workspace_id: createdWorkspace.id,
+              mcp_server_id: openaiMcpServerId,
+              access_token: apiKey,
+              token_name: "Workspace API key",
+            },
           );
+          if (!tokenResult?.success) {
+            setError(
+              "Workspace created but failed to save OpenAI API key. You can add it later in Integrations.",
+            );
+          }
         }
       }
 
@@ -230,13 +227,13 @@ export default function CreateWorkspacePage() {
                   OpenAI integration
                 </CardTitle>
                 <CardDescription>
-                  Required for running agents. Encrypted and stored securely.
-                  Never shared.
+                  Use your OpenAI API key to create tasks and run agents. The
+                  key is encrypted and never exposed.
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="my-6 space-y-2">
-                  <Label htmlFor="openaiApiKey">API key *</Label>
+                  <Label htmlFor="openaiApiKey">API key</Label>
                   <Input
                     id="openaiApiKey"
                     type="password"
@@ -245,7 +242,6 @@ export default function CreateWorkspacePage() {
                       handleInputChange("openaiApiKey", e.target.value)
                     }
                     placeholder="sk-..."
-                    required
                     className="font-mono"
                     autoComplete="off"
                   />
@@ -272,18 +268,31 @@ export default function CreateWorkspacePage() {
                     </a>
                   </p>
                 </div>
-                <div className="flex justify-between mt-6">
-                  <Button variant="outline" onClick={handlePrevStep}>
+                <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center mt-6">
+                  <Button
+                    variant="outline"
+                    onClick={handlePrevStep}
+                    disabled={isLoading}
+                  >
                     <ArrowLeft className="mr-2 size-4" />
                     Back
                   </Button>
-                  <Button
-                    onClick={handleCreateWorkspace}
-                    disabled={isLoading || !formData.openaiApiKey.trim()}
-                    size="lg"
-                  >
-                    {isLoading ? "Creating..." : "Create workspace"}
-                  </Button>
+                  <div className="flex gap-2 justify-end">
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleCreateWorkspace({ skipKey: true })}
+                      disabled={isLoading}
+                    >
+                      Skip for now
+                    </Button>
+                    <Button
+                      onClick={() => handleCreateWorkspace()}
+                      disabled={isLoading}
+                      size="lg"
+                    >
+                      {isLoading ? "Creating..." : "Create workspace"}
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
