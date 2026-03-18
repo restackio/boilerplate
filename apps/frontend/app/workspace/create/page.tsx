@@ -227,8 +227,8 @@ export default function CreateWorkspacePage() {
                   OpenAI integration
                 </CardTitle>
                 <CardDescription>
-                  Use your OpenAI API key to create tasks and run agents. The
-                  key is encrypted and never exposed.
+                  Required to create tasks and run agents. The key is encrypted
+                  and never exposed.
                 </CardDescription>
               </CardHeader>
               <CardContent>
