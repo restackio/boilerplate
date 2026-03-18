@@ -13,10 +13,15 @@ else
   REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 fi
 # Backend dir for PYTHONPATH (so generate_admin_password.py can import src.utils.password)
+# In Docker, backend is at /app (src at /app/src); locally it's typically at repo/apps/backend
 BACKEND_DIR="$REPO_ROOT/apps/backend"
 if [ ! -d "$BACKEND_DIR/src" ]; then
-  echo "Error: Backend not found at $BACKEND_DIR (expected apps/backend with src/)" >&2
-  exit 1
+  if [ -d "$REPO_ROOT/src" ]; then
+    BACKEND_DIR="$REPO_ROOT"
+  else
+    echo "Error: Backend not found at $BACKEND_DIR (expected apps/backend with src/) or $REPO_ROOT with src/" >&2
+    exit 1
+  fi
 fi
 export PYTHONPATH="$BACKEND_DIR"
 
