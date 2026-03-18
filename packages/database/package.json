@@ -7,6 +7,7 @@
     "migrate": "bash scripts/migrate.sh",
     "admin:insert": "bash scripts/insert-admin.sh",
     "admin:reset": "bash scripts/reset-admin.sh",
+    "admin:password": "bash scripts/set-admin-password.sh",
     "postgres:connect": "psql $DATABASE_URL",
     "postinstall": "mkdir -p node_modules"
   },

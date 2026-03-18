@@ -75,12 +75,9 @@ The admin seed creates a single platform user you can log in with:
 If you never saw the password (e.g. you ran `db:admin:insert` after the workspace already existed), or you get errors like “no admin in the db” when creating users or using the app:
 
 1. Use the same database as the app: set `DATABASE_URL` in your environment (e.g. from `.env`) when running commands.
-2. Re-seed the admin workspace and get a **new** printed password:
-   ```bash
-   pnpm db:admin:reset
-   ```
-   This clears admin workspace data and re-runs the seed; the script will print the new admin password. Save it—it won’t be shown again.
-3. Log in at http://localhost:3000 with `admin@example.com` and that password.
+2. **Set a new password (it is logged so you can save it):** run `pnpm db:admin:password`. The new password is printed in the terminal—save it. To choose the password yourself: `pnpm db:admin:password -- mypassword`.
+3. **If you need a full reset** (clear admin workspace and re-seed from scratch): run `pnpm db:admin:reset`. The new admin password is printed in the log—save it.
+4. Log in at http://localhost:3000 with `admin@example.com` and that password.
 
 **Performance tip:** development mode uses hot reloading. For faster page loads, use `pnpm build && pnpm start` instead of `pnpm localdev`.
 
@@ -266,6 +263,8 @@ pnpm prod:up
 pnpm build
 pnpm start
 ```
+
+**Server Actions (Next.js):** If you see [Failed to find Server Action](https://nextjs.org/docs/messages/failed-to-find-server-action), set `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` in your environment (see `.env.example`). Generate a key with `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"` and set it **at build time** so all instances use the same key.
 
 ## Platform management
 
