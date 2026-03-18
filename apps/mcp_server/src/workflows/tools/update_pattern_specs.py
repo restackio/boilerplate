@@ -7,7 +7,7 @@ from restack_ai.workflow import NonRetryableError, log, workflow
 
 
 def _normalize_pattern_specs_edges(spec: dict) -> dict:
-    """Ensure edges never have null/\"null\" sourceHandle or targetHandle (React Flow error #008)."""
+    r"""Ensure edges never have null/"null" sourceHandle or targetHandle (React Flow error #008)."""
     edges = spec.get("edges")
     if not edges or not isinstance(edges, list):
         return spec

@@ -53,7 +53,6 @@ import { AddTaskFilesDialog } from "./add-task-files-dialog";
 import {
   isUserMessage,
   isReasoning,
-  isToolCall,
   isWebSearch,
   isApprovalRequest,
   isError,
@@ -642,7 +641,7 @@ export function TaskChatInterface({
           <EmptyState title="No messages" description="Start a conversation!" />
         ) : (
           <>
-            {partitionConversation(conversation).map((block, blockIdx) =>
+            {partitionConversation(conversation).map((block) =>
               block.kind === "user" ? (
                 <div key={block.item.id}>
                   <RenderConversationItem
