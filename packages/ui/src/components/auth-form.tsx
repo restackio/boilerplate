@@ -42,7 +42,9 @@ interface AuthFormProps extends React.ComponentProps<"form"> {
     linkText: string;
     href: string;
   };
-  /** Additional form content */
+  /** Content below the footer link (e.g. terms/privacy) */
+  footerBottom?: ReactNode;
+  /** Additional form content (above submit button) */
   children?: ReactNode;
 }
 
@@ -56,6 +58,7 @@ export function AuthForm({
   error,
   onSubmit,
   footerLink,
+  footerBottom,
   children,
   className,
   ...props
@@ -76,9 +79,9 @@ export function AuthForm({
     >
       <div className="flex flex-col items-center gap-2 text-center">
         <h1 className="text-2xl font-bold">{title}</h1>
-        <p className="text-muted-foreground text-sm text-balance">
+        {/* <p className="text-muted-foreground text-sm text-balance">
           {description}
-        </p>
+        </p> */}
       </div>
 
       <div className="grid gap-6">
@@ -151,6 +154,12 @@ export function AuthForm({
           >
             {footerLink.linkText}
           </Link>
+        </div>
+      )}
+
+      {footerBottom && (
+        <div className="mt-5 pt-5 border-t border-border/40 text-center">
+          {footerBottom}
         </div>
       )}
     </form>
