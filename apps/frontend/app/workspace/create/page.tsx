@@ -119,11 +119,13 @@ export default function CreateWorkspacePage() {
             setError(
               "Workspace created but failed to save OpenAI API key. You can add it later in Integrations.",
             );
+            setIsLoading(false);
+            return;
           }
         }
       }
 
-      // Redirect to New agent so user can describe what they want or use a starter prompt
+      // Redirect only after workspace (and key, if provided) are saved
       window.location.href = "/agents/new";
     } catch (err) {
       void err;
