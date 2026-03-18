@@ -89,7 +89,7 @@ export function SignupForm({
     },
     {
       id: "confirmPassword",
-      label: "Confirm Password",
+      label: "Confirm password",
       type: "password",
       placeholder: "Confirm your password",
       value: confirmPassword,

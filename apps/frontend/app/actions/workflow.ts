@@ -543,7 +543,7 @@ export async function scheduleAddFilesToDatasetWorkflow(params: {
   }
 }
 
-/** Add files to a dataset: EmbedAnything (extract + embed) → ClickHouse. Accepts PDF, text, images, etc. */
+/** Add files to a dataset: EmbedAnything (extract + embed) → ClickHouse. Accepts documents, text, CSV, images, etc. */
 export async function addFilesToDataset(params: {
   workspace_id: string;
   dataset_id: string;
@@ -570,7 +570,7 @@ export async function addFilesToDataset(params: {
     const result = await getWorkflowResult({
       workflowId: scheduled.workflowId,
       runId: scheduled.runId,
-      timeoutMs: 5 * 60 * 1000, // 5 minutes for multi-PDF ingest
+      timeoutMs: 5 * 60 * 1000, // 5 minutes for large ingest
     });
     return {
       success: true,

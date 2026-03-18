@@ -40,7 +40,7 @@ class UpdatePatternSpecsInput(BaseModel):
     )
     pattern_specs: dict = Field(
         ...,
-        description="Full pattern spec: { title?, nodes: [{ id, type, position, data: { label, entityType?, entityId?, href?, ... } }], edges: [{ id, source, target, label? }] }. For edges use only id, source, target and optional label; do not set sourceHandle or targetHandle (diagram uses default handles). Replaces existing pattern_specs.",
+        description="Full pattern spec: { title?, nodes: [{ id, type, position, data: { label, entityType?, entityId?, href?, agentType? } }], edges: [{ id, source, target, label? }] }. For agent nodes set data.agentType to 'pipeline' or 'interactive' so the diagram shows the correct type. For edges use only id, source, target and optional label; do not set sourceHandle or targetHandle (diagram uses default handles). Replaces existing pattern_specs.",
     )
 
 
@@ -55,7 +55,7 @@ class UpdatePatternSpecsOutput(BaseModel):
 
 @workflow.defn(
     mcp=True,
-    description="Update the Build task's pattern_specs (agent design pattern). Call this when you create or update agents, datasets, views, or integrations so the diagram and Created list stay in sync. Pass task_id, workspace_id from meta_info, and the full pattern_specs object with nodes (use entityType: 'agent'|'dataset'|'view'|'integration', entityId, href for linkable entities) and edges. Each edge must have id, source, target; optional label (e.g. 'pulls from', 'pushes to'). Do not set sourceHandle or targetHandle on edges.",
+    description="Update the Build task's pattern_specs (agent design pattern). Call this when you create or update agents, datasets, views, or integrations so the diagram and Created list stay in sync. Pass task_id, workspace_id from meta_info, and the full pattern_specs object with nodes (use entityType: 'agent'|'dataset'|'view'|'integration'; for agent nodes set data.agentType to 'pipeline' or 'interactive'; entityId, href for linkable entities) and edges. Each edge must have id, source, target; optional label (e.g. 'pulls from', 'pushes to'). Do not set sourceHandle or targetHandle on edges.",
 )
 class UpdatePatternSpecs:
     """Workflow to set the task's pattern_specs JSON (powers React Flow and Created list)."""

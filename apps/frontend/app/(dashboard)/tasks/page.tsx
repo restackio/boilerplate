@@ -17,7 +17,7 @@ import { getTasksByMetric, getTasksByFeedback } from "@/app/actions/tasks-filter
 export default function TasksPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { currentWorkspaceId, isReady, isAdminWorkspace } = useDatabaseWorkspace();
+  const { currentWorkspaceId, isReady } = useDatabaseWorkspace();
   const { tasks, tasksLoading, fetchTasks, deleteTask, createTask, teams, fetchTeams } = useWorkspaceScopedActions();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [filteredTaskIds, setFilteredTaskIds] = useState<string[] | null>(null);
@@ -159,12 +159,9 @@ export default function TasksPage() {
         list = transformedTasks.filter(task => !task.schedule_spec);
       }
     }
-    // In non-admin workspaces, hide build tasks from /tasks (they live under /agents)
-    if (!isAdminWorkspace) {
-      list = list.filter(task => task.title !== "Build");
-    }
+    // Build tasks are shown in the main tasks list for all workspaces
     return list;
-  }, [tasks, searchParams, filteredTaskIds, isAdminWorkspace]);
+  }, [tasks, searchParams, filteredTaskIds]);
 
   // Create team options for filtering
   const teamOptions = useMemo(() => {

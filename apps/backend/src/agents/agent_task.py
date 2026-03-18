@@ -1,3 +1,4 @@
+import asyncio
 from datetime import timedelta
 from typing import Any
 
@@ -876,7 +877,7 @@ class AgentTask:
                 # Store normal events
                 self.events.append(event_data)
 
-            # Handle response.completed events with metrics
+            # Handle response.completed events with state persistence and metrics
             if (
                 event_data.get("type") == "response.completed"
                 and "response" in event_data
@@ -886,6 +887,13 @@ class AgentTask:
                 response = event_data["response"]
                 response_id = response.get("id")
                 self.response_in_progress = False
+                # Persist agent state first (fire-and-forget) so messages/todos/subtasks
+                # survive when the user leaves and returns; don't block on save
+                save_task = asyncio.create_task(self._save_final_state())
+                save_task.add_done_callback(
+                    lambda t: log.warning("State save failed: %s", t.exception())
+                    if not t.cancelled() and t.exception() else None
+                )
                 assistant_content = (
                     self._extract_assistant_content(response)
                 )
