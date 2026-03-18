@@ -96,9 +96,8 @@ export default function NewAgentPage() {
           /content marketing policy validation/i.test(description) &&
           /no pipeline|task-files/i.test(description);
         if (isPolicyValidationStarter) {
-          const policyDatasetId = await getOrCreateTaskFilesDatasetId(
-            currentWorkspaceId,
-          );
+          const policyDatasetId =
+            await getOrCreateTaskFilesDatasetId(currentWorkspaceId);
           if (policyDatasetId) {
             description += `\n\n[Build instruction: dataset_id for policy docs is ${policyDatasetId}. Do not create a pipeline agent or a new dataset. Create only one interactive agent attached to this dataset (use this dataset_id for the view). Add context-store tools so the agent can query the dataset.]`;
           }
@@ -242,8 +241,8 @@ export default function NewAgentPage() {
           </h2>
           <p className="text-xs text-muted-foreground mb-3">
             Use a starter to fill the prompt above; edit if you like, then click
-            Create agent. The builder will propose a plan (and diagram), then
-            create agents, datasets, and views after you approve.
+            Create agent. The builder will propose a plan then create the
+            necessary agents and datasets after you approve.
           </p>
           <ul className="space-y-2">
             {STARTER_PROMPTS.map((item) => (
