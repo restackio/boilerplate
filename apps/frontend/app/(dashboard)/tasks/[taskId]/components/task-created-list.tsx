@@ -26,7 +26,7 @@ interface CreatedItem {
 }
 
 /** Derive created agents, datasets, views, integrations from task.pattern_specs nodes (single source of truth when present). */
-function deriveCreatedFromPatternSpecs(patternSpecs: PatternSpecs | undefined): {
+export function deriveCreatedFromPatternSpecs(patternSpecs: PatternSpecs | undefined): {
   agents: CreatedItem[];
   datasets: CreatedItem[];
   views: { id: string; name: string; href: string }[];

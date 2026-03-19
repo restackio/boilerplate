@@ -1,7 +1,15 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useRef, useState, useCallback, useMemo } from "react";
+import React, { createContext, useContext, useLayoutEffect, useRef, useState, useCallback, useMemo } from "react";
 import { subscribeAgentState, subscribeAgentResponses } from "@restackio/react";
+
+function countResponseCompletedEvents(
+  state: unknown,
+): number {
+  const events = (state as { events?: Array<{ type?: string }> } | null)?.events;
+  if (!Array.isArray(events)) return 0;
+  return events.filter((e) => e?.type === "response.completed").length;
+}
 
 interface AgentStreamContextType {
   responseState: unknown;
@@ -58,7 +66,15 @@ function AgentStreamActiveProvider({
   // Initialize with persisted state from database if available
   const [currentResponseState, setCurrentResponseState] = useState<unknown>(initialState || null);
   const [error, setError] = useState<string | null>(null);
-  const hasCompletedRef = useRef(false);
+  /** Baseline + stream: only fire onResponseComplete when this count increases (each new assistant turn). */
+  const lastCompletedCountRef = useRef(0);
+  /** First subscription payload: without DB baseline, treat as sync (avoid N refreshes for history). */
+  const isFirstStateMessageRef = useRef(true);
+
+  useLayoutEffect(() => {
+    const n = countResponseCompletedEvents(initialState);
+    lastCompletedCountRef.current = Math.max(lastCompletedCountRef.current, n);
+  }, [initialState]);
 
   const rawApiAddress = process.env.NEXT_PUBLIC_RESTACK_ENGINE_API_ADDRESS || "http://localhost:9233";
 
@@ -88,16 +104,26 @@ function AgentStreamActiveProvider({
     // Always process state messages (todos, subtasks, metadata updates)
     // State updates should continue even after response completes
     setCurrentResponseState(data);
-    
-    // Check if this state contains a completed response
-    const responseData = data as { events?: Array<{ type: string }> };
-    const isCompleted = responseData?.events?.some((e) => e.type === 'response.completed');
-    
-    if (isCompleted && !hasCompletedRef.current) {
-      hasCompletedRef.current = true;
-      // Trigger callback to refresh metrics or perform other actions
+
+    const completedCount = countResponseCompletedEvents(data);
+
+    if (isFirstStateMessageRef.current) {
+      isFirstStateMessageRef.current = false;
+      const prevSync = lastCompletedCountRef.current;
+      if (prevSync === 0 && completedCount > 0) {
+        lastCompletedCountRef.current = completedCount;
+        return;
+      }
+    }
+
+    const prev = lastCompletedCountRef.current;
+    if (completedCount > prev) {
+      lastCompletedCountRef.current = completedCount;
+      const delta = completedCount - prev;
       if (onResponseComplete) {
-        onResponseComplete();
+        for (let i = 0; i < delta; i++) {
+          onResponseComplete();
+        }
       }
     }
   }, [onResponseComplete]);
@@ -138,14 +164,6 @@ function AgentStreamActiveProvider({
     runId: runId || "",
     options: responseOptions,
   });
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      // Cleanup subscriptions
-      hasCompletedRef.current = false;
-    };
-  }, []);
 
   // Create context value without memoization to allow agentResponses updates to flow through
   // The agentResponses array is managed by the subscription hook and needs to trigger re-renders

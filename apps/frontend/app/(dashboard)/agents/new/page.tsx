@@ -7,7 +7,6 @@ import {
   useWorkspaceScopedActions,
   type Task,
 } from "@/hooks/use-workspace-scoped-actions";
-import { getOrCreateTaskFilesDatasetId } from "@/app/actions/workflow";
 import { AddOpenAITokenDialog } from "@/app/(dashboard)/integrations/components/add-openai-token-dialog";
 import { Button } from "@workspace/ui/components/ui/button";
 import { Textarea } from "@workspace/ui/components/ui/textarea";
@@ -91,17 +90,7 @@ export default function NewAgentPage() {
       setCreating(true);
       setBuildAgentError(null);
       try {
-        let description = message.trim();
-        const isPolicyValidationStarter =
-          /content marketing policy validation/i.test(description) &&
-          /no pipeline|task-files/i.test(description);
-        if (isPolicyValidationStarter) {
-          const policyDatasetId =
-            await getOrCreateTaskFilesDatasetId(currentWorkspaceId);
-          if (policyDatasetId) {
-            description += `\n\n[Build instruction: dataset_id for policy docs is ${policyDatasetId}. Do not create a pipeline agent or a new dataset. Create only one interactive agent attached to this dataset (use this dataset_id for the view). Add context-store tools so the agent can query the dataset.]`;
-          }
-        }
+        const description = message.trim();
         const buildRes = await getBuildAgent();
         // executeWorkflow unwraps { agent } so data is the agent object directly
         const buildAgent = buildRes.data as { id?: string } | null;

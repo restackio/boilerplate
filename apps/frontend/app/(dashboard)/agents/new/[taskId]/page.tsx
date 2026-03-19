@@ -12,17 +12,21 @@ import {
   createConfirmationConfig,
 } from "@workspace/ui/components";
 import { BuildSessionView } from "../build-session-view";
+import type { BuildSummary } from "../components/build-canvas";
 
 export default function NewAgentTaskPage() {
   const params = useParams();
   const router = useRouter();
   const taskId = typeof params?.taskId === "string" ? params.taskId : null;
-  const { getTaskById, updateTask, deleteTask } = useWorkspaceScopedActions();
+  const { getTaskById, getBuildSummary, updateTask, deleteTask } = useWorkspaceScopedActions();
   const [task, setTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [buildSummary, setBuildSummary] = useState<BuildSummary | null>(null);
+  const [buildSummaryLoading, setBuildSummaryLoading] = useState(false);
+  const [buildSummaryError, setBuildSummaryError] = useState<string | null>(null);
 
   const loadTask = useCallback(async () => {
     if (!taskId || !getTaskById) return;
@@ -66,6 +70,42 @@ export default function NewAgentTaskPage() {
       setTask(result.data as Task);
     }
   }, [taskId, getTaskById]);
+
+  const loadBuildSummary = useCallback(async () => {
+    if (!taskId || !getBuildSummary) return;
+    setBuildSummaryLoading(true);
+    setBuildSummaryError(null);
+    try {
+      const result = await getBuildSummary(taskId);
+      if (result?.success && result?.data) {
+        const d = result.data;
+        setBuildSummary({
+          agents: d.agents ?? [],
+          datasets: d.datasets ?? [],
+          tasks: d.tasks ?? [],
+          view_specs: d.view_specs ?? [],
+        });
+      } else {
+        setBuildSummary(null);
+        setBuildSummaryError(result?.error ?? null);
+      }
+    } catch {
+      setBuildSummary(null);
+      setBuildSummaryError("Failed to load build summary");
+    } finally {
+      setBuildSummaryLoading(false);
+    }
+  }, [taskId, getBuildSummary]);
+
+  useEffect(() => {
+    if (taskId && task) {
+      loadBuildSummary();
+    }
+  }, [taskId, task, loadBuildSummary]);
+
+  const handleRefreshBuildSummary = useCallback(async () => {
+    await loadBuildSummary();
+  }, [loadBuildSummary]);
 
   const handleDeleteTask = useCallback(async () => {
     if (!task?.id || !deleteTask) return;
@@ -126,6 +166,10 @@ export default function NewAgentTaskPage() {
         onTaskRefetch={handleTaskRefetch}
         onDelete={() => setShowDeleteDialog(true)}
         onUpdateTask={handleUpdateTask}
+        buildSummary={buildSummary}
+        buildSummaryLoading={buildSummaryLoading}
+        buildSummaryError={buildSummaryError}
+        onRefreshBuildSummary={handleRefreshBuildSummary}
       />
       <ConfirmationDialog
         isOpen={showDeleteDialog}

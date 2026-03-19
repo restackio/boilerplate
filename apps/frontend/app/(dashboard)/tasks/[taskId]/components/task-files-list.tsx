@@ -4,14 +4,16 @@ import { useEffect, useState, useCallback } from "react";
 import {
   ChevronDown,
   ChevronRight,
-  FileText,
   Loader2,
   RefreshCw,
 } from "lucide-react";
 import { Button } from "@workspace/ui/components/ui/button";
 import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
-import type { DatasetFileSummary } from "@/app/(dashboard)/datasets/components/dataset-files-table";
+import {
+  DatasetFilesTable,
+  type DatasetFileSummary,
+} from "@/app/(dashboard)/datasets/components/dataset-files-table";
 import { getDatasets } from "@/app/actions/workflow";
 
 const TASK_FILES_DATASET_NAME = "task-files";
@@ -131,24 +133,8 @@ export function TaskFilesList({ taskId, refreshTrigger }: TaskFilesListProps) {
       </div>
 
       {isExpanded && (
-        <div className="space-y-1 pl-1">
-          {files.map((file) => (
-            <div
-              key={file.source}
-              className="flex items-center gap-2 text-sm hover:bg-background/50 rounded px-1 py-0.5"
-            >
-              <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
-              <span
-                className="truncate flex-1 min-w-0 text-foreground"
-                title={file.source}
-              >
-                {file.source}
-              </span>
-              <span className="text-xs text-muted-foreground shrink-0">
-                {file.chunk_count} chunk{file.chunk_count !== 1 ? "s" : ""}
-              </span>
-            </div>
-          ))}
+        <div className="mt-2">
+          <DatasetFilesTable files={files} loading={refreshing} />
         </div>
       )}
     </div>

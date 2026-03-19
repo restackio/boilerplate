@@ -97,7 +97,7 @@ function TaskDetailContentInner({
   }, []);
 
   return (
-    <div>
+    <div className="flex flex-col flex-1 min-h-0">
       <TaskHeader
         task={task}
         onDelete={() => setShowDeleteDialog(true)}
@@ -108,7 +108,9 @@ function TaskDetailContentInner({
         }
       />
 
-      <div className={`flex ${showSplitView ? "h-[calc(100vh-65px)]" : ""}`}>
+      <div
+        className={`flex flex-1 min-h-0 ${showSplitView ? "h-[calc(100vh-65px)]" : ""}`}
+      >
         <TaskChatInterface
           conversation={conversation}
           chatMessage={chatMessage}

@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
 from src.database.connection import get_async_db
-from src.database.models import Task
+from src.database.models import Agent, Dataset, Task
 
 
 # Pydantic models for input validation
@@ -92,6 +92,13 @@ class TaskUpdateInput(BaseModel):
 class TaskGetByIdInput(BaseModel):
     task_id: str = Field(..., min_length=1)
     workspace_id: str | None = None
+
+
+class BuildSummaryInput(BaseModel):
+    """Input for get build summary: build task id and workspace for auth."""
+
+    build_task_id: str = Field(..., min_length=1)
+    workspace_id: str = Field(..., min_length=1)
 
 
 class TaskGetByStatusInput(BaseModel):
@@ -181,6 +188,34 @@ class TaskListOutput(BaseModel):
 
 class TaskSingleOutput(BaseModel):
     task: TaskOutput
+
+
+class BuildSummaryAgentOutput(BaseModel):
+    """Minimal agent info for build summary canvas."""
+
+    id: str
+    name: str
+    description: str | None
+    workspace_id: str
+    type: str = "interactive"
+
+
+class BuildSummaryDatasetOutput(BaseModel):
+    """Minimal dataset info for build summary canvas."""
+
+    id: str
+    name: str
+    description: str | None
+    workspace_id: str
+
+
+class BuildSummaryOutput(BaseModel):
+    """Agents, datasets, tasks, and view specs for a build task."""
+
+    agents: list[BuildSummaryAgentOutput] = Field(default_factory=list)
+    datasets: list[BuildSummaryDatasetOutput] = Field(default_factory=list)
+    tasks: list[TaskOutput] = Field(default_factory=list)
+    view_specs: list = Field(default_factory=list)
 
 
 class TaskDeleteOutput(BaseModel):
@@ -779,6 +814,163 @@ async def tasks_get_by_id(
                 message=f"Failed to get task: {e!s}"
             ) from e
     return None
+
+
+BUILD_SUMMARY_TASKS_LIMIT = 100
+
+
+@function.defn()
+async def tasks_get_build_summary(
+    function_input: BuildSummaryInput,
+) -> BuildSummaryOutput:
+    """Get agents, datasets, tasks, and view_specs for a build task. Requires workspace_id for auth."""
+    async for db in get_async_db():
+        try:
+            build_task_id = uuid.UUID(function_input.build_task_id)
+            workspace_uuid = uuid.UUID(function_input.workspace_id)
+
+            # 1. Load build task and enforce workspace
+            task_result = await db.execute(
+                select(Task)
+                .where(
+                    Task.id == build_task_id,
+                    Task.workspace_id == workspace_uuid,
+                )
+                .limit(1)
+            )
+            build_task = task_result.scalar_one_or_none()
+            if not build_task:
+                raise NonRetryableError(
+                    message="Build task not found or access denied"
+                )
+
+            # 2. Agents created by this build
+            agents_result = await db.execute(
+                select(Agent).where(
+                    Agent.build_task_id == build_task_id,
+                )
+            )
+            agents = agents_result.scalars().all()
+            agent_ids = {a.id for a in agents}
+
+            # 3. Datasets created by this build
+            datasets_result = await db.execute(
+                select(Dataset).where(
+                    Dataset.build_task_id == build_task_id,
+                )
+            )
+            datasets = datasets_result.scalars().all()
+
+            # 4. Tasks that use any of these agents (limit to avoid huge payloads)
+            tasks_list: list[Task] = []
+            if agent_ids:
+                tasks_result = await db.execute(
+                    select(Task)
+                    .options(
+                        selectinload(Task.agent),
+                        selectinload(Task.assigned_to_user),
+                        selectinload(Task.team),
+                    )
+                    .where(Task.agent_id.in_(agent_ids))
+                    .order_by(Task.updated_at.desc())
+                    .limit(BUILD_SUMMARY_TASKS_LIMIT)
+                )
+                tasks_list = list(tasks_result.scalars().all())
+
+            # 5. View specs from build task
+            view_specs = (
+                build_task.view_specs
+                if getattr(build_task, "view_specs", None) is not None
+                else []
+            )
+
+            return BuildSummaryOutput(
+                agents=[
+                    BuildSummaryAgentOutput(
+                        id=str(a.id),
+                        name=a.name,
+                        description=a.description,
+                        workspace_id=str(a.workspace_id),
+                        type=a.type or "interactive",
+                    )
+                    for a in agents
+                ],
+                datasets=[
+                    BuildSummaryDatasetOutput(
+                        id=str(d.id),
+                        name=d.name,
+                        description=d.description,
+                        workspace_id=str(d.workspace_id),
+                    )
+                    for d in datasets
+                ],
+                tasks=[
+                    TaskOutput(
+                        id=str(t.id),
+                        workspace_id=str(t.workspace_id),
+                        team_id=str(t.team_id) if t.team_id else None,
+                        team_name=t.team.name if t.team else None,
+                        title=t.title,
+                        description=t.description,
+                        status=t.status,
+                        agent_id=str(t.agent_id),
+                        agent_name=t.agent.name if t.agent else "N/A",
+                        parent_agent_id=(
+                            str(t.agent.parent_agent_id)
+                            if t.agent and t.agent.parent_agent_id
+                            else None
+                        ),
+                        assigned_to_id=(
+                            str(t.assigned_to_id) if t.assigned_to_id else None
+                        ),
+                        assigned_to_name=(
+                            t.assigned_to_user.name
+                            if t.assigned_to_user
+                            else "N/A"
+                        ),
+                        temporal_agent_id=t.temporal_agent_id,
+                        agent_state=t.agent_state,
+                        parent_task_id=(
+                            str(t.parent_task_id) if t.parent_task_id else None
+                        ),
+                        temporal_parent_agent_id=t.temporal_parent_agent_id,
+                        schedule_spec=t.schedule_spec,
+                        schedule_task_id=(
+                            str(t.schedule_task_id)
+                            if t.schedule_task_id
+                            else None
+                        ),
+                        is_scheduled=t.is_scheduled,
+                        schedule_status=t.schedule_status,
+                        temporal_schedule_id=t.temporal_schedule_id,
+                        view_specs=(
+                            t.view_specs
+                            if getattr(t, "view_specs", None) is not None
+                            else []
+                        ),
+                        pattern_specs=(
+                            t.pattern_specs
+                            if getattr(t, "pattern_specs", None) is not None
+                            else {}
+                        ),
+                        created_at=(
+                            t.created_at.isoformat() if t.created_at else None
+                        ),
+                        updated_at=(
+                            t.updated_at.isoformat() if t.updated_at else None
+                        ),
+                    )
+                    for t in tasks_list
+                ],
+                view_specs=view_specs,
+            )
+        except NonRetryableError:
+            raise
+        except Exception as e:
+            raise NonRetryableError(
+                message=f"Failed to get build summary: {e!s}"
+            ) from e
+    return BuildSummaryOutput()
 
 
 def _view_specs_for_dataset(

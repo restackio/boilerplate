@@ -24,7 +24,7 @@ export default function DashboardLayout({
     pathname.split("/").length === 3 &&
     pathname.split("/")[2] !== "new";
   const isPlaygroundPage = pathname === "/playground";
-  const isAgentsNewPage = pathname === "/agents/new";
+  const isAgentsNewPage = pathname.startsWith("/agents/new");
 
   const shouldMinimizeSidebar =
     isTaskDetailPage ||
@@ -44,10 +44,16 @@ export default function DashboardLayout({
   return (
     <AuthGuard>
       <WorkspaceGuard>
-        <SidebarProvider open={sidebarOpen} onOpenChange={setSidebarOpen}>
+        <SidebarProvider
+          open={sidebarOpen}
+          onOpenChange={setSidebarOpen}
+          className="h-svh max-h-svh overflow-hidden"
+        >
           <AppSidebar />
-          <SidebarInset>
-            <div className="flex flex-1 flex-col gap-4">{children}</div>
+          <SidebarInset className="min-h-0 flex-1 overflow-hidden flex flex-col">
+            <div className="flex flex-1 flex-col gap-4 min-h-0 overflow-hidden">
+              {children}
+            </div>
           </SidebarInset>
         </SidebarProvider>
       </WorkspaceGuard>

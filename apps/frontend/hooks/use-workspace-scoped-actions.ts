@@ -45,6 +45,7 @@ export interface Agent {
 
 export interface Task {
   id: string;
+  workspace_id?: string;
   title: string;
   description?: string;
   status: "in_progress" | "in_review" | "closed" | "completed" | "failed";
@@ -272,6 +273,23 @@ async function executeWorkflow<T>(
         return {
           success: true,
           data: result.dataset as T,
+        };
+      }
+
+      // For view single responses (GetViewWorkflow returns { success, view, error })
+      if ("view" in result && result.view) {
+        return {
+          success: true,
+          data: result.view as T,
+        };
+      }
+
+      // For views list responses (ListViewsForDatasetWorkflow returns { success, views, error })
+      if ("views" in result && Array.isArray(result.views)) {
+        return {
+          success: true,
+          data: result.views as T,
+          count: result.views.length,
         };
       }
 
@@ -839,6 +857,41 @@ export function useWorkspaceScopedActions() {
     [currentWorkspaceId, isReady, fetchTasks],
   );
 
+  const getBuildSummary = useCallback(
+    async (buildTaskId: string) => {
+      if (!isReady || !currentWorkspaceId) {
+        return { success: false, error: "No valid workspace context", data: null };
+      }
+      try {
+        const result = await executeWorkflow<{
+          agents?: { id: string; name: string; description?: string; workspace_id: string; type?: string }[];
+          datasets?: { id: string; name: string; description?: string; workspace_id: string }[];
+          tasks?: Task[];
+          view_specs?: { id: string; name: string; columns: { key: string; label: string }[]; dataset_id: string }[];
+        }>("TasksGetBuildSummaryWorkflow", {
+          build_task_id: buildTaskId,
+          workspace_id: currentWorkspaceId,
+        });
+        const payload =
+          result.success && result.data && typeof result.data === "object" && "agents" in result.data
+            ? (result.data as {
+                agents: { id: string; name: string; description?: string; workspace_id: string; type?: string }[];
+                datasets: { id: string; name: string; description?: string; workspace_id: string }[];
+                tasks: Task[];
+                view_specs: { id: string; name: string; columns: { key: string; label: string }[]; dataset_id: string }[];
+              })
+            : null;
+        return result.success
+          ? { ...result, data: payload }
+          : result;
+      } catch (error) {
+        console.error("[useWorkspaceScopedActions] Error in getBuildSummary:", error);
+        return { success: false, error: "Failed to get build summary", data: null };
+      }
+    },
+    [currentWorkspaceId, isReady],
+  );
+
   // Teams actions
   const fetchTeams = useCallback(
     async (forceRefresh = false) => {
@@ -1255,6 +1308,7 @@ export function useWorkspaceScopedActions() {
     createTask,
     updateTask,
     getTaskById,
+    getBuildSummary,
     deleteTask,
 
     teams,

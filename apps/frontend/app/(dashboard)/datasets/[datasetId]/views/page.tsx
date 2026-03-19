@@ -47,16 +47,12 @@ export default function DatasetViewsPage() {
         workspace_id: currentWorkspaceId,
         dataset_id: datasetId,
       });
-      const data = result.data as {
-        success?: boolean;
-        views?: ViewSpecRow[];
-        error?: string;
-      };
-      if (result.success && data?.success && Array.isArray(data.views)) {
-        setViews(data.views);
+      // executeWorkflow unwraps to result.data = views array
+      if (result.success && Array.isArray(result.data)) {
+        setViews(result.data as ViewSpecRow[]);
       } else {
         setViews([]);
-        if (data?.error) setError(data.error);
+        if (result.error) setError(result.error);
       }
     } catch (err) {
       setViews([]);

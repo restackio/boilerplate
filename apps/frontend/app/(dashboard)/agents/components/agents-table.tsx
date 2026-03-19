@@ -12,6 +12,7 @@ import {
   Tag,
   MessageSquare,
   Workflow,
+  ClipboardList,
 } from "lucide-react";
 import {
   Tooltip,
@@ -143,6 +144,7 @@ export const statusOptions: Array<{
   icon: React.ComponentType<{ className?: string }>;
 }> = [
   { label: "Published", value: "published", icon: CheckCircle },
+  { label: "Planned", value: "planned", icon: ClipboardList },
   { label: "Draft", value: "draft", icon: FileText },
   { label: "Archived", value: "archived", icon: Archive },
 ];
@@ -168,6 +170,8 @@ interface AgentsTableProps {
   }>;
   defaultFilters?: FiltersState;
   showTeamFilter?: boolean;
+  /** When false, filter bar is hidden (e.g. in build canvas). Default true. */
+  showFilters?: boolean;
 }
 
 // Helper function to get the correct agent ID for navigation (default: open published version when present)
@@ -212,6 +216,7 @@ export function AgentsTable({
   teams = [],
   defaultFilters = [],
   showTeamFilter = true,
+  showFilters = true,
 }: AgentsTableProps) {
   const router = useRouter();
 
@@ -247,12 +252,14 @@ export function AgentsTable({
   return (
     <TooltipProvider>
       <div className="space-y-4">
-        <DataTableFilter
-          filters={filters}
-          columns={columns}
-          actions={actions}
-          strategy={strategy}
-        />
+        {showFilters && (
+          <DataTableFilter
+            filters={filters}
+            columns={columns}
+            actions={actions}
+            strategy={strategy}
+          />
+        )}
 
         <div className="w-full overflow-hidden">
           <div className="rounded-md border overflow-x-auto max-w-full">
@@ -283,18 +290,28 @@ export function AgentsTable({
                     className="hover:bg-muted/50 transition-colors group"
                   >
                     <TableCell>
-                      <Link
-                        href={`/agents/${getAgentNavigationId(agent)}`}
-                        className="block"
-                      >
+                      {agent.status === "planned" ? (
                         <div className="space-y-1">
-                          <div className="font-medium flex items-center gap-2 hover:underline">
-                            {agent.name}
+                          <div className="font-medium flex items-center gap-2">
+                            <span className="text-foreground">{agent.name}</span>
                           </div>
                           <div className="text-sm text-muted-foreground line-clamp-1 truncate">
                             {agent.description}
                           </div>
-                          {/* Show team and version info on mobile when columns are hidden */}
+                        </div>
+                      ) : (
+                        <Link
+                          href={`/agents/${getAgentNavigationId(agent)}`}
+                          className="block"
+                        >
+                          <div className="space-y-1">
+                            <div className="font-medium flex items-center gap-2 hover:underline">
+                              {agent.name}
+                            </div>
+                            <div className="text-sm text-muted-foreground line-clamp-1 truncate">
+                              {agent.description}
+                            </div>
+                            {/* Show team and version info on mobile when columns are hidden */}
                           <div className="sm:hidden flex flex-wrap gap-2 mt-2 text-xs text-muted-foreground">
                             <span className="flex items-center gap-1 min-w-0">
                               {(() => {
@@ -352,11 +369,14 @@ export function AgentsTable({
                             )}
                           </div>
                         </div>
-                      </Link>
+                        </Link>
+                      )}
                     </TableCell>
 
                     <TableCell className="hidden md:table-cell">
-                      {agent.draft_count > 0 ? (
+                      {agent.status === "planned" ? (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      ) : agent.draft_count > 0 ? (
                         <div className="flex flex-col items-center gap-1">
                           <div className="flex items-center gap-1">
                             <GitBranch className="h-3 w-3 text-yellow-600" />
@@ -402,7 +422,9 @@ export function AgentsTable({
                       )}
                     </TableCell>
                     <TableCell className="hidden md:table-cell">
-                      {agent.published_version_short ? (
+                      {agent.status === "planned" ? (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      ) : agent.published_version_short ? (
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Button
@@ -432,7 +454,9 @@ export function AgentsTable({
                       )}
                     </TableCell>
                     <TableCell className="hidden lg:table-cell text-center">
-                      {agent.version_count && agent.version_count > 0 ? (
+                      {agent.status === "planned" ? (
+                        <span className="text-muted-foreground">—</span>
+                      ) : agent.version_count && agent.version_count > 0 ? (
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Button
@@ -490,17 +514,27 @@ export function AgentsTable({
                     </TableCell>
 
                     <TableCell className="hidden lg:table-cell">
-                      {new Date(agent.updated_at || "").toLocaleDateString()}
+                      {agent.status === "planned" ? (
+                        <span className="text-muted-foreground">—</span>
+                      ) : (
+                        new Date(agent.updated_at || "").toLocaleDateString()
+                      )}
                     </TableCell>
                     <TableCell>
-                      <Link href={`/agents/${getAgentNavigationId(agent)}`}>
-                        <Button variant="outline" size="sm" asChild>
-                          <span>
-                            <Eye className="h-4 w-4 sm:mr-2" />
-                            <span className="hidden sm:inline">View</span>
-                          </span>
-                        </Button>
-                      </Link>
+                      {agent.status === "planned" ? (
+                        <span className="text-xs text-muted-foreground">
+                          Planned
+                        </span>
+                      ) : (
+                        <Link href={`/agents/${getAgentNavigationId(agent)}`}>
+                          <Button variant="outline" size="sm" asChild>
+                            <span>
+                              <Eye className="h-4 w-4 sm:mr-2" />
+                              <span className="hidden sm:inline">View</span>
+                            </span>
+                          </Button>
+                        </Link>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}

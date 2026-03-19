@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { AuthForm, useAuthFormState } from "@workspace/ui/components";
 import { executeWorkflow } from "@/app/actions/workflow";
+import { posthog } from "@/lib/posthog";
 
 export function LoginForm({
   className,
@@ -35,6 +36,12 @@ export function LoginForm({
         workflowResult.data &&
         workflowResult.data.user
       ) {
+        const user = workflowResult.data.user as { id: string; email?: string; name?: string };
+        // Identify user in PostHog for analytics
+        posthog.identify(user.id, {
+          email: user.email,
+          name: user.name,
+        });
         // Store user info in localStorage
         localStorage.setItem(
           "currentUser",

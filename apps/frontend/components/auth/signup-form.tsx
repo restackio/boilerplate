@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AuthForm, useAuthFormState } from "@workspace/ui/components";
 import { executeWorkflow } from "@/app/actions/workflow";
+import { posthog } from "@/lib/posthog";
 
 const TERMS_URL = "https://www.restack.io/terms";
 const PRIVACY_URL = "https://www.restack.io/privacy";
@@ -53,6 +54,12 @@ export function SignupForm({
         workflowResult.data &&
         workflowResult.data.user
       ) {
+        const user = workflowResult.data.user as { id: string; email?: string; name?: string };
+        // Identify user in PostHog for analytics
+        posthog.identify(user.id, {
+          email: user.email,
+          name: user.name,
+        });
         // Store user info in localStorage
         localStorage.setItem(
           "currentUser",

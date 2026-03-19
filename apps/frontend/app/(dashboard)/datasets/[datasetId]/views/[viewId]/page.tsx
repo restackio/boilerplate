@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, LayoutGrid } from "lucide-react";
+import { ArrowLeft, LayoutGrid, Loader2 } from "lucide-react";
 import { Button } from "@workspace/ui/components/ui/button";
 import { PageHeader } from "@workspace/ui/components/page-header";
 import {
@@ -26,6 +26,13 @@ interface ViewSpec {
   activity_filter?: Record<string, unknown>;
 }
 
+interface DatasetEvent {
+  id: string;
+  raw_data?: Record<string, unknown>;
+  transformed_data?: Record<string, unknown> | null;
+  [key: string]: unknown;
+}
+
 export default function ViewDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -36,27 +43,24 @@ export default function ViewDetailPage() {
   const [view, setView] = useState<ViewSpec | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [events, setEvents] = useState<DatasetEvent[]>([]);
+  const [eventsLoading, setEventsLoading] = useState(false);
 
   const fetchView = useCallback(async () => {
     if (!currentWorkspaceId || !isReady || !datasetId || !viewId) return;
     setLoading(true);
     setError(null);
     try {
-      const result = await executeWorkflow("GetViewWorkflow", {
+      const result = await executeWorkflow<ViewSpec>("GetViewWorkflow", {
         workspace_id: currentWorkspaceId,
         dataset_id: datasetId,
         view_id: viewId,
       });
-      const data = result.data as {
-        success?: boolean;
-        view?: ViewSpec;
-        error?: string;
-      };
-      if (result.success && data?.success && data?.view) {
-        setView(data.view);
+      if (result.success && result.data) {
+        setView(result.data);
       } else {
         setView(null);
-        setError(data?.error ?? "View not found");
+        setError(result.error ?? "View not found");
       }
     } catch (err) {
       setView(null);
@@ -66,9 +70,56 @@ export default function ViewDetailPage() {
     }
   }, [currentWorkspaceId, isReady, datasetId, viewId, executeWorkflow]);
 
+  const fetchEvents = useCallback(async () => {
+    if (!currentWorkspaceId || !isReady || !datasetId) return;
+    setEventsLoading(true);
+    try {
+      const result = await executeWorkflow("QueryDatasetEventsWorkflow", {
+        workspace_id: currentWorkspaceId,
+        dataset_id: datasetId,
+        limit: 500,
+        offset: 0,
+      });
+      const payload = result.data as {
+        success?: boolean;
+        events?: DatasetEvent[];
+      };
+      if (result.success && payload?.events && Array.isArray(payload.events)) {
+        setEvents(payload.events);
+      } else {
+        setEvents([]);
+      }
+    } catch {
+      setEvents([]);
+    } finally {
+      setEventsLoading(false);
+    }
+  }, [currentWorkspaceId, isReady, datasetId, executeWorkflow]);
+
   useEffect(() => {
     fetchView();
   }, [fetchView]);
+
+  useEffect(() => {
+    if (view) fetchEvents();
+  }, [view, fetchEvents]);
+
+  const columns = useMemo(
+    () => (Array.isArray(view?.columns) ? view.columns : []),
+    [view?.columns],
+  );
+  const dataRows = useMemo(() => {
+    if (columns.length === 0) return [];
+    return events.map((event) => {
+      const data = event.raw_data ?? event.transformed_data ?? {};
+      const row: Record<string, unknown> = { _id: event.id };
+      for (const col of columns) {
+        const val = data[col.key];
+        row[col.key] = val == null ? "" : String(val);
+      }
+      return row;
+    });
+  }, [events, columns]);
 
   if (!isReady) {
     return (
@@ -114,8 +165,6 @@ export default function ViewDetailPage() {
     );
   }
 
-  const columns = Array.isArray(view.columns) ? view.columns : [];
-
   return (
     <div className="flex-1">
       <PageHeader
@@ -147,38 +196,57 @@ export default function ViewDetailPage() {
         </div>
 
         <div>
-          <h3 className="text-sm font-medium mb-2">Columns</h3>
-          <div className="border rounded-lg">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[200px]">Key</TableHead>
-                  <TableHead>Label</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {columns.length === 0 ? (
+          <h3 className="text-sm font-medium mb-2">Data</h3>
+          <div className="border rounded-lg overflow-x-auto">
+            {eventsLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell
-                      colSpan={2}
-                      className="text-center text-muted-foreground py-8"
-                    >
-                      No columns defined
-                    </TableCell>
+                    {columns.map((col) => (
+                      <TableHead key={col.key}>{col.label}</TableHead>
+                    ))}
                   </TableRow>
-                ) : (
-                  columns.map((col, i) => (
-                    <TableRow key={col.key ?? i}>
-                      <TableCell className="font-mono text-sm">
-                        {col.key}
+                </TableHeader>
+                <TableBody>
+                  {dataRows.length === 0 ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={columns.length || 1}
+                        className="text-center text-muted-foreground py-8"
+                      >
+                        {columns.length === 0
+                          ? "No columns defined for this view."
+                          : "No data yet. Data will appear here as events are added to the dataset."}
                       </TableCell>
-                      <TableCell>{col.label ?? col.key}</TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                  ) : (
+                    dataRows.map((row, i) => (
+                      <TableRow key={(row._id as string) ?? i}>
+                        {columns.map((col) => (
+                          <TableCell
+                            key={col.key}
+                            className="max-w-[300px] truncate"
+                            title={String(row[col.key] ?? "")}
+                          >
+                            {String(row[col.key] ?? "")}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            )}
           </div>
+          {dataRows.length > 0 && (
+            <p className="text-xs text-muted-foreground mt-2">
+              Showing {dataRows.length} row{dataRows.length !== 1 ? "s" : ""}.
+            </p>
+          )}
         </div>
 
         <div className="flex gap-2">
