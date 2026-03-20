@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AgentsTable } from "./components/agents-table";
 import { BuildTasksBlock } from "./components/build-tasks-block";
 import { PageHeader } from "@workspace/ui/components/page-header";
@@ -12,13 +12,24 @@ import { getLucideIcon } from "@workspace/ui/lib/get-lucide-icon";
 import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
 import { CreateAgentDialog } from "./components/create-agent-dialog";
 import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
+import { isInProgressBuildTask } from "@/lib/build-task-utils";
 
 export default function TechnicalSupportAgentsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { currentWorkspaceId, isReady } = useDatabaseWorkspace();
-  const { agents, agentsLoading, fetchAgents, tasks, fetchTasks, teams, fetchTeams } =
-    useWorkspaceScopedActions();
+  const {
+    agents,
+    agentsLoading,
+    fetchAgents,
+    tasks,
+    fetchTasks,
+    teams,
+    fetchTeams,
+    getBuildAgent,
+  } = useWorkspaceScopedActions();
+
+  const [buildAgentId, setBuildAgentId] = useState<string | null>(null);
 
   useEffect(() => {
     if (isReady && currentWorkspaceId) {
@@ -27,6 +38,19 @@ export default function TechnicalSupportAgentsPage() {
       fetchTeams();
     }
   }, [isReady, currentWorkspaceId, fetchAgents, fetchTasks, fetchTeams]);
+
+  useEffect(() => {
+    if (!isReady) return;
+    let cancelled = false;
+    void getBuildAgent().then((r) => {
+      if (cancelled || !r.success || !r.data) return;
+      const id = (r.data as { id?: string }).id;
+      if (id) setBuildAgentId(id);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isReady, getBuildAgent]);
 
   const handleAgentClick = (agentId: string) => {
     // Optimized navigation - uses Next.js router for instant navigation
@@ -39,8 +63,8 @@ export default function TechnicalSupportAgentsPage() {
   };
 
   const buildTasks = useMemo(
-    () => tasks.filter((t) => t.title === "Build" && t.status === "in_progress"),
-    [tasks]
+    () => tasks.filter((t) => isInProgressBuildTask(t, buildAgentId)),
+    [tasks, buildAgentId],
   );
 
   // Create team options for filtering

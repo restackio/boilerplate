@@ -182,6 +182,21 @@ async function executeWorkflow<T>(
     }
     // Handle the response structure
     if (result && typeof result === "object") {
+      // TasksGetBuildSummaryWorkflow returns { agents, datasets, tasks, view_specs } — must stay intact (do not unwrap to agents-only).
+      if (
+        !Array.isArray(result) &&
+        "agents" in result &&
+        Array.isArray((result as { agents: unknown }).agents) &&
+        "datasets" in result &&
+        "tasks" in result &&
+        "view_specs" in result
+      ) {
+        return {
+          success: true,
+          data: result as T,
+        };
+      }
+
       // For list responses (e.g., AgentsReadWorkflow returns { agents: [...] })
       if ("agents" in result && Array.isArray(result.agents)) {
         return {
@@ -872,9 +887,17 @@ export function useWorkspaceScopedActions() {
           build_task_id: buildTaskId,
           workspace_id: currentWorkspaceId,
         });
+        const raw = result.data;
         const payload =
-          result.success && result.data && typeof result.data === "object" && "agents" in result.data
-            ? (result.data as {
+          result.success &&
+          raw &&
+          typeof raw === "object" &&
+          !Array.isArray(raw) &&
+          "agents" in raw &&
+          "datasets" in raw &&
+          "tasks" in raw &&
+          "view_specs" in raw
+            ? (raw as {
                 agents: { id: string; name: string; description?: string; workspace_id: string; type?: string }[];
                 datasets: { id: string; name: string; description?: string; workspace_id: string }[];
                 tasks: Task[];

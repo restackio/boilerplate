@@ -180,6 +180,37 @@ function toDatasetRow(d: BuildSummaryDataset): Dataset {
   };
 }
 
+/** True when the row exists in the build summary API or the pattern node has a real link (materialized). */
+function isMaterializedAgent(
+  id: string,
+  buildSummary: BuildSummary | null | undefined,
+  fromPattern: ReturnType<typeof deriveCreatedFromPatternSpecs>,
+): boolean {
+  if (buildSummary?.agents.some((x) => x.id === id)) return true;
+  const p = fromPattern.agents.find((x) => x.id === id);
+  return Boolean(p?.href && p.href.startsWith("/"));
+}
+
+function isMaterializedDataset(
+  id: string,
+  buildSummary: BuildSummary | null | undefined,
+  fromPattern: ReturnType<typeof deriveCreatedFromPatternSpecs>,
+): boolean {
+  if (buildSummary?.datasets.some((x) => x.id === id)) return true;
+  const p = fromPattern.datasets.find((x) => x.id === id);
+  return Boolean(p?.href && p.href.startsWith("/"));
+}
+
+function isMaterializedView(
+  id: string,
+  buildSummary: BuildSummary | null | undefined,
+  fromPattern: ReturnType<typeof deriveCreatedFromPatternSpecs>,
+): boolean {
+  if (buildSummary?.view_specs?.some((x) => x.id === id)) return true;
+  const p = fromPattern.views.find((x) => x.id === id);
+  return Boolean(p?.href && p.href.startsWith("/"));
+}
+
 export interface BuildCanvasProps {
   task: Task;
   buildSummary: BuildSummary | null | undefined;
@@ -260,23 +291,35 @@ export function BuildCanvas({
     [scheduleTasks],
   );
 
-  const isPlannedData = buildSummary == null;
   const agentRows = useMemo(
-    () => agents.map((a) => toAgentRow(a, isPlannedData)),
-    [agents, isPlannedData],
+    () =>
+      agents.map((a) =>
+        toAgentRow(a, !isMaterializedAgent(a.id, buildSummary, fromPattern)),
+      ),
+    [agents, buildSummary, fromPattern],
   );
   const datasetRows = useMemo(
     () => datasets.map(toDatasetRow),
     [datasets],
   );
-  const plannedDatasetIds = useMemo(
-    () => (isPlannedData ? new Set(datasets.map((d) => d.id)) : new Set<string>()),
-    [isPlannedData, datasets],
-  );
-  const plannedViewIds = useMemo(
-    () => (isPlannedData ? new Set(viewSpecs.map((v) => v.id)) : new Set<string>()),
-    [isPlannedData, viewSpecs],
-  );
+  const plannedDatasetIds = useMemo(() => {
+    const s = new Set<string>();
+    for (const d of datasets) {
+      if (!isMaterializedDataset(d.id, buildSummary, fromPattern)) {
+        s.add(d.id);
+      }
+    }
+    return s;
+  }, [datasets, buildSummary, fromPattern]);
+  const plannedViewIds = useMemo(() => {
+    const s = new Set<string>();
+    for (const v of viewSpecs) {
+      if (!isMaterializedView(v.id, buildSummary, fromPattern)) {
+        s.add(v.id);
+      }
+    }
+    return s;
+  }, [viewSpecs, buildSummary, fromPattern]);
   const viewRows: ViewSpecRow[] = useMemo(
     () =>
       viewSpecs.map((v) => ({
@@ -291,7 +334,14 @@ export function BuildCanvas({
   return (
     <div className="flex flex-col h-full min-h-0 bg-muted overflow-hidden">
       <div className="flex items-center justify-between px-3 py-2 border-b border-border/40 shrink-0">
-        <h2 className="text-sm font-medium text-foreground">Build</h2>
+        <div className="flex items-center gap-2 min-w-0">
+          <h2 className="text-sm font-medium text-foreground">Build</h2>
+          {buildSummaryLoading && (
+            <span className="text-xs text-muted-foreground truncate">
+              Syncing…
+            </span>
+          )}
+        </div>
         {onRefresh && (
           <Button
             variant="ghost"

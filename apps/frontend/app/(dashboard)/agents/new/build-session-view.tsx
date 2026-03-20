@@ -151,6 +151,7 @@ function BuildPageContent({
       taskStatus={task.status}
       initialState={task.agent_state}
       onResponseComplete={onRefetch}
+      onAgentStateUpdated={onRefetch}
     >
       <BuildChatInner
         task={task}
@@ -181,6 +182,8 @@ export interface BuildSessionViewProps {
   buildSummaryError?: string | null;
   /** Refetch build summary (e.g. after task refetch). */
   onRefreshBuildSummary?: () => void | Promise<void>;
+  /** Increment (e.g. on a timer) to refresh task files list in the Data section. */
+  filesPollTick?: number;
 }
 
 export function BuildSessionView({
@@ -194,6 +197,7 @@ export function BuildSessionView({
   buildSummaryLoading = false,
   buildSummaryError = null,
   onRefreshBuildSummary,
+  filesPollTick = 0,
 }: BuildSessionViewProps) {
   const [showDeployDialog, setShowDeployDialog] = useState(false);
   const [filesRefreshTrigger, setFilesRefreshTrigger] = useState(0);
@@ -244,7 +248,7 @@ export function BuildSessionView({
             buildSummaryLoading={buildSummaryLoading}
             buildSummaryError={buildSummaryError}
             onRefresh={onRefreshBuildSummary}
-            filesRefreshTrigger={filesRefreshTrigger}
+            filesRefreshTrigger={filesRefreshTrigger + filesPollTick}
             responseState={task.agent_state}
             onBuildClick={() => buildClickRef.current?.()}
           />

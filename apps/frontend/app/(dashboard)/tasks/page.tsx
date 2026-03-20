@@ -13,6 +13,7 @@ import { TaskStatsCard } from "./components/task-stats-card";
 import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 import TasksTabs from "./tasks-tabs";
 import { getTasksByMetric, getTasksByFeedback } from "@/app/actions/tasks-filter";
+import { isMainTasksTabTask } from "@/lib/build-task-utils";
 
 export default function TasksPage() {
   const router = useRouter();
@@ -156,7 +157,7 @@ export default function TasksPage() {
         const taskIds = tasksParam.split(',').filter(id => id.trim());
         list = transformedTasks.filter(task => taskIds.includes(task.id));
       } else {
-        list = transformedTasks.filter(task => !task.schedule_spec);
+        list = transformedTasks.filter((task) => isMainTasksTabTask(task));
       }
     }
     // Build tasks are shown in the main tasks list for all workspaces

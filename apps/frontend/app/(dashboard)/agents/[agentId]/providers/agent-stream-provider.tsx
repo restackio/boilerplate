@@ -26,6 +26,8 @@ interface AgentStreamProviderProps {
   taskStatus?: string;
   initialState?: unknown;
   onResponseComplete?: () => void;
+  /** Debounced (~1.2s) callback on any agent state message—use to refresh DB-backed UI while a turn is still streaming. */
+  onAgentStateUpdated?: () => void;
   children: React.ReactNode;
 }
 
@@ -34,6 +36,7 @@ interface AgentStreamActiveProviderProps {
   runId?: string;
   initialState?: unknown;
   onResponseComplete?: () => void;
+  onAgentStateUpdated?: () => void;
   children: React.ReactNode;
 }
 
@@ -56,11 +59,14 @@ function AgentStreamMockProvider({ children }: { children: React.ReactNode }) {
 // Real provider with active subscriptions
 // NOTE: This component should ONLY be mounted when we want active subscriptions
 // The parent AgentStreamProvider handles the routing logic
+const AGENT_STATE_REFETCH_DEBOUNCE_MS = 1200;
+
 function AgentStreamActiveProvider({ 
   agentTaskId, 
   runId,
   initialState,
   onResponseComplete,
+  onAgentStateUpdated,
   children 
 }: AgentStreamActiveProviderProps) {
   // Initialize with persisted state from database if available
@@ -70,11 +76,21 @@ function AgentStreamActiveProvider({
   const lastCompletedCountRef = useRef(0);
   /** First subscription payload: without DB baseline, treat as sync (avoid N refreshes for history). */
   const isFirstStateMessageRef = useRef(true);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useLayoutEffect(() => {
     const n = countResponseCompletedEvents(initialState);
     lastCompletedCountRef.current = Math.max(lastCompletedCountRef.current, n);
   }, [initialState]);
+
+  useLayoutEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
+    };
+  }, []);
 
   const rawApiAddress = process.env.NEXT_PUBLIC_RESTACK_ENGINE_API_ADDRESS || "http://localhost:9233";
 
@@ -126,7 +142,17 @@ function AgentStreamActiveProvider({
         }
       }
     }
-  }, [onResponseComplete]);
+
+    if (onAgentStateUpdated) {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+      debounceTimerRef.current = setTimeout(() => {
+        debounceTimerRef.current = null;
+        onAgentStateUpdated();
+      }, AGENT_STATE_REFETCH_DEBOUNCE_MS);
+    }
+  }, [onResponseComplete, onAgentStateUpdated]);
 
   const handleStateError = useCallback((error: Error) => {
     console.error("State subscription error:", error?.message || 'Unknown error');
@@ -188,6 +214,7 @@ export function AgentStreamProvider({
   taskStatus,
   initialState,
   onResponseComplete,
+  onAgentStateUpdated,
   children 
 }: AgentStreamProviderProps) {
   // Check conditions - use mock provider if ANY condition fails
@@ -209,6 +236,7 @@ export function AgentStreamProvider({
       runId={runId}
       initialState={initialState}
       onResponseComplete={onResponseComplete}
+      onAgentStateUpdated={onAgentStateUpdated}
       key={agentTaskId} // Key ensures we don't reuse provider when agentTaskId changes
     >
       {children}

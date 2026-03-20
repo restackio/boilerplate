@@ -107,6 +107,19 @@ export default function NewAgentTaskPage() {
     await loadBuildSummary();
   }, [loadBuildSummary]);
 
+  const [filesPollTick, setFilesPollTick] = useState(0);
+
+  useEffect(() => {
+    if (task?.status !== "in_progress") return;
+    const intervalMs = 5000;
+    const id = window.setInterval(() => {
+      void handleTaskRefetch();
+      void loadBuildSummary();
+      setFilesPollTick((n) => n + 1);
+    }, intervalMs);
+    return () => window.clearInterval(id);
+  }, [task?.status, handleTaskRefetch, loadBuildSummary]);
+
   const handleDeleteTask = useCallback(async () => {
     if (!task?.id || !deleteTask) return;
     setIsDeleting(true);
@@ -170,6 +183,7 @@ export default function NewAgentTaskPage() {
         buildSummaryLoading={buildSummaryLoading}
         buildSummaryError={buildSummaryError}
         onRefreshBuildSummary={handleRefreshBuildSummary}
+        filesPollTick={filesPollTick}
       />
       <ConfirmationDialog
         isOpen={showDeleteDialog}

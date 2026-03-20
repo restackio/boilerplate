@@ -2,7 +2,7 @@ import uuid
 
 from pydantic import BaseModel, Field, field_validator
 from restack_ai.function import NonRetryableError, function, log
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import selectinload
 
 from src.database.connection import get_async_db
@@ -861,21 +861,22 @@ async def tasks_get_build_summary(
             )
             datasets = datasets_result.scalars().all()
 
-            # 4. Tasks that use any of these agents (limit to avoid huge payloads)
-            tasks_list: list[Task] = []
+            # 4. Tasks that use build agents OR are subtasks of this build task (limit payload)
+            task_conditions = [Task.parent_task_id == build_task_id]
             if agent_ids:
-                tasks_result = await db.execute(
-                    select(Task)
-                    .options(
-                        selectinload(Task.agent),
-                        selectinload(Task.assigned_to_user),
-                        selectinload(Task.team),
-                    )
-                    .where(Task.agent_id.in_(agent_ids))
-                    .order_by(Task.updated_at.desc())
-                    .limit(BUILD_SUMMARY_TASKS_LIMIT)
+                task_conditions.append(Task.agent_id.in_(agent_ids))
+            tasks_result = await db.execute(
+                select(Task)
+                .options(
+                    selectinload(Task.agent),
+                    selectinload(Task.assigned_to_user),
+                    selectinload(Task.team),
                 )
-                tasks_list = list(tasks_result.scalars().all())
+                .where(or_(*task_conditions))
+                .order_by(Task.updated_at.desc())
+                .limit(BUILD_SUMMARY_TASKS_LIMIT)
+            )
+            tasks_list = list(tasks_result.scalars().all())
 
             # 5. View specs from build task
             view_specs = (

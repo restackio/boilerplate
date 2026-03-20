@@ -9,6 +9,7 @@ import { CenteredLoading } from "@workspace/ui/components/loading-states";
 import { NotificationBanner } from "@workspace/ui/components/notification-banner";
 import { QuickActionDialog, useQuickActionDialog } from "@workspace/ui/components/quick-action-dialog";
 import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
+import { hasMeaningfulScheduleSpec } from "@/lib/build-task-utils";
 import { executeWorkflow } from "@/app/actions/workflow";
 import { CreateTaskForm } from "../components/create-task-form";
 import TasksTabs from "../tasks-tabs";
@@ -48,9 +49,9 @@ export default function SchedulesPage() {
     }
   }, [isReady, fetchTasks, fetchTeams, fetchAgents]);
 
-  // Get all tasks with schedule_spec (both schedule definitions and scheduled tasks)
+  // Tasks whose schedule_spec is non-empty (definitions and scheduled runs)
   const schedules: ScheduleOverview[] = allTasks
-    .filter(task => task.schedule_spec) // All tasks with schedule_spec
+    .filter((task) => hasMeaningfulScheduleSpec(task.schedule_spec))
     .map(task => {
       // For schedule definition tasks, count how many tasks were created from them
       // For scheduled tasks created from a schedule, show 0 (they don't create other tasks)
