@@ -3,6 +3,7 @@ import uuid
 from pydantic import BaseModel, Field, field_validator
 from restack_ai.function import NonRetryableError, function, log
 from sqlalchemy import func, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from src.database.connection import get_async_db
@@ -783,7 +784,7 @@ TASK_FILES_DATASET_NAME = "task-files"
 
 
 async def _build_build_summary_output(
-    db,
+    db: AsyncSession,
     build_task: Task,
     build_task_id: uuid.UUID,
 ) -> BuildSummaryOutput:

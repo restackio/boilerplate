@@ -389,6 +389,7 @@ function PatternFlowViewerInner({
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- specLayoutKey encodes specNodes + specEdges (stable graph content)
   }, [specLayoutKey, setNodes, setEdges]);
 
   useLayoutEffect(() => {
