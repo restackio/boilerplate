@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 from pydantic import BaseModel, Field
 from restack_ai.function import NonRetryableError, function, log
 from sqlalchemy import and_, func, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from src.database.connection import get_async_db
@@ -11,6 +12,7 @@ from src.database.models import (
     Agent,
     AgentSubagent,
     AgentTool,
+    Task,
     Team,
     Workspace,
 )
@@ -61,6 +63,10 @@ class AgentCreateInput(BaseModel):
     team_id: str | None = Field(
         default=None,
         description="If provided, create the agent in the specified team",
+    )
+    build_task_id: str | None = Field(
+        default=None,
+        description="If provided (and valid), link this agent to the build task that created it.",
     )
     # Note: MCP relationships are now created through the agent tools workflow
     # which requires specific tool names, not through agent creation
@@ -706,6 +712,29 @@ async def agents_get_build_agent(
 # Version-related utility functions removed - no longer needed with simplified versioning
 
 
+async def _resolve_build_task_id(
+    db: AsyncSession,
+    build_task_id_str: str | None,
+    workspace_uuid: uuid.UUID,
+) -> uuid.UUID | None:
+    """Validate build_task_id: task must exist and belong to same workspace. Returns UUID or None."""
+    if not build_task_id_str:
+        return None
+    try:
+        build_task_uuid = uuid.UUID(build_task_id_str)
+        task_result = await db.execute(
+            select(Task).where(
+                and_(
+                    Task.id == build_task_uuid,
+                    Task.workspace_id == workspace_uuid,
+                )
+            ).limit(1)
+        )
+        return build_task_uuid if task_result.scalar_one_or_none() is not None else None
+    except ValueError:
+        return None
+
+
 @function.defn()
 async def agents_create(
     agent_data: AgentCreateInput,
@@ -725,8 +754,8 @@ async def agents_create(
                         message="Invalid parent_agent_id format"
                     ) from e
 
-            # Resolve team_id when provided: must reference a team in this workspace (avoid FK violation)
             workspace_uuid = uuid.UUID(agent_data.workspace_id)
+            # Resolve team_id when provided: must reference a team in this workspace (avoid FK violation)
             effective_team_id = None
             if agent_data.team_id:
                 try:
@@ -750,6 +779,10 @@ async def agents_create(
                 except ValueError:
                     pass
 
+            effective_build_task_id = await _resolve_build_task_id(
+                db, agent_data.build_task_id, workspace_uuid
+            )
+
             agent = Agent(
                 id=uuid.uuid4(),
                 workspace_id=workspace_uuid,
@@ -764,6 +797,7 @@ async def agents_create(
                 model=agent_data.model,
                 reasoning_effort=agent_data.reasoning_effort,
                 team_id=effective_team_id,
+                build_task_id=effective_build_task_id,
             )
             db.add(agent)
             await db.commit()

@@ -1,10 +1,10 @@
 "use client";
 
-import { CheckCircle, FileText, Archive } from "lucide-react";
+import { CheckCircle, FileText, Archive, ClipboardList } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { cn } from "@workspace/ui/lib/utils";
 
-export type AgentStatus = "published" | "draft" | "archived";
+export type AgentStatus = "published" | "draft" | "archived" | "planned";
 
 interface AgentStatusBadgeProps {
   status: AgentStatus;
@@ -21,6 +21,13 @@ const getStatusConfig = (status: AgentStatus) => {
         icon: CheckCircle,
         color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
         variant: "default" as const,
+      };
+    case "planned":
+      return {
+        label: "Planned",
+        icon: ClipboardList,
+        color: "bg-muted text-muted-foreground",
+        variant: "secondary" as const,
       };
     case "draft":
       return {

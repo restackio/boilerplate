@@ -4,14 +4,16 @@ import { useEffect, useState, useCallback } from "react";
 import {
   ChevronDown,
   ChevronRight,
-  FileText,
   Loader2,
   RefreshCw,
 } from "lucide-react";
 import { Button } from "@workspace/ui/components/ui/button";
 import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
-import type { DatasetFileSummary } from "@/app/(dashboard)/datasets/components/dataset-files-table";
+import {
+  DatasetFilesTable,
+  type DatasetFileSummary,
+} from "@/app/(dashboard)/datasets/components/dataset-files-table";
 import { getDatasets } from "@/app/actions/workflow";
 
 const TASK_FILES_DATASET_NAME = "task-files";
@@ -20,15 +22,26 @@ interface TaskFilesListProps {
   taskId: string;
   /** When this value changes, the list refetches (e.g. after adding files). */
   refreshTrigger?: number;
+  /** When provided, skip workspace dataset list + use these rows (e.g. TasksGetBuildSessionWorkflow). */
+  taskFilesSnapshot?: DatasetFileSummary[];
+  /** Refresh handler when using snapshot (typically reloads build session). */
+  onTaskFilesRefresh?: () => void | Promise<void>;
 }
 
-export function TaskFilesList({ taskId, refreshTrigger }: TaskFilesListProps) {
+export function TaskFilesList({
+  taskId,
+  refreshTrigger,
+  taskFilesSnapshot,
+  onTaskFilesRefresh,
+}: TaskFilesListProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const { currentWorkspaceId, isReady } = useDatabaseWorkspace();
   const { executeWorkflow } = useWorkspaceScopedActions();
   const [files, setFiles] = useState<DatasetFileSummary[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const useSnapshot = taskFilesSnapshot !== undefined;
 
   const fetchFiles = useCallback(async () => {
     if (!currentWorkspaceId || !isReady) return;
@@ -73,21 +86,29 @@ export function TaskFilesList({ taskId, refreshTrigger }: TaskFilesListProps) {
   }, [currentWorkspaceId, isReady, taskId, executeWorkflow]);
 
   useEffect(() => {
+    if (useSnapshot) return;
     fetchFiles();
-  }, [fetchFiles, refreshTrigger]);
+  }, [fetchFiles, refreshTrigger, useSnapshot]);
+
+  const displayFiles = useSnapshot ? (taskFilesSnapshot ?? []) : files;
+  const displayLoading = useSnapshot ? false : loading && files.length === 0;
 
   const handleRefresh = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (refreshing) return;
     setRefreshing(true);
     try {
-      await fetchFiles();
+      if (useSnapshot && onTaskFilesRefresh) {
+        await onTaskFilesRefresh();
+      } else {
+        await fetchFiles();
+      }
     } finally {
       setRefreshing(false);
     }
   };
 
-  if (loading && files.length === 0) {
+  if (displayLoading && displayFiles.length === 0) {
     return (
       <div className="max-w-4xl mx-auto border border-border/40 bg-muted/90 p-2 rounded-lg flex items-center gap-2">
         <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
@@ -96,7 +117,7 @@ export function TaskFilesList({ taskId, refreshTrigger }: TaskFilesListProps) {
     );
   }
 
-  const totalCount = files.length;
+  const totalCount = displayFiles.length;
   if (totalCount === 0) return null;
 
   return (
@@ -131,24 +152,8 @@ export function TaskFilesList({ taskId, refreshTrigger }: TaskFilesListProps) {
       </div>
 
       {isExpanded && (
-        <div className="space-y-1 pl-1">
-          {files.map((file) => (
-            <div
-              key={file.source}
-              className="flex items-center gap-2 text-sm hover:bg-background/50 rounded px-1 py-0.5"
-            >
-              <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
-              <span
-                className="truncate flex-1 min-w-0 text-foreground"
-                title={file.source}
-              >
-                {file.source}
-              </span>
-              <span className="text-xs text-muted-foreground shrink-0">
-                {file.chunk_count} chunk{file.chunk_count !== 1 ? "s" : ""}
-              </span>
-            </div>
-          ))}
+        <div className="mt-2">
+          <DatasetFilesTable files={displayFiles} loading={refreshing} />
         </div>
       )}
     </div>

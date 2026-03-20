@@ -235,6 +235,11 @@ class Agent(Base):
         String(20), nullable=False, default="medium"
     )
     is_public = Column(Boolean, nullable=False, default=False)
+    build_task_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("tasks.id", ondelete="SET NULL"),
+        nullable=True,
+    )  # Build task that created this agent; null for manually created
 
     created_at = Column(
         DateTime,
@@ -274,9 +279,15 @@ class Agent(Base):
     # Relationships
     workspace = relationship("Workspace")
     team = relationship("Team", back_populates="agents")
+    build_task = relationship(
+        "Task",
+        foreign_keys=[build_task_id],
+        backref="agents_created_by_build",
+    )
     tasks = relationship(
         "Task",
         back_populates="agent",
+        foreign_keys="Task.agent_id",
         cascade="all, delete-orphan",
     )
     parent_agent = relationship(
@@ -553,7 +564,11 @@ class Task(Base):
     # Relationships
     workspace = relationship("Workspace")
     team = relationship("Team", back_populates="tasks")
-    agent = relationship("Agent", back_populates="tasks")
+    agent = relationship(
+        "Agent",
+        back_populates="tasks",
+        foreign_keys=[agent_id],
+    )
     assigned_to_user = relationship(
         "User", foreign_keys=[assigned_to_id]
     )
@@ -646,6 +661,11 @@ class Dataset(Base):
         ForeignKey("workspaces.id", ondelete="CASCADE"),
         nullable=False,
     )
+    build_task_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("tasks.id", ondelete="SET NULL"),
+        nullable=True,
+    )  # Build task that created this dataset; null for manually created
     name = Column(String(255), nullable=False)
     description = Column(Text)
 
@@ -686,6 +706,11 @@ class Dataset(Base):
 
     # Relationships
     workspace = relationship("Workspace")
+    build_task = relationship(
+        "Task",
+        foreign_keys=[build_task_id],
+        backref="datasets_created_by_build",
+    )
 
 
 class MetricDefinition(Base):

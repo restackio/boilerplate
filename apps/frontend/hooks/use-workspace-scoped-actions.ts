@@ -45,6 +45,7 @@ export interface Agent {
 
 export interface Task {
   id: string;
+  workspace_id?: string;
   title: string;
   description?: string;
   status: "in_progress" | "in_review" | "closed" | "completed" | "failed";
@@ -181,6 +182,21 @@ async function executeWorkflow<T>(
     }
     // Handle the response structure
     if (result && typeof result === "object") {
+      // TasksGetBuildSummaryWorkflow returns { agents, datasets, tasks, view_specs } — must stay intact (do not unwrap to agents-only).
+      if (
+        !Array.isArray(result) &&
+        "agents" in result &&
+        Array.isArray((result as { agents: unknown }).agents) &&
+        "datasets" in result &&
+        "tasks" in result &&
+        "view_specs" in result
+      ) {
+        return {
+          success: true,
+          data: result as T,
+        };
+      }
+
       // For list responses (e.g., AgentsReadWorkflow returns { agents: [...] })
       if ("agents" in result && Array.isArray(result.agents)) {
         return {
@@ -243,6 +259,23 @@ async function executeWorkflow<T>(
         };
       }
 
+      // TasksGetBuildSessionWorkflow returns { task, summary, task_files } — keep whole object (do not unwrap to task only).
+      if (
+        "task" in result &&
+        result.task &&
+        "summary" in result &&
+        typeof (result as { summary?: unknown }).summary === "object" &&
+        (result as { summary?: unknown }).summary !== null &&
+        !Array.isArray((result as { summary?: unknown }).summary) &&
+        "task_files" in result &&
+        Array.isArray((result as { task_files?: unknown }).task_files)
+      ) {
+        return {
+          success: true,
+          data: result as T,
+        };
+      }
+
       // For task single responses
       if ("task" in result && result.task) {
         return {
@@ -272,6 +305,23 @@ async function executeWorkflow<T>(
         return {
           success: true,
           data: result.dataset as T,
+        };
+      }
+
+      // For view single responses (GetViewWorkflow returns { success, view, error })
+      if ("view" in result && result.view) {
+        return {
+          success: true,
+          data: result.view as T,
+        };
+      }
+
+      // For views list responses (ListViewsForDatasetWorkflow returns { success, views, error })
+      if ("views" in result && Array.isArray(result.views)) {
+        return {
+          success: true,
+          data: result.views as T,
+          count: result.views.length,
         };
       }
 
@@ -839,6 +889,98 @@ export function useWorkspaceScopedActions() {
     [currentWorkspaceId, isReady, fetchTasks],
   );
 
+  const getBuildSummary = useCallback(
+    async (buildTaskId: string) => {
+      if (!isReady || !currentWorkspaceId) {
+        return { success: false, error: "No valid workspace context", data: null };
+      }
+      try {
+        const result = await executeWorkflow<{
+          agents?: { id: string; name: string; description?: string; workspace_id: string; type?: string }[];
+          datasets?: { id: string; name: string; description?: string; workspace_id: string }[];
+          tasks?: Task[];
+          view_specs?: { id: string; name: string; columns: { key: string; label: string }[]; dataset_id: string }[];
+        }>("TasksGetBuildSummaryWorkflow", {
+          build_task_id: buildTaskId,
+          workspace_id: currentWorkspaceId,
+        });
+        const raw = result.data;
+        const payload =
+          result.success &&
+          raw &&
+          typeof raw === "object" &&
+          !Array.isArray(raw) &&
+          "agents" in raw &&
+          "datasets" in raw &&
+          "tasks" in raw &&
+          "view_specs" in raw
+            ? (raw as {
+                agents: { id: string; name: string; description?: string; workspace_id: string; type?: string }[];
+                datasets: { id: string; name: string; description?: string; workspace_id: string }[];
+                tasks: Task[];
+                view_specs: { id: string; name: string; columns: { key: string; label: string }[]; dataset_id: string }[];
+              })
+            : null;
+        return result.success
+          ? { ...result, data: payload }
+          : result;
+      } catch (error) {
+        console.error("[useWorkspaceScopedActions] Error in getBuildSummary:", error);
+        return { success: false, error: "Failed to get build summary", data: null };
+      }
+    },
+    [currentWorkspaceId, isReady],
+  );
+
+  /** Single DB-backed snapshot: build task + summary + task-files (one workflow; use for builder polling). */
+  const getBuildSessionSnapshot = useCallback(
+    async (buildTaskId: string) => {
+      if (!isReady || !currentWorkspaceId) {
+        return { success: false, error: "No valid workspace context", data: null };
+      }
+      try {
+        const result = await executeWorkflow<{
+          task: Task;
+          summary: {
+            agents?: { id: string; name: string; description?: string; workspace_id: string; type?: string }[];
+            datasets?: { id: string; name: string; description?: string; workspace_id: string }[];
+            tasks?: Task[];
+            view_specs?: { id: string; name: string; columns: { key: string; label: string }[]; dataset_id: string }[];
+          };
+          task_files: { source: string; chunk_count: number }[];
+        }>("TasksGetBuildSessionWorkflow", {
+          build_task_id: buildTaskId,
+          workspace_id: currentWorkspaceId,
+        });
+        const raw = result.data;
+        const payload =
+          result.success &&
+          raw &&
+          typeof raw === "object" &&
+          !Array.isArray(raw) &&
+          "task" in raw &&
+          "summary" in raw &&
+          "task_files" in raw
+            ? (raw as {
+                task: Task;
+                summary: {
+                  agents: { id: string; name: string; description?: string; workspace_id: string; type?: string }[];
+                  datasets: { id: string; name: string; description?: string; workspace_id: string }[];
+                  tasks: Task[];
+                  view_specs: { id: string; name: string; columns: { key: string; label: string }[]; dataset_id: string }[];
+                };
+                task_files: { source: string; chunk_count: number }[];
+              })
+            : null;
+        return result.success ? { ...result, data: payload } : result;
+      } catch (error) {
+        console.error("[useWorkspaceScopedActions] Error in getBuildSessionSnapshot:", error);
+        return { success: false, error: "Failed to get build session", data: null };
+      }
+    },
+    [currentWorkspaceId, isReady],
+  );
+
   // Teams actions
   const fetchTeams = useCallback(
     async (forceRefresh = false) => {
@@ -1255,6 +1397,8 @@ export function useWorkspaceScopedActions() {
     createTask,
     updateTask,
     getTaskById,
+    getBuildSummary,
+    getBuildSessionSnapshot,
     deleteTask,
 
     teams,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@workspace/ui/components/ui/button";
 import { Loader2 } from "lucide-react";
 import {
@@ -32,6 +32,15 @@ interface AddTokenDialogProps {
   defaultTab?: "oauth" | "bearer";
 }
 
+function initialAuthTab(
+  server: McpServer | null,
+  defaultTab: AddTokenDialogProps["defaultTab"],
+): "oauth" | "bearer" {
+  if (defaultTab) return defaultTab;
+  if (server?.server_url) return "oauth";
+  return "bearer";
+}
+
 export function AddTokenDialog({
   open,
   onOpenChange,
@@ -42,8 +51,25 @@ export function AddTokenDialog({
 }: AddTokenDialogProps) {
   const [bearerToken, setBearerToken] = useState("");
   const [tokenName, setTokenName] = useState("");
-  const [activeTab, setActiveTab] = useState(defaultTab || "oauth");
+  const [activeTab, setActiveTab] = useState<"oauth" | "bearer">(() =>
+    initialAuthTab(server, defaultTab),
+  );
   const [saving, setSaving] = useState(false);
+  const dialogWasOpenRef = useRef(false);
+
+  // Parent often opens the dialog by setting open=true without Radix firing onOpenChange(true),
+  // so set the tab when the dialog first opens (fixes bearer-only integrations like OpenAI).
+  useEffect(() => {
+    if (!open) {
+      dialogWasOpenRef.current = false;
+      return;
+    }
+    if (!server) return;
+    if (!dialogWasOpenRef.current) {
+      setActiveTab(initialAuthTab(server, defaultTab));
+      dialogWasOpenRef.current = true;
+    }
+  }, [open, server, defaultTab]);
 
   if (!server) return null;
 
@@ -70,10 +96,7 @@ export function AddTokenDialog({
       setBearerToken("");
       setTokenName("");
     } else {
-      // Reset to default tab when opening
-      const hasOAuth = !!server?.server_url;
-      const initialTab = defaultTab || (hasOAuth ? "oauth" : "bearer");
-      setActiveTab(initialTab);
+      setActiveTab(initialAuthTab(server, defaultTab));
     }
     onOpenChange(open);
   };

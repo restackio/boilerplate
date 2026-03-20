@@ -33,6 +33,10 @@ class UpdateDatasetInput(BaseModel):
         default="clickhouse",
         description="Storage backend; use clickhouse for pipeline events.",
     )
+    build_task_id: str | None = Field(
+        default=None,
+        description="When creating from the agent builder, pass the build task ID (meta_info.task_id) so this dataset is linked to the build.",
+    )
 
 
 class UpdateDatasetOutput(BaseModel):
@@ -130,14 +134,21 @@ class UpdateDataset:
                     success=False, error=str(err)
                 )
             # Create (idempotent by workspace_id + name)
+            create_input = {
+                "workspace_id": workflow_input.workspace_id,
+                "name": workflow_input.name,
+                "description": workflow_input.description,
+                "storage_type": workflow_input.storage_type,
+            }
+            if workflow_input.build_task_id and str(
+                workflow_input.build_task_id
+            ).strip():
+                create_input["build_task_id"] = str(
+                    workflow_input.build_task_id
+                ).strip()
             result = await workflow.step(
                 function="datasets_create",
-                function_input={
-                    "workspace_id": workflow_input.workspace_id,
-                    "name": workflow_input.name,
-                    "description": workflow_input.description,
-                    "storage_type": workflow_input.storage_type,
-                },
+                function_input=create_input,
                 task_queue="backend",
                 start_to_close_timeout=timedelta(seconds=30),
             )

@@ -50,7 +50,6 @@ interface AuthFormProps extends React.ComponentProps<"form"> {
 
 export function AuthForm({
   title,
-  description,
   fields,
   submitText,
   loadingText,

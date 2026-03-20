@@ -6,6 +6,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 from restack_ai.function import NonRetryableError, function
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 # Import the centralized database connections
 from src.database.connection import (
@@ -35,6 +36,10 @@ class DatasetCreateInput(BaseModel):
     storage_type: str = Field(default="clickhouse")
     storage_config: dict = Field(default_factory=dict)
     tags: list[str] | None = None
+    build_task_id: str | None = Field(
+        default=None,
+        description="If provided (and valid), link this dataset to the build task that created it.",
+    )
 
 
 class DatasetUpdateInput(BaseModel):
@@ -504,6 +509,31 @@ async def datasets_get_by_id(
         return DatasetSingleOutput(dataset=None)
 
 
+async def _resolve_build_task_id(
+    db: AsyncSession,
+    build_task_id_str: str | None,
+    workspace_id: str,
+) -> str | None:
+    """Validate build_task_id: task must exist and belong to same workspace. Returns task id string or None."""
+    if not build_task_id_str:
+        return None
+    try:
+        import uuid as _uuid
+
+        build_task_uuid = _uuid.UUID(build_task_id_str)
+        check = await db.execute(
+            text("""
+                SELECT id FROM tasks
+                WHERE id = :tid AND workspace_id = :wid
+                LIMIT 1
+            """),
+            {"tid": str(build_task_uuid), "wid": workspace_id},
+        )
+        return str(build_task_uuid) if check.mappings().first() is not None else None
+    except (ValueError, TypeError):
+        return None
+
+
 @function.defn()
 async def datasets_create(
     function_input: DatasetCreateInput,
@@ -571,16 +601,23 @@ async def datasets_create(
                     function_input.tags
                 )
 
+            effective_build_task_id = await _resolve_build_task_id(
+                db,
+                function_input.build_task_id,
+                function_input.workspace_id,
+            )
+
             await db.execute(
                 text("""
-                    INSERT INTO datasets (id, workspace_id, name, description, storage_type,
+                    INSERT INTO datasets (id, workspace_id, build_task_id, name, description, storage_type,
                                         storage_config, created_at, updated_at)
-                    VALUES (:id, :workspace_id, :name, :description, :storage_type,
+                    VALUES (:id, :workspace_id, :build_task_id, :name, :description, :storage_type,
                             :storage_config, NOW(), NOW())
                 """),
                 {
                     "id": dataset_id,
                     "workspace_id": function_input.workspace_id,
+                    "build_task_id": effective_build_task_id,
                     "name": function_input.name,
                     "description": function_input.description,
                     "storage_type": function_input.storage_type,

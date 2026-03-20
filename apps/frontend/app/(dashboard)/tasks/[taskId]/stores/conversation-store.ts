@@ -184,23 +184,23 @@ export class ConversationStore {
   }
 
   private processEvent(event: StateEvent): void {
-    // Handle error events specially
-    if (event.type === "error" && event.error) {
-      const errorId = event.error.id;
+    // Handle error events: either event.error (new backend) or top-level message/code (legacy or stream)
+    if (event.type === "error") {
+      const errorPayload = event.error ?? this.normalizeTopLevelErrorEvent(event);
+      if (!errorPayload) return;
+      const errorId = errorPayload.id;
       const eventKey = `${event.type}:${errorId}:${event.sequence_number}`;
       if (this.processedEvents.has(eventKey)) return;
       this.processedEvents.add(eventKey);
-      
-      // Build error item (will be overlaid on state or shown standalone)
+
       const errorItem: Partial<ConversationItem> = {
         id: errorId,
         type: "error",
         timestamp: new Date().toISOString(),
         isStreaming: false,
-        error: event.error,
-        openai_output: null
+        error: errorPayload,
+        openai_output: null,
       };
-      
       this.streamingItems.set(errorId, errorItem);
       return;
     }
@@ -240,6 +240,27 @@ export class ConversationStore {
     
     // Update content based on event type
     this.updateStreamItem(streamItem, event);
+  }
+
+  /** Normalize error events that have top-level message/code (no event.error) for display. */
+  private normalizeTopLevelErrorEvent(
+    event: StateEvent
+  ): StateEvent["error"] | null {
+    const message =
+      (event as unknown as { message?: string }).message ??
+      (event as unknown as { error?: { message?: string } }).error?.message;
+    if (!message || typeof message !== "string") return null;
+    const code = (event as unknown as { code?: string }).code ?? "unknown_error";
+    const param = (event as unknown as { param?: string | null }).param;
+    const id = `error-${event.sequence_number ?? 0}-${String(message).slice(0, 12).replace(/\s/g, "_")}`;
+    return {
+      id,
+      type: "error",
+      error_type: code,
+      error_message: message,
+      error_source: "backend",
+      error_details: { code, message, param },
+    };
   }
 
   private getItemType(event: StateEvent): string {

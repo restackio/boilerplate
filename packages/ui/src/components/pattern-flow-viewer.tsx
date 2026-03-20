@@ -1,6 +1,12 @@
 "use client";
 
-import { useMemo, useEffect, useCallback, useRef } from "react";
+import {
+  useMemo,
+  useEffect,
+  useLayoutEffect,
+  useCallback,
+  useRef,
+} from "react";
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -280,6 +286,26 @@ function toReactFlowEdges(
 const PATTERN_NODE_WIDTH = 180;
 const PATTERN_NODE_HEIGHT = 70;
 
+const FIT_VIEW_OPTIONS = { padding: 0.2, maxZoom: 1 } as const;
+
+/** Defer fitView until after React Flow and the container have laid out (avoids empty bbox). */
+function scheduleFitView(instance: ReactFlowInstance | null) {
+  if (!instance) return;
+  const run = () => {
+    try {
+      instance.fitView(FIT_VIEW_OPTIONS);
+    } catch {
+      /* ignore */
+    }
+  };
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      run();
+      setTimeout(run, 0);
+    });
+  });
+}
+
 /** Translate node positions so the graph's bounding box is centered at the origin. */
 function centerLayoutedNodes(nodes: Node[]): Node[] {
   if (!nodes.length) return nodes;
@@ -324,54 +350,108 @@ function PatternFlowViewerInner({
     [patternSpecs?.edges],
   );
   const initialNodes = useMemo(() => toReactFlowNodes(specNodes), [specNodes]);
-  const validNodeIds = useMemo(
-    () => new Set(initialNodes.map((n) => n.id)),
-    [initialNodes],
-  );
-  const initialEdges = useMemo(
-    () => toReactFlowEdges(specEdges, validNodeIds),
-    [specEdges, validNodeIds],
+  /** Stable key so identical specs don't re-run ELK when parent passes a new object reference each sync. */
+  const specLayoutKey = useMemo(
+    () =>
+      JSON.stringify({
+        nodes: specNodes,
+        edges: specEdges,
+      }),
+    [specNodes, specEdges],
   );
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const [nodes, setNodes, onNodesChange] = useNodesState([] as Node[]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([] as Edge[]);
   const flowInstanceRef = useRef<ReactFlowInstance | null>(null);
   const fitViewAfterLayoutRef = useRef(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const resizeFitRafRef = useRef<number | null>(null);
 
   useEffect(() => {
     const nextNodes = toReactFlowNodes(specNodes);
     const nextValidIds = new Set(nextNodes.map((n) => n.id));
     const nextEdges = toReactFlowEdges(specEdges, nextValidIds);
-    setNodes(nextNodes);
-    setEdges(nextEdges);
+    if (!nextNodes.length) {
+      setNodes([]);
+      setEdges([]);
+      return;
+    }
+    let cancelled = false;
     getLayoutedElementsHorizontal(nextNodes, nextEdges).then(
       ({ nodes: layoutedNodes, edges: layoutedEdges }) => {
+        if (cancelled) return;
         const centered = centerLayoutedNodes(layoutedNodes);
         fitViewAfterLayoutRef.current = true;
         setNodes(centered);
         setEdges(layoutedEdges);
       },
     );
-  }, [specNodes, specEdges, setNodes, setEdges]);
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- specLayoutKey encodes specNodes + specEdges (stable graph content)
+  }, [specLayoutKey, setNodes, setEdges]);
+
+  useLayoutEffect(() => {
+    if (!fitViewAfterLayoutRef.current || nodes.length === 0) return;
+    const inst = flowInstanceRef.current;
+    if (inst) {
+      fitViewAfterLayoutRef.current = false;
+      scheduleFitView(inst);
+    }
+    /* If inst is null, onInit runs after mount — leave flag set so onInit can clear + fit. */
+  }, [nodes]);
 
   useEffect(() => {
-    if (fitViewAfterLayoutRef.current && nodes.length > 0) {
-      fitViewAfterLayoutRef.current = false;
-      requestAnimationFrame(() => {
-        flowInstanceRef.current?.fitView?.({ padding: 0.2, maxZoom: 1 });
+    const el = containerRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+
+    const ro = new ResizeObserver((entries) => {
+      const cr = entries[0]?.contentRect;
+      if (!cr || cr.width < 8 || cr.height < 8) return;
+      if (nodes.length === 0) return;
+      if (resizeFitRafRef.current != null) {
+        cancelAnimationFrame(resizeFitRafRef.current);
+      }
+      resizeFitRafRef.current = requestAnimationFrame(() => {
+        resizeFitRafRef.current = null;
+        scheduleFitView(flowInstanceRef.current);
       });
-    }
-  }, [nodes]);
+    });
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+      if (resizeFitRafRef.current != null) {
+        cancelAnimationFrame(resizeFitRafRef.current);
+      }
+    };
+  }, [nodes.length]);
 
   const onInit = useCallback((instance: ReactFlowInstance) => {
     flowInstanceRef.current = instance;
+    scheduleFitView(instance);
+    if (fitViewAfterLayoutRef.current) {
+      fitViewAfterLayoutRef.current = false;
+    }
   }, []);
 
   if (initialNodes.length === 0) return null;
 
+  const layoutPending = nodes.length === 0;
+
   return (
-    <div className={className} style={{ height: `${height}px` }}>
-      <ReactFlow
+    <div
+      ref={containerRef}
+      className={className}
+      style={{ height: `${height}px` }}
+    >
+      {layoutPending ? (
+        <div
+          className="h-full w-full rounded-md bg-muted/40 animate-pulse"
+          aria-hidden
+        />
+      ) : (
+        <ReactFlow
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
@@ -379,8 +459,7 @@ function PatternFlowViewerInner({
         onInit={onInit}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
-        fitView
-        fitViewOptions={{ padding: 0.2, maxZoom: 1 }}
+        fitViewOptions={FIT_VIEW_OPTIONS}
         nodesDraggable={false}
         nodesConnectable={false}
         elementsSelectable={false}
@@ -395,6 +474,7 @@ function PatternFlowViewerInner({
           className="!bottom-2 !left-2 !right-auto !top-auto"
         />
       </ReactFlow>
+      )}
     </div>
   );
 }

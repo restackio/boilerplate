@@ -2,7 +2,10 @@ import { useRef, useMemo, useState, useEffect } from "react";
 import type { Task } from "@/hooks/use-workspace-scoped-actions";
 import { ConversationItem } from "../types";
 import { EmptyState } from "@workspace/ui/components/empty-state";
-import { ContentSection, CodeBlock } from "@workspace/ui/components/content-display";
+import {
+  ContentSection,
+  CodeBlock,
+} from "@workspace/ui/components/content-display";
 import { PromptInput } from "@workspace/ui/components/ai-elements/prompt-input";
 import { Response } from "@workspace/ui/components/ai-elements/response";
 import {
@@ -126,7 +129,7 @@ function isChainStep(item: ConversationItem): boolean {
 
 /** Get the final assistant message only if it is the very last item in the run (so we don't split the chain when steps come after an assistant). */
 function getFinalAssistantInRun(
-  items: ConversationItem[]
+  items: ConversationItem[],
 ): ConversationItem | null {
   if (items.length === 0) return null;
   const last = items[items.length - 1];
@@ -170,7 +173,9 @@ function humanizeToolName(name: string): string {
     mcp_list_tools: "List tools",
   };
   if (known[lower]) return known[lower];
-  const withSpaces = name.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/_/g, " ");
+  const withSpaces = name
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/_/g, " ");
   return withSpaces.charAt(0).toUpperCase() + withSpaces.slice(1).toLowerCase();
 }
 
@@ -236,7 +241,8 @@ function getStepDetailsContent(item: ConversationItem): ReactNode {
   if (item.type === "mcp_call" || item.type === "mcp_list_tools") {
     const args = extractToolArguments(item);
     const output = extractToolOutput(item);
-    const hasError = !!item.openai_output?.error || getItemStatus(item) === "failed";
+    const hasError =
+      !!item.openai_output?.error || getItemStatus(item) === "failed";
     const parts: ReactNode[] = [];
     if (args !== undefined && args !== null) {
       const argsStr =
@@ -244,18 +250,19 @@ function getStepDetailsContent(item: ConversationItem): ReactNode {
       parts.push(
         <ContentSection key="args" label="Arguments">
           <CodeBlock content={argsStr} />
-        </ContentSection>
+        </ContentSection>,
       );
     }
     if (output !== undefined && output !== null) {
       const outputStr =
-        typeof output === "string"
-          ? output
-          : JSON.stringify(output, null, 2);
+        typeof output === "string" ? output : JSON.stringify(output, null, 2);
       parts.push(
-        <ContentSection key="output" label={hasError ? "Error details" : "Output"}>
+        <ContentSection
+          key="output"
+          label={hasError ? "Error details" : "Output"}
+        >
           <CodeBlock content={outputStr} isError={hasError} />
-        </ContentSection>
+        </ContentSection>,
       );
     }
     if (parts.length === 0) return null;
@@ -285,8 +292,15 @@ function getToolOutputPreview(item: ConversationItem): string | undefined {
   }
   if (typeof output === "object" && output !== null) {
     const o = output as Record<string, unknown>;
-    const msg = [o.message, o.summary, (Array.isArray(o.content) ? (o.content[0] as { text?: string })?.text : o.content)].find(
-      (v): v is string => typeof v === "string" && v.length > 0 && v.length < 120
+    const msg = [
+      o.message,
+      o.summary,
+      Array.isArray(o.content)
+        ? (o.content[0] as { text?: string })?.text
+        : o.content,
+    ].find(
+      (v): v is string =>
+        typeof v === "string" && v.length > 0 && v.length < 120,
     );
     return msg ?? undefined;
   }
@@ -315,7 +329,9 @@ function getStepLabelAndStatus(item: ConversationItem): {
         : 0;
     const streaming = item.isStreaming ?? false;
     return {
-      label: streaming ? "Thinking..." : `Thought for ${duration >= 1 ? `${duration} seconds` : "<1s"}`,
+      label: streaming
+        ? "Thinking..."
+        : `Thought for ${duration >= 1 ? `${duration} seconds` : "<1s"}`,
       description: streaming ? "Reasoning in progress…" : undefined,
       status: streaming ? "active" : "complete",
     };
@@ -323,12 +339,15 @@ function getStepLabelAndStatus(item: ConversationItem): {
   if (item.type === "assistant" && item.openai_output?.role === "assistant") {
     const text = extractTextContent(item);
     const short =
-      text.length > 100 ? `${text.slice(0, 100).trim()}…` : text || "Progress update";
+      text.length > 100
+        ? `${text.slice(0, 100).trim()}…`
+        : text || "Progress update";
     return { label: short, status: "complete" };
   }
   if (item.type === "mcp_call" || item.type === "mcp_list_tools") {
-    const rawName =
-      (item.openai_output?.name ?? item.openai_output?.tool ?? "Tool") as string;
+    const rawName = (item.openai_output?.name ??
+      item.openai_output?.tool ??
+      "Tool") as string;
     const name = humanizeToolName(rawName);
     const statusText =
       status === "completed" || status === "success"
@@ -355,7 +374,11 @@ function getStepLabelAndStatus(item: ConversationItem): {
     const q = typeof query === "string" ? query.slice(0, 50) : "";
     return {
       label: q ? `Search: "${q}"` : "Web search",
-      description: completed ? "Search completed" : pending ? "Searching…" : undefined,
+      description: completed
+        ? "Search completed"
+        : pending
+          ? "Searching…"
+          : undefined,
       status: stepStatus,
     };
   }
@@ -386,22 +409,26 @@ function AgentProgressChain({
   const hasAutoClosedRef = useRef(false);
 
   const stepNodes = useMemo(
-    () => nodes.filter((n): n is ChainNode & { type: "step" } => n.type === "step"),
-    [nodes]
+    () =>
+      nodes.filter((n): n is ChainNode & { type: "step" } => n.type === "step"),
+    [nodes],
   );
   const allStepsComplete = useMemo(
     () =>
       stepNodes.every(
-        (n) => getStepLabelAndStatus(n.item).status === "complete"
+        (n) => getStepLabelAndStatus(n.item).status === "complete",
       ),
-    [stepNodes]
+    [stepNodes],
   );
 
   useEffect(() => {
     if (userToggled) return;
     if (!allStepsComplete || !open || hasAutoClosedRef.current) return;
     hasAutoClosedRef.current = true;
-    const timer = setTimeout(() => setOpen(false), AGENT_PROGRESS_AUTO_CLOSE_DELAY_MS);
+    const timer = setTimeout(
+      () => setOpen(false),
+      AGENT_PROGRESS_AUTO_CLOSE_DELAY_MS,
+    );
     return () => clearTimeout(timer);
   }, [allStepsComplete, open, userToggled]);
 
@@ -417,7 +444,9 @@ function AgentProgressChain({
         {nodes.map((node) =>
           node.type === "step" ? (
             (() => {
-              const { label, description, status } = getStepLabelAndStatus(node.item);
+              const { label, description, status } = getStepLabelAndStatus(
+                node.item,
+              );
               const StepIcon = getStepIcon(node.item);
               const detailsContent = getStepDetailsContent(node.item);
               return (
@@ -438,7 +467,9 @@ function AgentProgressChain({
                 <TaskCardMcp
                   item={node.item}
                   onApprove={() =>
-                    onApproveRequest?.(node.item.openai_output?.id || node.item.id)
+                    onApproveRequest?.(
+                      node.item.openai_output?.id || node.item.id,
+                    )
                   }
                   onDeny={() =>
                     onDenyRequest?.(node.item.openai_output?.id || node.item.id)
@@ -446,10 +477,13 @@ function AgentProgressChain({
                   onClick={onCardClick || (() => {})}
                 />
               ) : (
-                <TaskCardError item={node.item} onClick={onCardClick || (() => {})} />
+                <TaskCardError
+                  item={node.item}
+                  onClick={onCardClick || (() => {})}
+                />
               )}
             </div>
-          )
+          ),
         )}
       </ChainOfThoughtContent>
     </ChainOfThought>
@@ -504,9 +538,7 @@ function AgentRunBlock({
   }
 
   const finalIndex =
-    finalAssistant != null
-      ? startIndex + runItems.indexOf(finalAssistant)
-      : -1;
+    finalAssistant != null ? startIndex + runItems.indexOf(finalAssistant) : -1;
 
   return (
     <div className="flex flex-col gap-4 justify-start">
@@ -525,7 +557,9 @@ function AgentRunBlock({
             <div className="flex items-start space-x-2">
               <div className="bg-transparent">
                 <div className="text-sm whitespace-pre-wrap break-words">
-                  {isToolCallSpilloverContent(extractTextContent(finalAssistant)) ? (
+                  {isToolCallSpilloverContent(
+                    extractTextContent(finalAssistant),
+                  ) ? (
                     <span className="text-muted-foreground italic">
                       Tool output shown above
                     </span>
@@ -580,6 +614,10 @@ interface TaskChatInterfaceProps {
   temporalAgentId?: string | null;
   /** When set (build task), called when user clicks Build to send the approval message. */
   onBuildClick?: () => void;
+  /** When true (e.g. agent builder session), do not render the inline TaskCreatedList; summary is shown in the build canvas instead. */
+  hideCreatedList?: boolean;
+  /** When true (e.g. agent builder session), do not render the inline TaskFilesList; files are shown in the build canvas Data section instead. */
+  hideFilesList?: boolean;
 }
 
 export function TaskChatInterface({
@@ -604,8 +642,11 @@ export function TaskChatInterface({
   preferredDatasetId,
   temporalAgentId,
   onBuildClick,
+  hideCreatedList = false,
+  hideFilesList = false,
 }: TaskChatInterfaceProps) {
   const conversationEndRef = useRef<HTMLDivElement>(null);
+  const conversationScrollRef = useRef<HTMLDivElement>(null);
   const [addFilesDialogOpen, setAddFilesDialogOpen] = useState(false);
 
   const isTaskActive = task?.status === "in_progress";
@@ -641,11 +682,27 @@ export function TaskChatInterface({
     return null;
   }, [isTaskActive, responseState, task?.agent_state?.subtasks]);
 
+  useEffect(() => {
+    const node = conversationScrollRef.current;
+    if (!node) return;
+    // Keep newest activity and prompt area in view for chat UX.
+    node.scrollTop = node.scrollHeight;
+  }, [
+    conversation,
+    agentLoading,
+    todos,
+    subtasks,
+    filesRefreshTrigger,
+  ]);
+
   return (
     <div
-      className={`${showSplitView ? "w-3/5 h-full" : fillContainer ? "w-full" : "w-full max-w-4xl mx-auto"} flex flex-col bg-background`}
+      className={`${showSplitView ? "w-3/5 h-full min-h-0" : fillContainer ? "w-full h-full min-h-0 overflow-hidden" : "w-full max-w-4xl mx-auto flex-1 min-h-0"} flex flex-col bg-background`}
     >
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
+      <div
+        ref={conversationScrollRef}
+        className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0"
+      >
         {conversation.length === 0 ? (
           <EmptyState title="No messages" description="Start a conversation!" />
         ) : (
@@ -679,20 +736,20 @@ export function TaskChatInterface({
                   agentId={agentId}
                   workspaceId={workspaceId}
                 />
-              )
+              ),
             )}
           </>
         )}
         <div ref={conversationEndRef} />
       </div>
 
-      <div className="sticky bottom-0 z-50 p-2">
-        <div className="py-2 space-y-2">
+      <div className="shrink-0 border-t bg-background p-2">
+        <div className="p-2 space-y-2 ">
           {/* Persistent Subtasks List above input - real-time from agent state */}
           {subtasks && <TaskSubtasksList subtasks={subtasks} />}
 
-          {/* Created (agents, datasets, views) - build task */}
-          {task && (
+          {/* Created (agents, datasets, views) - build task; hidden when hideCreatedList (e.g. build canvas shows summary) */}
+          {task && !hideCreatedList && (
             <TaskCreatedList
               task={task}
               onRefresh={onRefreshTask}
@@ -705,8 +762,8 @@ export function TaskChatInterface({
             />
           )}
 
-          {/* Files (task-files dataset) */}
-          {taskId && (
+          {/* Files (task-files dataset); hidden in builder—shown in build canvas Data section */}
+          {taskId && !hideFilesList && (
             <TaskFilesList
               taskId={taskId}
               refreshTrigger={filesRefreshTrigger}

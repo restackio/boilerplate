@@ -24,15 +24,21 @@ export interface ViewSpecRow {
 
 interface ViewsTableProps {
   views: ViewSpecRow[];
-  datasetId: string;
+  /** When provided, all view links use this dataset. When omitted, each row uses view.dataset_id (e.g. build canvas with views from multiple datasets). */
+  datasetId?: string;
   loading?: boolean;
+  /** When provided, views with id in this set are shown as "Planned" (no link, not clickable). */
+  plannedIds?: Set<string>;
 }
 
 export function ViewsTable({
   views,
   datasetId,
   loading = false,
+  plannedIds,
 }: ViewsTableProps) {
+  const getViewHref = (view: ViewSpecRow) =>
+    `/datasets/${datasetId ?? view.dataset_id}/views/${view.id}`;
   if (loading) {
     return (
       <div className="border rounded-lg">
@@ -66,32 +72,41 @@ export function ViewsTable({
               </TableCell>
             </TableRow>
           ) : (
-            views.map((view) => (
-              <TableRow key={view.id}>
-                <TableCell className="font-medium">
-                  <span className="text-foreground">{view.name}</span>
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {Array.isArray(view.columns) ? view.columns.length : 0} column
-                  {(Array.isArray(view.columns) ? view.columns.length : 0) !== 1
-                    ? "s"
-                    : ""}
-                </TableCell>
-                <TableCell>
-                  <Link
-                    href={`/datasets/${datasetId}/views/${view.id}`}
-                    className="inline-flex"
-                  >
-                    <Button variant="outline" size="sm" asChild>
-                      <span>
-                        <Eye className="h-4 w-4 sm:mr-2" />
-                        <span className="hidden sm:inline">Open</span>
+            views.map((view) => {
+              const isPlanned = plannedIds?.has(view.id);
+              return (
+                <TableRow key={view.id}>
+                  <TableCell className="font-medium">
+                    <span className="text-foreground">{view.name}</span>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {Array.isArray(view.columns) ? view.columns.length : 0} column
+                    {(Array.isArray(view.columns) ? view.columns.length : 0) !== 1
+                      ? "s"
+                      : ""}
+                  </TableCell>
+                  <TableCell>
+                    {isPlanned ? (
+                      <span className="text-xs text-muted-foreground">
+                        Planned
                       </span>
-                    </Button>
-                  </Link>
-                </TableCell>
-              </TableRow>
-            ))
+                    ) : (
+                      <Link
+                        href={getViewHref(view)}
+                        className="inline-flex"
+                      >
+                        <Button variant="outline" size="sm" asChild>
+                          <span>
+                            <Eye className="h-4 w-4 sm:mr-2" />
+                            <span className="hidden sm:inline">Open</span>
+                          </span>
+                        </Button>
+                      </Link>
+                    )}
+                  </TableCell>
+                </TableRow>
+              );
+            })
           )}
         </TableBody>
       </Table>
