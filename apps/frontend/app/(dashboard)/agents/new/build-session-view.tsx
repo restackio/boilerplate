@@ -13,6 +13,7 @@ import {
 } from "@/app/(dashboard)/tasks/[taskId]/components";
 import { getBuildCreatedDatasetId } from "@/app/(dashboard)/tasks/[taskId]/components/task-created-list";
 import { DeployAgentDialog } from "@/app/(dashboard)/agents/[agentId]/components/deploy-agent-dialog";
+import type { DatasetFileSummary } from "@/app/(dashboard)/datasets/components/dataset-files-table";
 import { BuildCanvas, type BuildSummary } from "./components/build-canvas";
 
 function BuildChatInner({
@@ -182,8 +183,8 @@ export interface BuildSessionViewProps {
   buildSummaryError?: string | null;
   /** Refetch build summary (e.g. after task refetch). */
   onRefreshBuildSummary?: () => void | Promise<void>;
-  /** Increment (e.g. on a timer) to refresh task files list in the Data section. */
-  filesPollTick?: number;
+  /** Task files from `TasksGetBuildSessionWorkflow` (avoids listing all datasets each poll). */
+  taskFilesSnapshot?: DatasetFileSummary[];
 }
 
 export function BuildSessionView({
@@ -197,20 +198,24 @@ export function BuildSessionView({
   buildSummaryLoading = false,
   buildSummaryError = null,
   onRefreshBuildSummary,
-  filesPollTick = 0,
+  taskFilesSnapshot,
 }: BuildSessionViewProps) {
   const [showDeployDialog, setShowDeployDialog] = useState(false);
   const [filesRefreshTrigger, setFilesRefreshTrigger] = useState(0);
   const buildClickRef = useRef<(() => void) | null>(null);
   const onRefetch = useCallback(() => {
-    onTaskRefetch?.();
-    onRefreshBuildSummary?.();
+    if (onRefreshBuildSummary) {
+      void onRefreshBuildSummary();
+    } else {
+      void onTaskRefetch?.();
+    }
   }, [onTaskRefetch, onRefreshBuildSummary]);
   const handleFilesAdded = useCallback(() => {
-    onTaskRefetch?.();
-    onRefreshBuildSummary?.();
-    setFilesRefreshTrigger((n) => n + 1);
-  }, [onTaskRefetch, onRefreshBuildSummary]);
+    onRefetch();
+    if (taskFilesSnapshot === undefined) {
+      setFilesRefreshTrigger((n) => n + 1);
+    }
+  }, [onRefetch, taskFilesSnapshot]);
 
   const handlePublish = useCallback(async () => {
     await onPublish?.();
@@ -248,7 +253,9 @@ export function BuildSessionView({
             buildSummaryLoading={buildSummaryLoading}
             buildSummaryError={buildSummaryError}
             onRefresh={onRefreshBuildSummary}
-            filesRefreshTrigger={filesRefreshTrigger + filesPollTick}
+            filesRefreshTrigger={filesRefreshTrigger}
+            taskFilesSnapshot={taskFilesSnapshot}
+            onTaskFilesRefresh={onRefreshBuildSummary}
             responseState={task.agent_state}
             onBuildClick={() => buildClickRef.current?.()}
           />

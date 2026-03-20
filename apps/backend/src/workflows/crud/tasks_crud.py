@@ -27,6 +27,7 @@ with import_functions():
         send_agent_event,
     )
     from src.functions.tasks_crud import (
+        BuildSessionSnapshotOutput,
         BuildSummaryInput,
         BuildSummaryOutput,
         TaskCreateInput,
@@ -41,6 +42,7 @@ with import_functions():
         TaskUpdateInput,
         tasks_create,
         tasks_delete,
+        tasks_get_build_session,
         tasks_get_build_summary,
         tasks_get_by_id,
         tasks_get_by_status,
@@ -455,6 +457,27 @@ class TasksGetBuildSummaryWorkflow:
             )
         except Exception as e:
             error_message = f"Error during tasks_get_build_summary: {e}"
+            log.error(error_message)
+            raise NonRetryableError(message=error_message) from e
+
+
+@workflow.defn()
+class TasksGetBuildSessionWorkflow:
+    """Single workflow: build task row + build summary + task-files (for builder canvas polling)."""
+
+    @workflow.run
+    async def run(
+        self, workflow_input: BuildSummaryInput
+    ) -> BuildSessionSnapshotOutput:
+        try:
+            return await workflow.step(
+                function=tasks_get_build_session,
+                function_input=workflow_input,
+                task_queue=TASK_QUEUE,
+                start_to_close_timeout=timedelta(seconds=30),
+            )
+        except Exception as e:
+            error_message = f"Error during tasks_get_build_session: {e}"
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e
 

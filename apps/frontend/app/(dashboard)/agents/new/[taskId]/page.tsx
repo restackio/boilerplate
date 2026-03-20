@@ -6,6 +6,7 @@ import {
   useWorkspaceScopedActions,
   type Task,
 } from "@/hooks/use-workspace-scoped-actions";
+import type { DatasetFileSummary } from "@/app/(dashboard)/datasets/components/dataset-files-table";
 import { CenteredLoading } from "@workspace/ui/components/loading-states";
 import {
   ConfirmationDialog,
@@ -18,7 +19,7 @@ export default function NewAgentTaskPage() {
   const params = useParams();
   const router = useRouter();
   const taskId = typeof params?.taskId === "string" ? params.taskId : null;
-  const { getTaskById, getBuildSummary, updateTask, deleteTask } = useWorkspaceScopedActions();
+  const { getBuildSessionSnapshot, updateTask, deleteTask } = useWorkspaceScopedActions();
   const [task, setTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -27,26 +28,43 @@ export default function NewAgentTaskPage() {
   const [buildSummary, setBuildSummary] = useState<BuildSummary | null>(null);
   const [buildSummaryLoading, setBuildSummaryLoading] = useState(false);
   const [buildSummaryError, setBuildSummaryError] = useState<string | null>(null);
+  const [taskFiles, setTaskFiles] = useState<DatasetFileSummary[]>([]);
 
-  const loadTask = useCallback(async () => {
-    if (!taskId || !getTaskById) return;
-    setLoading(true);
-    setNotFound(false);
+  const loadBuildSession = useCallback(async () => {
+    if (!taskId || !getBuildSessionSnapshot) return;
+    setBuildSummaryLoading(true);
+    setBuildSummaryError(null);
     try {
-      const result = await getTaskById(taskId);
+      const result = await getBuildSessionSnapshot(taskId);
       if (result?.success && result?.data) {
-        setTask(result.data as Task);
+        const d = result.data;
+        setTask(d.task as Task);
+        setBuildSummary({
+          agents: d.summary.agents ?? [],
+          datasets: d.summary.datasets ?? [],
+          tasks: d.summary.tasks ?? [],
+          view_specs: d.summary.view_specs ?? [],
+        });
+        setTaskFiles(Array.isArray(d.task_files) ? d.task_files : []);
+        setNotFound(false);
       } else {
         setTask(null);
+        setBuildSummary(null);
+        setTaskFiles([]);
+        setBuildSummaryError(result?.error ?? null);
         setNotFound(true);
       }
     } catch {
       setTask(null);
+      setBuildSummary(null);
+      setTaskFiles([]);
+      setBuildSummaryError("Failed to load build session");
       setNotFound(true);
     } finally {
+      setBuildSummaryLoading(false);
       setLoading(false);
     }
-  }, [taskId, getTaskById]);
+  }, [taskId, getBuildSessionSnapshot]);
 
   useEffect(() => {
     if (!taskId) {
@@ -54,8 +72,9 @@ export default function NewAgentTaskPage() {
       setNotFound(true);
       return;
     }
-    loadTask();
-  }, [taskId, loadTask]);
+    setLoading(true);
+    void loadBuildSession();
+  }, [taskId, loadBuildSession]);
 
   useEffect(() => {
     if (notFound) {
@@ -63,62 +82,18 @@ export default function NewAgentTaskPage() {
     }
   }, [notFound, router]);
 
-  const handleTaskRefetch = useCallback(async () => {
-    if (!taskId || !getTaskById) return;
-    const result = await getTaskById(taskId);
-    if (result?.success && result?.data) {
-      setTask(result.data as Task);
-    }
-  }, [taskId, getTaskById]);
-
-  const loadBuildSummary = useCallback(async () => {
-    if (!taskId || !getBuildSummary) return;
-    setBuildSummaryLoading(true);
-    setBuildSummaryError(null);
-    try {
-      const result = await getBuildSummary(taskId);
-      if (result?.success && result?.data) {
-        const d = result.data;
-        setBuildSummary({
-          agents: d.agents ?? [],
-          datasets: d.datasets ?? [],
-          tasks: d.tasks ?? [],
-          view_specs: d.view_specs ?? [],
-        });
-      } else {
-        setBuildSummary(null);
-        setBuildSummaryError(result?.error ?? null);
-      }
-    } catch {
-      setBuildSummary(null);
-      setBuildSummaryError("Failed to load build summary");
-    } finally {
-      setBuildSummaryLoading(false);
-    }
-  }, [taskId, getBuildSummary]);
-
-  useEffect(() => {
-    if (taskId && task) {
-      loadBuildSummary();
-    }
-  }, [taskId, task, loadBuildSummary]);
-
-  const handleRefreshBuildSummary = useCallback(async () => {
-    await loadBuildSummary();
-  }, [loadBuildSummary]);
-
-  const [filesPollTick, setFilesPollTick] = useState(0);
-
   useEffect(() => {
     if (task?.status !== "in_progress") return;
     const intervalMs = 5000;
     const id = window.setInterval(() => {
-      void handleTaskRefetch();
-      void loadBuildSummary();
-      setFilesPollTick((n) => n + 1);
+      void loadBuildSession();
     }, intervalMs);
     return () => window.clearInterval(id);
-  }, [task?.status, handleTaskRefetch, loadBuildSummary]);
+  }, [task?.status, loadBuildSession]);
+
+  const handleRefreshBuildSummary = useCallback(async () => {
+    await loadBuildSession();
+  }, [loadBuildSession]);
 
   const handleDeleteTask = useCallback(async () => {
     if (!task?.id || !deleteTask) return;
@@ -148,7 +123,7 @@ export default function NewAgentTaskPage() {
         };
         const result = await updateTask(task.id, updateData);
         if (!result.success) throw new Error(result.error ?? "Failed to update task");
-        await handleTaskRefetch();
+        await loadBuildSession();
         if (updates.status === "closed") {
           router.push("/agents/new");
         }
@@ -157,7 +132,7 @@ export default function NewAgentTaskPage() {
         throw error;
       }
     },
-    [task, updateTask, handleTaskRefetch, router]
+    [task, updateTask, loadBuildSession, router]
   );
 
   if (!taskId || loading || notFound) {
@@ -176,14 +151,14 @@ export default function NewAgentTaskPage() {
     <>
       <BuildSessionView
         task={task}
-        onTaskRefetch={handleTaskRefetch}
+        onTaskRefetch={loadBuildSession}
         onDelete={() => setShowDeleteDialog(true)}
         onUpdateTask={handleUpdateTask}
         buildSummary={buildSummary}
         buildSummaryLoading={buildSummaryLoading}
         buildSummaryError={buildSummaryError}
         onRefreshBuildSummary={handleRefreshBuildSummary}
-        filesPollTick={filesPollTick}
+        taskFilesSnapshot={taskFiles}
       />
       <ConfirmationDialog
         isOpen={showDeleteDialog}

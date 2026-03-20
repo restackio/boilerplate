@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import {
   ChevronDown,
   ChevronUp,
@@ -22,6 +22,7 @@ import { ViewsTable } from "@/app/(dashboard)/datasets/components/views-table";
 import type { ViewSpecRow } from "@/app/(dashboard)/datasets/components/views-table";
 import { TasksTable } from "@/app/(dashboard)/tasks/components/tasks-table";
 import { deriveCreatedFromPatternSpecs } from "@/app/(dashboard)/tasks/[taskId]/components/task-created-list";
+import type { DatasetFileSummary } from "@/app/(dashboard)/datasets/components/dataset-files-table";
 import { TaskFilesList } from "@/app/(dashboard)/tasks/[taskId]/components/task-files-list";
 import type { PatternSpecs, Task } from "@/hooks/use-workspace-scoped-actions";
 import {
@@ -80,6 +81,8 @@ interface CollapsibleSectionProps {
   title: string;
   icon: React.ComponentType<{ className?: string }>;
   defaultExpanded: boolean;
+  /** When this becomes true after being false (e.g. first sync adds rows), expand once without overriding manual toggles for already-filled sections. */
+  hasContent?: boolean;
   sectionKey: string;
   taskId: string;
   children: React.ReactNode;
@@ -89,6 +92,7 @@ function CollapsibleSection({
   title,
   icon: Icon,
   defaultExpanded,
+  hasContent,
   sectionKey,
   taskId,
   children,
@@ -100,6 +104,19 @@ function CollapsibleSection({
     if (stored !== null) return stored === "1";
     return defaultExpanded;
   });
+
+  const prevHasContent = useRef<boolean | null>(null);
+  useEffect(() => {
+    if (hasContent === undefined) return;
+    if (prevHasContent.current === null) {
+      prevHasContent.current = hasContent;
+      return;
+    }
+    if (hasContent && !prevHasContent.current) {
+      setExpanded(true);
+    }
+    prevHasContent.current = hasContent;
+  }, [hasContent]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -219,6 +236,9 @@ export interface BuildCanvasProps {
   onRefresh?: () => void | Promise<void>;
   /** Increment to refresh the files list in the Data section (e.g. after adding files in chat). */
   filesRefreshTrigger?: number;
+  /** From build-session snapshot workflow (avoids listing all datasets on each poll). */
+  taskFilesSnapshot?: DatasetFileSummary[];
+  onTaskFilesRefresh?: () => void | Promise<void>;
   /** Passed by parent for future use (e.g. stage derivation from agent state). */
   responseState?: unknown;
   onBuildClick?: () => void;
@@ -231,16 +251,13 @@ export function BuildCanvas({
   buildSummaryError = null,
   onRefresh,
   filesRefreshTrigger,
+  taskFilesSnapshot,
+  onTaskFilesRefresh,
   onBuildClick,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- prop accepted for API compatibility
   responseState: _responseState,
 }: BuildCanvasProps) {
   const stage = useMemo(() => getStage(task), [task]);
-
-  const patternExpanded = stage === "starting" || stage === "plan";
-  const agentsExpanded = stage === "building" || stage === "built";
-  const tasksExpanded = stage === "building" || stage === "built";
-  const dataExpanded = stage === "building" || stage === "built";
 
   const hasPattern = (task.pattern_specs?.nodes?.length ?? 0) > 0;
   const fromPattern = useMemo(
@@ -331,6 +348,19 @@ export function BuildCanvas({
     [viewSpecs],
   );
 
+  const hasTasksContent =
+    oneOffTableData.length > 0 || scheduleTableData.length > 0;
+  const hasDataContent = datasetRows.length > 0 || viewRows.length > 0;
+
+  const patternDefaultExpanded =
+    hasPattern || stage === "starting" || stage === "plan";
+  const agentsDefaultExpanded =
+    agentRows.length > 0 || stage === "building" || stage === "built";
+  const tasksDefaultExpanded =
+    hasTasksContent || stage === "building" || stage === "built";
+  const dataDefaultExpanded =
+    hasDataContent || stage === "building" || stage === "built";
+
   return (
     <div className="flex flex-col h-full min-h-0 bg-muted overflow-hidden">
       <div className="flex items-center justify-between px-3 py-2 border-b border-border/40 shrink-0">
@@ -367,7 +397,8 @@ export function BuildCanvas({
         <CollapsibleSection
           title="Pattern"
           icon={Workflow}
-          defaultExpanded={patternExpanded}
+          defaultExpanded={patternDefaultExpanded}
+          hasContent={hasPattern}
           sectionKey="pattern"
           taskId={task.id}
         >
@@ -397,7 +428,8 @@ export function BuildCanvas({
         <CollapsibleSection
           title="Agents"
           icon={Bot}
-          defaultExpanded={agentsExpanded}
+          defaultExpanded={agentsDefaultExpanded}
+          hasContent={agentRows.length > 0}
           sectionKey="agents"
           taskId={task.id}
         >
@@ -411,7 +443,8 @@ export function BuildCanvas({
         <CollapsibleSection
           title="Tasks"
           icon={Calendar}
-          defaultExpanded={tasksExpanded}
+          defaultExpanded={tasksDefaultExpanded}
+          hasContent={hasTasksContent}
           sectionKey="tasks"
           taskId={task.id}
         >
@@ -460,7 +493,8 @@ export function BuildCanvas({
         <CollapsibleSection
           title="Data"
           icon={Database}
-          defaultExpanded={dataExpanded}
+          defaultExpanded={dataDefaultExpanded}
+          hasContent={hasDataContent}
           sectionKey="data"
           taskId={task.id}
         >
@@ -488,6 +522,8 @@ export function BuildCanvas({
               <TaskFilesList
                 taskId={task.id}
                 refreshTrigger={filesRefreshTrigger}
+                taskFilesSnapshot={taskFilesSnapshot}
+                onTaskFilesRefresh={onTaskFilesRefresh}
               />
             </div>
             <p className="text-xs text-muted-foreground flex items-center gap-1">

@@ -259,6 +259,23 @@ async function executeWorkflow<T>(
         };
       }
 
+      // TasksGetBuildSessionWorkflow returns { task, summary, task_files } — keep whole object (do not unwrap to task only).
+      if (
+        "task" in result &&
+        result.task &&
+        "summary" in result &&
+        typeof (result as { summary?: unknown }).summary === "object" &&
+        (result as { summary?: unknown }).summary !== null &&
+        !Array.isArray((result as { summary?: unknown }).summary) &&
+        "task_files" in result &&
+        Array.isArray((result as { task_files?: unknown }).task_files)
+      ) {
+        return {
+          success: true,
+          data: result as T,
+        };
+      }
+
       // For task single responses
       if ("task" in result && result.task) {
         return {
@@ -915,6 +932,55 @@ export function useWorkspaceScopedActions() {
     [currentWorkspaceId, isReady],
   );
 
+  /** Single DB-backed snapshot: build task + summary + task-files (one workflow; use for builder polling). */
+  const getBuildSessionSnapshot = useCallback(
+    async (buildTaskId: string) => {
+      if (!isReady || !currentWorkspaceId) {
+        return { success: false, error: "No valid workspace context", data: null };
+      }
+      try {
+        const result = await executeWorkflow<{
+          task: Task;
+          summary: {
+            agents?: { id: string; name: string; description?: string; workspace_id: string; type?: string }[];
+            datasets?: { id: string; name: string; description?: string; workspace_id: string }[];
+            tasks?: Task[];
+            view_specs?: { id: string; name: string; columns: { key: string; label: string }[]; dataset_id: string }[];
+          };
+          task_files: { source: string; chunk_count: number }[];
+        }>("TasksGetBuildSessionWorkflow", {
+          build_task_id: buildTaskId,
+          workspace_id: currentWorkspaceId,
+        });
+        const raw = result.data;
+        const payload =
+          result.success &&
+          raw &&
+          typeof raw === "object" &&
+          !Array.isArray(raw) &&
+          "task" in raw &&
+          "summary" in raw &&
+          "task_files" in raw
+            ? (raw as {
+                task: Task;
+                summary: {
+                  agents: { id: string; name: string; description?: string; workspace_id: string; type?: string }[];
+                  datasets: { id: string; name: string; description?: string; workspace_id: string }[];
+                  tasks: Task[];
+                  view_specs: { id: string; name: string; columns: { key: string; label: string }[]; dataset_id: string }[];
+                };
+                task_files: { source: string; chunk_count: number }[];
+              })
+            : null;
+        return result.success ? { ...result, data: payload } : result;
+      } catch (error) {
+        console.error("[useWorkspaceScopedActions] Error in getBuildSessionSnapshot:", error);
+        return { success: false, error: "Failed to get build session", data: null };
+      }
+    },
+    [currentWorkspaceId, isReady],
+  );
+
   // Teams actions
   const fetchTeams = useCallback(
     async (forceRefresh = false) => {
@@ -1332,6 +1398,7 @@ export function useWorkspaceScopedActions() {
     updateTask,
     getTaskById,
     getBuildSummary,
+    getBuildSessionSnapshot,
     deleteTask,
 
     teams,
