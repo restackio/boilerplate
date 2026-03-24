@@ -54,7 +54,11 @@ echo ""
 workspace_exists=$(psql "$DATABASE_URL" -tAc "SELECT COUNT(*) FROM workspaces WHERE id = '$ADMIN_WORKSPACE_ID'")
 
 run_admin_sql() {
-  python3 "$SCRIPT_DIR/generate_admin_password.py" "$ADMIN_SQL_FILE" 2>/dev/null | psql "$DATABASE_URL" -f -
+  GEN_OUT=$(mktemp)
+  python3 "$SCRIPT_DIR/generate_admin_password.py" "$ADMIN_SQL_FILE" 2>/dev/null > "$GEN_OUT"
+  ADMIN_PASS=$(head -1 "$GEN_OUT")
+  tail -n +3 "$GEN_OUT" | psql "$DATABASE_URL" -f -
+  rm -f "$GEN_OUT"
 }
 
 if [ "$workspace_exists" = "0" ]; then
@@ -91,6 +95,7 @@ else
       sed "s|__ADMIN_PASSWORD_HASH__|$ESCAPED_HASH|g" "$ADMIN_SQL_FILE" | psql "$DATABASE_URL" -f - > /dev/null
     else
       run_admin_sql > /dev/null
+      NEW_ADMIN_PASS="$ADMIN_PASS"
     fi
     echo "✓ PostgreSQL admin data applied (upsert)"
   fi
@@ -98,6 +103,11 @@ else
   echo "========================================"
   echo "✓ Admin seed applied"
   echo "  User: admin@example.com"
-  echo "  (Password was set when workspace was first created.)"
+  if [ -n "$NEW_ADMIN_PASS" ]; then
+    echo "  Password: $NEW_ADMIN_PASS"
+    echo "  (Save this password; it will not be shown again.)"
+  else
+    echo "  (Password was set when workspace was first created.)"
+  fi
   echo "========================================"
 fi
