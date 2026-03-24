@@ -1,16 +1,31 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@workspace/ui/components/ui/button";
 import { Textarea } from "@workspace/ui/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@workspace/ui/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@workspace/ui/components/ui/select";
 import { Checkbox } from "@workspace/ui/components/ui/checkbox";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "@workspace/ui/components/ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from "@workspace/ui/components/ui/dropdown-menu";
 import { ArrowUp, ChevronDown, Settings, Clock } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
+import {
+  useWorkspaceScopedActions,
+  Agent,
+} from "@/hooks/use-workspace-scoped-actions";
 import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
-import { Agent } from "@/hooks/use-workspace-scoped-actions";
+import { AddOpenAITokenDialog } from "@/app/(dashboard)/integrations/components/add-openai-token-dialog";
 import { ScheduleSetupDialog, ScheduleSpec } from "./schedule-setup-dialog";
 import { executeWorkflow } from "@/app/actions/workflow";
 import Link from "next/link";
@@ -28,8 +43,16 @@ interface CreateTaskFormProps {
     schedule_spec?: any;
     is_scheduled?: boolean;
     schedule_status?: string;
-  }) => Promise<{ success: boolean; data?: { id: string; title: string; description: string }; error?: string }>;
-  onTaskCreated?: (taskData: { id: string; title: string; description: string }) => void;
+  }) => Promise<{
+    success: boolean;
+    data?: { id: string; title: string; description: string };
+    error?: string;
+  }>;
+  onTaskCreated?: (taskData: {
+    id: string;
+    title: string;
+    description: string;
+  }) => void;
   placeholder?: string;
   buttonText?: string;
 }
@@ -46,9 +69,21 @@ export function CreateTaskForm({
   const [selectedVersionIds, setSelectedVersionIds] = useState<string[]>([]);
   const [allAgentVersions, setAllAgentVersions] = useState<Agent[]>([]);
   const [showVersionSelector, setShowVersionSelector] = useState(false);
-  const { agents, fetchAgents, getAgentVersions, fetchTeams, teams } = useWorkspaceScopedActions();
+  const {
+    agents,
+    fetchAgents,
+    getAgentVersions,
+    fetchTeams,
+    teams,
+    hasWorkspaceOpenAIToken,
+    fetchMcpServers,
+  } = useWorkspaceScopedActions();
   const { currentUser } = useDatabaseWorkspace();
   const router = useRouter();
+  const [addOpenAITokenDialogOpen, setAddOpenAITokenDialogOpen] =
+    useState(false);
+  const pendingScheduleSpecRef = useRef<ScheduleSpec | null>(null);
+
   // Fetch agents on component mount (published only)
   useEffect(() => {
     fetchAgents({ publishedOnly: true, parentOnly: true });
@@ -57,6 +92,10 @@ export function CreateTaskForm({
   useEffect(() => {
     fetchTeams();
   }, [fetchTeams]);
+
+  useEffect(() => {
+    fetchMcpServers();
+  }, [fetchMcpServers]);
 
   // Fetch all versions when an agent is selected
   useEffect(() => {
@@ -70,26 +109,36 @@ export function CreateTaskForm({
 
       try {
         // Find the selected agent
-        const selectedAgent = agents.find(agent => agent.id === selectedAgentId);
+        const selectedAgent = agents.find(
+          (agent) => agent.id === selectedAgentId,
+        );
         if (!selectedAgent) return;
 
         // Get the parent_agent_id (or use current id if it's a parent)
         const parentId = selectedAgent.parent_agent_id || selectedAgent.id;
-        
+
         // Fetch all versions for this agent group
         const result = await getAgentVersions(parentId);
         if (result.success && result.data) {
           // Sort versions by updated_at descending (latest first)
           const sortedVersions = result.data.sort((a, b) => {
-            const dateA = new Date(a.updated_at || a.created_at || '1970-01-01').getTime();
-            const dateB = new Date(b.updated_at || b.created_at || '1970-01-01').getTime();
+            const dateA = new Date(
+              a.updated_at || a.created_at || "1970-01-01",
+            ).getTime();
+            const dateB = new Date(
+              b.updated_at || b.created_at || "1970-01-01",
+            ).getTime();
             return dateB - dateA;
           });
           setAllAgentVersions(sortedVersions);
-          
+
           // Auto-select the published version (default), or fall back to originally selected agent
-          const publishedVersion = sortedVersions.find(v => v.status === 'published');
-          const defaultVersionId = publishedVersion ? publishedVersion.id : selectedAgentId;
+          const publishedVersion = sortedVersions.find(
+            (v) => v.status === "published",
+          );
+          const defaultVersionId = publishedVersion
+            ? publishedVersion.id
+            : selectedAgentId;
           setSelectedVersionIds([defaultVersionId]);
           setShowVersionSelector(true);
         }
@@ -105,15 +154,15 @@ export function CreateTaskForm({
   }, [selectedAgentId, agents, getAgentVersions]);
 
   const handleVersionToggle = (versionId: string) => {
-    setSelectedVersionIds(prev => 
+    setSelectedVersionIds((prev) =>
       prev.includes(versionId)
-        ? prev.filter(id => id !== versionId)
-        : [...prev, versionId]
+        ? prev.filter((id) => id !== versionId)
+        : [...prev, versionId],
     );
   };
 
   const handleSelectAllVersions = () => {
-    setSelectedVersionIds(allAgentVersions.map(v => v.id));
+    setSelectedVersionIds(allAgentVersions.map((v) => v.id));
   };
 
   const handleClearAllVersions = () => {
@@ -125,11 +174,17 @@ export function CreateTaskForm({
     if (!selectedAgentId) {
       return;
     }
+    if (!hasWorkspaceOpenAIToken) {
+      pendingScheduleSpecRef.current = null;
+      setAddOpenAITokenDialogOpen(true);
+      return;
+    }
 
     // Determine which agent IDs to use
-    const agentIdsToUse = showVersionSelector && selectedVersionIds.length > 0 
-      ? selectedVersionIds 
-      : [selectedAgentId];
+    const agentIdsToUse =
+      showVersionSelector && selectedVersionIds.length > 0
+        ? selectedVersionIds
+        : [selectedAgentId];
 
     if (agentIdsToUse.length === 0) {
       return;
@@ -139,7 +194,9 @@ export function CreateTaskForm({
 
     try {
       const baseTaskData = {
-        title: taskDescription.substring(0, 50) + (taskDescription.length > 50 ? "..." : ""),
+        title:
+          taskDescription.substring(0, 50) +
+          (taskDescription.length > 50 ? "..." : ""),
         description: taskDescription,
         status: "in_progress" as const,
         assigned_to_id: currentUser?.id || "",
@@ -148,26 +205,29 @@ export function CreateTaskForm({
 
       const results = [];
       const createdTaskIds: string[] = [];
-      
+
       // Create tasks for each selected agent version
       for (let i = 0; i < agentIdsToUse.length; i++) {
         const agentId = agentIdsToUse[i];
-        const agent = allAgentVersions.find(a => a.id === agentId) || agents.find(a => a.id === agentId);
-        
+        const agent =
+          allAgentVersions.find((a) => a.id === agentId) ||
+          agents.find((a) => a.id === agentId);
+
         const taskData = {
           ...baseTaskData,
           agent_id: agentId,
           // Add version info to title if multiple versions are selected
-          title: agentIdsToUse.length > 1
-            ? `${baseTaskData.title} (${agent?.name || 'Unknown'})`
-            : baseTaskData.title,
+          title:
+            agentIdsToUse.length > 1
+              ? `${baseTaskData.title} (${agent?.name || "Unknown"})`
+              : baseTaskData.title,
           team_id: selectedTeamId,
         };
-        
+
         const result = await onSubmit(taskData);
-        
+
         results.push(result);
-        
+
         if (result.success && result.data) {
           createdTaskIds.push(result.data.id);
           // Only call onTaskCreated for single task creation
@@ -176,9 +236,9 @@ export function CreateTaskForm({
           }
         }
       }
-      
+
       // Clear form if all tasks were created successfully
-      const allSuccessful = results.every(r => r.success);
+      const allSuccessful = results.every((r) => r.success);
       if (allSuccessful) {
         setTaskDescription("");
         setSelectedAgentId("");
@@ -186,19 +246,18 @@ export function CreateTaskForm({
         setAllAgentVersions([]);
         setShowVersionSelector(false);
       }
-      
+
       // Handle navigation for multiple tasks
       if (agentIdsToUse.length > 1 && createdTaskIds.length > 0) {
         // For multiple tasks, redirect to /tasks with the created task IDs as query params
-        const taskIdsParam = createdTaskIds.join(',');
+        const taskIdsParam = createdTaskIds.join(",");
         const queryParams = new URLSearchParams({
           tasks: taskIdsParam,
-          highlight: 'true',
-          created: new Date().toISOString()
+          highlight: "true",
+          created: new Date().toISOString(),
         });
         router.push(`/tasks?${queryParams.toString()}`);
       }
-      
     } catch (error) {
       console.error("Failed to create tasks:", error);
     }
@@ -220,10 +279,17 @@ export function CreateTaskForm({
       alert("Please select an agent");
       return;
     }
+    if (!hasWorkspaceOpenAIToken) {
+      pendingScheduleSpecRef.current = scheduleSpec;
+      setAddOpenAITokenDialogOpen(true);
+      return;
+    }
 
     try {
       const baseTaskData = {
-        title: taskDescription.substring(0, 50) + (taskDescription.length > 50 ? "..." : ""),
+        title:
+          taskDescription.substring(0, 50) +
+          (taskDescription.length > 50 ? "..." : ""),
         description: taskDescription,
         status: "in_progress" as const,
         assigned_to_id: currentUser?.id || "",
@@ -236,7 +302,7 @@ export function CreateTaskForm({
 
       // First create the task
       const taskResult = await onSubmit(baseTaskData);
-      
+
       if (taskResult.success && taskResult.data) {
         // Then create the schedule using the task ID
         const scheduleResult = await executeWorkflow("ScheduleCreateWorkflow", {
@@ -251,11 +317,13 @@ export function CreateTaskForm({
           setSelectedVersionIds([]);
           setAllAgentVersions([]);
           setShowVersionSelector(false);
-          
+
           // Navigate to the created schedule page
           router.push(`/tasks/schedules/${taskResult.data.id}`);
         } else {
-          alert("Task created but failed to create schedule. Please try again.");
+          alert(
+            "Task created but failed to create schedule. Please try again.",
+          );
         }
       } else {
         alert("Failed to create task. Please try again.");
@@ -282,45 +350,54 @@ export function CreateTaskForm({
       </div>
 
       <div className="flex items-center space-x-3">
-          <div className="flex-1 flex flex-row space-x-2">
-              <Select value={selectedAgentId} onValueChange={setSelectedAgentId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select an agent" />
-                </SelectTrigger>
-                <SelectContent>
-                  {agents.map((agent) => (
-                    <SelectItem key={agent.id} value={agent.id}>
-                      {agent.name}
-                    </SelectItem>
-                  ))}
-                  {agents.length > 0 && (
-                    <>
-                      <div className="border-t my-1"></div>
-                      <div 
-                        className="flex items-center px-2 py-1.5 text-sm cursor-pointer hover:bg-neutral-100 rounded-sm"
-                        onClick={() => router.push('/agents')}
-                      >
-                        <Settings className="h-4 w-4 mr-2" />
-                        Manage agents
-                      </div>
-                    </>
-                  )}
-                </SelectContent>
-              </Select>
-              <Select value={selectedTeamId} onValueChange={setSelectedTeamId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a team" />
-                </SelectTrigger>
-                <SelectContent>
-                  {teams.map((team) => (
-                    <SelectItem key={team.id} value={team.id}>
-                      {team.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-          </div>
-        
+        <div className="flex-1 flex flex-row space-x-2">
+          <Select value={selectedAgentId} onValueChange={setSelectedAgentId}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select an agent" />
+            </SelectTrigger>
+            <SelectContent>
+              {agents.map((agent) => (
+                <SelectItem key={agent.id} value={agent.id}>
+                  {agent.name}
+                </SelectItem>
+              ))}
+              {agents.length > 0 && (
+                <>
+                  <div className="border-t my-1"></div>
+                  <div
+                    className="flex items-center px-2 py-1.5 text-sm cursor-pointer hover:bg-neutral-100 rounded-sm"
+                    onClick={() => router.push("/agents")}
+                  >
+                    <Settings className="h-4 w-4 mr-2" />
+                    Manage agents
+                  </div>
+                </>
+              )}
+            </SelectContent>
+          </Select>
+          <Select
+            value={selectedTeamId}
+            onValueChange={(value) => {
+              if (value === "__new_team__") {
+                router.push("/teams/settings");
+                return;
+              }
+              setSelectedTeamId(value);
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select a team" />
+            </SelectTrigger>
+            <SelectContent>
+              {teams.map((team) => (
+                <SelectItem key={team.id} value={team.id}>
+                  {team.name}
+                </SelectItem>
+              ))}
+              <SelectItem value="__new_team__">+ New team</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
         {/* Version Selection Dropdown */}
         {showVersionSelector && allAgentVersions.length > 1 && (
@@ -329,12 +406,11 @@ export function CreateTaskForm({
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="w-full justify-between">
                   <span>
-                    {selectedVersionIds.length === 0 
-                      ? "Select version" 
-                      : selectedVersionIds.length === 1 
+                    {selectedVersionIds.length === 0
+                      ? "Select version"
+                      : selectedVersionIds.length === 1
                         ? "1 version"
-                        : `${selectedVersionIds.length} versions`
-                    }
+                        : `${selectedVersionIds.length} versions`}
                   </span>
                   <ChevronDown className="h-4 w-4" />
                 </Button>
@@ -364,39 +440,55 @@ export function CreateTaskForm({
                 <DropdownMenuSeparator />
                 <div className="p-2 space-y-2 max-h-64 overflow-y-auto">
                   {allAgentVersions.map((version) => (
-                    <div key={version.id} className="flex items-center space-x-2 px-2 py-1 hover:bg-muted rounded">
+                    <div
+                      key={version.id}
+                      className="flex items-center space-x-2 px-2 py-1 hover:bg-muted rounded"
+                    >
                       <Checkbox
                         id={`dropdown-${version.id}`}
                         checked={selectedVersionIds.includes(version.id)}
                         onCheckedChange={() => handleVersionToggle(version.id)}
                       />
-                      <label 
-                        htmlFor={`dropdown-${version.id}`} 
+                      <label
+                        htmlFor={`dropdown-${version.id}`}
                         className="text-sm flex-1 cursor-pointer"
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex flex-col">
                             <span className="font-medium">
-                              ID: {version.id.slice(version.id.length - 5, version.id.length)}
+                              ID:{" "}
+                              {version.id.slice(
+                                version.id.length - 5,
+                                version.id.length,
+                              )}
                             </span>
                             <div className="flex items-center space-x-2 text-xs text-neutral-500 mt-0.5">
                               <span>
-                                {version.updated_at 
-                                  ? new Date(version.updated_at).toLocaleString('en-US', { 
-                                      month: 'short', 
-                                      day: 'numeric', 
-                                      year: 'numeric',
-                                      hour: '2-digit',
-                                      minute: '2-digit'
-                                    })
-                                  : 'Unknown date'
-                                }
+                                {version.updated_at
+                                  ? new Date(version.updated_at).toLocaleString(
+                                      "en-US",
+                                      {
+                                        month: "short",
+                                        day: "numeric",
+                                        year: "numeric",
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      },
+                                    )
+                                  : "Unknown date"}
                               </span>
                             </div>
                           </div>
                           <div className="flex flex-col space-y-1">
-                           <AgentStatusBadge status={version.status} size="sm" />
-                            <Link className="text-xs text-neutral-600 hover:text-neutral-800" href={`/agents/${version.id}`} target="_blank">
+                            <AgentStatusBadge
+                              status={version.status}
+                              size="sm"
+                            />
+                            <Link
+                              className="text-xs text-neutral-600 hover:text-neutral-800"
+                              href={`/agents/${version.id}`}
+                              target="_blank"
+                            >
                               Open in new tab
                             </Link>
                           </div>
@@ -423,9 +515,13 @@ export function CreateTaskForm({
         {/* Schedule Task Button */}
         <ScheduleSetupDialog
           trigger={
-            <Button 
+            <Button
               variant="outline"
-              disabled={!taskDescription.trim() || !selectedAgentId || selectedVersionIds.length > 1}
+              disabled={
+                !taskDescription.trim() ||
+                !selectedAgentId ||
+                selectedVersionIds.length > 1
+              }
               className="flex items-center space-x-2 whitespace-nowrap"
             >
               <Clock className="h-4 w-4" />
@@ -438,16 +534,38 @@ export function CreateTaskForm({
         />
 
         {/* Create Task Button */}
-        <Button 
+        <Button
           onClick={handleSubmit}
-          disabled={!taskDescription.trim() || !selectedAgentId || (showVersionSelector && selectedVersionIds.length === 0)}
+          disabled={
+            !taskDescription.trim() ||
+            !selectedAgentId ||
+            (showVersionSelector && selectedVersionIds.length === 0)
+          }
           className="flex items-center space-x-2 whitespace-nowrap"
         >
           <ArrowUp className="h-4 w-4" />
-          <span>{showVersionSelector && selectedVersionIds.length > 1 ? 'Create tasks' : buttonText}</span>
+          <span>
+            {showVersionSelector && selectedVersionIds.length > 1
+              ? "Create tasks"
+              : buttonText}
+          </span>
         </Button>
-
       </div>
+
+      <AddOpenAITokenDialog
+        open={addOpenAITokenDialogOpen}
+        onOpenChange={setAddOpenAITokenDialogOpen}
+        onTokenAdded={() => {
+          const spec = pendingScheduleSpecRef.current;
+          pendingScheduleSpecRef.current = null;
+          fetchMcpServers().then(() => {
+            setTimeout(() => {
+              if (spec) handleScheduleSubmit(spec);
+              else handleSubmit();
+            }, 0);
+          });
+        }}
+      />
     </div>
   );
-} 
+}

@@ -29,20 +29,19 @@ export interface TestAgentLog {
   metadata?: Record<string, unknown>;
 }
 
-// Agent data interface - flexible to handle both backend and demo data
+// Agent data interface
 export interface Agent {
   id: string;
   name: string;
   description?: string;
   instructions: string;
   type: "interactive" | "pipeline";
-  status: "published" | "draft" | "archived" | "testing" | "paused"; // Extended to handle demo data
+  status: "published" | "draft" | "archived" | "testing" | "paused";
   parent_agent_id?: string;
   created_at?: string;
   updated_at?: string;
   version_count?: number;
-  // Demo data specific fields (optional)
   model?: string;
   channel?: string;
   integrations?: string[];
-} 
+}

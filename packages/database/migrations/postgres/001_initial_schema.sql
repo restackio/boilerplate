@@ -74,7 +74,7 @@ CREATE TABLE IF NOT EXISTS agents (
     status VARCHAR(50) NOT NULL DEFAULT 'draft' CHECK (status IN ('published', 'draft', 'archived')),
     parent_agent_id UUID REFERENCES agents(id) ON DELETE SET NULL,
     type VARCHAR(20) NOT NULL DEFAULT 'interactive' CHECK (type IN ('interactive', 'pipeline')),
-    model VARCHAR(100) NOT NULL DEFAULT 'gpt-5.2' CHECK (length(model) > 0 AND length(model) <= 100),
+    model VARCHAR(100) NOT NULL DEFAULT 'gpt-5.4' CHECK (length(model) > 0 AND length(model) <= 100),
     reasoning_effort VARCHAR(20) DEFAULT 'medium' CHECK (reasoning_effort IN ('none', 'low', 'medium', 'high')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

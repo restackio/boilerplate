@@ -8,6 +8,7 @@ from sqlalchemy import and_, select
 from src.client import mcp_address
 from src.database.connection import get_async_db
 from src.database.models import (
+    Agent,
     AgentTool,
     McpServer,
 )
@@ -508,6 +509,40 @@ async def agent_tools_read_records_by_agent(
                 message=f"Failed to read agent tools records: {e!s}"
             ) from e
     return None  # pragma: no cover
+
+
+class GetRestackCoreMcpServerIdForAgentInput(BaseModel):
+    """Input for resolving restack-core MCP server in the agent's workspace."""
+
+    agent_id: str = Field(..., min_length=1)
+
+
+@function.defn()
+async def get_restack_core_mcp_server_id_for_agent(
+    function_input: GetRestackCoreMcpServerIdForAgentInput,
+) -> str | None:
+    """Return the restack-core MCP server id in the agent's workspace, or None."""
+    async for db in get_async_db():
+        try:
+            agent_row = await db.execute(
+                select(Agent.workspace_id).where(
+                    Agent.id == uuid.UUID(function_input.agent_id)
+                )
+            )
+            workspace_id = agent_row.scalar_one_or_none()
+            if not workspace_id:
+                return None
+            server_row = await db.execute(
+                select(McpServer.id).where(
+                    McpServer.workspace_id == workspace_id,
+                    McpServer.server_label == "restack-core",
+                )
+            )
+            mcp_id = server_row.scalar_one_or_none()
+            return str(mcp_id) if mcp_id else None
+        except (ValueError, TypeError, AttributeError):
+            return None
+    return None
 
 
 @function.defn()

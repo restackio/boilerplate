@@ -1,0 +1,114 @@
+"""Run one PDF embed in a subprocess; child exits so OS reclaims memory.
+
+Only this child process loads the embed model; the parent worker never imports
+embed_anything, so ensure_embed_model_loaded is not needed.
+Invoked as: python -m src.functions.embed_subprocess_runner <path_to_json>
+JSON: pdf_path, agent_id, task_id, workspace_id, dataset_id, event_name, source_filename, tags.
+Prints insert_count to stdout; stderr + exit 1 on error.
+"""
+
+import asyncio
+import json
+import sys
+import threading
+from pathlib import Path
+
+ARGC_EXPECTED = 2
+DATASET_ONLY_AGENT_ID = "00000000-0000-0000-0000-000000000000"
+EXIT_USAGE = 2
+
+
+def _run() -> int:
+    if len(sys.argv) != ARGC_EXPECTED:
+        sys.stderr.write(
+            "Usage: python -m src.functions.embed_subprocess_runner <json_path>\n"
+        )
+        sys.exit(EXIT_USAGE)
+    json_path = Path(sys.argv[1])
+    if not json_path.is_file():
+        sys.stderr.write(f"Not a file: {json_path}\n")
+        sys.exit(EXIT_USAGE)
+    payload = json.loads(json_path.read_text())
+
+    pdf_path = payload["pdf_path"]
+    agent_id = payload.get("agent_id") or DATASET_ONLY_AGENT_ID
+    task_id = payload.get("task_id")
+    workspace_id = payload["workspace_id"]
+    dataset_id = payload["dataset_id"]
+    event_name = payload.get("event_name", "PDF Chunk")
+    source_filename = payload["source_filename"]
+    tags = payload.get("tags") or ["pdf", "embed_anything"]
+
+    from embed_anything import EmbeddingModel, TextEmbedConfig
+
+    from src.adapters.clickhouse_embed_adapter import (
+        ClickHouseEmbedAdapter,
+    )
+    from src.database.connection import (
+        get_clickhouse_async_client,
+    )
+    from src.functions.embed_model_loader import (
+        DEFAULT_MODEL_ID,
+        _embed_config_values,
+    )
+
+    chunk_size, batch_size, buffer_size = _embed_config_values()
+    model = EmbeddingModel.from_pretrained_hf(
+        model_id=DEFAULT_MODEL_ID
+    )
+    config = TextEmbedConfig(
+        chunk_size=chunk_size,
+        batch_size=batch_size,
+        buffer_size=buffer_size,
+        splitting_strategy="sentence",
+    )
+
+    result: list[int | BaseException] = []
+
+    def run_embed() -> None:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            client = loop.run_until_complete(
+                get_clickhouse_async_client()
+            )
+            adapter = ClickHouseEmbedAdapter(
+                client,
+                agent_id=agent_id,
+                task_id=task_id,
+                workspace_id=workspace_id,
+                dataset_id=dataset_id,
+                event_name=event_name,
+                source_filename=source_filename,
+                tags=tags,
+            )
+            import embed_anything
+
+            embed_anything.embed_file(
+                pdf_path,
+                embedder=model,
+                config=config,
+                adapter=adapter,
+            )
+            result.append(adapter.insert_count)
+        except BaseException as e:  # noqa: BLE001 (intentionally catch all to report back)
+            result.append(e)
+        finally:
+            loop.close()
+
+    t = threading.Thread(target=run_embed)
+    t.start()
+    t.join()
+    r = result[0]
+    if isinstance(r, BaseException):
+        raise r
+    return r
+
+
+if __name__ == "__main__":
+    try:
+        count = _run()
+        print(count)  # noqa: T201 (stdout contract for parent process)
+    except Exception as e:  # noqa: BLE001 (CLI: catch any error and exit 1)
+        sys.stderr.write(f"embed_subprocess_runner: {e}\n")
+        sys.exit(1)

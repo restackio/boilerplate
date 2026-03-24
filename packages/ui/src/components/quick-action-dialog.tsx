@@ -12,7 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "./ui/dialog";
-import { ArrowUp, X, Loader2, type LucideIcon } from "lucide-react";
+import { ArrowUp, Loader2, type LucideIcon } from "lucide-react";
 import { cn } from "../lib/utils";
 
 interface QuickActionField {
@@ -261,15 +261,6 @@ export function QuickActionDialog({
                 </DialogDescription>
               )}
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleClose}
-              disabled={isFormLoading}
-              className="h-6 w-6 p-0 flex-shrink-0 ml-4"
-            >
-              <X className="h-4 w-4" />
-            </Button>
           </div>
         </DialogHeader>
 

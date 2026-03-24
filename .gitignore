@@ -39,3 +39,5 @@ npm-debug.log*
 
 styles
 clickhouse
+
+*.pyc

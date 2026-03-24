@@ -10,7 +10,7 @@ import { NotificationBanner } from "@workspace/ui/components/notification-banner
 import { McpServer } from "../../../../../hooks/use-workspace-scoped-actions";
 import { listMcpServerTools } from "../../../../actions/workflow";
 
-/** Form data for MCP server configuration */
+/** Form data for MCP server configuration. server_label is validated as slug by backend (Pydantic). */
 interface McpServerFormData {
   server_label: string;
   server_url: string;
@@ -33,19 +33,20 @@ interface IntegrationSetupTabProps {
   }) => void;
 }
 
-// Validation function
 function validateMcpServerForm(
   formData: McpServerFormData,
-  headerInput: string
+  headerInput: string,
 ): ValidationResult {
-  // Validate server label
   if (!formData.server_label.trim()) {
-    return { isValid: false, error: "Server label is required" };
+    return { isValid: false, error: "Integration name is required" };
   }
 
   // Validate server URL for non-local servers
   if (!formData.local && !formData.server_url.trim()) {
-    return { isValid: false, error: "Server URL is required for remote servers" };
+    return {
+      isValid: false,
+      error: "Server URL is required for remote servers",
+    };
   }
 
   // Validate headers JSON format
@@ -60,7 +61,10 @@ function validateMcpServerForm(
   return { isValid: true };
 }
 
-export function IntegrationSetupTab({ server, onDataChange }: IntegrationSetupTabProps) {
+export function IntegrationSetupTab({
+  server,
+  onDataChange,
+}: IntegrationSetupTabProps) {
   const [formData, setFormData] = useState<McpServerFormData>({
     server_label: server.server_label,
     server_url: server.server_url || "",
@@ -77,7 +81,7 @@ export function IntegrationSetupTab({ server, onDataChange }: IntegrationSetupTa
   );
   const [connectionTest, setConnectionTest] = useState<{
     isLoading: boolean;
-    result: 'success' | 'error' | null;
+    result: "success" | "error" | null;
     message: string;
   }>({
     isLoading: false,
@@ -86,11 +90,15 @@ export function IntegrationSetupTab({ server, onDataChange }: IntegrationSetupTa
   });
 
   // Notify parent of data changes
-  const notifyParentOfChanges = (newFormData?: McpServerFormData, newHeaderInput?: string) => {
+  const notifyParentOfChanges = (
+    newFormData?: McpServerFormData,
+    newHeaderInput?: string,
+  ) => {
     if (onDataChange) {
       onDataChange({
         formData: newFormData || formData,
-        headerInput: newHeaderInput !== undefined ? newHeaderInput : headerInput,
+        headerInput:
+          newHeaderInput !== undefined ? newHeaderInput : headerInput,
       });
     }
   };
@@ -100,7 +108,7 @@ export function IntegrationSetupTab({ server, onDataChange }: IntegrationSetupTa
     if (!validation.isValid) {
       setConnectionTest({
         isLoading: false,
-        result: 'error',
+        result: "error",
         message: validation.error || "Invalid configuration",
       });
       return;
@@ -121,7 +129,7 @@ export function IntegrationSetupTab({ server, onDataChange }: IntegrationSetupTa
         } catch {
           setConnectionTest({
             isLoading: false,
-            result: 'error',
+            result: "error",
             message: "Invalid JSON format for headers",
           });
           return;
@@ -129,13 +137,15 @@ export function IntegrationSetupTab({ server, onDataChange }: IntegrationSetupTa
       }
 
       // Test connection by listing tools
-      const serverUrl = formData.local ? "placeholder" : formData.server_url.trim();
+      const serverUrl = formData.local
+        ? "placeholder"
+        : formData.server_url.trim();
       const result = await listMcpServerTools(
-        serverUrl, 
-        parsedHeaders, 
+        serverUrl,
+        parsedHeaders,
         formData.local,
         server.workspace_id,
-        server.id
+        server.id,
       );
 
       if (result && typeof result === "object") {
@@ -145,7 +155,7 @@ export function IntegrationSetupTab({ server, onDataChange }: IntegrationSetupTa
           const toolCount = data.tools_list?.length || 0;
           setConnectionTest({
             isLoading: false,
-            result: 'success',
+            result: "success",
             message: `Connection successful! Found ${toolCount} available tools.`,
           });
         } else {
@@ -157,8 +167,11 @@ export function IntegrationSetupTab({ server, onDataChange }: IntegrationSetupTa
     } catch (error) {
       setConnectionTest({
         isLoading: false,
-        result: 'error',
-        message: error instanceof Error ? error.message : "Failed to connect to MCP server",
+        result: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Failed to connect to MCP server",
       });
     }
   };
@@ -173,8 +186,12 @@ export function IntegrationSetupTab({ server, onDataChange }: IntegrationSetupTa
             <Input
               id="server_label"
               value={formData.server_label}
+              placeholder="my-integration"
               onChange={(e) => {
-                const newFormData = { ...formData, server_label: e.target.value };
+                const newFormData = {
+                  ...formData,
+                  server_label: e.target.value,
+                };
                 setFormData(newFormData);
                 notifyParentOfChanges(newFormData);
               }}
@@ -192,7 +209,9 @@ export function IntegrationSetupTab({ server, onDataChange }: IntegrationSetupTa
                   notifyParentOfChanges(newFormData);
                 }}
               />
-              <Label htmlFor="local">{formData.local ? "Local" : "Remote"}</Label>
+              <Label htmlFor="local">
+                {formData.local ? "Local" : "Remote"}
+              </Label>
             </div>
           </div>
         </div>
@@ -216,8 +235,10 @@ export function IntegrationSetupTab({ server, onDataChange }: IntegrationSetupTa
 
         {formData.local && (
           <div className="text-sm text-muted-foreground p-3 bg-muted/30 rounded-md">
-            <strong>Local Server:</strong> This server will use environment variables (like RESTACK_ENGINE_MCP_ADDRESS) for connection.
-            The connection test will attempt to connect to the local server automatically.
+            <strong>Local Server:</strong> This server will use environment
+            variables (like RESTACK_ENGINE_MCP_ADDRESS) for connection. The
+            connection test will attempt to connect to the local server
+            automatically.
           </div>
         )}
 
@@ -227,7 +248,10 @@ export function IntegrationSetupTab({ server, onDataChange }: IntegrationSetupTa
             id="server_description"
             value={formData.server_description}
             onChange={(e) => {
-              const newFormData = { ...formData, server_description: e.target.value };
+              const newFormData = {
+                ...formData,
+                server_description: e.target.value,
+              };
               setFormData(newFormData);
               notifyParentOfChanges(newFormData);
             }}
@@ -271,20 +295,22 @@ export function IntegrationSetupTab({ server, onDataChange }: IntegrationSetupTa
                 Testing...
               </>
             ) : (
-              <>
-                Test Connection
-              </>
+              <>Test Connection</>
             )}
           </Button>
         </div>
 
         {connectionTest.result && (
-              <NotificationBanner
-                variant={connectionTest.result === 'success' ? 'success' : 'error'}
-                title={connectionTest.result === 'success' ? 'Connection Successful' : 'Connection Failed'}
-                description={connectionTest.message}
-                dismissible={false}
-              />
+          <NotificationBanner
+            variant={connectionTest.result === "success" ? "success" : "error"}
+            title={
+              connectionTest.result === "success"
+                ? "Connection Successful"
+                : "Connection Failed"
+            }
+            description={connectionTest.message}
+            dismissible={false}
+          />
         )}
       </div>
 
@@ -298,5 +324,3 @@ export function IntegrationSetupTab({ server, onDataChange }: IntegrationSetupTa
     </div>
   );
 }
-
-

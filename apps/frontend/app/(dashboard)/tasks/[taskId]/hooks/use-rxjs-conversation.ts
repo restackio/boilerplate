@@ -101,21 +101,28 @@ export function useRxjsConversation({
     const extractItemFromEvent = (event: OpenAIEvent): ConversationItem | ConversationItem[] | null => {
       const eventType = event.type;
       
-      if (eventType === 'error' && (event as any).error) { // eslint-disable-line @typescript-eslint/no-explicit-any
-        const errorEvent = event as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+      if (eventType === 'error') {
+        const errorEvent = event as Record<string, unknown>;
+        const errorPayload = errorEvent.error as Record<string, unknown> | undefined;
+        const message =
+          (errorPayload?.message as string) ??
+          (errorEvent.message as string) ??
+          'An error occurred';
+        const code = (errorPayload?.error_type as string) ?? (errorPayload?.code as string) ?? (errorEvent.code as string) ?? 'unknown';
+        const id = (errorPayload?.id as string) ?? `error-${(errorEvent.sequence_number as number) ?? 0}-${String(message).slice(0, 12).replace(/\s/g, '_')}`;
         return {
-          id: errorEvent.error.id,
+          id,
           type: 'error',
-          timestamp: event.timestamp || new Date().toISOString(),
+          timestamp: (event.timestamp as string) || new Date().toISOString(),
           openai_output: null,
           openai_event: event,
           error: {
-            id: errorEvent.error.id as string,
-            type: (errorEvent.error.type as string) || 'error',
-            error_type: (errorEvent.error.error_type as string) || 'unknown',
-            error_message: (errorEvent.error.message as string) || 'An error occurred',
-            error_source: (errorEvent.error.error_source as "openai" | "mcp" | "backend" | "network") || 'backend',
-            error_details: errorEvent.error
+            id,
+            type: (errorPayload?.type as string) || 'error',
+            error_type: code,
+            error_message: message,
+            error_source: (errorPayload?.error_source as 'openai' | 'mcp' | 'backend' | 'network') ?? 'backend',
+            error_details: errorPayload ?? { code, message },
           },
           isStreaming: false,
         };

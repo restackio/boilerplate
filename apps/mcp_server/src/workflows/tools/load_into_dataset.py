@@ -153,7 +153,7 @@ class LoadIntoDatasetOutput(BaseModel):
     )
 
 
-@workflow.defn(description="Load data into dataset")
+@workflow.defn(mcp=True, description="Load data into dataset")
 class LoadIntoDataset:
     """Workflow to load data into a dataset."""
 

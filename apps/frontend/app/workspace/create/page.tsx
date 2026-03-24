@@ -2,22 +2,28 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@workspace/ui/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@workspace/ui/components/ui/card";
 import { Input } from "@workspace/ui/components/ui/input";
 import { Label } from "@workspace/ui/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@workspace/ui/components/ui/select";
-import { Textarea } from "@workspace/ui/components/ui/textarea";
-import { Building, CheckCircle, ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
+import {
+  Building,
+  ArrowLeft,
+  ArrowRight,
+  Loader2,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
+import { executeWorkflow } from "@/app/actions/workflow";
 
 interface FormData {
-  companyName: string;
-  companySize: string;
-  industry: string;
-  contactRole: string;
-  useCase: string;
-  description: string;
+  name: string;
+  openaiApiKey: string;
 }
 
 export default function CreateWorkspacePage() {
@@ -28,12 +34,8 @@ export default function CreateWorkspacePage() {
   const { setCurrentWorkspaceId, createWorkspace } = useDatabaseWorkspace();
 
   const [formData, setFormData] = useState<FormData>({
-    companyName: "",
-    companySize: "",
-    industry: "",
-    contactRole: "",
-    useCase: "",
-    description: "",
+    name: "",
+    openaiApiKey: "",
   });
   const router = useRouter();
 
@@ -51,7 +53,7 @@ export default function CreateWorkspacePage() {
         console.error("Failed to parse stored user:", error);
       }
     }
-    
+
     // If not authenticated, redirect to login
     setIsAuthenticated(false);
     router.push("/login");
@@ -62,15 +64,7 @@ export default function CreateWorkspacePage() {
   };
 
   const handleNextStep = () => {
-    if (currentStep === 1) {
-      // Basic validation
-      if (
-        !formData.companyName ||
-        !formData.companySize ||
-        !formData.industry
-      ) {
-        return;
-      }
+    if (currentStep === 1 && formData.name.trim()) {
       setCurrentStep(2);
     }
   };
@@ -81,7 +75,10 @@ export default function CreateWorkspacePage() {
     }
   };
 
-  const handleCreateWorkspace = async () => {
+  const handleCreateWorkspace = async (options?: { skipKey?: boolean }) => {
+    const skipKey = options?.skipKey ?? false;
+    const apiKey = skipKey ? "" : formData.openaiApiKey.trim();
+
     setIsLoading(true);
     setError("");
 
@@ -98,41 +95,45 @@ export default function CreateWorkspacePage() {
 
       // Create the workspace and automatically add user as owner
       const createdWorkspace = await createWorkspace({
-        name: formData.companyName,
+        name: formData.name.trim(),
         created_by_user_id: userData.id,
-      });     
-      
+      });
+
       setCurrentWorkspaceId(createdWorkspace.id);
 
-      // Force a page reload to refresh workspace data
-      // The dashboard will check for newWorkspaceId and switch to it
-      window.location.href = "/dashboard";
-    } catch (error) {
-      void error; // Suppress unused warning
+      // Save OpenAI API key to the workspace's OpenAI integration (only if provided and not skipping)
+      if (apiKey) {
+        const openaiMcpServerId = createdWorkspace.openai_mcp_server_id;
+        if (openaiMcpServerId) {
+          const tokenResult = await executeWorkflow(
+            "BearerTokenCreateWorkflow",
+            {
+              user_id: userData.id,
+              workspace_id: createdWorkspace.id,
+              mcp_server_id: openaiMcpServerId,
+              access_token: apiKey,
+              token_name: "Workspace API key",
+            },
+          );
+          if (!tokenResult?.success) {
+            setError(
+              "Workspace created but failed to save OpenAI API key. You can add it later in Integrations.",
+            );
+            setIsLoading(false);
+            return;
+          }
+        }
+      }
+
+      // Redirect only after workspace (and key, if provided) are saved
+      window.location.href = "/agents/new";
+    } catch (err) {
+      void err;
       setError("Failed to create workspace. Please try again.");
     } finally {
       setIsLoading(false);
     }
   };
-
-  const companySizes = [
-    "1-10 employees",
-    "11-50 employees",
-    "51-200 employees",
-    "201-1000 employees",
-    "1000+ employees",
-  ];
-
-  const industries = [
-    "Technology",
-    "Financial Services",
-    "Healthcare",
-    "E-commerce",
-    "Manufacturing",
-    "Education",
-    "Government",
-    "Other",
-  ];
 
   // Show loading state while checking authentication
   if (isAuthenticated === null) {
@@ -191,105 +192,33 @@ export default function CreateWorkspacePage() {
           </div>
         </div>
 
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-2xl mx-auto">
           {currentStep === 1 && (
             <Card className="space-y-4">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Building className="size-5" />
-                  Tell us about your organization
+                  Workspace name
                 </CardTitle>
-                <CardDescription>
-                  Help us understand your needs so we can customize your
-                  workspace
-                </CardDescription>
+                <CardDescription>Give your workspace a name</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="companyName">Company name *</Label>
-                    <Input
-                      id="companyName"
-                      value={formData.companyName}
-                      onChange={(e) =>
-                        handleInputChange("companyName", e.target.value)
-                      }
-                      placeholder="Enter your company name"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="companySize">Company size *</Label>
-                    <Select
-                      value={formData.companySize}
-                      onValueChange={(value) =>
-                        handleInputChange("companySize", value)
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select company size" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {companySizes.map((size) => (
-                          <SelectItem key={size} value={size}>
-                            {size}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="industry">Industry *</Label>
-                    <Select
-                      value={formData.industry}
-                      onValueChange={(value) =>
-                        handleInputChange("industry", value)
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select your industry" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {industries.map((industry) => (
-                          <SelectItem key={industry} value={industry}>
-                            {industry}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="contactRole">Your role</Label>
-                    <Input
-                      id="contactRole"
-                      value={formData.contactRole}
-                      onChange={(e) =>
-                        handleInputChange("contactRole", e.target.value)
-                      }
-                      placeholder="e.g., CTO, Head of Support"
-                    />
-                  </div>
-                </div>
-
                 <div className="space-y-2">
-                  <Label htmlFor="useCase">Primary use case</Label>
-                  <Textarea
-                    id="useCase"
-                    value={formData.useCase}
-                    onChange={(e) =>
-                      handleInputChange("useCase", e.target.value)
-                    }
-                    placeholder="What do you hope to achieve in this workspace? (e.g., automate tier-1 support, reduce response times, scale customer support, etc.)"
-                    rows={4}
-                    className="min-h-40"
+                  <Label htmlFor="name">Name *</Label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => handleInputChange("name", e.target.value)}
+                    placeholder="e.g. My team, Acme Corp"
+                    required
                   />
                 </div>
-
                 <div className="flex justify-end">
-                  <Button onClick={handleNextStep} size="lg">
+                  <Button
+                    onClick={handleNextStep}
+                    disabled={!formData.name.trim()}
+                    size="lg"
+                  >
                     Continue
                     <ArrowRight className="ml-2 size-4" />
                   </Button>
@@ -302,43 +231,75 @@ export default function CreateWorkspacePage() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <CheckCircle className="size-5" />
-                  Review and create workspace
+                  OpenAI integration
                 </CardTitle>
                 <CardDescription>
-                  Review your workspace details and create your workspace
+                  For running agents. Encrypted and stored securely. You can add
+                  it later in Integrations.
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="mb-6 p-4 bg-neutral-50 dark:bg-neutral-800 rounded-lg">
-                  <h3 className="font-semibold mb-2">Workspace Details:</h3>
-                  <div className="space-y-1 text-sm text-neutral-600 dark:text-neutral-400">
-                    <p><strong>Company Name:</strong> {formData.companyName}</p>
-                    <p><strong>Company Size:</strong> {formData.companySize}</p>
-                    <p><strong>Industry:</strong> {formData.industry}</p>
-                    {formData.contactRole && <p><strong>Your Role:</strong> {formData.contactRole}</p>}
-                    {formData.useCase && <p><strong>Use Case:</strong> {formData.useCase}</p>}
-                  </div>
+                <div className="my-6 space-y-2">
+                  <Label htmlFor="openaiApiKey">API key (optional)</Label>
+                  <Input
+                    id="openaiApiKey"
+                    type="password"
+                    value={formData.openaiApiKey}
+                    onChange={(e) =>
+                      handleInputChange("openaiApiKey", e.target.value)
+                    }
+                    placeholder="sk-..."
+                    className="font-mono"
+                    autoComplete="off"
+                  />
                 </div>
 
                 {error && (
-                  <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded-md">
-                    <p className="text-red-800 text-sm">{error}</p>
+                  <div className="mb-6 p-3 bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800 rounded-md">
+                    <p className="text-red-800 dark:text-red-200 text-sm">
+                      {error}
+                    </p>
                   </div>
                 )}
-
-                <div className="flex justify-between mt-6">
-                  <Button variant="outline" onClick={handlePrevStep}>
+                <div>
+                  <p className="text-sm text-muted-foreground">
+                    Gemini, Anthropic, and custom models are available in Early
+                    Preview.{" "}
+                    <a
+                      href="https://www.restack.io/contact"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline"
+                    >
+                      Contact us for access
+                    </a>
+                  </p>
+                </div>
+                <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center mt-6">
+                  <Button
+                    variant="outline"
+                    onClick={handlePrevStep}
+                    disabled={isLoading}
+                  >
                     <ArrowLeft className="mr-2 size-4" />
                     Back
                   </Button>
-                  <Button 
-                    onClick={handleCreateWorkspace} 
-                    disabled={isLoading}
-                    size="lg"
-                  >
-                    {isLoading ? "Creating..." : "Create"}
-                  </Button>
+                  <div className="flex gap-2 justify-end">
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleCreateWorkspace({ skipKey: true })}
+                      disabled={isLoading}
+                    >
+                      Skip for now
+                    </Button>
+                    <Button
+                      onClick={() => handleCreateWorkspace()}
+                      disabled={isLoading}
+                      size="lg"
+                    >
+                      {isLoading ? "Creating..." : "Create workspace"}
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>

@@ -13,6 +13,7 @@ import { TaskStatsCard } from "./components/task-stats-card";
 import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 import TasksTabs from "./tasks-tabs";
 import { getTasksByMetric, getTasksByFeedback } from "@/app/actions/tasks-filter";
+import { isMainTasksTabTask } from "@/lib/build-task-utils";
 
 export default function TasksPage() {
   const router = useRouter();
@@ -145,20 +146,22 @@ export default function TasksPage() {
       updated: task.updated_at || "",
     }));
 
+    let list: typeof transformedTasks;
     // Filter by metric/feedback if filteredTaskIds is set
     if (filteredTaskIds !== null) {
-      return transformedTasks.filter(task => filteredTaskIds.includes(task.id));
+      list = transformedTasks.filter(task => filteredTaskIds.includes(task.id));
+    } else {
+      // Filter by specific task IDs if provided in URL params (for newly created tasks)
+      const tasksParam = searchParams.get('tasks');
+      if (tasksParam && searchParams.get('highlight') === 'true') {
+        const taskIds = tasksParam.split(',').filter(id => id.trim());
+        list = transformedTasks.filter(task => taskIds.includes(task.id));
+      } else {
+        list = transformedTasks.filter((task) => isMainTasksTabTask(task));
+      }
     }
-
-    // Filter by specific task IDs if provided in URL params (for newly created tasks)
-    const tasksParam = searchParams.get('tasks');
-    if (tasksParam && searchParams.get('highlight') === 'true') {
-      const taskIds = tasksParam.split(',').filter(id => id.trim());
-      return transformedTasks.filter(task => taskIds.includes(task.id));
-    }
-
-    // Only exclude scheduled tasks when no filters are active
-    return transformedTasks.filter(task => !task.schedule_spec);
+    // Build tasks are shown in the main tasks list for all workspaces
+    return list;
   }, [tasks, searchParams, filteredTaskIds]);
 
   // Create team options for filtering

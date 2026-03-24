@@ -1,0 +1,659 @@
+[
+  {
+    "id": "exa-search",
+    "name": "Exa Search",
+    "server_label": "exa-search",
+    "server_url": "https://mcp.exa.ai/mcp",
+    "description": "Search the web with Exa for high-quality, cited results.",
+    "tags": ["search", "web", "exa", "research"],
+    "auth_type": "bearer"
+  },
+  {
+    "id": "brave-search",
+    "name": "Brave Search",
+    "server_label": "brave-search",
+    "server_url": "https://api.mcp.brave.com/mcp",
+    "description": "Web search via Brave Search API.",
+    "tags": ["search", "web", "brave"],
+    "auth_type": "bearer"
+  },
+  {
+    "id": "brightdata",
+    "name": "Bright Data",
+    "server_label": "brightdata",
+    "server_url": "https://mcp.brightdata.com/mcp",
+    "description": "Web scraping and data collection at scale.",
+    "tags": ["scraping", "data", "proxy"],
+    "auth_type": "bearer"
+  },
+  {
+    "id": "apify",
+    "name": "Apify",
+    "server_label": "apify",
+    "server_url": "https://mcp.apify.com",
+    "description": "Run actors and manage datasets for web scraping and automation.",
+    "tags": ["scraping", "automation", "actors"],
+    "auth_type": "bearer"
+  },
+  {
+    "id": "asana",
+    "name": "Asana",
+    "server_label": "asana",
+    "server_url": "https://mcp.asana.com/sse",
+    "description": "Manage tasks, projects, and workflows in Asana.",
+    "tags": ["tasks", "project-management", "workflow"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "atlassian",
+    "name": "Atlassian",
+    "server_label": "atlassian",
+    "server_url": "https://mcp.atlassian.com/v1/sse",
+    "description": "Jira, Confluence, and other Atlassian products.",
+    "tags": ["jira", "confluence", "project-management"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "attio",
+    "name": "Attio",
+    "server_label": "attio",
+    "server_url": "https://mcp.attio.com/mcp",
+    "description": "CRM and relationship management.",
+    "tags": ["crm", "relationships"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "audioscrape",
+    "name": "Audioscrape",
+    "server_label": "audioscrape",
+    "server_url": "https://mcp.audioscrape.com",
+    "description": "Search 1M+ hours of audio: podcasts, interviews, talks. RAG-as-a-Service for audio.",
+    "tags": ["audio", "podcasts", "search", "rag", "transcription"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "box",
+    "name": "Box",
+    "server_label": "box",
+    "server_url": "https://mcp.box.com",
+    "description": "Cloud file storage and collaboration.",
+    "tags": ["files", "storage", "collaboration"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "canva",
+    "name": "Canva",
+    "server_label": "canva",
+    "server_url": "https://mcp.canva.com/mcp",
+    "description": "Design and create visual content.",
+    "tags": ["design", "graphics", "creatives"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "close",
+    "name": "Close",
+    "server_label": "close",
+    "server_url": "https://mcp.close.com/mcp",
+    "description": "Sales CRM and pipeline management.",
+    "tags": ["crm", "sales"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "cortex",
+    "name": "Cortex",
+    "server_label": "cortex",
+    "server_url": "https://mcp.cortex.io/mcp",
+    "description": "AI and ML operations platform.",
+    "tags": ["ai", "mlops"],
+    "auth_type": "bearer"
+  },
+  {
+    "id": "deepwiki",
+    "name": "DeepWiki",
+    "server_label": "deepwiki",
+    "server_url": "https://mcp.deepwiki.com/sse",
+    "description": "Deep research and knowledge search.",
+    "tags": ["search", "research", "knowledge"],
+    "auth_type": "bearer"
+  },
+  {
+    "id": "github-copilot",
+    "name": "GitHub Copilot",
+    "server_label": "github-copilot",
+    "server_url": "https://api.githubcopilot.com/mcp",
+    "description": "GitHub Copilot MCP for code assistance.",
+    "tags": ["github", "code", "copilot"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "bigquery",
+    "name": "Google BigQuery",
+    "server_label": "bigquery",
+    "server_url": "https://bigquery.googleapis.com/mcp",
+    "description": "Query and analyze large datasets with BigQuery.",
+    "tags": ["database", "analytics", "google"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "google-maps-tools",
+    "name": "Google Maps Tools",
+    "server_label": "google-maps-tools",
+    "server_url": "https://mapstools.googleapis.com/mcp",
+    "description": "Maps and location services.",
+    "tags": ["maps", "location", "google"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "hubspot",
+    "name": "HubSpot",
+    "server_label": "hubspot",
+    "server_url": "https://app.hubspot.com/mcp/v1/http",
+    "description": "Marketing, sales, and CRM from HubSpot.",
+    "tags": ["crm", "marketing", "sales"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "huggingface",
+    "name": "Hugging Face",
+    "server_label": "huggingface",
+    "server_url": "https://hf.co/mcp",
+    "description": "Models, datasets, and ML pipelines.",
+    "tags": ["ml", "models", "datasets"],
+    "auth_type": "bearer"
+  },
+  {
+    "id": "indeed",
+    "name": "Indeed",
+    "server_label": "indeed",
+    "server_url": "https://mcp.indeed.com/claude/mcp",
+    "description": "Job search and recruitment data.",
+    "tags": ["jobs", "recruitment", "hr"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "intercom",
+    "name": "Intercom",
+    "server_label": "intercom",
+    "server_url": "https://mcp.intercom.com/sse",
+    "description": "Customer messaging and support.",
+    "tags": ["support", "messaging", "customers"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "linear",
+    "name": "Linear",
+    "server_label": "linear",
+    "server_url": "https://mcp.linear.app/sse",
+    "description": "Issue tracking and product development.",
+    "tags": ["issues", "product", "engineering"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "monday",
+    "name": "Monday.com",
+    "server_label": "monday",
+    "server_url": "https://mcp.monday.com/sse",
+    "description": "Work OS and project management.",
+    "tags": ["project-management", "workflow"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "notion",
+    "name": "Notion",
+    "server_label": "notion",
+    "server_url": "https://mcp.notion.com/sse",
+    "description": "Notes, docs, wikis, and project management.",
+    "tags": ["docs", "wiki", "productivity"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "paypal",
+    "name": "PayPal",
+    "server_label": "paypal",
+    "server_url": "https://mcp.paypal.com/sse",
+    "description": "Payments and financial operations.",
+    "tags": ["payments", "finance"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "plaid",
+    "name": "Plaid",
+    "server_label": "plaid",
+    "server_url": "https://api.dashboard.plaid.com/mcp/sse",
+    "description": "Banking and financial data connectivity.",
+    "tags": ["finance", "banking", "api"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "searchapi",
+    "name": "SearchAPI",
+    "server_label": "searchapi",
+    "server_url": "https://www.searchapi.io/mcp",
+    "description": "Search API for Google and other engines.",
+    "tags": ["search", "web", "api"],
+    "auth_type": "bearer"
+  },
+  {
+    "id": "sentry",
+    "name": "Sentry",
+    "server_label": "sentry",
+    "server_url": "https://mcp.sentry.dev/sse",
+    "description": "Error monitoring and performance.",
+    "tags": ["monitoring", "errors", "devops"],
+    "auth_type": "bearer"
+  },
+  {
+    "id": "datadog",
+    "name": "Datadog",
+    "server_label": "datadog",
+    "server_url": "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp",
+    "description": "Observability and security platform.",
+    "tags": ["monitoring", "observability", "devops"],
+    "auth_type": "bearer"
+  },
+  {
+    "id": "stripe",
+    "name": "Stripe",
+    "server_label": "stripe",
+    "server_url": "https://mcp.stripe.com/",
+    "description": "Payments, billing, and financial infrastructure.",
+    "tags": ["payments", "billing", "finance"],
+    "auth_type": "both"
+  },
+  {
+    "id": "supabase",
+    "name": "Supabase",
+    "server_label": "supabase",
+    "server_url": "https://mcp.supabase.com/mcp",
+    "description": "Backend-as-a-Service: database, auth, storage.",
+    "tags": ["database", "backend", "postgres"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "webflow",
+    "name": "Webflow",
+    "server_label": "webflow",
+    "server_url": "https://mcp.webflow.com/sse",
+    "description": "Design and publish websites.",
+    "tags": ["web", "design", "cms"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "sanity",
+    "name": "Sanity",
+    "server_label": "sanity",
+    "server_url": "https://mcp.sanity.io",
+    "description": "Structured content and headless CMS.",
+    "tags": ["cms", "content", "headless"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "wix",
+    "name": "Wix",
+    "server_label": "wix",
+    "server_url": "https://mcp.wix.com/sse",
+    "description": "Website building and hosting.",
+    "tags": ["web", "cms", "websites"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "zapier",
+    "name": "Zapier",
+    "server_label": "zapier",
+    "server_url": "https://mcp.zapier.com/api/mcp/mcp",
+    "description": "Connect apps and automate workflows.",
+    "tags": ["automation", "integrations", "workflows"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "figma",
+    "name": "Figma",
+    "server_label": "figma",
+    "server_url": "https://mcp.figma.com/mcp",
+    "description": "Design and prototyping.",
+    "tags": ["design", "ui", "prototyping"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "slack",
+    "name": "Slack",
+    "server_label": "slack",
+    "server_url": "https://mcp.slack.com/mcp",
+    "description": "Send messages, list channels, and manage Slack workspace.",
+    "tags": ["slack", "messaging", "channels"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "gamma",
+    "name": "Gamma",
+    "server_label": "gamma",
+    "server_url": "https://mcp.gamma.app/mcp",
+    "description": "Create presentations and docs with AI.",
+    "tags": ["presentations", "docs", "ai"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "granola",
+    "name": "Granola",
+    "server_label": "granola",
+    "server_url": "https://mcp.granola.ai/mcp",
+    "description": "AI and data tools.",
+    "tags": ["ai", "data"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "miro",
+    "name": "Miro",
+    "server_label": "miro",
+    "server_url": "https://mcp.miro.com/",
+    "description": "Online whiteboard and collaboration.",
+    "tags": ["whiteboard", "collaboration", "design"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "pubmed",
+    "name": "PubMed",
+    "server_label": "pubmed",
+    "server_url": "https://pubmed.mcp.claude.com/mcp",
+    "description": "Search biomedical literature.",
+    "tags": ["research", "medical", "literature"],
+    "auth_type": "bearer"
+  },
+  {
+    "id": "clickup",
+    "name": "ClickUp",
+    "server_label": "clickup",
+    "server_url": "https://mcp.clickup.com/mcp",
+    "description": "Productivity and project management.",
+    "tags": ["tasks", "project-management", "productivity"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "clay",
+    "name": "Clay",
+    "server_label": "clay",
+    "server_url": "https://api.clay.com/v3/mcp",
+    "description": "Data enrichment and lead generation.",
+    "tags": ["data", "enrichment", "sales"],
+    "auth_type": "bearer"
+  },
+  {
+    "id": "ahrefs",
+    "name": "Ahrefs",
+    "server_label": "ahrefs",
+    "server_url": "https://api.ahrefs.com/mcp/mcp",
+    "description": "SEO and backlink analysis.",
+    "tags": ["seo", "marketing", "analytics"],
+    "auth_type": "bearer"
+  },
+  {
+    "id": "pitchbook",
+    "name": "PitchBook",
+    "server_label": "pitchbook",
+    "server_url": "https://premium.mcp.pitchbook.com/mcp",
+    "description": "Private market data and VC intelligence.",
+    "tags": ["finance", "vc", "data"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "ramp",
+    "name": "Ramp",
+    "server_label": "ramp",
+    "server_url": "https://ramp-mcp-remote.ramp.com/mcp",
+    "description": "Corporate cards and spend management.",
+    "tags": ["finance", "expenses", "corporate"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "zoominfo",
+    "name": "ZoomInfo",
+    "server_label": "zoominfo",
+    "server_url": "https://mcp.zoominfo.com/mcp",
+    "description": "B2B contact and company data.",
+    "tags": ["sales", "b2b", "contacts"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "wordpress",
+    "name": "WordPress",
+    "server_label": "wordpress",
+    "server_url": "https://public-api.wordpress.com/wpcom/v2/mcp/v1",
+    "description": "Manage WordPress sites and content.",
+    "tags": ["cms", "blog", "web"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "netlify",
+    "name": "Netlify",
+    "server_label": "netlify",
+    "server_url": "https://netlify-mcp.netlify.app/mcp",
+    "description": "Deploy and manage static sites and serverless.",
+    "tags": ["hosting", "deploy", "jamstack"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "make",
+    "name": "Make",
+    "server_label": "make",
+    "server_url": "https://mcp.make.com",
+    "description": "Visual automation and integrations.",
+    "tags": ["automation", "integrations", "workflows"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "airtable",
+    "name": "Airtable",
+    "server_label": "airtable",
+    "server_url": "https://mcp.airtable.com/mcp",
+    "description": "Databases and spreadsheets with superpowers.",
+    "tags": ["database", "spreadsheet", "productivity"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "kiwi",
+    "name": "Kiwi",
+    "server_label": "kiwi",
+    "server_url": "https://mcp.kiwi.com",
+    "description": "Travel search and booking.",
+    "tags": ["travel", "flights", "booking"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "klaviyo",
+    "name": "Klaviyo",
+    "server_label": "klaviyo",
+    "server_url": "https://mcp.klaviyo.com/mcp?include-mcp-app=true",
+    "description": "Email and marketing automation.",
+    "tags": ["email", "marketing", "automation"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "similarweb",
+    "name": "SimilarWeb",
+    "server_label": "similarweb",
+    "server_url": "https://mcp.similarweb.com",
+    "description": "Digital market intelligence and analytics.",
+    "tags": ["analytics", "marketing", "competitive"],
+    "auth_type": "both"
+  },
+  {
+    "id": "windsor",
+    "name": "Windsor.ai",
+    "server_label": "windsor",
+    "server_url": "https://mcp.windsor.ai",
+    "description": "Marketing attribution and analytics.",
+    "tags": ["marketing", "analytics", "attribution"],
+    "auth_type": "bearer"
+  },
+  {
+    "id": "consensus",
+    "name": "Consensus",
+    "server_label": "consensus",
+    "server_url": "https://mcp.consensus.app/mcp",
+    "description": "Research and evidence search.",
+    "tags": ["research", "search", "evidence"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "pylon",
+    "name": "Pylon",
+    "server_label": "pylon",
+    "server_url": "https://mcp.usepylon.com/",
+    "description": "Developer documentation and changelog.",
+    "tags": ["docs", "changelog", "developers"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "mercury",
+    "name": "Mercury",
+    "server_label": "mercury",
+    "server_url": "https://mcp.mercury.com/mcp",
+    "description": "Banking for startups.",
+    "tags": ["banking", "finance", "startups"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "day",
+    "name": "Day",
+    "server_label": "day",
+    "server_url": "https://day.ai/api/mcp",
+    "description": "Scheduling and calendar.",
+    "tags": ["calendar", "scheduling", "productivity"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "lseg-analytics",
+    "name": "LSEG Analytics",
+    "server_label": "lseg-analytics",
+    "server_url": "https://api.analytics.lseg.com/lfa/mcp/server-cl",
+    "description": "Financial and market analytics.",
+    "tags": ["finance", "analytics", "market-data"],
+    "auth_type": "bearer"
+  },
+  {
+    "id": "coupler",
+    "name": "Coupler.io",
+    "server_label": "coupler",
+    "server_url": "https://mcp.coupler.io/mcp/",
+    "description": "Data import and sync between apps.",
+    "tags": ["data", "sync", "integrations"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "supermetrics",
+    "name": "Supermetrics",
+    "server_label": "supermetrics",
+    "server_url": "https://mcp.supermetrics.com/mcp",
+    "description": "Marketing data aggregation and reporting.",
+    "tags": ["marketing", "analytics", "reporting"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "lunarcrush",
+    "name": "LunarCrush",
+    "server_label": "lunarcrush",
+    "server_url": "https://lunarcrush.ai/mcp",
+    "description": "Social and crypto analytics.",
+    "tags": ["crypto", "social", "analytics"],
+    "auth_type": "bearer"
+  },
+  {
+    "id": "harmonic",
+    "name": "Harmonic",
+    "server_label": "harmonic",
+    "server_url": "https://mcp.api.harmonic.ai",
+    "description": "AI and data platform.",
+    "tags": ["ai", "data"],
+    "auth_type": "bearer"
+  },
+  {
+    "id": "motherduck",
+    "name": "MotherDuck",
+    "server_label": "motherduck",
+    "server_url": "https://api.motherduck.com/mcp",
+    "description": "Serverless DuckDB in the cloud.",
+    "tags": ["database", "analytics", "duckdb"],
+    "auth_type": "bearer"
+  },
+  {
+    "id": "gusto",
+    "name": "Gusto",
+    "server_label": "gusto",
+    "server_url": "https://mcp.api.gusto.com/anthropic",
+    "description": "Payroll, benefits, and HR.",
+    "tags": ["hr", "payroll", "benefits"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "airops",
+    "name": "Airops",
+    "server_label": "airops",
+    "server_url": "https://app.airops.com/mcp",
+    "description": "AI workflows and automation.",
+    "tags": ["ai", "automation", "workflows"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "postman",
+    "name": "Postman",
+    "server_label": "postman",
+    "server_url": "https://mcp.postman.com/minimal",
+    "description": "API development and testing.",
+    "tags": ["api", "testing", "development"],
+    "auth_type": "bearer"
+  },
+  {
+    "id": "commonroom",
+    "name": "Common Room",
+    "server_label": "commonroom",
+    "server_url": "https://mcp.commonroom.io/mcp",
+    "description": "Developer and community intelligence.",
+    "tags": ["community", "developers", "intelligence"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "base44",
+    "name": "Base44",
+    "server_label": "base44",
+    "server_url": "https://app.base44.com/mcp",
+    "description": "Development and integration platform.",
+    "tags": ["development", "integrations"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "pagerduty",
+    "name": "PagerDuty",
+    "server_label": "pagerduty",
+    "server_url": "https://mcp.pagerduty.com/mcp",
+    "description": "Incident management and on-call.",
+    "tags": ["incidents", "on-call", "devops"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "github",
+    "name": "GitHub",
+    "server_label": "github",
+    "server_url": "https://api.mcp.github.com/mcp",
+    "description": "Create repos, manage issues, search code, and run GitHub Actions.",
+    "tags": ["github", "code", "repos", "issues", "actions"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "google-drive",
+    "name": "Google Drive",
+    "server_label": "google-drive",
+    "server_url": "https://mcp.google.com/drive",
+    "description": "Read and write files in Google Drive.",
+    "tags": ["google", "drive", "files", "storage"],
+    "auth_type": "oauth"
+  },
+  {
+    "id": "fetch",
+    "name": "Fetch",
+    "server_label": "fetch",
+    "server_url": "https://mcp.fetch.ai/mcp",
+    "description": "Fetch web pages and extract content.",
+    "tags": ["fetch", "web", "scraping", "url"],
+    "auth_type": "bearer"
+  }
+]

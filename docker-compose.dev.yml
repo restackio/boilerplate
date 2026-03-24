@@ -1,4 +1,3 @@
-
 services:
   # PostgreSQL Database
   postgres:
@@ -70,8 +69,8 @@ services:
     container_name: boilerplate_cockroachdb
     command: start-single-node --insecure --store=attrs=ssd,path=/cockroach/cockroach-data
     ports:
-      - "26257:26257"  # SQL wire protocol port
-      - "8080:8080"    # Admin UI
+      - "26257:26257" # SQL wire protocol port
+      - "8080:8080" # Admin UI
     volumes:
       - cockroachdb_data:/cockroach/cockroach-data
     healthcheck:
@@ -92,8 +91,8 @@ services:
       CLICKHOUSE_PASSWORD: clickhouse
       CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
     ports:
-      - "8123:8123"  # HTTP interface
-      - "9000:9000"  # Native client
+      - "8123:8123" # HTTP interface
+      - "9000:9000" # Native client
     volumes:
       - clickhouse_data:/var/lib/clickhouse/
       - clickhouse_logs:/var/log/clickhouse-server/
@@ -121,4 +120,4 @@ volumes:
 
 networks:
   boilerplate-network:
-    driver: bridge 
+    driver: bridge

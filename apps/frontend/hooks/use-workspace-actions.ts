@@ -7,8 +7,11 @@ import { User } from "../types/user";
 export interface Workspace {
   id: string;
   name: string;
+  is_admin?: boolean;
   created_at?: string;
   updated_at?: string;
+  /** Set only in create response; used to save OpenAI API key. */
+  openai_mcp_server_id?: string;
 }
 
 export interface WorkspaceCreateInput {

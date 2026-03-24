@@ -1,9 +1,6 @@
-"""ClickHouse adapter for EmbedAnything: stream embeddings directly to pipeline_events.
+"""ClickHouse adapter for EmbedAnything: stream embeddings to pipeline_events.
 
-Uses AsyncClient only; embed_file runs in a thread and upsert() bridges to async insert
-via the thread's event loop. One embed batch = one bulk insert; batch size is aligned with
-embed_model_loader (1k+ rows recommended by ClickHouse: https://clickhouse.com/docs/optimize/bulk-inserts).
-See: https://github.com/StarlightSearch/EmbedAnything (memory_leak blog).
+upsert() runs in the same thread as embed_file and uses that thread's event loop.
 """
 
 import asyncio
@@ -34,12 +31,7 @@ PIPELINE_EVENTS_COLUMNS = [
 
 
 class ClickHouseEmbedAdapter(Adapter):
-    """Adapter that streams EmbedAnything output to ClickHouse via AsyncClient.
-
-    Use from the thread that runs embed_file after asyncio.set_event_loop(loop);
-    upsert() (sync) uses get_event_loop() and run_until_complete for the insert.
-    Each batch is converted to pipeline_events rows and inserted, then discarded.
-    """
+    """Stream EmbedAnything output to ClickHouse; call from thread that runs embed_file with its loop set."""
 
     def __init__(  # noqa: PLR0913
         self,

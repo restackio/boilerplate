@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useWorkspaceScopedActions, Task } from "@/hooks/use-workspace-scoped-actions";
+import {
+  useWorkspaceScopedActions,
+  Task,
+} from "@/hooks/use-workspace-scoped-actions";
 import { useAgentState } from "@/app/(dashboard)/agents/[agentId]/hooks/use-agent-state";
 import { AgentStreamProvider } from "@/app/(dashboard)/agents/[agentId]/providers/agent-stream-provider";
 import { useRxjsConversation } from "@/app/(dashboard)/tasks/[taskId]/hooks/use-rxjs-conversation";
@@ -22,22 +25,22 @@ interface PlaygroundTaskExecutionProps {
 }
 
 // Inner component that uses the agent state hook (must be inside provider)
-function PlaygroundTaskContentInner({ 
-  task, 
-  taskId, 
-  agentName, 
+function PlaygroundTaskContentInner({
+  task,
+  taskId,
+  agentName,
   className,
-  metricsRefreshTrigger
-}: { 
-  task: Task; 
-  taskId: string; 
-  agentName: string; 
+  metricsRefreshTrigger,
+}: {
+  task: Task;
+  taskId: string;
+  agentName: string;
   className: string;
   metricsRefreshTrigger: number;
 }) {
   const [chatMessage, setChatMessage] = useState("");
   const [localTask, setLocalTask] = useState<Task>(task);
-  
+
   const { updateTask } = useWorkspaceScopedActions();
 
   // Sync local task with prop changes
@@ -45,15 +48,25 @@ function PlaygroundTaskContentInner({
     setLocalTask(task);
   }, [task]);
 
-  const { responseState, agentResponses, loading: agentLoading, sendMessageToAgent } = useAgentState({
+  const {
+    responseState,
+    agentResponses,
+    loading: agentLoading,
+    sendMessageToAgent,
+  } = useAgentState({
     taskId,
     agentTaskId: task.temporal_agent_id,
     taskStatus: localTask.status,
   });
 
   const { conversation, updateConversationItemStatus } = useRxjsConversation({
-    responseState: responseState as { events: OpenAIEvent[]; [key: string]: unknown } | false,
-    agentResponses: agentResponses as { events?: OpenAIEvent[]; [key: string]: unknown }[],
+    responseState: responseState as
+      | { events: OpenAIEvent[]; [key: string]: unknown }
+      | false,
+    agentResponses: agentResponses as {
+      events?: OpenAIEvent[];
+      [key: string]: unknown;
+    }[],
     persistedState: task.agent_state,
     storeKey: taskId,
   });
@@ -117,7 +130,7 @@ function PlaygroundTaskContentInner({
         assigned_to_id: localTask.assigned_to_id || "",
         ...updates,
       });
-      
+
       if (result.success && result.data) {
         setLocalTask(result.data);
       } else {
@@ -156,9 +169,9 @@ function PlaygroundTaskContentInner({
               showSplitView={false}
             />
           </div>
-          
+
           <div className="flex-shrink-0 px-4 py-2 max-h-[40vh] overflow-y-auto">
-            <TaskMetrics 
+            <TaskMetrics
               taskId={taskId}
               task={localTask}
               onUpdateTask={handleUpdateTask}
@@ -173,33 +186,33 @@ function PlaygroundTaskContentInner({
 
 // Wrapper component that provides the AgentStreamProvider
 // The provider internally chooses between active (with subscriptions) or mock (without)
-function PlaygroundTaskContent({ 
-  task, 
-  taskId, 
-  agentName, 
-  className 
-}: { 
-  task: Task; 
-  taskId: string; 
-  agentName: string; 
+function PlaygroundTaskContent({
+  task,
+  taskId,
+  agentName,
+  className,
+}: {
+  task: Task;
+  taskId: string;
+  agentName: string;
   className: string;
 }) {
   const [metricsRefreshTrigger, setMetricsRefreshTrigger] = useState(0);
 
   const handleResponseComplete = () => {
     // Trigger metrics refresh when response completes
-    setMetricsRefreshTrigger(prev => prev + 1);
+    setMetricsRefreshTrigger((prev) => prev + 1);
   };
 
   return (
     <AgentStreamProvider
-      agentTaskId={task.temporal_agent_id || ''}
+      agentTaskId={task.temporal_agent_id || ""}
       runId={task.agent_state?.metadata?.temporal_run_id}
       taskStatus={task.status}
       initialState={task.agent_state}
       onResponseComplete={handleResponseComplete}
     >
-      <PlaygroundTaskContentInner 
+      <PlaygroundTaskContentInner
         task={task}
         taskId={taskId}
         agentName={agentName}
@@ -211,10 +224,10 @@ function PlaygroundTaskContent({
 }
 
 // Wrapper component that handles loading task data
-export function PlaygroundTaskExecution({ 
-  taskId, 
+export function PlaygroundTaskExecution({
+  taskId,
   agentName,
-  className = "" 
+  className = "",
 }: PlaygroundTaskExecutionProps) {
   const [task, setTask] = useState<Task | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -241,11 +254,11 @@ export function PlaygroundTaskExecution({
     const fetchTask = async () => {
       try {
         const result = await getTaskById(taskId);
-        
+
         if (!isMounted) return;
 
         if (result.success && result.data) {
-          setTask(result.data);
+          setTask(result.data as Task);
           setError(null);
         } else {
           setError(result.error || "Failed to load task");
@@ -275,8 +288,8 @@ export function PlaygroundTaskExecution({
     return (
       <div className={`flex items-center justify-center h-full ${className}`}>
         <EmptyState
-          title="No task created yet"
-          description="Click &quot;Start comparison&quot; to begin"
+          title="No tasks "
+          description='Click "Start comparison" to begin'
         />
       </div>
     );
@@ -294,7 +307,9 @@ export function PlaygroundTaskExecution({
         <div className="flex-1 flex items-center justify-center">
           <div className="flex flex-col items-center gap-2">
             <div className="h-6 w-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-            <span className="text-sm text-muted-foreground">Initializing task...</span>
+            <span className="text-sm text-muted-foreground">
+              Initializing task...
+            </span>
           </div>
         </div>
       </div>
@@ -304,7 +319,12 @@ export function PlaygroundTaskExecution({
   if (error) {
     return (
       <div className={className}>
-        <EntityErrorState error={error} entityId={taskId} entityType="task" onBack={() => {}} />
+        <EntityErrorState
+          error={error}
+          entityId={taskId}
+          entityType="task"
+          onBack={() => {}}
+        />
       </div>
     );
   }
@@ -312,11 +332,22 @@ export function PlaygroundTaskExecution({
   if (!task) {
     return (
       <div className={className}>
-        <EntityNotFoundState entityId={taskId} entityType="task" onBack={() => {}} />
+        <EntityNotFoundState
+          entityId={taskId}
+          entityType="task"
+          onBack={() => {}}
+        />
       </div>
     );
   }
 
   // AgentStreamProvider handles missing temporal_agent_id internally
-  return <PlaygroundTaskContent task={task} taskId={taskId} agentName={agentName} className={className} />;
+  return (
+    <PlaygroundTaskContent
+      task={task}
+      taskId={taskId}
+      agentName={agentName}
+      className={className}
+    />
+  );
 }

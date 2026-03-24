@@ -24,6 +24,7 @@ with import_functions():
 
 
 @workflow.defn(
+    mcp=True,
     description="""Run a SELECT query in ClickHouse.
 
 The pipeline_events table has a `raw_data` JSON column (native JSON type). Access fields using dot notation:
@@ -42,7 +43,7 @@ FROM pipeline_events
 WHERE has(tags, 'YOUR_TAG')
 ORDER BY event_timestamp DESC
 LIMIT 50;
-"""
+""",
 )
 class ClickHouseRunSelectQuery:
     """Workflow to run a SELECT query in ClickHouse."""
@@ -69,7 +70,7 @@ class ClickHouseRunSelectQuery:
             raise NonRetryableError(message=error_message) from e
 
 
-@workflow.defn()
+@workflow.defn(mcp=True)
 class ClickHouseListDatabases:
     """Workflow to list ClickHouse databases."""
 
@@ -99,7 +100,7 @@ class ClickHouseListDatabases:
             raise NonRetryableError(message=error_message) from e
 
 
-@workflow.defn()
+@workflow.defn(mcp=True)
 class ClickHouseListTables:
     """Workflow to list tables in a ClickHouse database."""
 

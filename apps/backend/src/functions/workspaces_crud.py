@@ -7,6 +7,7 @@ from sqlalchemy import select
 from src.database.connection import get_async_db
 from src.database.models import (
     McpServer,
+    Team,
     UserWorkspace,
     Workspace,
 )
@@ -44,8 +45,10 @@ class WorkspaceDeleteOutput(BaseModel):
 class WorkspaceOutput(BaseModel):
     id: str
     name: str
+    is_admin: bool = False
     created_at: str | None = None
     updated_at: str | None = None
+    openai_mcp_server_id: str | None = None
 
 
 class WorkspaceSingleOutput(BaseModel):
@@ -85,6 +88,7 @@ async def workspaces_read(
             WorkspaceOutput(
                 id=str(workspace.id),
                 name=workspace.name,
+                is_admin=getattr(workspace, "is_admin", False),
                 created_at=workspace.created_at.isoformat()
                 if workspace.created_at
                 else None,
@@ -138,18 +142,40 @@ async def workspaces_create(
             )
             db.add(restack_core_server)
 
+            openai_server = McpServer(
+                id=uuid.uuid4(),
+                workspace_id=workspace.id,
+                server_label="OpenAI",
+                server_url=None,
+                local=True,
+                server_description="Add your OpenAI API key so agents in this workspace can use LLM features. The key is stored encrypted.",
+                headers=None,
+            )
+            db.add(openai_server)
+
+            default_team = Team(
+                id=uuid.uuid4(),
+                workspace_id=workspace.id,
+                name="General",
+                description="Default team for general agents",
+                icon="Building",
+            )
+            db.add(default_team)
+
             await db.commit()
             await db.refresh(workspace)
 
             result = WorkspaceOutput(
                 id=str(workspace.id),
                 name=workspace.name,
+                is_admin=getattr(workspace, "is_admin", False),
                 created_at=workspace.created_at.isoformat()
                 if workspace.created_at
                 else None,
                 updated_at=workspace.updated_at.isoformat()
                 if workspace.updated_at
                 else None,
+                openai_mcp_server_id=str(openai_server.id),
             )
 
             return WorkspaceSingleOutput(workspace=result)
@@ -190,6 +216,7 @@ async def workspaces_update(
         result = WorkspaceOutput(
             id=str(workspace.id),
             name=workspace.name,
+            is_admin=getattr(workspace, "is_admin", False),
             created_at=workspace.created_at.isoformat()
             if workspace.created_at
             else None,
@@ -243,6 +270,7 @@ async def workspaces_get_by_id(
         output_result = WorkspaceOutput(
             id=str(workspace.id),
             name=workspace.name,
+            is_admin=getattr(workspace, "is_admin", False),
             created_at=workspace.created_at.isoformat()
             if workspace.created_at
             else None,

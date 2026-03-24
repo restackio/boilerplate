@@ -125,13 +125,13 @@ async def agent_subagents_create(
             # Verify both agents exist
             parent_agent = await db.get(Agent, parent_agent_id)
             if not parent_agent:
-                raise NonRetryableError(  # noqa: TRY301
+                raise NonRetryableError(
                     message=f"Parent agent with id {function_input.parent_agent_id} not found"
                 )
 
             subagent = await db.get(Agent, subagent_id)
             if not subagent:
-                raise NonRetryableError(  # noqa: TRY301
+                raise NonRetryableError(
                     message=f"Subagent with id {function_input.subagent_id} not found"
                 )
 
@@ -219,7 +219,7 @@ async def agent_subagents_delete(
             agent_subagent = result.scalar_one_or_none()
 
             if not agent_subagent:
-                raise NonRetryableError(  # noqa: TRY301
+                raise NonRetryableError(
                     message=f"Subagent relationship not found for parent {function_input.parent_agent_id} and subagent {function_input.subagent_id}"
                 )
 
@@ -285,7 +285,7 @@ async def agent_subagents_toggle(
             agent_subagent = result.scalar_one_or_none()
 
             if not agent_subagent:
-                raise NonRetryableError(  # noqa: TRY301
+                raise NonRetryableError(
                     message=f"Subagent relationship not found for parent {function_input.parent_agent_id} and subagent {function_input.subagent_id}"
                 )
 

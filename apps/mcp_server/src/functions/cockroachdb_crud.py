@@ -91,7 +91,7 @@ async def _get_mcp_cockroachdb_pool() -> asyncpg.Pool:
     global _mcp_cockroachdb_pool  # noqa: PLW0603
     if (
         _mcp_cockroachdb_pool is None
-        or _mcp_cockroachdb_pool._closed  # noqa: SLF001
+        or _mcp_cockroachdb_pool._closed  # noqa: SLF001 (asyncpg.Pool lifecycle check)
     ):
         _mcp_cockroachdb_pool = await _create_cockroachdb_pool()
     return _mcp_cockroachdb_pool

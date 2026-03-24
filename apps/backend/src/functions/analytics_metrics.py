@@ -102,13 +102,6 @@ async def get_analytics_metrics(
                 client, filters
             )
 
-        # Apply demo multipliers if enabled
-        from src.utils.demo import (
-            apply_demo_multiplier_to_analytics,
-        )
-
-        return apply_demo_multiplier_to_analytics(result)
-
     except (
         ValueError,
         TypeError,
@@ -120,6 +113,7 @@ async def get_analytics_metrics(
         log.error(f"Failed to fetch analytics metrics: {e}")
         # Return partial results if available
         return result
+    return result
 
 
 async def _get_performance_metrics(

@@ -18,7 +18,7 @@ class CreateSubtaskInput(BaseModel):
     """Input for creating a subtask with a specific agent."""
 
     sub_agent_id: str = Field(
-        description="Database UUID of the agent to use for this subtask (e.g., pipeline agent, research agent). Use a different agent_id from meta_info.agent_id."
+        description="Database UUID of the agent to run in this subtask (e.g. pipeline agent for one unit of work, or parent agent for a test run). Use a different agent_id from meta_info.agent_id."
     )
     task_title: str = Field(description="Title for the subtask")
     task_description: str = Field(
@@ -47,16 +47,12 @@ class CreateSubtaskOutput(BaseModel):
 
 
 @workflow.defn(
-    description="""Create a subtask to handle a specialized task.
+    mcp=True,
+    description="""Create a subtask that runs another agent.
 
-    Use this when you need help from another agent with specific expertise.
+    Pass sub_agent_id = the agent that should run the subtask (e.g. pipeline agent to extract and save one unit of data, or the parent agent for a test run). You must pass parent_temporal_agent_id and parent_temporal_run_id from meta_info.
 
-    IMPORTANT: You must pass your temporal_agent_id and temporal_run_id from meta_info.
-
-    Example: If you need code reviewed, create a code-reviewer subtask.
-    Example: If you need tests written, create a test-generator subtask.
-
-    The subtask will complete its task and report back to you."""
+    When a parent fans out work: pass sub_agent_id = child pipeline agent id so each subtask runs one unit. For a test run of the parent (interactive or pipeline): pass sub_agent_id = the parent agent id.""",
 )
 class CreateSubtask:
     """MCP workflow to create a subtask via agent event."""

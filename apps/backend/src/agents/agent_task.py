@@ -1,3 +1,4 @@
+import asyncio
 from datetime import timedelta
 from typing import Any
 
@@ -43,6 +44,36 @@ def create_agent_error_event(
         sequence_number=sequence_number,
         type="error",
     )
+
+
+def create_agent_error_event_dict(
+    message: str,
+    error_type: str = "unknown_error",
+    code: str | None = None,
+    param: str | None = None,
+    sequence_number: int = 0,
+) -> dict[str, Any]:
+    """Create error event dict for frontend display (state.events).
+
+    Frontend expects event.type === 'error' and event.error with id, error_type, error_message, error_source.
+    """
+    code_val = code or error_type
+    error_id = str(uuid())
+    return {
+        "type": "error",
+        "code": code_val,
+        "message": message,
+        "param": param,
+        "sequence_number": sequence_number,
+        "error": {
+            "id": error_id,
+            "type": "error",
+            "error_type": code_val,
+            "error_message": message,
+            "error_source": "backend",
+            "error_details": {"code": code_val, "message": message, "param": param},
+        },
+    }
 
 
 with import_functions():
@@ -311,12 +342,13 @@ class AgentTask:
                     )
 
                     # Create error event for frontend display
-                    error_event = create_agent_error_event(
-                        message=error_message,
-                        error_type="llm_response_failed",
-                        code="agent_error",
+                    self.events.append(
+                        create_agent_error_event_dict(
+                            message=error_message,
+                            error_type="llm_response_failed",
+                            code="agent_error",
+                        )
                     )
-                    self.events.append(error_event.model_dump())
 
                     raise NonRetryableError(error_message) from e
                 else:
@@ -332,12 +364,13 @@ class AgentTask:
             )
 
             # Create error event for frontend display
-            error_event = create_agent_error_event(
-                message=f"Error processing message: {e}",
-                error_type="message_processing_failed",
-                code="agent_error",
+            self.events.append(
+                create_agent_error_event_dict(
+                    message=f"Error processing message: {e}",
+                    error_type="message_processing_failed",
+                    code="agent_error",
+                )
             )
-            self.events.append(error_event.model_dump())
             raise
         else:
             return self.messages
@@ -453,12 +486,13 @@ class AgentTask:
             AttributeError,
         ) as e:
             log.error(f"Error updating todos: {e}")
-            error_event = create_agent_error_event(
-                message=f"Error updating todos: {e}",
-                error_type="todo_update_failed",
-                code="agent_error",
+            self.events.append(
+                create_agent_error_event_dict(
+                    message=f"Error updating todos: {e}",
+                    error_type="todo_update_failed",
+                    code="agent_error",
+                )
             )
-            self.events.append(error_event.model_dump())
             return {
                 "success": False,
                 "error": str(e),
@@ -661,25 +695,27 @@ class AgentTask:
             return {"success": True}
 
     async def _handle_error_event(self, event_data: dict) -> None:
-        """Handle OpenAI/MCP error events."""
-        error_info = event_data.get("error", {})
+        """Handle OpenAI/MCP error events. Supports both nested event.error and top-level code/message."""
+        error_info = event_data.get("error") or event_data
+        if not isinstance(error_info, dict):
+            error_info = {}
         event_type = event_data.get("type", "")
-
-        error_event = create_agent_error_event(
-            message=error_info.get(
-                "message", "Unknown OpenAI error"
-            ),
-            error_type=error_info.get("type", "unknown_error"),
-            code=error_info.get("code")
-            or (
-                "openai_error"
-                if "mcp" not in event_type
-                else "mcp_error"
-            ),
-            param=error_info.get("param"),
+        message = error_info.get("message") or event_data.get("message") or "Unknown error"
+        code = (
+            error_info.get("code")
+            or event_data.get("code")
+            or ("openai_error" if "mcp" not in event_type else "mcp_error")
         )
-        self.events.append(error_event.model_dump())
-        log.error(f"OpenAI/MCP error: {error_info}")
+        self.events.append(
+            create_agent_error_event_dict(
+                message=message,
+                error_type=error_info.get("type") or event_data.get("type") or "unknown_error",
+                code=code,
+                param=error_info.get("param") or event_data.get("param"),
+                sequence_number=event_data.get("sequence_number", 0),
+            )
+        )
+        log.error(f"OpenAI/MCP error: code={code} message={message[:200]}")
 
         # Notify parent of error if this is a subtask
         if self.temporal_parent_agent_id and self.task_id:
@@ -980,7 +1016,7 @@ class AgentTask:
                 self._slack_flush_len = 0
                 self._slack_msg_ts = None
 
-            # Handle response.completed events with metrics
+            # Handle response.completed events with state persistence and metrics
             if (
                 event_data.get("type") == "response.completed"
                 and "response" in event_data
@@ -990,6 +1026,13 @@ class AgentTask:
                 response = event_data["response"]
                 response_id = response.get("id")
                 self.response_in_progress = False
+                # Persist agent state first (fire-and-forget) so messages/todos/subtasks
+                # survive when the user leaves and returns; don't block on save
+                save_task = asyncio.create_task(self._save_final_state())
+                save_task.add_done_callback(
+                    lambda t: log.warning("State save failed: %s", t.exception())
+                    if not t.cancelled() and t.exception() else None
+                )
                 assistant_content = (
                     self._extract_assistant_content(response)
                 )
@@ -1022,12 +1065,13 @@ class AgentTask:
 
         except ValueError as e:
             log.error(f"Error handling response_item: {e}")
-            error_event = create_agent_error_event(
-                message=f"Error processing response item: {e}",
-                error_type="response_processing_failed",
-                code="agent_error",
+            self.events.append(
+                create_agent_error_event_dict(
+                    message=f"Error processing response item: {e}",
+                    error_type="response_processing_failed",
+                    code="agent_error",
+                )
             )
-            self.events.append(error_event.model_dump())
             return {"processed": False, "error": str(e)}
         else:
             return {"processed": True}

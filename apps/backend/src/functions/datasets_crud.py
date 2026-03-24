@@ -6,6 +6,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 from restack_ai.function import NonRetryableError, function
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 # Import the centralized database connections
 from src.database.connection import (
@@ -35,6 +36,17 @@ class DatasetCreateInput(BaseModel):
     storage_type: str = Field(default="clickhouse")
     storage_config: dict = Field(default_factory=dict)
     tags: list[str] | None = None
+    build_task_id: str | None = Field(
+        default=None,
+        description="If provided (and valid), link this dataset to the build task that created it.",
+    )
+
+
+class DatasetUpdateInput(BaseModel):
+    dataset_id: str = Field(..., min_length=1)
+    workspace_id: str = Field(..., min_length=1)
+    name: str | None = Field(None, min_length=1, max_length=255)
+    description: str | None = None
 
 
 class QueryDatasetEventsInput(BaseModel):
@@ -53,6 +65,10 @@ class ListDatasetFilesInput(BaseModel):
 
     workspace_id: str = Field(..., min_length=1)
     dataset_id: str = Field(..., min_length=1)
+    task_id: str | None = Field(
+        default=None,
+        description="If set, only return files uploaded for this task.",
+    )
 
 
 class DatasetFileSummary(BaseModel):
@@ -178,7 +194,7 @@ async def _get_clickhouse_stats(
         # Validate table name to prevent SQL injection
         def _raise_invalid_table_name() -> None:
             msg = "Invalid table name"
-            raise ValueError(msg)  # noqa: TRY301
+            raise ValueError(msg)
 
         if not table_name.replace("_", "").isalnum():
             _raise_invalid_table_name()
@@ -493,12 +509,38 @@ async def datasets_get_by_id(
         return DatasetSingleOutput(dataset=None)
 
 
+async def _resolve_build_task_id(
+    db: AsyncSession,
+    build_task_id_str: str | None,
+    workspace_id: str,
+) -> str | None:
+    """Validate build_task_id: task must exist and belong to same workspace. Returns task id string or None."""
+    if not build_task_id_str:
+        return None
+    try:
+        import uuid as _uuid
+
+        build_task_uuid = _uuid.UUID(build_task_id_str)
+        check = await db.execute(
+            text("""
+                SELECT id FROM tasks
+                WHERE id = :tid AND workspace_id = :wid
+                LIMIT 1
+            """),
+            {"tid": str(build_task_uuid), "wid": workspace_id},
+        )
+        return str(build_task_uuid) if check.mappings().first() is not None else None
+    except (ValueError, TypeError):
+        return None
+
+
 @function.defn()
 async def datasets_create(
     function_input: DatasetCreateInput,
 ) -> DatasetSingleOutput:
-    """Create a new dataset in PostgreSQL."""
+    """Create a new dataset in PostgreSQL, or return existing if (workspace_id, name) already exists (idempotent)."""
     try:
+        import json
         import uuid
 
         # Generate UUID for the new dataset
@@ -540,16 +582,80 @@ async def datasets_create(
         import json
 
         async for db in get_async_db():
+            # Idempotent: if dataset with same workspace_id and name exists, return it
+            existing = await db.execute(
+                text("""
+                    SELECT id FROM datasets
+                    WHERE workspace_id = :workspace_id AND name = :name
+                    LIMIT 1
+                """),
+                {
+                    "workspace_id": function_input.workspace_id,
+                    "name": function_input.name,
+                },
+            )
+            row = existing.mappings().first()
+            if row is not None:
+                await db.commit()
+                return await datasets_get_by_id(
+                    DatasetGetByIdInput(
+                        dataset_id=str(row["id"]),
+                        workspace_id=function_input.workspace_id,
+                    )
+                )
+
+            # Generate UUID for the new dataset
+            dataset_id = str(uuid.uuid4())
+
+            # Set up default storage config based on storage type
+            storage_config = function_input.storage_config.copy()
+            if (
+                function_input.storage_type == "clickhouse"
+                and not storage_config
+            ):
+                storage_config = {
+                    "database": "boilerplate_clickhouse",
+                    "table": "pipeline_events",
+                    "filter": {},
+                }
+            elif (
+                function_input.storage_type == "cockroachdb"
+                and not storage_config
+            ):
+                storage_config = {
+                    "database": "boilerplate_cockroachdb",
+                    "table": "pipeline_events",
+                    "filter": {},
+                }
+
+            # Scope queries to this dataset's events (by UUID)
+            storage_config["dataset_id"] = dataset_id
+
+            # Add tag-based filtering if tags are provided (applies to all storage types)
+            if function_input.tags and storage_config is not None:
+                if "filter" not in storage_config:
+                    storage_config["filter"] = {}
+                storage_config["filter"]["tags"] = (
+                    function_input.tags
+                )
+
+            effective_build_task_id = await _resolve_build_task_id(
+                db,
+                function_input.build_task_id,
+                function_input.workspace_id,
+            )
+
             await db.execute(
                 text("""
-                    INSERT INTO datasets (id, workspace_id, name, description, storage_type,
+                    INSERT INTO datasets (id, workspace_id, build_task_id, name, description, storage_type,
                                         storage_config, created_at, updated_at)
-                    VALUES (:id, :workspace_id, :name, :description, :storage_type,
+                    VALUES (:id, :workspace_id, :build_task_id, :name, :description, :storage_type,
                             :storage_config, NOW(), NOW())
                 """),
                 {
                     "id": dataset_id,
                     "workspace_id": function_input.workspace_id,
+                    "build_task_id": effective_build_task_id,
                     "name": function_input.name,
                     "description": function_input.description,
                     "storage_type": function_input.storage_type,
@@ -558,17 +664,76 @@ async def datasets_create(
             )
             await db.commit()
 
-        # Return the created dataset
-        return await datasets_get_by_id(
-            DatasetGetByIdInput(
-                dataset_id=dataset_id,
-                workspace_id=function_input.workspace_id,
+            return await datasets_get_by_id(
+                DatasetGetByIdInput(
+                    dataset_id=dataset_id,
+                    workspace_id=function_input.workspace_id,
+                )
             )
-        )
 
     except (ValueError, TypeError, ConnectionError) as e:
         msg = f"Failed to create dataset '{function_input.name}': {e!s}"
         raise NonRetryableError(msg) from e
+
+
+@function.defn()
+async def datasets_update(
+    function_input: DatasetUpdateInput,
+) -> DatasetSingleOutput:
+    """Update an existing dataset (name, description)."""
+    try:
+        async for db in get_async_db():
+            existing = await db.execute(
+                text("""
+                    SELECT id, workspace_id FROM datasets
+                    WHERE id = :dataset_id AND workspace_id = :workspace_id
+                    LIMIT 1
+                """),
+                {
+                    "dataset_id": function_input.dataset_id,
+                    "workspace_id": function_input.workspace_id,
+                },
+            )
+            row = existing.mappings().first()
+            if row is None:
+                raise NonRetryableError(
+                    message=f"Dataset {function_input.dataset_id} not found in workspace"
+                )
+            updates = []
+            params = {"dataset_id": function_input.dataset_id}
+            if function_input.name is not None:
+                updates.append("name = :name")
+                params["name"] = function_input.name
+            if function_input.description is not None:
+                updates.append("description = :description")
+                params["description"] = function_input.description
+            if not updates:
+                return await datasets_get_by_id(
+                    DatasetGetByIdInput(
+                        dataset_id=function_input.dataset_id,
+                        workspace_id=function_input.workspace_id,
+                    )
+                )
+            # Column names in updates are from allowlisted fields (name, description only)
+            await db.execute(
+                text(
+                    "UPDATE datasets SET "  # noqa: S608
+                    + ", ".join(updates)
+                    + ", updated_at = NOW() WHERE id = :dataset_id"
+                ),
+                params,
+            )
+            await db.commit()
+            return await datasets_get_by_id(
+                DatasetGetByIdInput(
+                    dataset_id=function_input.dataset_id,
+                    workspace_id=function_input.workspace_id,
+                )
+            )
+    except (ValueError, TypeError, ConnectionError) as e:
+        msg = f"Failed to update dataset: {e!s}"
+        raise NonRetryableError(msg) from e
+    return None
 
 
 @function.defn()
@@ -608,7 +773,7 @@ async def query_dataset_events(
             )
         return QueryDatasetEventsOutput(
             success=False,
-            error=f"Storage type {dataset.storage_type} not yet supported",
+            error=f"Storage type {dataset.storage_type} not supported",
             events=[],
             total_count=0,
             limit=function_input.limit,
@@ -976,6 +1141,10 @@ async def list_dataset_files(
             function_input.workspace_id,
             function_input.dataset_id,
         )
+        if function_input.task_id:
+            where_conditions.append(
+                f"task_id = '{function_input.task_id}'"
+            )
         where_conditions.extend(
             _build_tag_filters(storage_config)
         )

@@ -1,3 +1,4 @@
+import re
 import uuid
 from typing import Any
 
@@ -15,6 +16,10 @@ from src.database.models import (
     McpServer,
     UserOAuthConnection,
 )
+
+# Slug format for server_label: lowercase, letter first, then [a-z0-9_-]. Same rule on frontend.
+SERVER_LABEL_SLUG_PATTERN = re.compile(r"^[a-z][a-z0-9_-]*$")
+SERVER_LABEL_MAX_LENGTH = 255
 
 
 # Pydantic models for approval structure
@@ -51,6 +56,29 @@ class McpServerCreateInput(BaseModel):
             return None
         return v
 
+    @field_validator("server_label", mode="before")
+    @classmethod
+    def normalize_server_label(cls, v: str) -> str:
+        """Strip and lowercase so we accept 'Exa-Search' and store 'exa-search'."""
+        if not v or not isinstance(v, str):
+            return v
+        return v.strip().lower()
+
+    @field_validator("server_label", mode="after")
+    @classmethod
+    def validate_server_label_slug(cls, v: str) -> str:
+        """Must be a slug: letter first, then only [a-z0-9_-] (e.g. my-integration)."""
+        if len(v) > SERVER_LABEL_MAX_LENGTH:
+            msg = f"server_label must be at most {SERVER_LABEL_MAX_LENGTH} characters"
+            raise ValueError(msg)
+        if not SERVER_LABEL_SLUG_PATTERN.match(v):
+            msg = (
+                "server_label must be a slug: lowercase letter first, then only "
+                "letters, numbers, hyphens, underscores (e.g. my-integration)"
+            )
+            raise ValueError(msg)
+        return v
+
 
 class McpServerUpdateInput(BaseModel):
     mcp_server_id: str = Field(..., min_length=1)
@@ -71,6 +99,31 @@ class McpServerUpdateInput(BaseModel):
         """Convert empty string to None."""
         if v == "":
             return None
+        return v
+
+    @field_validator("server_label", mode="before")
+    @classmethod
+    def normalize_server_label(cls, v: str | None) -> str | None:
+        if v is None or not isinstance(v, str):
+            return v
+        return v.strip().lower() if v.strip() else None
+
+    @field_validator("server_label", mode="after")
+    @classmethod
+    def validate_server_label_slug(
+        cls, v: str | None
+    ) -> str | None:
+        if v is None:
+            return None
+        if len(v) > SERVER_LABEL_MAX_LENGTH:
+            msg = f"server_label must be at most {SERVER_LABEL_MAX_LENGTH} characters"
+            raise ValueError(msg)
+        if not SERVER_LABEL_SLUG_PATTERN.match(v):
+            msg = (
+                "server_label must be a slug: lowercase letter first, then only "
+                "letters, numbers, hyphens, underscores (e.g. my-integration)"
+            )
+            raise ValueError(msg)
         return v
 
 
@@ -266,7 +319,7 @@ async def mcp_servers_update(
             mcp_server = result.scalar_one_or_none()
 
             if not mcp_server:
-                raise NonRetryableError(  # noqa: TRY301
+                raise NonRetryableError(
                     message=f"MCP server with id {function_input.mcp_server_id} not found"
                 )
             update_data = function_input.dict(
@@ -343,7 +396,7 @@ async def mcp_servers_delete(
             mcp_server = result.scalar_one_or_none()
 
             if not mcp_server:
-                raise NonRetryableError(  # noqa: TRY301
+                raise NonRetryableError(
                     message=f"MCP server with id {function_input.mcp_server_id} not found"
                 )
 
@@ -381,7 +434,7 @@ async def mcp_servers_get_by_id(
             mcp_server = result.scalar_one_or_none()
 
             if not mcp_server:
-                raise NonRetryableError(  # noqa: TRY301
+                raise NonRetryableError(
                     message=f"MCP server with id {function_input.mcp_server_id} not found"
                 )
             output_result = McpServerOutput(

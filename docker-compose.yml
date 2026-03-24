@@ -109,8 +109,7 @@ services:
       - .env
     environment:
       - ENVIRONMENT=${ENVIRONMENT:-production}
-      - DEMO_MODE=${DEMO_MODE:-false}
-      - RESET_DEMO=${RESET_DEMO:-false}
+      - ADMIN_SEED=${ADMIN_SEED:-false}
       - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/boilerplate_postgres}
       - CLICKHOUSE_URL=${CLICKHOUSE_URL:-http://clickhouse:clickhouse@clickhouse:8123/boilerplate_clickhouse}
       - COCKROACHDB_URL=${COCKROACHDB_URL:-postgresql://root@cockroachdb:26257/boilerplate_cockroachdb?sslmode=disable}

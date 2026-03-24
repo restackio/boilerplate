@@ -5,13 +5,13 @@ import { useParams, useRouter } from "next/navigation";
 import { Card } from "@workspace/ui/components/ui/card";
 import { Badge } from "@workspace/ui/components/ui/badge";
 import { Skeleton } from "@workspace/ui/components/ui/skeleton";
-import { 
-  CheckCircle, 
-  Circle, 
-  CircleDashed, 
-  CirclePause, 
+import {
+  CheckCircle,
+  Circle,
+  CircleDashed,
+  CirclePause,
   CircleX,
-  TrendingUp
+  TrendingUp,
 } from "lucide-react";
 import { executeWorkflow } from "@/app/actions/workflow";
 import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
@@ -33,7 +33,8 @@ const statusConfig = {
     textColor: "text-blue-600 dark:text-blue-400",
     bgColor: "bg-blue-50 dark:bg-blue-950/50",
     borderColor: "border-blue-200 dark:border-blue-800",
-    badgeColor: "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200"
+    badgeColor:
+      "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200",
   },
   in_review: {
     label: "In review",
@@ -42,7 +43,8 @@ const statusConfig = {
     textColor: "text-orange-600 dark:text-orange-400",
     bgColor: "bg-orange-50 dark:bg-orange-950/50",
     borderColor: "border-orange-200 dark:border-orange-800",
-    badgeColor: "bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-200"
+    badgeColor:
+      "bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-200",
   },
   closed: {
     label: "Closed",
@@ -51,7 +53,8 @@ const statusConfig = {
     textColor: "text-gray-600 dark:text-gray-400",
     bgColor: "bg-gray-50 dark:bg-gray-950/50",
     borderColor: "border-gray-200 dark:border-gray-800",
-    badgeColor: "bg-gray-100 text-gray-800 dark:bg-gray-900/50 dark:text-gray-200"
+    badgeColor:
+      "bg-gray-100 text-gray-800 dark:bg-gray-900/50 dark:text-gray-200",
   },
   completed: {
     label: "Completed",
@@ -60,21 +63,22 @@ const statusConfig = {
     textColor: "text-green-600 dark:text-green-400",
     bgColor: "bg-green-50 dark:bg-green-950/50",
     borderColor: "border-green-200 dark:border-green-800",
-    badgeColor: "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200"
-  }
+    badgeColor:
+      "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200",
+  },
 };
 
 function formatNumber(num: number): string {
   if (num >= 1000000) {
-    return (num / 1000000).toFixed(1) + 'M';
+    return (num / 1000000).toFixed(1) + "M";
   } else if (num >= 1000) {
-    return (num / 1000).toFixed(1) + 'K';
+    return (num / 1000).toFixed(1) + "K";
   }
   return num.toString();
 }
 
 export function TaskStatsCard() {
-  const { currentWorkspaceId, isReady } = useDatabaseWorkspace();
+  const { currentWorkspaceId, isReady, isAdminWorkspace } = useDatabaseWorkspace();
   const router = useRouter();
   const params = useParams();
   const teamId = params.teamId as string;
@@ -89,18 +93,18 @@ export function TaskStatsCard() {
 
   const fetchStats = useCallback(async () => {
     if (!currentWorkspaceId || !isReady) return;
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
       const result = await executeWorkflow("TasksGetStatsWorkflow", {
         workspace_id: currentWorkspaceId,
-        ...(teamId && { team_id: teamId })
+        ...(teamId && { team_id: teamId }),
+        exclude_build_tasks: !isAdminWorkspace,
       });
 
       if (result.success && result.data) {
-        // Backend applies demo multipliers if enabled via DEMO_MULTIPLIER env var
         setStats(result.data as TaskStats);
       } else {
         setError(result.error || "Failed to fetch task statistics");
@@ -110,7 +114,7 @@ export function TaskStatsCard() {
     } finally {
       setLoading(false);
     }
-  }, [currentWorkspaceId, isReady, teamId]);
+  }, [currentWorkspaceId, isReady, teamId, isAdminWorkspace]);
 
   useEffect(() => {
     fetchStats();
@@ -174,34 +178,36 @@ export function TaskStatsCard() {
         </Card>
 
         {/* Status Cards */}
-        {(Object.keys(statusConfig) as Array<keyof typeof statusConfig>).map((status) => {
-          const config = statusConfig[status];
-          const Icon = config.icon;
-          const count = stats[status];
-          
-          return (
-            <Card
-              key={status}
-              className={`p-4 border ${config.borderColor} ${config.bgColor} shadow-none cursor-pointer hover:shadow-md transition-all duration-200 hover:scale-105`}
-              onClick={() => handleStatusClick(status)}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <Icon className={`h-4 w-4 ${config.textColor}`} />
-                <Badge 
-                  className={`${config.badgeColor} border-0 text-xs`}
-                >
-                  {config.label}
-                </Badge>
-              </div>
-              <div className={`text-2xl font-bold ${config.textColor}`}>
-                {formatNumber(count)}
-              </div>
-              <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                {count > 0 ? `${((count / stats.total) * 100).toFixed(1)}%` : '0%'}
-              </div>
-            </Card>
-          );
-        })}
+        {(Object.keys(statusConfig) as Array<keyof typeof statusConfig>).map(
+          (status) => {
+            const config = statusConfig[status];
+            const Icon = config.icon;
+            const count = stats[status];
+
+            return (
+              <Card
+                key={status}
+                className={`p-4 border ${config.borderColor} ${config.bgColor} shadow-none cursor-pointer hover:shadow-md transition-all duration-200 hover:scale-105`}
+                onClick={() => handleStatusClick(status)}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <Icon className={`h-4 w-4 ${config.textColor}`} />
+                  <Badge className={`${config.badgeColor} border-0 text-xs`}>
+                    {config.label}
+                  </Badge>
+                </div>
+                <div className={`text-2xl font-bold ${config.textColor}`}>
+                  {formatNumber(count)}
+                </div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  {count > 0
+                    ? `${((count / stats.total) * 100).toFixed(1)}%`
+                    : "0%"}
+                </div>
+              </Card>
+            );
+          },
+        )}
       </div>
     </div>
   );

@@ -1,31 +1,78 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@workspace/ui/components/ui/button";
 import { Input } from "@workspace/ui/components/ui/input";
 import { Label } from "@workspace/ui/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/ui/card";
-import { QuickActionDialog, useQuickActionDialog } from "@workspace/ui/components/quick-action-dialog";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@workspace/ui/components/ui/card";
+import {
+  QuickActionDialog,
+  useQuickActionDialog,
+} from "@workspace/ui/components/quick-action-dialog";
 import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
+import { AddOpenAITokenDialog } from "@/app/(dashboard)/integrations/components/add-openai-token-dialog";
 import { Plus, MessageSquare, Workflow } from "lucide-react";
-import { Select, SelectItem, SelectTrigger, SelectContent, SelectValue } from "@workspace/ui/components/ui/select";
+import {
+  Select,
+  SelectItem,
+  SelectTrigger,
+  SelectContent,
+  SelectValue,
+} from "@workspace/ui/components/ui/select";
 
 interface CreateAgentDialogProps {
   onAgentCreated?: () => void;
   teamId?: string;
+  /** Trigger button label (e.g. "New sub agent") */
+  triggerLabel?: string;
 }
 
-export function CreateAgentDialog({ onAgentCreated, teamId }: CreateAgentDialogProps) {
-  const { createAgent, fetchTeams, teams } = useWorkspaceScopedActions();
-  const { isOpen, open, close, isLoading, handleError, handleSuccess } = useQuickActionDialog();
+export function CreateAgentDialog({
+  onAgentCreated,
+  teamId,
+  triggerLabel = "New agent",
+}: CreateAgentDialogProps) {
+  const router = useRouter();
+  const {
+    createAgent,
+    fetchTeams,
+    teams,
+    hasWorkspaceOpenAIToken,
+    fetchMcpServers,
+  } = useWorkspaceScopedActions();
+  const {
+    isOpen,
+    open,
+    close,
+    isLoading,
+    startLoading,
+    stopLoading,
+    handleError,
+    handleSuccess,
+  } = useQuickActionDialog();
   const [selectedTeamId, setSelectedTeamId] = useState(teamId || "");
+  const [addOpenAITokenDialogOpen, setAddOpenAITokenDialogOpen] =
+    useState(false);
 
   useEffect(() => {
     fetchTeams();
   }, [fetchTeams]);
 
+  useEffect(() => {
+    if (isOpen) fetchMcpServers();
+  }, [isOpen, fetchMcpServers]);
+
   const [agentName, setAgentName] = useState("");
-  const [selectedAgentType, setSelectedAgentType] = useState<"interactive" | "pipeline" | null>(null);
+  const [selectedAgentType, setSelectedAgentType] = useState<
+    "interactive" | "pipeline" | null
+  >(null);
   const [nameError, setNameError] = useState("");
 
   const validateAgentName = (name: string): boolean => {
@@ -35,27 +82,35 @@ export function CreateAgentDialog({ onAgentCreated, teamId }: CreateAgentDialogP
       return false;
     }
     if (!slugPattern.test(name)) {
-      setNameError("Agent name must be in slug format (lowercase letters, numbers, hyphens, underscores only)");
+      setNameError(
+        "Agent name must be in slug format (lowercase letters, numbers, hyphens, underscores only)",
+      );
       return false;
     }
     setNameError("");
     return true;
   };
 
-  const handleCreateAgent = async () => {
+  const handleCreateAgent = async (options?: { skipTokenCheck?: boolean }) => {
     // Validate inputs
     if (!validateAgentName(agentName)) {
       throw new Error("Please enter a valid agent name");
     }
-    
+
     if (!selectedAgentType) {
       throw new Error("Please select an agent type");
     }
 
+    if (!options?.skipTokenCheck && !hasWorkspaceOpenAIToken) {
+      setAddOpenAITokenDialogOpen(true);
+      throw new Error("OPENAI_TOKEN_REQUIRED");
+    }
+
     // Create agent data based on type
-    const baseInstructions = selectedAgentType === "interactive" 
-      ? "You are a helpful support agent. Your role is to assist users with their technical questions and issues. Always be polite, professional, and thorough in your responses."
-      : "You are a pipeline agent designed to process and transform data at scale. Focus on reliability, efficiency, and data quality in your operations.";
+    const baseInstructions =
+      selectedAgentType === "interactive"
+        ? "You are a helpful support agent. Your role is to assist users with their technical questions and issues. Always be polite, professional, and thorough in your responses."
+        : "You are a pipeline agent designed to process and transform data at scale. Focus on reliability, efficiency, and data quality in your operations.";
 
     const agentData = {
       name: agentName,
@@ -91,9 +146,9 @@ export function CreateAgentDialog({ onAgentCreated, teamId }: CreateAgentDialogP
 
   return (
     <>
-      <Button size="sm" onClick={open}>
+      <Button size="sm" onClick={open} variant="outline">
         <Plus className="h-4 w-4 mr-1" />
-        New agent
+        {triggerLabel}
       </Button>
 
       <QuickActionDialog
@@ -107,7 +162,13 @@ export function CreateAgentDialog({ onAgentCreated, teamId }: CreateAgentDialogP
         isLoading={isLoading}
         closeOnSuccess={true}
         onSuccess={handleSuccess}
-        onError={handleError}
+        onError={(message) => {
+          if (message === "OPENAI_TOKEN_REQUIRED") {
+            setAddOpenAITokenDialogOpen(true);
+          } else {
+            handleError(message);
+          }
+        }}
         size="lg"
       >
         <div className="space-y-6">
@@ -121,15 +182,22 @@ export function CreateAgentDialog({ onAgentCreated, teamId }: CreateAgentDialogP
               onChange={handleNameChange}
               className={nameError ? "border-red-500" : ""}
             />
-            {nameError && (
-              <p className="text-sm text-red-600">{nameError}</p>
-            )}
+            {nameError && <p className="text-sm text-red-600">{nameError}</p>}
             <p className="text-xs text-muted-foreground">
               Use lowercase letters, numbers, hyphens, and underscores only
             </p>
           </div>
           <Label htmlFor="team-id">Assign to team</Label>
-          <Select value={selectedTeamId} onValueChange={setSelectedTeamId}>
+          <Select
+            value={selectedTeamId}
+            onValueChange={(value) => {
+              if (value === "__new_team__") {
+                router.push("/teams/settings");
+                return;
+              }
+              setSelectedTeamId(value);
+            }}
+          >
             <SelectTrigger>
               <SelectValue placeholder="Select a team" />
             </SelectTrigger>
@@ -139,6 +207,7 @@ export function CreateAgentDialog({ onAgentCreated, teamId }: CreateAgentDialogP
                   {team.name}
                 </SelectItem>
               ))}
+              <SelectItem value="__new_team__">+ New team</SelectItem>
             </SelectContent>
           </Select>
 
@@ -147,10 +216,10 @@ export function CreateAgentDialog({ onAgentCreated, teamId }: CreateAgentDialogP
             <Label>Type</Label>
             <div className="space-y-3">
               {/* Interactive Agent Card */}
-              <Card 
+              <Card
                 className={`cursor-pointer transition-all ${
-                  selectedAgentType === "interactive" 
-                    ? "border-primary" 
+                  selectedAgentType === "interactive"
+                    ? "border-primary"
                     : "hover:border-muted-foreground/50"
                 }`}
                 onClick={() => setSelectedAgentType("interactive")}
@@ -158,7 +227,9 @@ export function CreateAgentDialog({ onAgentCreated, teamId }: CreateAgentDialogP
                 <CardHeader className="pb-3">
                   <div className="flex items-center space-x-2">
                     <MessageSquare className="h-5 w-5 text-primary" />
-                    <CardTitle className="text-base">Interactive Agent</CardTitle>
+                    <CardTitle className="text-base">
+                      Interactive Agent
+                    </CardTitle>
                   </div>
                   <CardDescription className="text-sm">
                     An agent that interacts directly with users.
@@ -174,10 +245,10 @@ export function CreateAgentDialog({ onAgentCreated, teamId }: CreateAgentDialogP
               </Card>
 
               {/* Pipeline Agent Card */}
-              <Card 
+              <Card
                 className={`cursor-pointer transition-all hover:shadow-md ${
-                  selectedAgentType === "pipeline" 
-                    ? "border-primary" 
+                  selectedAgentType === "pipeline"
+                    ? "border-primary"
                     : "hover:border-muted-foreground/50"
                 }`}
                 onClick={() => setSelectedAgentType("pipeline")}
@@ -203,6 +274,24 @@ export function CreateAgentDialog({ onAgentCreated, teamId }: CreateAgentDialogP
           </div>
         </div>
       </QuickActionDialog>
+
+      <AddOpenAITokenDialog
+        open={addOpenAITokenDialogOpen}
+        onOpenChange={setAddOpenAITokenDialogOpen}
+        onTokenAdded={async () => {
+          await fetchMcpServers();
+          startLoading();
+          try {
+            await handleCreateAgent({ skipTokenCheck: true });
+            handleSuccess();
+            close();
+          } catch (e) {
+            handleError(e instanceof Error ? e.message : "Action failed");
+          } finally {
+            stopLoading();
+          }
+        }}
+      />
     </>
   );
-} 
+}

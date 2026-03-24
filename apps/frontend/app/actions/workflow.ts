@@ -138,6 +138,17 @@ export async function getMcpServers(workspaceId: string) {
   });
 }
 
+export async function getRemoteMcpDirectory(query?: string) {
+  const result = await executeWorkflow("GetRemoteMcpDirectoryWorkflow", {
+    query: query ?? null,
+  });
+  if (!result.success || !result.data) {
+    return { success: false as const, entries: [] };
+  }
+  const entries = (result.data as { entries?: unknown[] }).entries ?? [];
+  return { success: true as const, entries };
+}
+
 export async function createMcpServer(mcpServerData: {
   workspace_id: string;
   server_label: string;
@@ -360,6 +371,42 @@ export async function getDatasets(workspaceId: string) {
   });
 }
 
+const TASK_FILES_DATASET_NAME = "task-files";
+
+/** Get or create the workspace "task-files" dataset; returns dataset id or null. Used so "Add files to task" and build flows share the same dataset. */
+export async function getOrCreateTaskFilesDatasetId(
+  workspaceId: string,
+): Promise<string | null> {
+  const listResult = await getDatasets(workspaceId);
+  const list =
+    listResult && typeof listResult === "object" && "datasets" in listResult
+      ? (listResult as { datasets: { id: string; name: string }[] })
+      : null;
+  const datasets =
+    list?.datasets ?? (Array.isArray(listResult) ? listResult : []);
+  const existing = Array.isArray(datasets)
+    ? datasets.find(
+        (d: { name?: string }) => d.name === TASK_FILES_DATASET_NAME,
+      )
+    : null;
+  if (existing && typeof existing.id === "string") {
+    return existing.id;
+  }
+  const createResult = await createDataset({
+    workspace_id: workspaceId,
+    name: TASK_FILES_DATASET_NAME,
+    description: "Files uploaded from tasks",
+    storage_type: "clickhouse",
+  });
+  const created =
+    createResult &&
+    typeof createResult === "object" &&
+    "dataset" in createResult
+      ? (createResult as { dataset: { id: string } }).dataset
+      : null;
+  return created?.id ?? null;
+}
+
 /** Get a public agent by id (for /chat/[agentId] - no auth). Returns null if not found or not public. */
 export async function getPublicAgent(agentId: string) {
   try {
@@ -496,7 +543,7 @@ export async function scheduleAddFilesToDatasetWorkflow(params: {
   }
 }
 
-/** Add files to a dataset: EmbedAnything (extract + embed) → ClickHouse. Accepts PDF, text, images, etc. */
+/** Add files to a dataset: EmbedAnything (extract + embed) → ClickHouse. Accepts documents, text, CSV, images, etc. */
 export async function addFilesToDataset(params: {
   workspace_id: string;
   dataset_id: string;
@@ -523,7 +570,7 @@ export async function addFilesToDataset(params: {
     const result = await getWorkflowResult({
       workflowId: scheduled.workflowId,
       runId: scheduled.runId,
-      timeoutMs: 5 * 60 * 1000, // 5 minutes for multi-PDF ingest
+      timeoutMs: 5 * 60 * 1000, // 5 minutes for large ingest
     });
     return {
       success: true,

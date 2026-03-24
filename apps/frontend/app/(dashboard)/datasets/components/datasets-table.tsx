@@ -73,9 +73,18 @@ function formatDate(dateString: string | null): string {
 interface DatasetsTableProps {
   datasets: Dataset[];
   loading?: boolean;
+  /** When false, filter bar is hidden (e.g. in build canvas). Default true. */
+  showFilters?: boolean;
+  /** When provided, datasets with id in this set are shown as "Planned" (no link, not clickable). */
+  plannedIds?: Set<string>;
 }
 
-export function DatasetsTable({ datasets, loading = false }: DatasetsTableProps) {
+export function DatasetsTable({
+  datasets,
+  loading = false,
+  showFilters = true,
+  plannedIds,
+}: DatasetsTableProps) {
   const { columns, filters, actions, strategy, filteredData } = useDataTableFilters({
     strategy: "client",
     data: datasets,
@@ -104,12 +113,14 @@ export function DatasetsTable({ datasets, loading = false }: DatasetsTableProps)
   return (
     <div className="space-y-4">
       {/* Filters */}
-      <DataTableFilter
-        filters={filters}
-        columns={columns}
-        actions={actions}
-        strategy={strategy}
-      />
+      {showFilters && (
+        <DataTableFilter
+          filters={filters}
+          columns={columns}
+          actions={actions}
+          strategy={strategy}
+        />
+      )}
 
       {/* Table */}
       <div className="border rounded-lg">
@@ -134,56 +145,75 @@ export function DatasetsTable({ datasets, loading = false }: DatasetsTableProps)
                 </TableCell>
               </TableRow>
             ) : (
-              filteredData.map((dataset) => (
-                <TableRow key={dataset.id}>
-                  {/* Dataset Name & Description */}
-                  <TableCell className="font-medium">
+              filteredData.map((dataset) => {
+                const isPlanned = plannedIds?.has(dataset.id);
+                return (
+                  <TableRow key={dataset.id}>
+                    {/* Dataset Name & Description */}
+                    <TableCell className="font-medium">
                       <div className="space-y-1">
-                        <Link
-                          href={`/datasets/${dataset.id}`}
-                          className="font-medium text-foreground hover:text-primary transition-colors"
-                        >
-                          {dataset.name}
-                        </Link>
+                        {isPlanned ? (
+                          <span className="font-medium text-foreground">
+                            {dataset.name}
+                          </span>
+                        ) : (
+                          <Link
+                            href={`/datasets/${dataset.id}`}
+                            className="font-medium text-foreground hover:text-primary transition-colors"
+                          >
+                            {dataset.name}
+                          </Link>
+                        )}
                         {dataset.description && (
                           <p className="text-sm text-muted-foreground truncate max-w-[300px]">
                             {dataset.description}
                           </p>
                         )}
                       </div>
-                  </TableCell>
+                    </TableCell>
 
-                  {/* Storage Type */}
-                  <TableCell>
-                    <Badge variant="outline" className="capitalize">
-                      {dataset.storage_type}
-                    </Badge>
-                  </TableCell>
+                    {/* Storage Type */}
+                    <TableCell>
+                      {isPlanned ? (
+                        <span className="text-sm text-muted-foreground">—</span>
+                      ) : (
+                        <Badge variant="outline" className="capitalize">
+                          {dataset.storage_type}
+                        </Badge>
+                      )}
+                    </TableCell>
 
-                  {/* Last Updated */}
-                  <TableCell className="text-sm text-muted-foreground">
-                    {formatDate(dataset.last_updated_at)}
-                  </TableCell>
+                    {/* Last Updated */}
+                    <TableCell className="text-sm text-muted-foreground">
+                      {isPlanned ? "—" : formatDate(dataset.last_updated_at)}
+                    </TableCell>
 
-                  {/* Actions */}
-                  <TableCell>
-                    <div className="flex items-center space-x-2">
-                      <Link href={`/datasets/${dataset.id}`}>
-                          <Button
-                          variant="outline"
-                          size="sm"
-                          asChild
-                        >
-                            <span>
-                              <Eye className="h-4 w-4 sm:mr-2" />
-                              <span className="hidden sm:inline">View</span>
-                            </span>
-                        </Button>
-                      </Link>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
+                    {/* Actions */}
+                    <TableCell>
+                      {isPlanned ? (
+                        <span className="text-xs text-muted-foreground">
+                          Planned
+                        </span>
+                      ) : (
+                        <div className="flex items-center space-x-2">
+                          <Link href={`/datasets/${dataset.id}`}>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              asChild
+                            >
+                              <span>
+                                <Eye className="h-4 w-4 sm:mr-2" />
+                                <span className="hidden sm:inline">View</span>
+                              </span>
+                            </Button>
+                          </Link>
+                        </div>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>

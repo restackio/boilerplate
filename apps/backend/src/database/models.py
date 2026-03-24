@@ -25,6 +25,7 @@ class Workspace(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True)
     name = Column(String(255), nullable=False)
+    is_admin = Column(Boolean, nullable=False, default=False)
     created_at = Column(
         DateTime,
         default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
@@ -182,6 +183,23 @@ class User(Base):
     )
 
 
+class PasswordResetToken(Base):
+    __tablename__ = "password_reset_tokens"
+
+    id = Column(UUID(as_uuid=True), primary_key=True)
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    token = Column(String(64), nullable=False, unique=True)
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(
+        DateTime,
+        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+    )
+
+
 class Agent(Base):
     __tablename__ = "agents"
 
@@ -217,6 +235,11 @@ class Agent(Base):
         String(20), nullable=False, default="medium"
     )
     is_public = Column(Boolean, nullable=False, default=False)
+    build_task_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("tasks.id", ondelete="SET NULL"),
+        nullable=True,
+    )  # Build task that created this agent; null for manually created
 
     created_at = Column(
         DateTime,
@@ -256,7 +279,17 @@ class Agent(Base):
     # Relationships
     workspace = relationship("Workspace")
     team = relationship("Team", back_populates="agents")
-    tasks = relationship("Task", back_populates="agent")
+    build_task = relationship(
+        "Task",
+        foreign_keys=[build_task_id],
+        backref="agents_created_by_build",
+    )
+    tasks = relationship(
+        "Task",
+        back_populates="agent",
+        foreign_keys="Task.agent_id",
+        cascade="all, delete-orphan",
+    )
     parent_agent = relationship(
         "Agent", remote_side=[id], backref="child_agents"
     )
@@ -483,6 +516,16 @@ class Task(Base):
     task_metadata = Column(
         JSONB, nullable=True, default=dict
     )  # Integration context (e.g., slack_channel, slack_thread_ts, source)
+    view_specs = Column(
+        JSONB,
+        nullable=False,
+        server_default="[]",
+    )  # View definitions for Build: [{id, name, columns, dataset_id, ...}]
+    pattern_specs = Column(
+        JSONB,
+        nullable=False,
+        server_default="{}",
+    )  # Agent design pattern: { title?, nodes, edges } for React Flow; updated as build creates/updates entities
     created_at = Column(
         DateTime,
         default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
@@ -524,7 +567,11 @@ class Task(Base):
     # Relationships
     workspace = relationship("Workspace")
     team = relationship("Team", back_populates="tasks")
-    agent = relationship("Agent", back_populates="tasks")
+    agent = relationship(
+        "Agent",
+        back_populates="tasks",
+        foreign_keys=[agent_id],
+    )
     assigned_to_user = relationship(
         "User", foreign_keys=[assigned_to_id]
     )
@@ -598,6 +645,7 @@ class UserOAuthConnection(Base):
             tzinfo=None
         ),
     )
+    token_name = Column(String(255), nullable=True)
 
     # Relationships
     user = relationship("User")
@@ -618,6 +666,11 @@ class Dataset(Base):
         ForeignKey("workspaces.id", ondelete="CASCADE"),
         nullable=False,
     )
+    build_task_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("tasks.id", ondelete="SET NULL"),
+        nullable=True,
+    )  # Build task that created this dataset; null for manually created
     name = Column(String(255), nullable=False)
     description = Column(Text)
 
@@ -658,6 +711,11 @@ class Dataset(Base):
 
     # Relationships
     workspace = relationship("Workspace")
+    build_task = relationship(
+        "Task",
+        foreign_keys=[build_task_id],
+        backref="datasets_created_by_build",
+    )
 
 
 class MetricDefinition(Base):
