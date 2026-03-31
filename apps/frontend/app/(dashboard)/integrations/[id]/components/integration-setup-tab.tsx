@@ -73,7 +73,12 @@ export function IntegrationSetupTab({
     headers: {},
   });
 
-  const [headerInput, setHeaderInput] = useState("");
+  // Pre-populate headerInput with existing headers from server
+  const [headerInput, setHeaderInput] = useState(
+    server.headers && Object.keys(server.headers).length > 0
+      ? JSON.stringify(server.headers, null, 2)
+      : ""
+  );
   const [connectionTest, setConnectionTest] = useState<{
     isLoading: boolean;
     result: "success" | "error" | null;

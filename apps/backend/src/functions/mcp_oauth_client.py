@@ -142,6 +142,18 @@ class GenerateAuthUrlInput(BaseModel):
         description="Origin of the request (e.g. from frontend); redirect_uri origin must match if provided.",
     )
     state: str | None = Field(None)
+    # Explicit OAuth URLs (bypass discovery if provided)
+    oauth_authorize_url: str | None = Field(None)
+    oauth_token_url: str | None = Field(None)
+    client_id: str | None = Field(
+        None, description="Pre-configured OAuth client ID"
+    )
+    client_secret: str | None = Field(
+        None, description="Pre-configured OAuth client secret"
+    )
+    scopes: str | None = Field(
+        None, description="OAuth scopes to request"
+    )
 
 
 class ExchangeCodeForTokenInput(BaseModel):
@@ -159,6 +171,10 @@ class ExchangeCodeForTokenInput(BaseModel):
     client_secret: str | None = Field(
         None,
         description="OAuth client secret from authorization phase",
+    )
+    oauth_token_url: str | None = Field(
+        None,
+        description="Explicit OAuth token URL (bypass discovery if provided)",
     )
 
 
@@ -184,6 +200,8 @@ class TokenExchangeOutput(BaseModel):
     # Client credentials for future token refresh
     client_id: str | None = None
     client_secret: str | None = None
+    # Provider-specific metadata (e.g., Slack team info)
+    provider_metadata: dict | None = None
 
 
 # Response wrapper models
@@ -671,10 +689,33 @@ async def oauth_generate_auth_url(
             function_input.request_origin,
         )
 
-        # Step 1: Discover OAuth metadata using MCP SDK logic
-        oauth_metadata = await discover_oauth_metadata(
-            function_input.server_url
-        )
+        # Check if explicit OAuth URLs are provided (for services without .well-known discovery)
+        if (
+            function_input.oauth_authorize_url
+            and function_input.oauth_token_url
+        ):
+            log.info(
+                f"Using explicit OAuth URLs for {function_input.server_label}"
+            )
+
+            # Use pre-configured OAuth settings (no discovery needed)
+            authorization_endpoint = (
+                function_input.oauth_authorize_url
+            )
+            client_id = function_input.client_id
+            client_secret = function_input.client_secret
+
+            if not client_id or not client_secret:
+                msg = (
+                    f"client_id and client_secret must be provided in mcp_servers.headers "
+                    f"for {function_input.server_label} (no OAuth discovery available)"
+                )
+                raise NonRetryableError(msg)
+        else:
+            # Step 1: Discover OAuth metadata using MCP SDK logic
+            oauth_metadata = await discover_oauth_metadata(
+                function_input.server_url
+            )
 
         # Step 2: Register client only if the server advertises a registration endpoint.
         # Many providers (e.g. Attio) support OAuth but do not support RFC 7591 dynamic
@@ -693,6 +734,39 @@ async def oauth_generate_auth_url(
             )
             _raise_no_registration_endpoint_error(msg)
 
+        # Generate state for CSRF protection
+        state = secrets.token_urlsafe(32)
+
+        # Path 1: Explicit OAuth configuration (skip discovery and registration)
+        if (
+            function_input.oauth_authorize_url
+            and function_input.oauth_token_url
+        ):
+            # Use pre-configured client credentials
+            auth_params = {
+                "response_type": "code",
+                "client_id": client_id,
+                "redirect_uri": function_input.redirect_uri,
+                "state": state,
+                "code_challenge": pkce_params.code_challenge,
+                "code_challenge_method": "S256",
+                "scope": function_input.scopes
+                or "read_content update_content",
+            }
+
+            authorization_url = f"{authorization_endpoint}?{urlencode(auth_params)}"
+
+            # Pack code_verifier with client_secret for token exchange phase
+            return AuthUrlResultOutput(
+                auth_url=AuthUrlOutput(
+                    authorization_url=authorization_url,
+                    state=state,
+                    client_id=client_id,
+                    client_secret=f"{client_secret}|{pkce_params.code_verifier}",
+                ),
+            )
+
+        # Path 2: Standard OAuth discovery flow
         async with httpx.AsyncClient() as client:
             registration_data = client_metadata.model_dump(
                 by_alias=True, mode="json", exclude_none=True
@@ -727,22 +801,8 @@ async def oauth_generate_auth_url(
             auth_endpoint = str(
                 oauth_metadata.authorization_endpoint
             )
-            state = _create_signed_state(
-                function_input.user_id,
-                function_input.workspace_id,
-                function_input.server_label,
-            )
+            state = secrets.token_urlsafe(32)
 
-            # Use scopes from discovery if advertised (e.g. Attio), else MCP default
-            scopes_supported = getattr(
-                oauth_metadata, "scopes_supported", None
-            )
-            scope_value = (
-                " ".join(scopes_supported[:8])
-                if scopes_supported
-                and isinstance(scopes_supported, list)
-                else "read_content update_content"
-            )
             auth_params = {
                 "response_type": "code",
                 "client_id": client_info.client_id,
@@ -750,7 +810,7 @@ async def oauth_generate_auth_url(
                 "state": state,
                 "code_challenge": pkce_params.code_challenge,
                 "code_challenge_method": "S256",
-                "scope": scope_value,
+                "scope": client_metadata.scope or "",
                 # RFC 8707: Include resource parameter for better authorization scoping
                 "resource": resource_url_from_server_url(
                     function_input.server_url
@@ -1011,9 +1071,35 @@ async def oauth_exchange_code_for_token(
                         token_response.text,
                     )
 
-                tokens = OAuthToken.model_validate_json(
-                    token_response.content
+                # Parse response and handle Slack's non-standard token_type
+                response_json = token_response.json()
+                token_type = response_json.get("token_type", "")
+                log.info(
+                    f"Token response received: token_type={token_type}"
                 )
+
+                # Extract provider-specific metadata (e.g., Slack team info)
+                provider_metadata = {}
+                if token_type.lower() == "bot":
+                    # Slack OAuth response includes team info
+                    if "team" in response_json:
+                        provider_metadata["slack_team_id"] = (
+                            response_json["team"].get("id")
+                        )
+                        provider_metadata["slack_team_name"] = (
+                            response_json["team"].get("name")
+                        )
+                        log.info(
+                            f"Extracted Slack team: {provider_metadata.get('slack_team_name')} ({provider_metadata.get('slack_team_id')})"
+                        )
+
+                    # Normalize token_type for validation
+                    log.info(
+                        f"Normalizing Slack token_type from '{token_type}' to 'Bearer'"
+                    )
+                    response_json["token_type"] = "Bearer"  # noqa: S105
+
+                tokens = OAuthToken.model_validate(response_json)
 
             # Determine which client credentials to return
             final_client_id = (
@@ -1032,6 +1118,8 @@ async def oauth_exchange_code_for_token(
                 # Include client credentials for storage
                 client_id=final_client_id,
                 client_secret=final_client_secret,
+                # Include provider-specific metadata
+                provider_metadata=provider_metadata or None,
             )
 
             return TokenExchangeResultOutput(

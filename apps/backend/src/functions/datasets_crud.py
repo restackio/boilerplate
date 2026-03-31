@@ -535,13 +535,48 @@ async def _resolve_build_task_id(
 
 
 @function.defn()
-async def datasets_create(
+async def datasets_create(  # noqa: C901
     function_input: DatasetCreateInput,
 ) -> DatasetSingleOutput:
     """Create a new dataset in PostgreSQL, or return existing if (workspace_id, name) already exists (idempotent)."""
     try:
         import json
         import uuid
+
+        # Generate UUID for the new dataset
+        dataset_id = str(uuid.uuid4())
+
+        # Set up default storage config based on storage type
+        storage_config = function_input.storage_config.copy()
+        if (
+            function_input.storage_type == "clickhouse"
+            and not storage_config
+        ):
+            storage_config = {
+                "database": "boilerplate_clickhouse",
+                "table": "pipeline_events",
+                "filter": {},
+            }
+        elif (
+            function_input.storage_type == "cockroachdb"
+            and not storage_config
+        ):
+            storage_config = {
+                "database": "boilerplate_cockroachdb",
+                "table": "pipeline_events",
+                "filter": {},
+            }
+
+        # Scope queries to this dataset's events (by UUID)
+        storage_config["dataset_id"] = dataset_id
+
+        # Add tag-based filtering if tags are provided (applies to all storage types)
+        if function_input.tags and storage_config is not None:
+            if "filter" not in storage_config:
+                storage_config["filter"] = {}
+            storage_config["filter"]["tags"] = function_input.tags
+
+        # No need for schema_definition - storage backend schema is the source of truth
 
         async for db in get_async_db():
             # Idempotent: if dataset with same workspace_id and name exists, return it
