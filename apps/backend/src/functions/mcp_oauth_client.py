@@ -710,7 +710,7 @@ async def oauth_generate_auth_url(
                     f"client_id and client_secret must be provided in mcp_servers.headers "
                     f"for {function_input.server_label} (no OAuth discovery available)"
                 )
-                raise NonRetryableError(msg)  # noqa: TRY301
+                raise NonRetryableError(msg)
         else:
             # Step 1: Discover OAuth metadata using MCP SDK logic
             oauth_metadata = await discover_oauth_metadata(
@@ -810,7 +810,7 @@ async def oauth_generate_auth_url(
                 "state": state,
                 "code_challenge": pkce_params.code_challenge,
                 "code_challenge_method": "S256",
-                "scope": scope_value,
+                "scope": client_metadata.scope or "",
                 # RFC 8707: Include resource parameter for better authorization scoping
                 "resource": resource_url_from_server_url(
                     function_input.server_url
@@ -987,7 +987,7 @@ async def _register_new_client_and_prepare_token_data(
 
 
 @function.defn()
-async def oauth_exchange_code_for_token(  # noqa: PLR0915
+async def oauth_exchange_code_for_token(
     function_input: ExchangeCodeForTokenInput,
 ) -> TokenExchangeResultOutput:
     """Exchange OAuth authorization code for access token using MCP SDK."""
@@ -1018,12 +1018,6 @@ async def oauth_exchange_code_for_token(  # noqa: PLR0915
                 function_input.server_url
             )
             token_endpoint = str(oauth_metadata.token_endpoint)
-
-            # Get base URL for fallback client registration
-            parsed_url = urlparse(function_input.server_url)
-            base_url = (
-                f"{parsed_url.scheme}://{parsed_url.netloc}"
-            )
 
             # Initialize variables for client credentials
             client_secret = None

@@ -279,7 +279,7 @@ class TasksCreateWorkflow:
                             task_queue=TASK_QUEUE,
                             start_to_close_timeout=timedelta(seconds=5),
                         )
-                except Exception as slack_err:
+                except (OSError, ValueError, RuntimeError, NonRetryableError) as slack_err:
                     log.warning(f"Slack post-task-started failed (non-fatal): {slack_err}")
 
             # Get temporal_parent_agent_id from the task (already in DB)

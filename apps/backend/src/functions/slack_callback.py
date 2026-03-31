@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN")
 SLACK_DEFAULT_CHANNEL_ID = os.getenv("SLACK_DEFAULT_CHANNEL_ID")
 SLACK_API_BASE = "https://slack.com/api"
+_DESCRIPTION_PREVIEW_MAX = 500
 
 
 class SlackPostMessageInput(BaseModel):
@@ -97,78 +98,69 @@ def _task_dashboard_url(
     return f"{frontend_url}/tasks/{task_id}"
 
 
+def _table_rows_to_code_block(rows: list[list[str]]) -> str:
+    """Render parsed table rows as an aligned monospace code block."""
+    num_cols = max(len(r) for r in rows)
+    col_widths = [
+        max((len(row[i]) if i < len(row) else 0) for row in rows)
+        for i in range(num_cols)
+    ]
+    formatted = []
+    for idx, row in enumerate(rows):
+        padded = [
+            (row[i] if i < len(row) else "").ljust(col_widths[i])
+            for i in range(num_cols)
+        ]
+        formatted.append(" | ".join(padded))
+        if idx == 0:
+            formatted.append("-+-".join("-" * w for w in col_widths))
+    return "```\n" + "\n".join(formatted) + "\n```"
+
+
+def _convert_inline_markdown(line: str) -> str:
+    """Convert inline markdown formatting to Slack mrkdwn."""
+    result = re.sub(r"\*\*(.+?)\*\*", r"*\1*", line)
+    result = re.sub(r"__(.+?)__", r"*\1*", result)
+    result = re.sub(
+        r"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)", r"_\1_", result,
+    )
+    result = re.sub(r"~~(.+?)~~", r"~\1~", result)
+    return re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r"<\2|\1>", result)
+
+
+_TABLE_SEPARATOR_RE = re.compile(r"^\|[\s:]*-+[\s:|-]*\|$")
+_HEADING_RE = re.compile(r"^(#{1,6})\s+(.+)$")
+
+
 def markdown_to_slack(text: str) -> str:
     """Convert standard markdown to Slack mrkdwn format."""
     lines = text.split("\n")
     out: list[str] = []
-    in_table = False
     table_rows: list[list[str]] = []
-
-    def _flush_table() -> None:
-        if not table_rows:
-            return
-        col_widths = [
-            max(len(row[i]) if i < len(row) else 0 for row in table_rows)
-            for i in range(max(len(r) for r in table_rows))
-        ]
-        formatted = []
-        for idx, row in enumerate(table_rows):
-            padded = [
-                (row[i] if i < len(row) else "").ljust(col_widths[i])
-                for i in range(len(col_widths))
-            ]
-            formatted.append(" | ".join(padded))
-            if idx == 0:
-                formatted.append("-+-".join("-" * w for w in col_widths))
-        out.append("```\n" + "\n".join(formatted) + "\n```")
 
     for line in lines:
         stripped = line.strip()
 
-        # Markdown table row
         if stripped.startswith("|") and stripped.endswith("|"):
-            # Skip separator rows (|---|---|)
-            if re.match(r"^\|[\s:]*-+[\s:|-]*\|$", stripped):
+            if _TABLE_SEPARATOR_RE.match(stripped):
                 continue
             cells = [c.strip() for c in stripped.strip("|").split("|")]
-            if not in_table:
-                in_table = True
-                table_rows = []
             table_rows.append(cells)
             continue
 
-        if in_table:
-            _flush_table()
+        if table_rows:
+            out.append(_table_rows_to_code_block(table_rows))
             table_rows = []
-            in_table = False
 
-        # Headings → bold
-        heading = re.match(r"^(#{1,6})\s+(.+)$", stripped)
+        heading = _HEADING_RE.match(stripped)
         if heading:
             out.append(f"\n*{heading.group(2).strip()}*")
             continue
 
-        # Bold: **text** or __text__ → *text*
-        converted = re.sub(r"\*\*(.+?)\*\*", r"*\1*", stripped)
-        converted = re.sub(r"__(.+?)__", r"*\1*", converted)
+        out.append(_convert_inline_markdown(stripped))
 
-        # Italic: *text* (single) when not already bold → _text_
-        # Only convert single * that aren't part of ** (already handled above)
-        converted = re.sub(r"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)", r"_\1_", converted)
-
-        # Strikethrough: ~~text~~ → ~text~
-        converted = re.sub(r"~~(.+?)~~", r"~\1~", converted)
-
-        # Links: [text](url) → <url|text>
-        converted = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r"<\2|\1>", converted)
-
-        # Inline code is the same in both formats (`code`)
-        # Code blocks (```) are the same in both formats
-
-        out.append(converted)
-
-    if in_table:
-        _flush_table()
+    if table_rows:
+        out.append(_table_rows_to_code_block(table_rows))
 
     return "\n".join(out)
 
@@ -478,8 +470,8 @@ async def slack_post_task_started(
         frontend_url, function_input.task_id, function_input.task_title,
     )
 
-    description_preview = function_input.task_description[:500]
-    if len(function_input.task_description) > 500:
+    description_preview = function_input.task_description[:_DESCRIPTION_PREVIEW_MAX]
+    if len(function_input.task_description) > _DESCRIPTION_PREVIEW_MAX:
         description_preview += "..."
 
     blocks: list[dict[str, Any]] = [

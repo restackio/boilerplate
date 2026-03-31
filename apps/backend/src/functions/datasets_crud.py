@@ -535,7 +535,7 @@ async def _resolve_build_task_id(
 
 
 @function.defn()
-async def datasets_create(
+async def datasets_create(  # noqa: C901
     function_input: DatasetCreateInput,
 ) -> DatasetSingleOutput:
     """Create a new dataset in PostgreSQL, or return existing if (workspace_id, name) already exists (idempotent)."""
@@ -577,9 +577,6 @@ async def datasets_create(
             storage_config["filter"]["tags"] = function_input.tags
 
         # No need for schema_definition - storage backend schema is the source of truth
-
-        # Insert into PostgreSQL
-        import json
 
         async for db in get_async_db():
             # Idempotent: if dataset with same workspace_id and name exists, return it

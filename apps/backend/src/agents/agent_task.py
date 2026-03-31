@@ -293,19 +293,7 @@ class AgentTask:
                     self.events.append(user_event)
 
                     if not from_slack and self._has_slack_context():
-                        try:
-                            await agent.step(
-                                function=slack_post_message,
-                                function_input=SlackPostMessageInput(
-                                    channel=self.task_metadata["slack_channel"],
-                                    text=f"💬 *From dashboard:*\n{markdown_to_slack(message.content)}",
-                                    thread_ts=self.task_metadata.get("slack_thread_ts"),
-                                ),
-                                task_queue=TASK_QUEUE,
-                                start_to_close_timeout=timedelta(seconds=10),
-                            )
-                        except (OSError, ValueError, TypeError) as e:
-                            log.warning(f"Failed to mirror user message to Slack: {e}")
+                        await self._mirror_user_message_to_slack(message.content)
 
                 try:
                     # Wait for any in-progress response to complete before starting new one
@@ -755,6 +743,22 @@ class AgentTask:
     def _has_slack_context(self) -> bool:
         meta = self.task_metadata or {}
         return bool(meta.get("slack_channel"))
+
+    async def _mirror_user_message_to_slack(self, content: str) -> None:
+        """Post a dashboard-originated user message into the Slack thread."""
+        try:
+            await agent.step(
+                function=slack_post_message,
+                function_input=SlackPostMessageInput(
+                    channel=self.task_metadata["slack_channel"],
+                    text=f"💬 *From dashboard:*\n{markdown_to_slack(content)}",
+                    thread_ts=self.task_metadata.get("slack_thread_ts"),
+                ),
+                task_queue=TASK_QUEUE,
+                start_to_close_timeout=timedelta(seconds=10),
+            )
+        except (OSError, ValueError, TypeError) as e:
+            log.warning(f"Failed to mirror user message to Slack: {e}")
 
     async def _slack_post_or_update(
         self, text: str, *, final: bool = False
