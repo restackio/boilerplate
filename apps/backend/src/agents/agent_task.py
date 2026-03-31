@@ -105,6 +105,7 @@ with import_functions():
     from src.functions.slack_callback import (
         SlackPostMessageInput,
         SlackUpdateMessageInput,
+        markdown_to_slack,
         slack_post_message,
         slack_update_message,
     )
@@ -123,6 +124,7 @@ with import_functions():
 
 class MessagesEvent(BaseModel):
     messages: list[Message]
+    source: str | None = None
 
 
 class McpApprovalEvent(BaseModel):
@@ -266,6 +268,7 @@ class AgentTask:
 
             # Store messages for OpenAI API call (so frontend sees them immediately)
             self.messages.extend(messages_event.messages)
+            from_slack = messages_event.source == "slack"
 
             # Process each user message individually to maintain conversation continuity
             for _i, message in enumerate(messages_event.messages):
@@ -288,6 +291,21 @@ class AgentTask:
                         },
                     }
                     self.events.append(user_event)
+
+                    if not from_slack and self._has_slack_context():
+                        try:
+                            await agent.step(
+                                function=slack_post_message,
+                                function_input=SlackPostMessageInput(
+                                    channel=self.task_metadata["slack_channel"],
+                                    text=f"💬 *From dashboard:*\n{markdown_to_slack(message.content)}",
+                                    thread_ts=self.task_metadata.get("slack_thread_ts"),
+                                ),
+                                task_queue=TASK_QUEUE,
+                                start_to_close_timeout=timedelta(seconds=10),
+                            )
+                        except (OSError, ValueError, TypeError) as e:
+                            log.warning(f"Failed to mirror user message to Slack: {e}")
 
                 try:
                     # Wait for any in-progress response to complete before starting new one
@@ -748,7 +766,7 @@ class AgentTask:
         channel = meta["slack_channel"]
         thread_ts = meta.get("slack_thread_ts") or None
 
-        display = text.strip()
+        display = markdown_to_slack(text.strip())
         if not display:
             return
 

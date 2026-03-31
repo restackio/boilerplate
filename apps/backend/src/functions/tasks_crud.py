@@ -69,6 +69,7 @@ class TaskUpdateInput(BaseModel):
         None, pattern="^(active|inactive|paused)$"
     )
     temporal_schedule_id: str | None = None
+    task_metadata: dict | None = None
     view_specs: list | None = None  # Build task view definitions
     pattern_specs: dict | None = (
         None  # Agent design pattern for React Flow

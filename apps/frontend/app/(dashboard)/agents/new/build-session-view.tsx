@@ -149,6 +149,7 @@ function BuildPageContent({
   return (
     <AgentStreamProvider
       agentTaskId={agentTaskId}
+      runId={task.agent_state?.metadata?.temporal_run_id}
       taskStatus={task.status}
       initialState={task.agent_state}
       onResponseComplete={onRefetch}

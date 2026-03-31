@@ -137,6 +137,7 @@ from src.functions.slack_callback import (
     notify_slack_on_task_complete,
     slack_add_reaction,
     slack_post_message,
+    slack_post_task_started,
     slack_remove_reaction,
     slack_update_message,
 )
@@ -468,6 +469,7 @@ async def run_restack_service() -> None:
             send_agent_event,
             subtask_notify,
             slack_post_message,
+            slack_post_task_started,
             slack_update_message,
             slack_add_reaction,
             slack_remove_reaction,

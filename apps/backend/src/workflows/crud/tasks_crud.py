@@ -27,8 +27,11 @@ with import_functions():
         send_agent_event,
     )
     from src.functions.slack_callback import (
+        SlackPostTaskStartedInput,
+        SlackPostTaskStartedOutput,
         TaskSlackCallbackInput,
         notify_slack_on_task_complete,
+        slack_post_task_started,
     )
     from src.functions.tasks_crud import (
         BuildSessionSnapshotOutput,
@@ -242,6 +245,43 @@ class TasksCreateWorkflow:
                 start_to_close_timeout=timedelta(seconds=2),
             )
 
+            # Post to Slack if configured and this isn't already a Slack-originated or subtask
+            task_metadata = result.task.task_metadata or {}
+            if (
+                not task_metadata.get("slack_channel")
+                and not result.task.parent_task_id
+            ):
+                try:
+                    slack_result: SlackPostTaskStartedOutput = await workflow.step(
+                        function=slack_post_task_started,
+                        function_input=SlackPostTaskStartedInput(
+                            task_id=result.task.id,
+                            task_title=result.task.title,
+                            task_description=result.task.description or "",
+                            agent_name=result.task.agent_name or "Agent",
+                        ),
+                        task_queue=TASK_QUEUE,
+                        start_to_close_timeout=timedelta(seconds=10),
+                    )
+                    if slack_result.posted and slack_result.channel and slack_result.thread_ts:
+                        task_metadata = {
+                            **task_metadata,
+                            "slack_channel": slack_result.channel,
+                            "slack_thread_ts": slack_result.thread_ts,
+                            "source": "dashboard",
+                        }
+                        await workflow.step(
+                            function=tasks_update,
+                            function_input=TaskUpdateInput(
+                                task_id=result.task.id,
+                                task_metadata=task_metadata,
+                            ),
+                            task_queue=TASK_QUEUE,
+                            start_to_close_timeout=timedelta(seconds=5),
+                        )
+                except Exception as slack_err:
+                    log.warning(f"Slack post-task-started failed (non-fatal): {slack_err}")
+
             # Get temporal_parent_agent_id from the task (already in DB)
             temporal_parent_agent_id = (
                 result.task.temporal_parent_agent_id
@@ -262,7 +302,7 @@ class TasksCreateWorkflow:
                     task_id=result.task.id,
                     parent_task_id=result.task.parent_task_id,
                     temporal_parent_agent_id=temporal_parent_agent_id,
-                    task_metadata=result.task.task_metadata,
+                    task_metadata=task_metadata,
                 ),
                 task_queue=TASK_QUEUE,
                 parent_close_policy=ParentClosePolicy.ABANDON,
