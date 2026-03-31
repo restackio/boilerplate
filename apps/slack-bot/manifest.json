@@ -2,8 +2,7 @@
   "display_information": {
     "name": "Restack",
     "description": "AI agent integration for your workspace",
-    "background_color": "#6c48fa",
-    "long_description": "Connect your Slack workspace to Restack AI agents. Mention the bot in any channel or send a DM to create tasks. Agents auto-resolve to the best match for your request, and results stream back into the thread."
+    "background_color": "#6c48fa"
   },
   "features": {
     "app_home": {
@@ -19,7 +18,7 @@
       {
         "command": "/restack-list",
         "description": "View your tasks",
-        "usage_hint": "",
+        "usage_hint": "[filter]",
         "should_escape": false
       }
     ]
