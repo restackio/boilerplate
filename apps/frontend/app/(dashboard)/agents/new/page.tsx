@@ -19,6 +19,7 @@ import {
 } from "@workspace/ui/components/ui/select";
 import { ArrowUp, Lightbulb, Loader2 } from "lucide-react";
 import { CenteredLoading } from "@workspace/ui/components/loading-states";
+import { posthog } from "@/lib/posthog";
 
 /** Short prompts that fill the box. The build agent will turn these into a plan (todos, diagram), then create agents, datasets, and views after approval. */
 const STARTER_PROMPTS: { title: string; prompt: string }[] = [
@@ -87,10 +88,17 @@ export default function NewAgentPage() {
         setAddOpenAITokenDialogOpen(true);
         return;
       }
+      const description = message.trim();
+      if (process.env.NEXT_PUBLIC_POSTHOG_KEY) {
+        posthog.capture("agent_builder_prompt_submitted", {
+          prompt: description,
+          prompt_length: description.length,
+          ...(selectedTeamId && { team_id: selectedTeamId }),
+        });
+      }
       setCreating(true);
       setBuildAgentError(null);
       try {
-        const description = message.trim();
         const buildRes = await getBuildAgent();
         // executeWorkflow unwraps { agent } so data is the agent object directly
         const buildAgent = buildRes.data as { id?: string } | null;
