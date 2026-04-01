@@ -2,7 +2,7 @@
 
 import json
 from datetime import timedelta
-from typing import Any
+from typing import Any, NoReturn
 
 from pydantic import BaseModel, Field
 from restack_ai.workflow import (
@@ -96,12 +96,33 @@ class MockAIIntegrationOutput(BaseModel):
     storage_type: str
 
 
+INVALID_STORAGE_TYPE_MESSAGE = (
+    "storage_type must be 'clickhouse' or 'cockroachdb'"
+)
+INVALID_LLM_OBJECT_MESSAGE = (
+    "LLM output must be a JSON object with records."
+)
+INVALID_LLM_RECORDS_MESSAGE = (
+    "LLM output must include 'records' as an array."
+)
+EMPTY_GENERATED_RECORDS_MESSAGE = (
+    "Generated records are empty. Try refining the prompt."
+)
+DATASET_CREATE_FAILURE_MESSAGE = "Failed to auto-create dataset."
+
+
+def _raise_non_retryable(
+    message: str, *, cause: Exception | None = None
+) -> NoReturn:
+    if cause is None:
+        raise NonRetryableError(message)
+    raise NonRetryableError(message) from cause
+
+
 def _normalize_storage_type(storage_type: str) -> str:
     normalized = storage_type.strip().lower()
     if normalized not in {"clickhouse", "cockroachdb"}:
-        raise NonRetryableError(
-            "storage_type must be 'clickhouse' or 'cockroachdb'"
-        )
+        _raise_non_retryable(INVALID_STORAGE_TYPE_MESSAGE)
     return normalized
 
 
@@ -111,20 +132,15 @@ def _parse_generation_response(
     try:
         payload = json.loads(response_text)
     except json.JSONDecodeError as e:
-        raise NonRetryableError(
-            f"Invalid JSON from LLM: {e}"
-        ) from e
+        message = f"Invalid JSON from LLM: {e}"
+        _raise_non_retryable(message, cause=e)
 
     if not isinstance(payload, dict):
-        raise NonRetryableError(
-            "LLM output must be a JSON object with records."
-        )
+        _raise_non_retryable(INVALID_LLM_OBJECT_MESSAGE)
 
     records = payload.get("records")
     if not isinstance(records, list):
-        raise NonRetryableError(
-            "LLM output must include 'records' as an array."
-        )
+        _raise_non_retryable(INVALID_LLM_RECORDS_MESSAGE)
 
     normalized_records: list[dict[str, Any]] = []
     for item in records:
@@ -222,9 +238,7 @@ class MockAIIntegration:
             )
 
             if not records:
-                raise NonRetryableError(
-                    "Generated records are empty. Try refining the prompt."
-                )
+                _raise_non_retryable(EMPTY_GENERATED_RECORDS_MESSAGE)
 
             datasets_result = await workflow.step(
                 function="datasets_read",
@@ -256,9 +270,7 @@ class MockAIIntegration:
                 create_payload = _as_dict(create_result)
                 dataset = create_payload.get("dataset")
                 if not dataset:
-                    raise NonRetryableError(
-                        "Failed to auto-create dataset."
-                    )
+                    _raise_non_retryable(DATASET_CREATE_FAILURE_MESSAGE)
 
             effective_storage_type = _normalize_storage_type(
                 str(dataset.get("storage_type") or storage_type)
@@ -305,10 +317,11 @@ class MockAIIntegration:
             ingest_payload = _as_dict(ingest_result)
 
             if not ingest_payload.get("success"):
-                raise NonRetryableError(
-                    "Ingestion failed: "
-                    f"{ingest_payload.get('error', 'unknown error')}"
+                ingest_error = ingest_payload.get(
+                    "error", "unknown error"
                 )
+                message = f"Ingestion failed: {ingest_error}"
+                _raise_non_retryable(message)
 
             inserted_rows = int(
                 ingest_payload.get("inserted_rows", 0)
@@ -335,7 +348,10 @@ class MockAIIntegration:
                 integration_description=integration_description,
                 storage_type=effective_storage_type,
             )
-        except Exception as e:
+        except NonRetryableError:
+            raise
+        except Exception as e:  # noqa: BLE001
+            # Workflow boundary: normalize unexpected failures into NonRetryableError.
             error_message = f"MockAIIntegration failed: {e}"
             log.error(error_message)
-            raise NonRetryableError(error_message) from e
+            _raise_non_retryable(error_message, cause=e)
