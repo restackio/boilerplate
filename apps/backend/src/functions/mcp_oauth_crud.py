@@ -89,6 +89,10 @@ class SaveOAuthTokenInput(BaseModel):
         default="oauth",
         description="Authentication type (oauth or bearer)",
     )
+    provider_metadata: dict | None = Field(
+        None,
+        description="Provider-specific metadata (e.g., Slack team_id)",
+    )
     is_default: bool = Field(
         default=False,
         description="Whether this token is the default for the workspace",
@@ -308,6 +312,9 @@ async def oauth_token_create_or_update(
                 existing_token.auth_type = (
                     function_input.auth_type
                 )
+                existing_token.provider_metadata = (
+                    function_input.provider_metadata or {}
+                )
                 existing_token.is_default = should_be_default
                 existing_token.token_name = (
                     function_input.token_name
@@ -333,6 +340,8 @@ async def oauth_token_create_or_update(
                     expires_at=expires_at,
                     scope=function_input.scope,
                     auth_type=function_input.auth_type,
+                    provider_metadata=function_input.provider_metadata
+                    or {},
                     is_default=should_be_default,
                     token_name=function_input.token_name,
                 )

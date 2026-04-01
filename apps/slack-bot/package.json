@@ -1,0 +1,15 @@
+{
+  "name": "@boilerplate/slack-bot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Slack bot for two-way sync with AI agents",
+  "scripts": {
+    "dev": "uv run python -m src.server dev",
+    "start": "uv run python -m src.server start",
+    "install": "uv sync",
+    "postinstall": "mkdir -p node_modules"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}
+
