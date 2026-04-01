@@ -27,7 +27,7 @@ class UpdateAgentToolInput(BaseModel):
     )
     tool_name: str = Field(
         ...,
-        description="Tool name (e.g. updatetodos, createsubtask, generatemock, transformdata, loadintodataset). Must exist on restack-core.",
+        description="Tool name (e.g. updatetodos, createsubtask, mockaiintegration, transformdata, loadintodataset). Must exist on restack-core.",
     )
     custom_description: str | None = Field(
         default=None,
@@ -61,7 +61,7 @@ class UpdateAgentToolOutput(BaseModel):
 
 @workflow.defn(
     mcp=True,
-    description="Create or update one MCP tool on an agent. Omit agent_tool_id to create (or attach); pass agent_tool_id to update. Use after creating the parent (interactive) agent: add updatetodos then createsubtask. Pipeline agents get generatemock, transformdata, loadintodataset. Pass agent_id from updateagent result and tool_name.",
+    description="Create or update one MCP tool on an agent. Omit agent_tool_id to create (or attach); pass agent_tool_id to update. Use after creating the parent (interactive) agent: add updatetodos then createsubtask. Pipeline agents get mockaiintegration, transformdata, loadintodataset. Pass agent_id from updateagent result and tool_name.",
 )
 class UpdateAgentTool:
     """MCP workflow to create or update an agent tool via the backend."""

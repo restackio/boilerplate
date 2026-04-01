@@ -171,33 +171,20 @@ class MockAIIntegration:
         )
 
         try:
-            llm_schema = {
-                "type": "object",
-                "properties": {
-                    "integration_description": {"type": "string"},
-                    "records": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "additionalProperties": True,
-                        },
-                    },
-                },
-                "required": ["integration_description", "records"],
-                "additionalProperties": False,
-            }
-
             system_prompt = (
                 "Generate realistic integration mock data as JSON. "
-                "Do not include explanations outside JSON. "
-                "Use coherent field names, plausible IDs, dates, "
-                "metrics, and trend patterns that fit the prompt."
+                "Return a JSON object with two keys: "
+                '"integration_description" (string summarising the mock source) '
+                'and "records" (array of objects). '
+                "Each record object should have consistent field names "
+                "with plausible IDs, dates, metrics, and trend patterns "
+                "that fit the prompt. Do not include anything outside the JSON."
             )
             user_prompt = (
                 "Create realistic mock integration data.\n"
                 f"Prompt: {workflow_input.prompt}\n"
                 f"Record count: {workflow_input.record_count}\n"
-                "Return JSON matching the required schema."
+                'Return a JSON object with "integration_description" and "records".'
             )
 
             llm_response_text = await workflow.step(
@@ -217,12 +204,7 @@ class MockAIIntegration:
                             },
                         ],
                         "response_format": {
-                            "type": "json_schema",
-                            "json_schema": {
-                                "name": "mock_ai_integration_data",
-                                "strict": True,
-                                "schema": llm_schema,
-                            },
+                            "type": "json_object",
                         },
                     }
                 ),

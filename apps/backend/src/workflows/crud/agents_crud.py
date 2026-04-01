@@ -104,12 +104,8 @@ class AgentsCreateWorkflow:
                 # Define the pipeline tools to add
                 pipeline_tools = [
                     {
-                        "tool_name": "generatemock",
-                        "custom_description": "Extract data using mock generation (Step 1: Extract)",
-                    },
-                    {
                         "tool_name": "mockaiintegration",
-                        "custom_description": "When a prompt needs data from an integration that does not exist, generate realistic mock data from the prompt and store it in the configured context store dataset.",
+                        "custom_description": "Generate realistic mock data from a free-form prompt and store it directly into the context store dataset. Use this when no real integration exists yet to simulate the data source.",
                     },
                     {
                         "tool_name": "transformdata",
