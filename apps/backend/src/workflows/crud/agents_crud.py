@@ -108,6 +108,10 @@ class AgentsCreateWorkflow:
                         "custom_description": "Extract data using mock generation (Step 1: Extract)",
                     },
                     {
+                        "tool_name": "mockaiintegration",
+                        "custom_description": "When a prompt needs data from an integration that does not exist, generate realistic mock data from the prompt and store it in the configured context store dataset.",
+                    },
+                    {
                         "tool_name": "transformdata",
                         "custom_description": "Transform data using AI analysis (Step 2: Transform)",
                     },
