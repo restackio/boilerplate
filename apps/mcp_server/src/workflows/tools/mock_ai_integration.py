@@ -178,7 +178,11 @@ class MockAIIntegration:
                 'and "records" (array of objects). '
                 "Each record object should have consistent field names "
                 "with plausible IDs, dates, metrics, and trend patterns "
-                "that fit the prompt. Do not include anything outside the JSON."
+                "that fit the prompt. "
+                "Every call must produce unique, randomised data — "
+                "vary all names, emails, IDs, and values so that "
+                "repeated calls never return the same records. "
+                "Do not include anything outside the JSON."
             )
             user_prompt = (
                 "Create realistic mock integration data.\n"
@@ -206,6 +210,7 @@ class MockAIIntegration:
                         "response_format": {
                             "type": "json_object",
                         },
+                        "temperature": 1.2,
                     }
                 ),
                 start_to_close_timeout=timedelta(seconds=120),
