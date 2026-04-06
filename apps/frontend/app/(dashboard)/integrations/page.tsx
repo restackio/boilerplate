@@ -13,6 +13,7 @@ import {
 import { useOAuthFlow } from "../../../hooks/use-oauth-flow";
 import { useDatabaseWorkspace } from "../../../lib/database-workspace-context";
 import { AddFromDirectory } from "./components/add-from-directory";
+import { SlackSetupSection } from "./components/slack-setup-section";
 import { AddMcpServerDialog } from "./components/add-mcp-server-dialog";
 import { AddTokenDialog } from "./components/add-token-dialog";
 
@@ -128,7 +129,7 @@ export default function IntegrationsPage() {
   );
 
   return (
-    <div className="flex-1">
+    <div className="flex-1 overflow-auto">
       <PageHeader breadcrumbs={breadcrumbs} actions={actions} fixed={true} />
 
       {/* Main Content - with top padding for fixed header */}
@@ -158,6 +159,8 @@ export default function IntegrationsPage() {
         <div className="mb-2">
           <AddFromDirectory onSuccess={handleDialogSuccess} />
         </div>
+
+        <SlackSetupSection />
       </div>
 
       {/* Add Integration Dialog */}
