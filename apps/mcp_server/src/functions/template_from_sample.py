@@ -32,6 +32,9 @@ from src.functions.mock_samples.linkedin_profiles_post import (
 from src.functions.mock_samples.pagerduty_incident import (
     PAGERDUTY_INCIDENT_SAMPLE,
 )
+from src.functions.mock_samples.powerbi_health import (
+    POWERBI_HEALTH_SAMPLE,
+)
 from src.functions.mock_samples.salesforce_contact_activities import (
     SALESFORCE_CONTACT_ACTIVITIES_SAMPLE,
 )
@@ -130,6 +133,7 @@ TEMPLATE_CONFIGS = {
     "erp_eci_contact_activities": {
         "sample": ERP_ECI_CONTACT_ACTIVITIES_SAMPLE
     },
+    "powerbi_health": {"sample": POWERBI_HEALTH_SAMPLE},
 }
 
 # Generate the integration templates using the factory function
@@ -143,7 +147,7 @@ class LoadTemplateInput(BaseModel):
     """Input for loading an integration template."""
 
     integration_template: str = Field(
-        description="The integration template to load (e.g., 'zendesk_ticket', 'github_pr', 'datadog_logs')"
+        description="The integration template to load (e.g., 'zendesk_ticket', 'github_pr', 'powerbi_health')"
     )
 
 
