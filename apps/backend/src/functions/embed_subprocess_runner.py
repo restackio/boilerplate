@@ -8,14 +8,30 @@ Prints insert_count to stdout; stderr + exit 1 on error.
 """
 
 import asyncio
+import contextlib
 import json
+import os
 import sys
+import tempfile
 import threading
 from pathlib import Path
 
 ARGC_EXPECTED = 2
 DATASET_ONLY_AGENT_ID = "00000000-0000-0000-0000-000000000000"
 EXIT_USAGE = 2
+
+
+def _path_for_embed_anything(file_path: str) -> tuple[str, Path | None]:
+    """embed_file supports pdf, md, txt, docx — normalize CSV via a temp .txt."""
+    path = Path(file_path)
+    if path.suffix.lower() != ".csv":
+        return file_path, None
+    text = path.read_text(encoding="utf-8", errors="replace")
+    fd, tmp = tempfile.mkstemp(prefix="embed_csv_", suffix=".txt")
+    os.close(fd)
+    tmp_path = Path(tmp)
+    tmp_path.write_text(text, encoding="utf-8")
+    return str(tmp_path), tmp_path
 
 
 def _run() -> int:
@@ -84,12 +100,20 @@ def _run() -> int:
             )
             import embed_anything
 
-            embed_anything.embed_file(
-                pdf_path,
-                embedder=model,
-                config=config,
-                adapter=adapter,
+            embed_path, csv_txt_cleanup = _path_for_embed_anything(
+                pdf_path
             )
+            try:
+                embed_anything.embed_file(
+                    embed_path,
+                    embedder=model,
+                    config=config,
+                    adapter=adapter,
+                )
+            finally:
+                if csv_txt_cleanup is not None:
+                    with contextlib.suppress(OSError):
+                        csv_txt_cleanup.unlink(missing_ok=True)
             result.append(adapter.insert_count)
         except BaseException as e:  # noqa: BLE001 (intentionally catch all to report back)
             result.append(e)
