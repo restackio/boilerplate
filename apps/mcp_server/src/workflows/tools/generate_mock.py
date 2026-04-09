@@ -34,7 +34,7 @@ class GenerateMockInput(BaseModel):
     """Input for generating mock data for any integration."""
 
     integration_template: str = Field(
-        description="The integration template to use (e.g., 'zendesk_ticket', 'github_pr', 'datadog_logs')"
+        description="The integration template to use (e.g., 'zendesk_ticket', 'github_pr', 'powerbi_health')"
     )
     parameters: dict[str, Any] = Field(
         default_factory=dict,

@@ -39,6 +39,9 @@ from src.workflows.tools.list_integration_tools import (
 from src.workflows.tools.load_into_dataset import (
     LoadIntoDataset,
 )
+from src.workflows.tools.mock_ai_integration import (
+    MockAIIntegration,
+)
 from src.workflows.tools.search_remote_mcp_directory import (
     SearchRemoteMcpDirectory,
 )
@@ -80,6 +83,7 @@ async def run_restack_service() -> None:
             ListIntegrationTools,
             SearchRemoteMcpDirectory,
             GenerateMock,
+            MockAIIntegration,
             TestFailures,
             TransformData,
             LoadIntoDataset,

@@ -70,7 +70,7 @@ export function ToolsList({ tools, onToolsChange, isReadOnly = false, agentType,
   const canDeleteTool = (tool: AgentToolRecord): boolean => {
     // For pipeline agents, prevent deletion of transform and load tools
     if (agentType === "pipeline" && tool.tool_type === "mcp") {
-      const protectedTools = ["transformdata", "loadintodataset"];
+      const protectedTools = ["mockaiintegration", "transformdata", "loadintodataset"];
       return !protectedTools.includes(tool.tool_name || "");
     }
     return true;

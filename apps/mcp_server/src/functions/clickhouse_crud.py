@@ -176,7 +176,7 @@ async def clickhouse_list_tables(
         if function_input.not_like:
             query += f" AND name NOT LIKE {format_query_value(function_input.not_like)}"
 
-        result = client.query(query)
+        result = await client.query(query)
 
         # Convert to list of dicts
         tables = []
