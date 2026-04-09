@@ -245,9 +245,9 @@ export function BuildSessionView({
         onPublish={handlePublish}
         isPublishing={isPublishing}
       />
-      {/* Two columns: left = build canvas, right = chat */}
-      <div className="flex flex-1 min-h-0 w-full gap-0 overflow-hidden">
-        <div className="flex-1 min-w-0 flex flex-col border-r">
+      {/* Mobile: stacked sections. Desktop: left build canvas + right chat. */}
+      <div className="flex flex-1 min-h-0 w-full flex-col overflow-hidden md:flex-row">
+        <div className="flex min-h-[45vh] min-w-0 flex-col border-b md:min-h-0 md:flex-1 md:border-b-0 md:border-r">
           <BuildCanvas
             task={task}
             buildSummary={buildSummary}
@@ -261,8 +261,8 @@ export function BuildSessionView({
             onBuildClick={() => buildClickRef.current?.()}
           />
         </div>
-        <div className="w-1/3 shrink-0 flex flex-col min-h-0 h-full overflow-hidden">
-          <div className="flex flex-col min-h-0 flex-1 h-full overflow-hidden">
+        <div className="flex min-h-[40vh] w-full flex-col overflow-hidden md:h-full md:min-h-0 md:w-1/3 md:shrink-0">
+          <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
             <BuildPageContent
               task={task}
               onRefetch={onRefetch}
