@@ -1,6 +1,6 @@
 # """Power BI semantic model mock — QRM-style facility KPI export
 #
-# Shape aligns with fixtures/qrm-kpi-sample.csv (client → facility weekly metrics).
+# Row shape: client → facility weekly metrics (rehab ops KPIs, no PHI).
 # Narrative: stand-in for remote Power BI MCP query results
 # (https://learn.microsoft.com/en-us/power-bi/developer/mcp/remote-mcp-server-get-started)
 # without calling Fabric. KPI-only rehab operations data; no patient identifiers.
