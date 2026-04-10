@@ -173,7 +173,7 @@ class LoadIntoDataset:
         raise NonRetryableError(error_message)
 
     @workflow.run
-    async def run(  # noqa: C901
+    async def run(
         self, workflow_input: LoadIntoDatasetInput
     ) -> LoadIntoDatasetOutput:
         """Load data into dataset."""
@@ -215,7 +215,9 @@ class LoadIntoDataset:
                     workflow_input.workspace_id,
                 )
 
-            storage_type = matched.get("storage_type", "clickhouse")
+            storage_type = matched.get(
+                "storage_type", "clickhouse"
+            )
             storage_config = matched.get("storage_config") or {}
             dataset_row_id = str(
                 storage_config.get("dataset_id")
