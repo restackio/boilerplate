@@ -201,28 +201,27 @@ class LoadIntoDataset:
                 task_queue="backend",
             )
 
-            # Check if dataset exists
-            dataset_exists = False
+            # Resolve dataset by name; pipeline_events.dataset_id must match the
+            # UUID used by QueryDatasetEventsWorkflow / UI (not the display name).
+            matched: dict[str, Any] | None = None
             for dataset in datasets_result["datasets"]:
                 if dataset["name"] == workflow_input.dataset_name:
-                    dataset_exists = True
+                    matched = dataset
                     break
 
-            # Fail if dataset doesn't exist - datasets should be created separately
-            if not dataset_exists:
+            if matched is None:
                 self._raise_dataset_not_found(
                     workflow_input.dataset_name,
                     workflow_input.workspace_id,
                 )
 
-            # Determine storage type of the target dataset
-            storage_type = "clickhouse"
-            for dataset in datasets_result["datasets"]:
-                if dataset["name"] == workflow_input.dataset_name:
-                    storage_type = dataset.get(
-                        "storage_type", "clickhouse"
-                    )
-                    break
+            storage_type = matched.get("storage_type", "clickhouse")
+            storage_config = matched.get("storage_config") or {}
+            dataset_row_id = str(
+                storage_config.get("dataset_id")
+                or matched.get("id")
+                or workflow_input.dataset_name
+            )
 
             # Build events list (same shape regardless of storage backend)
             events = []
@@ -231,7 +230,7 @@ class LoadIntoDataset:
                     agent_id=workflow_input.agent_id,
                     task_id=workflow_input.task_id,
                     workspace_id=workflow_input.workspace_id,
-                    dataset_id=workflow_input.dataset_name,
+                    dataset_id=dataset_row_id,
                     event_name=workflow_input.event_name,
                     raw_data=record,
                     transformed_data=None,
