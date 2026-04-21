@@ -63,7 +63,7 @@ pydantic==2.10.6
     #   restack-ai
 pydantic-core==2.27.2
     # via pydantic
-python-dotenv==1.0.1
+python-dotenv==1.2.2
     # via
     #   quickstart (pyproject.toml)
     #   restack-ai
