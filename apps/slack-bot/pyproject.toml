@@ -12,6 +12,8 @@ dependencies = [
     "restack-ai>=0.0.114",
     "asyncpg>=0.29.0",
     "watchfiles>=0.24.0",
+    "starlette>=0.45.0",
+    "uvicorn>=0.34.0",
 ]
 
 [project.scripts]

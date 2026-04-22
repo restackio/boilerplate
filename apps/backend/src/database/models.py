@@ -784,6 +784,86 @@ class MetricDefinition(Base):
     )
 
 
+class SlackInstallation(Base):
+    __tablename__ = "slack_installations"
+
+    id = Column(UUID(as_uuid=True), primary_key=True)
+    team_id = Column(String(64), nullable=False, unique=True)
+    team_name = Column(String(255), nullable=False, default="")
+    bot_token = Column(String(500), nullable=False)
+    bot_user_id = Column(String(64), nullable=False, default="")
+    workspace_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    installed_by = Column(String(64), nullable=True)
+    installed_at = Column(
+        DateTime,
+        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+    )
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+        onupdate=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+    )
+
+    workspace = relationship("Workspace")
+    channel_agents = relationship(
+        "SlackChannelAgent",
+        back_populates="installation",
+        cascade="all, delete-orphan",
+    )
+
+
+class SlackChannelAgent(Base):
+    __tablename__ = "slack_channel_agents"
+
+    id = Column(UUID(as_uuid=True), primary_key=True)
+    slack_installation_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("slack_installations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    channel_id = Column(String(64), nullable=False)
+    channel_name = Column(String(255), nullable=False, default="")
+    agent_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("agents.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    is_default = Column(Boolean, nullable=False, default=False)
+    enabled = Column(Boolean, nullable=False, default=True)
+    created_at = Column(
+        DateTime,
+        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+    )
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+        onupdate=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "slack_installation_id",
+            "channel_id",
+            "agent_id",
+            name="uq_slack_channel_agent",
+        ),
+        Index(
+            "idx_slack_channel_agents_lookup",
+            "channel_id",
+            "slack_installation_id",
+        ),
+    )
+
+    installation = relationship(
+        "SlackInstallation", back_populates="channel_agents"
+    )
+    agent = relationship("Agent")
+
+
 class MetricAgent(Base):
     __tablename__ = "metric_agents"
 

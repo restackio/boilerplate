@@ -135,9 +135,9 @@ export default function TechnicalSupportAgentsPage() {
   );
 
   return (
-    <div className="flex-1">
+    <div className="flex-1 min-h-0 flex flex-col">
       <PageHeader breadcrumbs={breadcrumbs} actions={actions} />
-      <div className="p-4 space-y-6">
+      <div className="p-4 space-y-6 flex-1 min-h-0 overflow-y-auto">
         {agentsLoading.error && (
           <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
             <p className="text-red-800 text-sm">Error: {agentsLoading.error}</p>

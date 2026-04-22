@@ -4,11 +4,13 @@ import asyncio
 import logging
 
 from ...app import app
+from ...config import config
 from ...database import get_task_by_thread_ts, resolve_workspace_id
-from ...bot_services.agent_resolver import fetch_available_agents, resolve_agent
+from ...bot_services.channel_router import route_slack_event
+from ...bot_services.concierge import run_concierge
+from ...bot_services.lifecycle import maybe_handle_auth_failure
 from ...bot_services.task_manager import create_task_from_slack, send_message_to_agent
 from ...utils.blocks import (
-    agent_selector_blocks,
     error_blocks,
     status_blocks,
     task_created_blocks,
@@ -42,7 +44,7 @@ def handle_message_events(event, say, client):
 
 
 async def _handle_new_dm(event, say, client):
-    """Handle a new DM: auto-resolve agent -> create task."""
+    """Handle a new DM: channel routing → auto-resolve agent → create task."""
     user_id = event.get("user")
     message_text = event.get("text", "").strip()
     channel_id = event.get("channel")
@@ -55,7 +57,25 @@ async def _handle_new_dm(event, say, client):
         user_info = client.users_info(user=user_id)
         user_name = user_info["user"].get("real_name") or user_info["user"]["name"]
 
-        workspace_id = await resolve_workspace_id(event)
+        team_id = event.get("team") or event.get("team_id") or ""
+        workspace_id = None
+        installation_id = None
+        agent = None
+
+        # Try channel routing first
+        if team_id and channel_id:
+            route = await route_slack_event(team_id, channel_id)
+            if route:
+                workspace_id = route.get("workspace_id")
+                installation_id = route.get("installation_id")
+                if route.get("found") and route.get("agent_id"):
+                    agent = {"id": route["agent_id"], "name": route.get("agent_name", "Agent")}
+                    if route.get("bot_token"):
+                        client.token = route["bot_token"]
+
+        if not workspace_id:
+            workspace_id = await resolve_workspace_id(event)
+
         if not workspace_id:
             say(
                 text="This Slack workspace is not connected to a platform workspace.",
@@ -67,40 +87,29 @@ async def _handle_new_dm(event, say, client):
             )
             return
 
-        agents = await fetch_available_agents(workspace_id)
-
-        if not agents:
-            say(
-                text="No agents are configured yet.",
-                blocks=error_blocks(
-                    "No agents found in this workspace. Create one in the dashboard first."
-                ),
-                thread_ts=message_ts,
-            )
-            return
-
-        # Try auto-resolution first
-        agent = await resolve_agent(message_text, agents)
-
+        # DMs with no explicit channel mapping go through the concierge.
+        # The concierge can chat, list agents, and hand off via its tools.
         if agent is None:
-            say(
-                text="Which agent should handle this?",
-                blocks=agent_selector_blocks(agents, message_text, user_id),
-                thread_ts=message_ts,
-                metadata={
-                    "event_type": "pending_task",
-                    "event_payload": {
-                        "workspace_id": workspace_id,
-                        "message_text": message_text,
-                        "user_id": user_id,
-                        "user_name": user_name,
-                        "channel_id": channel_id,
-                        "message_ts": message_ts,
-                    },
+            result = await run_concierge(
+                user_message=message_text,
+                context={
+                    "workspace_id": workspace_id,
+                    "installation_id": installation_id,
+                    "channel_id": channel_id,
+                    "channel_name": "",
+                    "slack_user_id": user_id,
+                    "user_name": user_name,
+                    "thread_ts": message_ts,
+                    "team_id": team_id,
+                    "dashboard_url": (
+                        f"{config.FRONTEND_URL.rstrip('/')}/integrations/slack"
+                    ),
                 },
             )
+            say(text=result.reply_text, thread_ts=message_ts)
             return
 
+        # Explicitly mapped DM (unusual but supported): go straight to the agent.
         say(
             text="Working on it...",
             blocks=status_blocks("Working on it...", context=f"Agent: {agent['name']}"),
@@ -124,6 +133,7 @@ async def _handle_new_dm(event, say, client):
             slack_channel=channel_id,
             slack_thread_ts=message_ts,
             slack_user_id=user_id,
+            slack_team_id=team_id or None,
         )
 
         if result:
@@ -143,12 +153,27 @@ async def _handle_new_dm(event, say, client):
             )
 
     except Exception as e:
+        # If Slack tells us the bot token is dead, drop the installation so
+        # the dashboard stops claiming "Connected". Don't try to say() — the
+        # same token would fail again; just log and move on.
+        team_id = event.get("team") or event.get("team_id") or ""
+        dropped = await maybe_handle_auth_failure(team_id, e)
+        if dropped:
+            logger.info(
+                "Removed stale Slack installation for team %s after auth error",
+                team_id,
+            )
+            return
+
         logger.exception("Error handling DM: %s", e)
-        say(
-            text=f"Error: {e}",
-            blocks=error_blocks(f"Sorry, an error occurred: {e}"),
-            thread_ts=event.get("ts"),
-        )
+        try:
+            say(
+                text=f"Error: {e}",
+                blocks=error_blocks(f"Sorry, an error occurred: {e}"),
+                thread_ts=event.get("ts"),
+            )
+        except Exception:
+            logger.debug("Failed to report error back to Slack", exc_info=True)
 
 
 async def _handle_thread_reply(event, say, client):
@@ -208,9 +233,21 @@ async def _handle_thread_reply(event, say, client):
             )
 
     except Exception as e:
+        team_id = event.get("team") or event.get("team_id") or ""
+        dropped = await maybe_handle_auth_failure(team_id, e)
+        if dropped:
+            logger.info(
+                "Removed stale Slack installation for team %s after auth error",
+                team_id,
+            )
+            return
+
         logger.exception("Error handling thread reply: %s", e)
-        say(
-            text="Something went wrong forwarding your message.",
-            blocks=error_blocks(f"Sorry, an error occurred: {e}"),
-            thread_ts=thread_ts,
-        )
+        try:
+            say(
+                text="Something went wrong forwarding your message.",
+                blocks=error_blocks(f"Sorry, an error occurred: {e}"),
+                thread_ts=thread_ts,
+            )
+        except Exception:
+            logger.debug("Failed to report error back to Slack", exc_info=True)

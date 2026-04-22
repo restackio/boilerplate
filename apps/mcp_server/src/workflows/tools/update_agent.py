@@ -159,8 +159,16 @@ class UpdateAgent:
             task_queue="backend",
             start_to_close_timeout=timedelta(seconds=30),
         )
-        if result and getattr(result, "agent", None):
-            agent = result.agent
+        # agents_update returns AgentSingleOutput (Pydantic) which arrives here
+        # as a dict `{"agent": {...}}` after Temporal JSON roundtrip. Accept both
+        # object and dict shapes so a successful update is not misread as failure.
+        agent = None
+        if result is not None:
+            if isinstance(result, dict):
+                agent = result.get("agent")
+            else:
+                agent = getattr(result, "agent", None)
+        if agent:
             aid, name, atype = _agent_id_name_type(agent, agent_type)
             return UpdateAgentOutput(
                 success=True,
@@ -170,8 +178,8 @@ class UpdateAgent:
                 created=False,
             )
         err = (
-            getattr(result, "error", None)
-            or (result.get("error") if isinstance(result, dict) else None)
+            (result.get("error") if isinstance(result, dict) else None)
+            or getattr(result, "error", None)
             or "Update failed"
         )
         return UpdateAgentOutput(success=False, error=str(err))

@@ -1,4 +1,10 @@
-import { useRef, useMemo, useState, useEffect } from "react";
+import {
+  useRef,
+  useMemo,
+  useState,
+  useEffect,
+  useCallback,
+} from "react";
 import type { Task } from "@/hooks/use-workspace-scoped-actions";
 import { ConversationItem } from "../types";
 import { EmptyState } from "@workspace/ui/components/empty-state";
@@ -50,6 +56,7 @@ import {
   LayoutGrid,
   Plug,
   ListChecks,
+  ArrowDown,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { AddTaskFilesDialog } from "./add-task-files-dialog";
@@ -618,6 +625,16 @@ interface TaskChatInterfaceProps {
   hideCreatedList?: boolean;
   /** When true (e.g. agent builder session), do not render the inline TaskFilesList; files are shown in the build canvas Data section instead. */
   hideFilesList?: boolean;
+  /**
+   * Optional list of related tasks (e.g. children of a build task) used as the
+   * authoritative source for subtask `status`. The parent agent's in-memory
+   * `self.subtasks` map can drift (abnormal termination, missed signals, etc.);
+   * when available, each child's own `tasks.status` column here wins. Title,
+   * agent_name, and ordering still come from the parent's in-memory list.
+   * Pass `buildSummary.tasks` from the Build page. Standalone task pages
+   * can omit this (the overlay no-ops).
+   */
+  childTasks?: ReadonlyArray<{ id: string; status: string }>;
 }
 
 export function TaskChatInterface({
@@ -644,12 +661,20 @@ export function TaskChatInterface({
   onBuildClick,
   hideCreatedList = false,
   hideFilesList = false,
+  childTasks,
 }: TaskChatInterfaceProps) {
   const conversationEndRef = useRef<HTMLDivElement>(null);
   const conversationScrollRef = useRef<HTMLDivElement>(null);
   const [addFilesDialogOpen, setAddFilesDialogOpen] = useState(false);
 
   const isTaskActive = task?.status === "in_progress";
+  // A task in a terminal state no longer has a live Temporal workflow, so
+  // sending a message fails with "workflow execution already completed".
+  // Disable the compose box up front and tell the user why.
+  const isTaskTerminal =
+    task?.status === "completed" ||
+    task?.status === "failed" ||
+    task?.status === "closed";
 
   // Transparently use real-time state OR database state
   const todos = useMemo(() => {
@@ -667,26 +692,96 @@ export function TaskChatInterface({
     return null;
   }, [isTaskActive, responseState, task?.agent_state?.todos]);
 
+  // The parent agent's in-memory `self.subtasks` is the source for order +
+  // metadata (title, agent_name), but each subtask's *status* is authoritative
+  // in its own `tasks.status` DB column. In-memory can drift when a child
+  // terminates abnormally or a `subtask_notify` update is dropped, so when
+  // the caller passes `childTasks` (e.g. from `TasksGetBuildSessionWorkflow`),
+  // we overlay DB status on top. Only rows whose `task_id` also exists in
+  // `childTasks` are overridden, so grandchildren in `childTasks` never leak
+  // into this list.
+  const childStatusById = useMemo(() => {
+    if (!childTasks?.length) return null;
+    const map = new Map<string, string>();
+    for (const t of childTasks) map.set(t.id, t.status);
+    return map;
+  }, [childTasks]);
+
   const subtasks = useMemo(() => {
-    // Try real-time first (while task is running)
+    let base: unknown[] | null = null;
+
     if (isTaskActive && responseState && typeof responseState === "object") {
       const state = responseState as { subtasks?: unknown[] };
-      if (state.subtasks?.length) return state.subtasks;
+      if (state.subtasks?.length) base = state.subtasks;
     }
 
-    // Fallback to database (when task is completed/failed/closed)
-    if (task?.agent_state?.subtasks?.length) {
-      return task.agent_state.subtasks;
+    if (!base && task?.agent_state?.subtasks?.length) {
+      base = task.agent_state.subtasks;
     }
 
-    return null;
-  }, [isTaskActive, responseState, task?.agent_state?.subtasks]);
+    if (!base?.length) return null;
+    if (!childStatusById) return base;
+
+    return base.map((item) => {
+      if (!item || typeof item !== "object") return item;
+      const entry = item as { task_id?: unknown };
+      const id =
+        typeof entry.task_id === "string" ? entry.task_id : undefined;
+      const dbStatus = id ? childStatusById.get(id) : undefined;
+      return dbStatus ? { ...entry, status: dbStatus } : item;
+    });
+  }, [
+    isTaskActive,
+    responseState,
+    task?.agent_state?.subtasks,
+    childStatusById,
+  ]);
+
+  // Distance (px) from the bottom within which we still consider the user
+  // "stuck to bottom" and will keep auto-scrolling on new content. If the
+  // user scrolls further up than this, we stop hijacking their scroll and
+  // surface a "Jump to latest" affordance instead.
+  const STICK_TO_BOTTOM_THRESHOLD_PX = 64;
+
+  // Ref (not state) for the scroll effect below: we need the latest value
+  // synchronously inside the new-content effect without re-running it on
+  // every scroll. `isStuckToBottom` state is only for rendering the
+  // "Jump to latest" button.
+  const stickToBottomRef = useRef(true);
+  const [isStuckToBottom, setIsStuckToBottom] = useState(true);
+
+  const computeStickiness = useCallback((node: HTMLDivElement) => {
+    const distanceFromBottom =
+      node.scrollHeight - node.scrollTop - node.clientHeight;
+    return distanceFromBottom <= STICK_TO_BOTTOM_THRESHOLD_PX;
+  }, []);
+
+  const handleConversationScroll = useCallback(() => {
+    const node = conversationScrollRef.current;
+    if (!node) return;
+    const stuck = computeStickiness(node);
+    stickToBottomRef.current = stuck;
+    setIsStuckToBottom((prev) => (prev === stuck ? prev : stuck));
+  }, [computeStickiness]);
+
+  const scrollToLatest = useCallback(() => {
+    const node = conversationScrollRef.current;
+    if (!node) return;
+    node.scrollTop = node.scrollHeight;
+    stickToBottomRef.current = true;
+    setIsStuckToBottom(true);
+  }, []);
 
   useEffect(() => {
     const node = conversationScrollRef.current;
     if (!node) return;
-    // Keep newest activity and prompt area in view for chat UX.
-    node.scrollTop = node.scrollHeight;
+    // Only auto-scroll on new content if the user is already near the
+    // bottom. If they scrolled up to inspect older messages, leave their
+    // scroll position alone — the "Jump to latest" button becomes the
+    // opt-in way back down.
+    if (stickToBottomRef.current) {
+      node.scrollTop = node.scrollHeight;
+    }
   }, [
     conversation,
     agentLoading,
@@ -701,6 +796,7 @@ export function TaskChatInterface({
     >
       <div
         ref={conversationScrollRef}
+        onScroll={handleConversationScroll}
         className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0"
       >
         {conversation.length === 0 ? (
@@ -743,7 +839,20 @@ export function TaskChatInterface({
         <div ref={conversationEndRef} />
       </div>
 
-      <div className="shrink-0 border-t bg-background p-2">
+      <div className="shrink-0 border-t bg-background p-2 relative">
+        {!isStuckToBottom && conversation.length > 0 && (
+          <div className="pointer-events-none absolute inset-x-0 -top-12 flex justify-center">
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={scrollToLatest}
+              className="pointer-events-auto shadow-md"
+            >
+              <ArrowDown className="mr-1 h-3.5 w-3.5" />
+              Jump to latest
+            </Button>
+          </div>
+        )}
         <div className="p-2 space-y-2 ">
           {/* Persistent Subtasks List above input - real-time from agent state */}
           {subtasks && <TaskSubtasksList subtasks={subtasks} />}
@@ -774,13 +883,24 @@ export function TaskChatInterface({
           {todos && <TaskTodosList todos={todos} />}
         </div>
 
+        {isTaskTerminal && (
+          <div className="mx-2 mb-2 rounded-md border border-border/40 bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
+            This task is {task?.status}. Messaging is disabled because the
+            underlying agent workflow has ended. Start a new task to continue.
+          </div>
+        )}
         <PromptInput
           prompt={chatMessage}
           onPromptChange={onChatMessageChange}
           onSubmit={onSendMessage}
           isLoading={agentLoading}
           isInitializing={false}
-          placeholder="Request changes or ask a question"
+          disabled={isTaskTerminal}
+          placeholder={
+            isTaskTerminal
+              ? `Task ${task?.status} — messaging disabled`
+              : "Request changes or ask a question"
+          }
           loadingPlaceholder="Agent is processing..."
           initializingPlaceholder="Waiting for agent to be ready..."
           leadingActions={

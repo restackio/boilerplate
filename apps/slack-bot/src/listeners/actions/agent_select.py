@@ -29,6 +29,7 @@ async def _do_agent_selection(body, say, client):
         channel_id = body["channel"]["id"]
         message = body["message"]
         thread_ts = message.get("thread_ts") or message.get("ts")
+        team_id = (body.get("team") or {}).get("id") or body.get("team_id") or ""
 
         metadata = message.get("metadata", {}).get("event_payload", {})
         workspace_id = metadata.get("workspace_id")
@@ -84,6 +85,7 @@ async def _do_agent_selection(body, say, client):
             slack_channel=channel_id,
             slack_thread_ts=thread_ts,
             slack_user_id=user_id,
+            slack_team_id=team_id or None,
         )
 
         if result:

@@ -13,14 +13,13 @@ import {
 } from "@workspace/ui/components/ui/dialog";
 import { Input } from "@workspace/ui/components/ui/input";
 import { Label } from "@workspace/ui/components/ui/label";
-import { Textarea } from "@workspace/ui/components/ui/textarea";
 import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
 } from "@workspace/ui/components/ui/tabs";
-import { ExternalLink, Key, Link } from "lucide-react";
+import { ExternalLink, Eye, EyeOff, Key, Link } from "lucide-react";
 import { McpServer } from "@/hooks/use-workspace-scoped-actions";
 
 interface AddTokenDialogProps {
@@ -51,6 +50,7 @@ export function AddTokenDialog({
 }: AddTokenDialogProps) {
   const [bearerToken, setBearerToken] = useState("");
   const [tokenName, setTokenName] = useState("");
+  const [showToken, setShowToken] = useState(false);
   const [activeTab, setActiveTab] = useState<"oauth" | "bearer">(() =>
     initialAuthTab(server, defaultTab),
   );
@@ -80,6 +80,7 @@ export function AddTokenDialog({
       await onSaveBearerToken(bearerToken, tokenName);
       setBearerToken("");
       setTokenName("");
+      setShowToken(false);
       // Parent is responsible for closing the dialog on success (onOpenChange(false))
     } finally {
       setSaving(false);
@@ -95,6 +96,7 @@ export function AddTokenDialog({
     if (!open) {
       setBearerToken("");
       setTokenName("");
+      setShowToken(false);
     } else {
       setActiveTab(initialAuthTab(server, defaultTab));
     }
@@ -177,13 +179,31 @@ export function AddTokenDialog({
               </div>
               <div className="space-y-2">
                 <Label htmlFor="bearer-token">Token</Label>
-                <Textarea
-                  id="bearer-token"
-                  value={bearerToken}
-                  onChange={(e) => setBearerToken(e.target.value)}
-                  placeholder="Enter your API token or key..."
-                  rows={3}
-                />
+                <div className="relative">
+                  <Input
+                    id="bearer-token"
+                    type={showToken ? "text" : "password"}
+                    value={bearerToken}
+                    onChange={(e) => setBearerToken(e.target.value)}
+                    placeholder="Enter your API token or key..."
+                    autoComplete="off"
+                    spellCheck={false}
+                    className="pr-10 font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowToken((s) => !s)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded p-0.5"
+                    aria-label={showToken ? "Hide token" : "Show token"}
+                    tabIndex={-1}
+                  >
+                    {showToken ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
                 <p className="text-xs text-muted-foreground">
                   This token will be securely stored and used for API
                   authentication.

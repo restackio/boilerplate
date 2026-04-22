@@ -1,1 +1,1 @@
-from . import app_mention, message  # noqa: F401
+from . import app_home, app_lifecycle, app_mention, message  # noqa: F401

@@ -141,6 +141,16 @@ from src.functions.slack_callback import (
     slack_remove_reaction,
     slack_update_message,
 )
+from src.functions.slack_crud import (
+    slack_channel_agent_create,
+    slack_channel_agent_delete,
+    slack_channel_agents_by_installation,
+    slack_installation_delete,
+    slack_installation_get_by_team,
+    slack_installation_upsert,
+    slack_installations_by_workspace,
+    slack_route_event,
+)
 from src.functions.subtask_notify import subtask_notify
 from src.functions.task_metrics_crud import (
     get_task_metrics_clickhouse,
@@ -285,6 +295,16 @@ from src.workflows.crud.schedule_crud import (
     ScheduleCreateWorkflow,
     ScheduleEditWorkflow,
     ScheduleUpdateWorkflow,
+)
+from src.workflows.crud.slack_crud import (
+    SlackChannelAgentCreateWorkflow,
+    SlackChannelAgentDeleteWorkflow,
+    SlackChannelAgentsByInstallationWorkflow,
+    SlackInstallationDeleteWorkflow,
+    SlackInstallationGetByTeamWorkflow,
+    SlackInstallationsByWorkspaceWorkflow,
+    SlackInstallationUpsertWorkflow,
+    SlackRouteEventWorkflow,
 )
 from src.workflows.crud.task_metrics_crud import (
     GetTaskMetricsWorkflow,
@@ -454,6 +474,15 @@ async def run_restack_service() -> None:
             TaskMetricsWorkflow,
             CreateMetricWithRetroactiveWorkflow,
             RetroactiveMetrics,
+            # Slack integration workflows
+            SlackInstallationUpsertWorkflow,
+            SlackInstallationGetByTeamWorkflow,
+            SlackInstallationsByWorkspaceWorkflow,
+            SlackInstallationDeleteWorkflow,
+            SlackChannelAgentCreateWorkflow,
+            SlackChannelAgentDeleteWorkflow,
+            SlackChannelAgentsByInstallationWorkflow,
+            SlackRouteEventWorkflow,
             # Analytics workflow
             GetAnalyticsMetrics,
             # Feedback workflows
@@ -607,6 +636,15 @@ async def run_restack_service() -> None:
             evaluate_formula_metric,
             ingest_performance_metrics,
             ingest_quality_metrics,
+            # Slack integration functions
+            slack_installation_upsert,
+            slack_installation_get_by_team,
+            slack_installations_by_workspace,
+            slack_installation_delete,
+            slack_channel_agent_create,
+            slack_channel_agent_delete,
+            slack_channel_agents_by_installation,
+            slack_route_event,
             # Feedback functions
             ingest_feedback_metric,
             get_task_feedback,

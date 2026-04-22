@@ -21,12 +21,27 @@ async def create_task_from_slack(
     slack_channel: str,
     slack_thread_ts: str,
     slack_user_id: str,
+    slack_team_id: str | None = None,
     assigned_to_id: str | None = None,
 ) -> dict[str, Any] | None:
-    """Schedule a TasksCreateWorkflow with Slack metadata attached."""
+    """Schedule a TasksCreateWorkflow with Slack metadata attached.
+
+    slack_team_id is needed so the backend can resolve the correct per-workspace
+    bot token (from slack_installations) when posting the agent's replies and
+    completion notifications back into the originating Slack thread.
+    """
     from ..client import client as restack_client
 
     workflow_id = f"slack_task_{slack_user_id}_{int(time.time())}"
+
+    task_metadata: dict[str, Any] = {
+        "slack_channel": slack_channel,
+        "slack_thread_ts": slack_thread_ts,
+        "slack_user_id": slack_user_id,
+        "source": "slack",
+    }
+    if slack_team_id:
+        task_metadata["slack_team_id"] = slack_team_id
 
     try:
         run_id = await restack_client.schedule_workflow(
@@ -40,12 +55,7 @@ async def create_task_from_slack(
                 "agent_id": agent_id,
                 "agent_name": agent_name,
                 "assigned_to_id": assigned_to_id,
-                "task_metadata": {
-                    "slack_channel": slack_channel,
-                    "slack_thread_ts": slack_thread_ts,
-                    "slack_user_id": slack_user_id,
-                    "source": "slack",
-                },
+                "task_metadata": task_metadata,
             },
             task_queue=TASK_QUEUE,
         )
