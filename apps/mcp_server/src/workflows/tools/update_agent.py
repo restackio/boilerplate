@@ -1,7 +1,9 @@
-"""MCP tool for creating or updating an agent (interactive or pipeline).
+"""MCP tool for creating or updating an agent (interactive, pipeline, or batch).
 
 Single tool: create if agent_id is omitted; update if agent_id is provided and exists.
-Tools are not added automatically; use updateagenttool after creating/updating.
+Tools are not added automatically; use updateagenttool after creating/updating
+(except for pipeline and batch agents, which auto-attach their default tool sets
+when created via agents_create).
 """
 
 from datetime import timedelta
@@ -29,7 +31,13 @@ class UpdateAgentInput(BaseModel):
     )
     type: str = Field(
         default="interactive",
-        description="Agent type: 'interactive' or 'pipeline'.",
+        description=(
+            "Agent type: 'interactive', 'pipeline', or 'batch'. "
+            "Use 'batch' when the user provides a list of inputs "
+            "(domains/companies/URLs/leads) and wants the same structured "
+            "output per item; default tools (Firecrawl + loadintodataset + "
+            "completetask) are auto-attached on create."
+        ),
     )
     description: str | None = Field(
         default=None, description="Optional description."
@@ -71,7 +79,8 @@ class UpdateAgentOutput(BaseModel):
         default=None, description="Name of the agent"
     )
     type: str | None = Field(
-        default=None, description="Type (interactive or pipeline)"
+        default=None,
+        description="Type (interactive, pipeline, or batch)",
     )
     created: bool = Field(
         default=False,
@@ -100,7 +109,7 @@ def _agent_id_name_type(
 
 @workflow.defn(
     mcp=True,
-    description="Create or update an agent. Omit agent_id to create; pass agent_id to update (e.g. after user tries and wants changes). Use type pipeline for agents that extract data and save to a table (one unit per run), and also for parent agents that only orchestrate sub-pipelines via createsubtask (no chat). Use type interactive when the user should chat with the data (Q&A, exploration) or for chat/query-only agents with no child pipelines. After creating a parent that fans out work, use updateagenttool to add updatetodos and createsubtask.",
+    description="Create or update an agent. Omit agent_id to create; pass agent_id to update (e.g. after user tries and wants changes). Use type pipeline for agents that extract data and save to a table (one unit per run), and also for parent agents that only orchestrate sub-pipelines via createsubtask (no chat). Use type batch when the user provides a list of companies/domains/URLs/leads and wants the same structured output per item (e.g. crawl each company, write a per-company brief to a dataset); Firecrawl + loadintodataset + completetask are auto-attached on create. Use type interactive when the user should chat with the data (Q&A, exploration) or for chat/query-only agents with no child pipelines. After creating a parent that fans out work, use updateagenttool to add updatetodos and createsubtask.",
 )
 class UpdateAgent:
     """Workflow to create or update an agent via the backend."""
@@ -114,7 +123,8 @@ class UpdateAgent:
         do_update = bool(agent_id)
         agent_type = (
             workflow_input.type
-            if workflow_input.type in ("interactive", "pipeline")
+            if workflow_input.type
+            in ("interactive", "pipeline", "batch")
             else "interactive"
         )
         log.info(

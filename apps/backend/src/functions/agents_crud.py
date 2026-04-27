@@ -49,9 +49,11 @@ class AgentCreateInput(BaseModel):
         default="draft", pattern="^(published|draft|archived)$"
     )
     parent_agent_id: str | None = None
-    # Agent type: interactive (user-facing) or pipeline (data processing)
+    # Agent type: interactive (user-facing), pipeline (data processing),
+    # or batch (run-once enrichment over a list of inputs).
     type: str = Field(
-        default="interactive", pattern="^(interactive|pipeline)$"
+        default="interactive",
+        pattern="^(interactive|pipeline|batch)$",
     )
     # New GPT-5 model configuration fields
     model: str = Field(
@@ -86,9 +88,11 @@ class AgentCloneInput(BaseModel):
     status: str = Field(
         default="draft", pattern="^(published|draft|archived)$"
     )
-    # Agent type: interactive (user-facing) or pipeline (data processing)
+    # Agent type: interactive (user-facing), pipeline (data processing),
+    # or batch (run-once enrichment over a list of inputs).
     type: str = Field(
-        default="interactive", pattern="^(interactive|pipeline)$"
+        default="interactive",
+        pattern="^(interactive|pipeline|batch)$",
     )
     # New GPT-5 model configuration fields
     model: str = Field(
@@ -113,9 +117,10 @@ class AgentUpdateInput(BaseModel):
         None, pattern="^(published|draft|archived)$"
     )
     parent_agent_id: str | None = None
-    # Agent type: interactive (user-facing) or pipeline (data processing)
+    # Agent type: interactive (user-facing), pipeline (data processing),
+    # or batch (run-once enrichment over a list of inputs).
     type: str | None = Field(
-        None, pattern="^(interactive|pipeline)$"
+        None, pattern="^(interactive|pipeline|batch)$"
     )
     # New GPT-5 model configuration fields
     model: str | None = Field(None, pattern=AGENT_MODEL_PATTERN)

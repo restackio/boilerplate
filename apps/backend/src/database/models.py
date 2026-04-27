@@ -225,7 +225,8 @@ class Agent(Base):
         ForeignKey("agents.id", ondelete="SET NULL"),
         nullable=True,
     )
-    # Agent type: interactive (user-facing) or pipeline (data processing)
+    # Agent type: interactive (user-facing), pipeline (data processing),
+    # or batch (run-once enrichment across a list of inputs).
     type = Column(
         String(20), nullable=False, default="interactive"
     )
@@ -260,7 +261,7 @@ class Agent(Base):
             name="valid_status",
         ),
         CheckConstraint(
-            type.in_(["interactive", "pipeline"]),
+            type.in_(["interactive", "pipeline", "batch"]),
             name="valid_type",
         ),
         CheckConstraint(

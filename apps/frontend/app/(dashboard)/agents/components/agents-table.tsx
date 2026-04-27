@@ -13,6 +13,7 @@ import {
   MessageSquare,
   Workflow,
   ClipboardList,
+  Layers,
 } from "lucide-react";
 import {
   Tooltip,
@@ -157,6 +158,7 @@ export const agentTypeOptions: Array<{
 }> = [
   { label: "Interactive", value: "interactive", icon: MessageSquare },
   { label: "Pipeline", value: "pipeline", icon: Workflow },
+  { label: "Batch", value: "batch", icon: Layers },
 ];
 
 interface AgentsTableProps {
@@ -489,6 +491,8 @@ export function AgentsTable({
                       <div className="flex items-center space-x-2 min-w-0">
                         {agent.type === "pipeline" ? (
                           <Workflow className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        ) : agent.type === "batch" ? (
+                          <Layers className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                         ) : (
                           <MessageSquare className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                         )}

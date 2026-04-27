@@ -18,7 +18,7 @@ import {
 } from "@workspace/ui/components/quick-action-dialog";
 import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
 import { AddOpenAITokenDialog } from "@/app/(dashboard)/integrations/components/add-openai-token-dialog";
-import { Plus, MessageSquare, Workflow } from "lucide-react";
+import { Plus, MessageSquare, Workflow, Layers } from "lucide-react";
 import {
   Select,
   SelectItem,
@@ -71,7 +71,7 @@ export function CreateAgentDialog({
 
   const [agentName, setAgentName] = useState("");
   const [selectedAgentType, setSelectedAgentType] = useState<
-    "interactive" | "pipeline" | null
+    "interactive" | "pipeline" | "batch" | null
   >(null);
   const [nameError, setNameError] = useState("");
 
@@ -106,11 +106,17 @@ export function CreateAgentDialog({
       throw new Error("OPENAI_TOKEN_REQUIRED");
     }
 
-    // Create agent data based on type
-    const baseInstructions =
-      selectedAgentType === "interactive"
-        ? "You are a helpful support agent. Your role is to assist users with their technical questions and issues. Always be polite, professional, and thorough in your responses."
-        : "You are a pipeline agent designed to process and transform data at scale. Focus on reliability, efficiency, and data quality in your operations.";
+    let baseInstructions: string;
+    if (selectedAgentType === "interactive") {
+      baseInstructions =
+        "You are a helpful support agent. Your role is to assist users with their technical questions and issues. Always be polite, professional, and thorough in your responses.";
+    } else if (selectedAgentType === "pipeline") {
+      baseInstructions =
+        "You are a pipeline agent designed to process and transform data at scale. Focus on reliability, efficiency, and data quality in your operations.";
+    } else {
+      baseInstructions =
+        "You are a batch agent. You are given a list of inputs (e.g. company domains). For each input, use Firecrawl to fetch and summarize relevant pages, write one structured row to the dataset via loadintodataset, and after the whole list is done call completetask exactly once.";
+    }
 
     const agentData = {
       name: agentName,
@@ -267,6 +273,33 @@ export function CreateAgentDialog({
                     <li>• Ingests and transforms data at scale</li>
                     <li>• Saves enriched results into the context store</li>
                     <li>• Designed for automation and reliability</li>
+                  </ul>
+                </CardContent>
+              </Card>
+
+              {/* Batch Agent Card */}
+              <Card
+                className={`cursor-pointer transition-all hover:shadow-md ${
+                  selectedAgentType === "batch"
+                    ? "border-primary"
+                    : "hover:border-muted-foreground/50"
+                }`}
+                onClick={() => setSelectedAgentType("batch")}
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex items-center space-x-2">
+                    <Layers className="h-5 w-5 text-primary" />
+                    <CardTitle className="text-base">Batch Agent</CardTitle>
+                  </div>
+                  <CardDescription className="text-sm">
+                    Run-once enrichment over a list of inputs.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <ul className="text-sm text-muted-foreground space-y-1">
+                    <li>• One agent loops over a list (e.g. domains, leads)</li>
+                    <li>• Auto-attaches Firecrawl + dataset write tools</li>
+                    <li>• Writes one structured row per input, then completes</li>
                   </ul>
                 </CardContent>
               </Card>

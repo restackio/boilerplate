@@ -158,7 +158,13 @@ export function SubagentsInline({ agentId, workspaceId, isReadOnly = false }: Su
                     <div className="flex items-center gap-2 min-w-0 flex-1">
                       <span className="font-medium truncate">{agent.name}</span>
                       <Badge
-                        variant={agent.type === "pipeline" ? "secondary" : "default"}
+                        variant={
+                          agent.type === "pipeline"
+                            ? "secondary"
+                            : agent.type === "batch"
+                              ? "outline"
+                              : "default"
+                        }
                         className="text-xs flex-shrink-0"
                       >
                         {agent.type}

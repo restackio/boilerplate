@@ -20,6 +20,7 @@ import {
   Activity,
   MessageSquare,
   Workflow,
+  Layers,
 } from "lucide-react";
 import { Badge } from "@workspace/ui/components/ui/badge";
 import { Button } from "@workspace/ui/components/ui/button";
@@ -52,7 +53,7 @@ export interface Task {
   status: "in_progress" | "in_review" | "closed" | "completed" | "failed";
   agent_id: string;
   agent_name: string;
-  type?: "interactive" | "pipeline";
+  type?: "interactive" | "pipeline" | "batch";
   assigned_to_id: string;
   assigned_to_name: string;
   team_id?: string;
@@ -299,6 +300,8 @@ export function TasksTable({
                             <span className="flex items-center gap-1 truncate">
                               {task.type === "pipeline" ? (
                                 <CircleDashed className="h-3 w-3 flex-shrink-0" />
+                              ) : task.type === "batch" ? (
+                                <Layers className="h-3 w-3 flex-shrink-0" />
                               ) : (
                                 <User className="h-3 w-3 flex-shrink-0" />
                               )}
@@ -333,6 +336,8 @@ export function TasksTable({
                       <div className="flex items-center space-x-2">
                         {task.type === "pipeline" ? (
                           <Workflow className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        ) : task.type === "batch" ? (
+                          <Layers className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                         ) : (
                           <MessageSquare className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                         )}

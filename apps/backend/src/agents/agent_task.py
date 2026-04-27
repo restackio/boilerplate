@@ -982,6 +982,50 @@ class AgentTask:
             f"Pipeline agent {self.agent_id} workflow marked for completion"
         )
 
+    async def _handle_batch_completion(self) -> None:
+        """Handle batch agent completion.
+
+        Batch agents differ from pipeline agents in that they call
+        loadintodataset N times (once per input, e.g. one company brief
+        per row) and only signal completion via an explicit completetask
+        MCP call. We mirror the pipeline cleanup path: persist final
+        state, mark the task completed, notify a parent subtask if any,
+        and end the run.
+        """
+        log.info(
+            f"Batch agent {self.agent_id} completed all inputs for task {self.task_id}"
+        )
+
+        await self._save_final_state()
+
+        await agent.step(
+            function=tasks_update,
+            function_input=TaskUpdateInput(
+                task_id=self.task_id,
+                status="completed",
+            ),
+            task_queue=TASK_QUEUE,
+            start_to_close_timeout=timedelta(seconds=30),
+        )
+
+        if self.temporal_parent_agent_id and self.task_id:
+            await agent.step(
+                function=subtask_notify,
+                function_input=SubtaskNotifyInput(
+                    temporal_parent_agent_id=self.temporal_parent_agent_id,
+                    task_id=self.task_id,
+                    title=self.title,
+                    status="completed",
+                ),
+                task_queue=TASK_QUEUE,
+                start_to_close_timeout=timedelta(seconds=10),
+            )
+
+        self.end = True
+        log.info(
+            f"Batch agent {self.agent_id} workflow marked for completion"
+        )
+
     @agent.event
     async def response_item(  # noqa: C901
         self, event_data: dict
@@ -1084,6 +1128,22 @@ class AgentTask:
                 == "completed"
             ):
                 await self._handle_pipeline_completion()
+
+            # Handle batch agent completion. Batch agents call
+            # loadintodataset once per input, so we wait for an explicit
+            # completetask MCP call before tearing down.
+            if (
+                self.agent_type == "batch"
+                and event_data.get("type")
+                == "response.output_item.done"
+                and event_data.get("item", {}).get("type")
+                == "mcp_call"
+                and event_data.get("item", {}).get("name")
+                == "completetask"
+                and event_data.get("item", {}).get("status")
+                == "completed"
+            ):
+                await self._handle_batch_completion()
 
         except ValueError as e:
             log.error(f"Error handling response_item: {e}")

@@ -43,6 +43,13 @@ with import_functions():
         agents_update,
         agents_update_status,
     )
+    from src.functions.mcp_servers_crud import (
+        McpApprovalToolFilter,
+        McpRequireApproval,
+        McpServerUpsertByLabelInput,
+        firecrawl_resolve_url,
+        mcp_servers_upsert_by_label,
+    )
 
 
 # Workflow definitions
@@ -156,6 +163,129 @@ class AgentsCreateWorkflow:
                             f"Failed to add pipeline tool {tool_config['tool_name']}: {tool_error}"
                         )
                         # Continue adding other tools even if one fails
+
+            # If this is a batch agent, auto-attach Firecrawl + restack-core
+            # (loadintodataset, completetask). Batch agents enrich a list of
+            # inputs (e.g. company domains) and write one row per input to a
+            # dataset. Firecrawl is the default web-scraping connector.
+            if (
+                workflow_input.type == "batch"
+                and agent_result.agent
+            ):
+                log.info(
+                    "Adding Firecrawl + context-store tools for new batch agent"
+                )
+
+                firecrawl_url_result = await workflow.step(
+                    function=firecrawl_resolve_url,
+                    task_queue=TASK_QUEUE,
+                    start_to_close_timeout=timedelta(seconds=10),
+                )
+
+                firecrawl_server_result = await workflow.step(
+                    function=mcp_servers_upsert_by_label,
+                    function_input=McpServerUpsertByLabelInput(
+                        workspace_id=str(
+                            agent_result.agent.workspace_id
+                        ),
+                        server_label="firecrawl",
+                        server_url=firecrawl_url_result.server_url,
+                        local=False,
+                        server_description=(
+                            "Firecrawl hosted MCP (web scraping/crawl/search/extract). "
+                            "API key embedded in server_url path."
+                        ),
+                        headers=None,
+                        require_approval=McpRequireApproval(
+                            never=McpApprovalToolFilter(
+                                tool_names=[
+                                    "firecrawl_scrape",
+                                    "firecrawl_crawl",
+                                    "firecrawl_search",
+                                    "firecrawl_extract",
+                                ]
+                            )
+                        ),
+                    ),
+                    task_queue=TASK_QUEUE,
+                    start_to_close_timeout=timedelta(seconds=30),
+                )
+
+                firecrawl_server_id = (
+                    firecrawl_server_result.mcp_server.id
+                )
+                restack_core_id = (
+                    "c0000000-0000-0000-0000-000000000001"
+                )
+
+                batch_tools = [
+                    {
+                        "mcp_server_id": firecrawl_server_id,
+                        "tool_name": "firecrawl_scrape",
+                        "custom_description": "Scrape a single URL and return clean markdown. Use for the homepage and About/Services/Careers pages of each company.",
+                    },
+                    {
+                        "mcp_server_id": firecrawl_server_id,
+                        "tool_name": "firecrawl_crawl",
+                        "custom_description": "Crawl a domain with configurable depth/limits when more than a few specific pages are needed.",
+                    },
+                    {
+                        "mcp_server_id": firecrawl_server_id,
+                        "tool_name": "firecrawl_search",
+                        "custom_description": "Search the web; optionally fetch and extract structured content from results.",
+                    },
+                    {
+                        "mcp_server_id": firecrawl_server_id,
+                        "tool_name": "firecrawl_extract",
+                        "custom_description": "Extract structured information from pages using a schema.",
+                    },
+                    {
+                        "mcp_server_id": restack_core_id,
+                        "tool_name": "loadintodataset",
+                        "custom_description": "Write one row per company to the dataset (the context store). One call per company.",
+                    },
+                    {
+                        "mcp_server_id": restack_core_id,
+                        "tool_name": "completetask",
+                        "custom_description": "Mark this task complete and stop. Call after writing all per-company rows. Pass task_id, temporal_agent_id, temporal_run_id from meta_info.",
+                    },
+                ]
+
+                for tool_config in batch_tools:
+                    try:
+                        await workflow.step(
+                            function=agent_tools_create,
+                            function_input=AgentToolCreateInput(
+                                agent_id=agent_result.agent.id,
+                                tool_type="mcp",
+                                mcp_server_id=tool_config[
+                                    "mcp_server_id"
+                                ],
+                                tool_name=tool_config[
+                                    "tool_name"
+                                ],
+                                custom_description=tool_config[
+                                    "custom_description"
+                                ],
+                                require_approval=False,
+                                enabled=True,
+                            ),
+                            task_queue=TASK_QUEUE,
+                            start_to_close_timeout=timedelta(
+                                seconds=30
+                            ),
+                        )
+                        log.info(
+                            f"Added batch tool: {tool_config['tool_name']}"
+                        )
+                    except (
+                        ValueError,
+                        TypeError,
+                        KeyError,
+                    ) as tool_error:
+                        log.error(
+                            f"Failed to add batch tool {tool_config['tool_name']}: {tool_error}"
+                        )
 
         except (ValueError, TypeError, ConnectionError) as e:
             error_message = f"Error during agents_create: {e}"

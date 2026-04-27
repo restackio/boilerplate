@@ -12,7 +12,7 @@ interface Props {
   workspaceId: string;
   agent?: {
     status: "published" | "draft" | "archived";
-    type?: "interactive" | "pipeline";
+    type?: "interactive" | "pipeline" | "batch";
   };
 }
 

@@ -21,7 +21,7 @@ function toTableTask(t: WorkspaceTask): {
   status: WorkspaceTask["status"];
   agent_id: string;
   agent_name: string;
-  type?: "interactive" | "pipeline";
+  type?: "interactive" | "pipeline" | "batch";
   assigned_to_id: string;
   assigned_to_name: string;
   team_id?: string;

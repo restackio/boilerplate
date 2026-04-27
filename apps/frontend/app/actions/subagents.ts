@@ -9,7 +9,7 @@ export interface SubagentInfo {
   id: string;
   name: string;
   description: string | null;
-  type: "interactive" | "pipeline";
+  type: "interactive" | "pipeline" | "batch";
   status: string;
   model: string;
   team_id: string | null;

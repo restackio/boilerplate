@@ -30,7 +30,7 @@ interface ToolsListProps {
   tools: AgentToolRecord[];
   onToolsChange: () => Promise<void>;
   isReadOnly?: boolean;
-  agentType?: "interactive" | "pipeline";
+  agentType?: "interactive" | "pipeline" | "batch";
   agentId?: string;
   workspaceId?: string;
 }
@@ -71,6 +71,19 @@ export function ToolsList({ tools, onToolsChange, isReadOnly = false, agentType,
     // For pipeline agents, prevent deletion of transform and load tools
     if (agentType === "pipeline" && tool.tool_type === "mcp") {
       const protectedTools = ["mockaiintegration", "transformdata", "loadintodataset"];
+      return !protectedTools.includes(tool.tool_name || "");
+    }
+    // For batch agents, the auto-attached Firecrawl + dataset write tools
+    // are required for the run-once-over-a-list behavior to work.
+    if (agentType === "batch" && tool.tool_type === "mcp") {
+      const protectedTools = [
+        "firecrawl_scrape",
+        "firecrawl_crawl",
+        "firecrawl_search",
+        "firecrawl_extract",
+        "loadintodataset",
+        "completetask",
+      ];
       return !protectedTools.includes(tool.tool_name || "");
     }
     return true;

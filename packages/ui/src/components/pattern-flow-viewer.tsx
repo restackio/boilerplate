@@ -31,6 +31,7 @@ import { memo } from "react";
 import * as Icons from "lucide-react";
 import {
   Database,
+  Layers,
   LayoutGrid,
   MessageSquare,
   Plug,
@@ -87,13 +88,15 @@ function getRoleTitleAndIcon(
   agentType: string | undefined,
 ): { title: string; Icon: LucideIcon } {
   if (entityType === "agent") {
-    const isPipeline =
-      agentType === "pipeline" ||
-      (typeof agentType === "string" &&
-        agentType.toLowerCase().includes("pipeline"));
-    return isPipeline
-      ? { title: "Pipeline agent", Icon: Workflow }
-      : { title: "Interactive agent", Icon: MessageSquare };
+    const normalized =
+      typeof agentType === "string" ? agentType.toLowerCase() : "";
+    if (normalized === "pipeline" || normalized.includes("pipeline")) {
+      return { title: "Pipeline agent", Icon: Workflow };
+    }
+    if (normalized === "batch" || normalized.includes("batch")) {
+      return { title: "Batch agent", Icon: Layers };
+    }
+    return { title: "Interactive agent", Icon: MessageSquare };
   }
   switch (entityType) {
     case "dataset":

@@ -29,7 +29,7 @@ export interface Agent {
   reasoning_effort?: string;
   status: "published" | "draft" | "archived";
   parent_agent_id?: string;
-  type?: "interactive" | "pipeline";
+  type?: "interactive" | "pipeline" | "batch";
   team_id?: string;
   team_name?: string;
   is_public?: boolean;
@@ -52,7 +52,7 @@ export interface Task {
   agent_id: string;
   agent_name: string;
   parent_agent_id?: string; // Parent agent ID for child agents (versions)
-  type?: "interactive" | "pipeline";
+  type?: "interactive" | "pipeline" | "batch";
   assigned_to_id: string;
   assigned_to_name: string;
   team_id?: string;

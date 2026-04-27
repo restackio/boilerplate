@@ -94,11 +94,13 @@ from src.functions.mcp_oauth_crud import (
     oauth_tokens_get_by_workspace,
 )
 from src.functions.mcp_servers_crud import (
+    firecrawl_resolve_url,
     mcp_servers_create,
     mcp_servers_delete,
     mcp_servers_get_by_id,
     mcp_servers_read,
     mcp_servers_update,
+    mcp_servers_upsert_by_label,
 )
 from src.functions.mcp_tools_refresh import (
     list_mcp_server_tools,
@@ -553,6 +555,8 @@ async def run_restack_service() -> None:
             mcp_servers_update,
             mcp_servers_delete,
             mcp_servers_get_by_id,
+            mcp_servers_upsert_by_label,
+            firecrawl_resolve_url,
             remote_mcp_directory_read,
             # MCP tools functions
             mcp_session_init,
