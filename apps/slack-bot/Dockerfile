@@ -19,4 +19,6 @@ ENV PATH="/app/.venv/bin:$PATH"
 ENV NO_COLOR=1
 ENV PYTHONUNBUFFERED=1
 
+EXPOSE 3002
+
 CMD ["uv", "run", "start"]
