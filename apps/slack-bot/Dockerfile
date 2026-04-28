@@ -2,7 +2,7 @@ FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS dependencies
 
 WORKDIR /app
 
-COPY pyproject.toml README.md ./
+COPY pyproject.toml uv.lock README.md ./
 
 RUN uv sync --no-dev --frozen
 
@@ -11,7 +11,7 @@ FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS runtime
 WORKDIR /app
 
 COPY --from=dependencies /app/.venv ./.venv
-COPY pyproject.toml README.md ./
+COPY pyproject.toml uv.lock README.md ./
 
 COPY src/ ./src/
 
