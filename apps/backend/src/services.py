@@ -101,6 +101,7 @@ from src.functions.mcp_servers_crud import (
     mcp_servers_read,
     mcp_servers_update,
     mcp_servers_upsert_by_label,
+    phantombuster_resolve_url,
 )
 from src.functions.mcp_tools_refresh import (
     list_mcp_server_tools,
@@ -557,6 +558,7 @@ async def run_restack_service() -> None:
             mcp_servers_get_by_id,
             mcp_servers_upsert_by_label,
             firecrawl_resolve_url,
+            phantombuster_resolve_url,
             remote_mcp_directory_read,
             # MCP tools functions
             mcp_session_init,

@@ -451,6 +451,34 @@ async def firecrawl_resolve_url() -> FirecrawlResolveUrlOutput:
     )
 
 
+class PhantombusterResolveOutput(BaseModel):
+    """Resolved configuration for local PhantomBuster MCP tools."""
+
+    server_url: str | None
+    local: bool
+    has_key: bool
+
+
+@function.defn()
+async def phantombuster_resolve_url() -> PhantombusterResolveOutput:
+    """Validate PhantomBuster env and return local MCP server config."""
+    api_key = os.environ.get("PHANTOMBUSTER_API_KEY", "").strip()
+    if not api_key:
+        raise NonRetryableError(
+            message=(
+                "PHANTOMBUSTER_API_KEY is required to create the "
+                "linkedin-activity-monitor batch agent but is not set in "
+                "the backend environment."
+            )
+        )
+
+    return PhantombusterResolveOutput(
+        server_url=None,
+        local=True,
+        has_key=True,
+    )
+
+
 class McpServerUpsertByLabelInput(BaseModel):
     """Idempotent upsert keyed on (workspace_id, server_label)."""
 

@@ -49,6 +49,7 @@ with import_functions():
         McpServerUpsertByLabelInput,
         firecrawl_resolve_url,
         mcp_servers_upsert_by_label,
+        phantombuster_resolve_url,
     )
 
 
@@ -286,6 +287,112 @@ class AgentsCreateWorkflow:
                         log.error(
                             f"Failed to add batch tool {tool_config['tool_name']}: {tool_error}"
                         )
+
+                # LinkedIn monitor batch flavor: auto-attach PhantomBuster + Slack + ClickHouse query.
+                if (
+                    (workflow_input.name or "").strip().lower()
+                    == "linkedin-activity-monitor"
+                ):
+                    log.info(
+                        "Adding PhantomBuster + alert tools for linkedin-activity-monitor"
+                    )
+
+                    _ = await workflow.step(
+                        function=phantombuster_resolve_url,
+                        task_queue=TASK_QUEUE,
+                        start_to_close_timeout=timedelta(seconds=10),
+                    )
+
+                    phantombuster_server_result = await workflow.step(
+                        function=mcp_servers_upsert_by_label,
+                        function_input=McpServerUpsertByLabelInput(
+                            workspace_id=str(
+                                agent_result.agent.workspace_id
+                            ),
+                            server_label="phantombuster",
+                            server_url=None,
+                            local=True,
+                            server_description=(
+                                "PhantomBuster LinkedIn Activity Extractor "
+                                "(local MCP tools)."
+                            ),
+                            headers=None,
+                            require_approval=McpRequireApproval(
+                                never=McpApprovalToolFilter(
+                                    tool_names=[
+                                        "phantombuster_launch_agent",
+                                        "phantombuster_fetch_output",
+                                        "clickhouserunselectquery",
+                                        "slacknotify",
+                                    ]
+                                )
+                            ),
+                        ),
+                        task_queue=TASK_QUEUE,
+                        start_to_close_timeout=timedelta(seconds=30),
+                    )
+
+                    phantombuster_server_id = (
+                        phantombuster_server_result.mcp_server.id
+                    )
+                    linkedin_monitor_tools = [
+                        {
+                            "mcp_server_id": phantombuster_server_id,
+                            "tool_name": "phantombuster_launch_agent",
+                            "custom_description": "Launch the PhantomBuster LinkedIn Activity Extractor for CIO/CTO LinkedIn profile URLs.",
+                        },
+                        {
+                            "mcp_server_id": phantombuster_server_id,
+                            "tool_name": "phantombuster_fetch_output",
+                            "custom_description": "Fetch extracted LinkedIn posts/comments/articles and normalize them for relevance classification.",
+                        },
+                        {
+                            "mcp_server_id": restack_core_id,
+                            "tool_name": "clickhouserunselectquery",
+                            "custom_description": "Query company briefs and CXO targets from boilerplate_clickhouse.pipeline_events using dataset_id filters.",
+                        },
+                        {
+                            "mcp_server_id": restack_core_id,
+                            "tool_name": "slacknotify",
+                            "custom_description": "Send Slack digest alerts for relevant posts using message_type completion/update.",
+                        },
+                    ]
+
+                    for tool_config in linkedin_monitor_tools:
+                        try:
+                            await workflow.step(
+                                function=agent_tools_create,
+                                function_input=AgentToolCreateInput(
+                                    agent_id=agent_result.agent.id,
+                                    tool_type="mcp",
+                                    mcp_server_id=tool_config[
+                                        "mcp_server_id"
+                                    ],
+                                    tool_name=tool_config[
+                                        "tool_name"
+                                    ],
+                                    custom_description=tool_config[
+                                        "custom_description"
+                                    ],
+                                    require_approval=False,
+                                    enabled=True,
+                                ),
+                                task_queue=TASK_QUEUE,
+                                start_to_close_timeout=timedelta(
+                                    seconds=30
+                                ),
+                            )
+                            log.info(
+                                f"Added linkedin monitor tool: {tool_config['tool_name']}"
+                            )
+                        except (
+                            ValueError,
+                            TypeError,
+                            KeyError,
+                        ) as tool_error:
+                            log.error(
+                                f"Failed to add linkedin monitor tool {tool_config['tool_name']}: {tool_error}"
+                            )
 
         except (ValueError, TypeError, ConnectionError) as e:
             error_message = f"Error during agents_create: {e}"

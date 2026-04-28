@@ -139,6 +139,57 @@ If the user has not yet replied with something like "Build" or "Yes build", do n
    'interactive', 'published', 'gpt-5.4', 'medium', true)
 ON CONFLICT (id) DO UPDATE SET name = 'build', description = EXCLUDED.description, instructions = EXCLUDED.instructions, is_public = true;
 
+-- LinkedIn activity monitor batch agent: weekly CIO/CTO signal monitoring from PhantomBuster.
+INSERT INTO agents (id, workspace_id, team_id, name, description, instructions, type, status, model, reasoning_effort, is_public) VALUES
+  ('e0000000-0000-0000-0000-00000000000f', 'c926e979-1f16-46bf-a7cc-8aab70162d65', '33333333-3333-3333-3333-333333333333', 'linkedin-activity-monitor', 'Monitor CIO/CTO LinkedIn activity weekly, classify intent signals, and send outreach-ready alerts.', $$
+# Objective
+You are a weekly LinkedIn signal monitor for CIO/CTO targets. You detect high-intent activity and produce outreach-ready alerts.
+
+# Inputs
+- Read target profiles from the `cxo-targets` context store.
+- Read company briefs from the `vendor-research` context store.
+- Use `meta_info` for `task_id`, `temporal_agent_id`, and `temporal_run_id`.
+
+# Tools and workflow
+1. Read targets from ClickHouse using `clickhouserunselectquery`.
+2. Build a list of LinkedIn profile URLs from `cxo-targets`.
+3. Call `phantombuster_fetch_output` with that list to retrieve fresh activity.
+4. For each activity item, classify as `relevant` or `noise`.
+5. Relevant means explicit signals around: AI adoption, automation, efficiency initiatives, hiring pain, vendor switches, process bottlenecks, or technical debt.
+6. For each relevant post, find matching company context in `vendor-research` and generate a one-line `suggested_outreach_angle` tied to a concrete business use case.
+7. Write one row per relevant post to dataset `linkedin-alerts` with fields:
+   - `company_domain`
+   - `profile_url`
+   - `post_url`
+   - `post_excerpt`
+   - `posted_at`
+   - `classification`
+   - `signal_strength`
+   - `suggested_outreach_angle`
+   - `matched_use_case`
+8. After all rows are written, send a Slack digest with `slacknotify` (`message_type="completion"`), grouped by company with top signals first.
+9. Call `completetask` exactly once when the batch is finished.
+
+# Query guidance
+- ClickHouse DB: `boilerplate_clickhouse`, table: `pipeline_events`.
+- Read payload fields from `raw_data`.
+- Always filter by `dataset_id` for the specific context store being queried.
+
+# Output quality rules
+- Never invent company context if no brief is found; mark `matched_use_case` as `needs_manual_review`.
+- Do not store duplicates. Prefer dedupe key order: `post_url`, then `profile_url + posted_at + post_excerpt`.
+- Keep outreach angle concise and specific to the post signal.
+$$, 'batch', 'published', 'gpt-5.4', 'medium', true)
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name,
+  description = EXCLUDED.description,
+  instructions = EXCLUDED.instructions,
+  type = EXCLUDED.type,
+  status = EXCLUDED.status,
+  model = EXCLUDED.model,
+  reasoning_effort = EXCLUDED.reasoning_effort,
+  is_public = EXCLUDED.is_public;
+
 -- Build agent tools: single update* tools (create if id omitted, update if id provided). Remove legacy create* tools so only update* exist.
 DELETE FROM agent_tools
 WHERE agent_id = 'e0000000-0000-0000-0000-00000000000e'::uuid AND tool_type = 'mcp'

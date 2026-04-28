@@ -16,6 +16,11 @@ from src.functions.cockroachdb_crud import (
     cockroachdb_run_select_query,
 )
 from src.functions.llm_response import llm_response
+from src.functions.phantombuster_client import (
+    phantombuster_fetch_output,
+    phantombuster_launch_agent,
+)
+from src.functions.slack_tool import slacknotify
 from src.functions.template_from_sample import (
     template_from_sample,
 )
@@ -42,6 +47,8 @@ from src.workflows.tools.load_into_dataset import (
 from src.workflows.tools.mock_ai_integration import (
     MockAIIntegration,
 )
+from src.workflows.tools.phantombuster_fetch import PhantomBusterFetch
+from src.workflows.tools.phantombuster_launch import PhantomBusterLaunch
 from src.workflows.tools.search_remote_mcp_directory import (
     SearchRemoteMcpDirectory,
 )
@@ -84,6 +91,8 @@ async def run_restack_service() -> None:
             SearchRemoteMcpDirectory,
             GenerateMock,
             MockAIIntegration,
+            PhantomBusterLaunch,
+            PhantomBusterFetch,
             TestFailures,
             TransformData,
             LoadIntoDataset,
@@ -106,6 +115,9 @@ async def run_restack_service() -> None:
             cockroachdb_list_databases,
             cockroachdb_list_tables,
             cockroachdb_run_select_query,
+            phantombuster_launch_agent,
+            phantombuster_fetch_output,
+            slacknotify,
             update_todos,
         ],
     )
