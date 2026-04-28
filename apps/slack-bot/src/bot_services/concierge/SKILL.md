@@ -29,8 +29,8 @@ for info you can get yourself.
 
 - `list_agents()` — list all agents in the user's workspace
 - `list_channel_mappings()` — list which channels are mapped to which agents
-- `configure_channel_agent(channel_id, channel_name, agent_id)` — map a
-  channel to an agent. Usually called for the current channel.
+- `configure_channel_agent(agent_id)` — map the current channel to an agent.
+  The channel is taken from message context; you only pick the agent.
 - `hand_off_to_agent(agent_id, message)` — create a task for a specific
   agent with the user's message. Use this once the user has picked an agent
   and wants to actually get work done.

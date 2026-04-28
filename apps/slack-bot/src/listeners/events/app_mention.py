@@ -81,6 +81,7 @@ async def _handle_mention(event, say, client):
         workspace_id = None
         agent = None
         channel_route_found_no_agent = False
+        route: dict | None = None
 
         # Try channel routing first — gives us workspace + agent in one call
         if team_id and channel_id:
@@ -94,7 +95,9 @@ async def _handle_mention(event, say, client):
                     }
                     if route.get("bot_token"):
                         client.token = route["bot_token"]
-                elif route.get("found") is False and route.get("installation_id"):
+                elif route.get("found") is False and route.get(
+                    "channel_integration_id"
+                ):
                     channel_route_found_no_agent = True
                     if route.get("bot_token"):
                         client.token = route["bot_token"]
@@ -114,19 +117,23 @@ async def _handle_mention(event, say, client):
             )
             return
 
-        if channel_route_found_no_agent and agent is None:
-            channel_name = ""
-            try:
-                info = client.conversations_info(channel=channel_id)
-                channel_name = info["channel"].get("name", "")
-            except Exception:
-                pass
+        # Best-effort channel name lookup (snapshotted onto task_metadata
+        # and passed to the concierge for human-readable context).
+        channel_name = ""
+        try:
+            info = client.conversations_info(channel=channel_id)
+            channel_name = info["channel"].get("name", "")
+        except Exception:
+            pass
 
+        if channel_route_found_no_agent and agent is None:
             result = await run_concierge(
                 user_message=message_text,
                 context={
                     "workspace_id": workspace_id,
-                    "installation_id": (route or {}).get("installation_id"),
+                    "channel_integration_id": (route or {}).get(
+                        "channel_integration_id"
+                    ),
                     "channel_id": channel_id,
                     "channel_name": channel_name,
                     "slack_user_id": user_id,
@@ -171,10 +178,14 @@ async def _handle_mention(event, say, client):
                         "event_type": "pending_task",
                         "event_payload": {
                             "workspace_id": workspace_id,
+                            "channel_integration_id": (route or {}).get(
+                                "channel_integration_id"
+                            ),
                             "message_text": message_text,
                             "user_id": user_id,
                             "user_name": user_name,
                             "channel_id": channel_id,
+                            "channel_name": channel_name,
                             "message_ts": message_ts,
                         },
                     },
@@ -206,6 +217,7 @@ async def _handle_mention(event, say, client):
             slack_thread_ts=message_ts,
             slack_user_id=user_id,
             slack_team_id=team_id or None,
+            slack_channel_name=channel_name or None,
         )
 
         if result:

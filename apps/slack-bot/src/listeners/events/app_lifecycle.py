@@ -2,8 +2,8 @@
 
 When an admin removes the Restack app from their Slack workspace (or
 revokes the bot's tokens), Slack delivers these events to our webhook.
-We respond by deleting the local ``slack_installations`` row so the
-dashboard reflects reality. Cascades remove ``slack_channel_agents`` too.
+We respond by deleting the local ``channel_integrations`` row so the
+dashboard reflects reality. Cascades remove the ``channels`` rows too.
 
 These events require a subscription in the Slack app configuration
 (api.slack.com/apps → Event Subscriptions → Subscribe to bot events):

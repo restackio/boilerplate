@@ -88,7 +88,6 @@ def _welcome_blocks(team_name: str, frontend_url: str) -> list[dict[str, Any]]:
 
 async def send_welcome_dm(
     bot_token: str,
-    bot_user_id: str,
     installer_user_id: str,
     team_name: str,
     frontend_url: str,
@@ -102,9 +101,8 @@ async def send_welcome_dm(
     try:
         async with httpx.AsyncClient() as http:
             logger.debug(
-                "Sending welcome DM to installer %s (bot_user_id=%s)",
+                "Sending welcome DM to installer %s",
                 installer_user_id,
-                bot_user_id or "(none)",
             )
             open_resp = await http.post(
                 f"{SLACK_API}/conversations.open",

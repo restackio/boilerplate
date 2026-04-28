@@ -39,7 +39,7 @@ async def _do_configure(body, say, client):
 
         metadata = message.get("metadata", {}).get("event_payload", {})
         workspace_id = metadata.get("workspace_id")
-        installation_id = metadata.get("installation_id")
+        channel_integration_id = metadata.get("channel_integration_id")
         message_text = metadata.get("message_text", "")
         user_id = metadata.get("user_id", body["user"]["id"])
         user_name = metadata.get("user_name", "Unknown")
@@ -59,7 +59,7 @@ async def _do_configure(body, say, client):
             return
 
         # -- 1. Persist the channel → agent mapping --
-        if installation_id:
+        if channel_integration_id:
             try:
                 from ...client import client as restack_client
 
@@ -67,14 +67,12 @@ async def _do_configure(body, say, client):
 
                 wf_id = f"slack_ch_agent_{channel_id}_{uuid.uuid4().hex[:8]}"
                 run_id = await restack_client.schedule_workflow(
-                    workflow_name="SlackChannelAgentCreateWorkflow",
+                    workflow_name="ChannelCreateWorkflow",
                     workflow_id=wf_id,
                     workflow_input={
-                        "slack_installation_id": installation_id,
-                        "channel_id": channel_id,
-                        "channel_name": channel_name,
+                        "channel_integration_id": channel_integration_id,
+                        "external_channel_id": channel_id,
                         "agent_id": agent_id,
-                        "is_default": False,
                     },
                     task_queue=config.RESTACK_TASK_QUEUE,
                 )
@@ -134,6 +132,7 @@ async def _do_configure(body, say, client):
             slack_thread_ts=original_ts,
             slack_user_id=user_id,
             slack_team_id=team_id or None,
+            slack_channel_name=channel_name or None,
         )
 
         if result:

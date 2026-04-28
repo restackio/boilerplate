@@ -105,7 +105,7 @@ async def run_concierge(
     """Run the concierge LLM loop for a single user message.
 
     ``context`` should contain:
-        workspace_id, installation_id, channel_id, channel_name,
+        workspace_id, channel_integration_id, channel_id, channel_name,
         slack_user_id, user_name, thread_ts, dashboard_url
     """
     slack_user_id = context.get("slack_user_id", "anonymous")

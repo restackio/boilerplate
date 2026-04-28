@@ -14,9 +14,11 @@ logger = logging.getLogger(__name__)
 SLACK_OAUTH_SCOPES = (
     "app_mentions:read,"
     "channels:history,"
+    "channels:join,"
     "channels:read,"
     "chat:write,"
     "chat:write.public,"
+    "groups:read,"
     "im:history,"
     "im:read,"
     "im:write,"

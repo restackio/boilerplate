@@ -226,6 +226,38 @@ async def oauth_authorize(request: Request) -> RedirectResponse | JSONResponse:
     return RedirectResponse(url=url)
 
 
+async def install_url(request: Request) -> JSONResponse:
+    """GET /slack/internal/install-url?workspace_id=... -> {install_url}.
+
+    Used by the backend (agent-builder MCP tool) so Slack app identity
+    (SLACK_CLIENT_ID + scopes + redirect URI) stays owned by slack-bot.
+
+    Auth model:
+    - If ``SLACK_ROUTER_API_KEY`` is configured, require the ``x-router-api-key``
+      header to match (same as other internal endpoints).
+    - Otherwise (dev), allow the call through. The returned URL carries no
+      secrets beyond what ``/slack/oauth/authorize`` already exposes to end
+      users.
+    """
+    from .bot_services.slack_oauth import build_authorize_url
+
+    if config.SLACK_ROUTER_API_KEY and not _validate_api_key(request):
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+
+    workspace_id = request.query_params.get("workspace_id")
+    if not workspace_id:
+        return JSONResponse(
+            {"error": "workspace_id query parameter is required"},
+            status_code=400,
+        )
+    if not config.SLACK_CLIENT_ID:
+        return JSONResponse(
+            {"error": "SLACK_CLIENT_ID is not configured"},
+            status_code=500,
+        )
+    return JSONResponse({"install_url": build_authorize_url(workspace_id)})
+
+
 async def oauth_callback(request: Request) -> HTMLResponse | JSONResponse:
     """GET /slack/oauth/callback?code=...&state=... -> exchange + store."""
     from .bot_services.slack_oauth import exchange_oauth_code
@@ -252,22 +284,19 @@ async def oauth_callback(request: Request) -> HTMLResponse | JSONResponse:
     bot_token = data.get("access_token")
     team_id = team.get("id")
     team_name = team.get("name")
-    bot_user_id = data.get("bot_user_id", "")
     installer_user_id = (data.get("authed_user") or {}).get("id")
 
     install_stored = False
     try:
         wf_id = f"slack_install_{team_id}_{int(time.time())}"
         run_id = await restack_client.schedule_workflow(
-            workflow_name="SlackInstallationUpsertWorkflow",
+            workflow_name="ChannelIntegrationUpsertWorkflow",
             workflow_id=wf_id,
             workflow_input={
                 "workspace_id": workspace_id,
-                "team_id": team_id,
-                "team_name": team_name,
-                "bot_token": bot_token,
-                "bot_user_id": bot_user_id,
-                "installed_by": installer_user_id,
+                "channel_type": "slack",
+                "external_id": team_id,
+                "credentials": {"bot_token": bot_token},
             },
             task_queue=config.RESTACK_TASK_QUEUE,
         )
@@ -282,7 +311,6 @@ async def oauth_callback(request: Request) -> HTMLResponse | JSONResponse:
 
             await send_welcome_dm(
                 bot_token=bot_token,
-                bot_user_id=bot_user_id,
                 installer_user_id=installer_user_id,
                 team_name=team_name or "your workspace",
                 frontend_url=config.FRONTEND_URL,
@@ -415,5 +443,6 @@ def create_http_app() -> Starlette:
             Route("/slack/interactions", receive_interaction, methods=["POST"]),
             Route("/slack/oauth/authorize", oauth_authorize, methods=["GET"]),
             Route("/slack/oauth/callback", oauth_callback, methods=["GET"]),
+            Route("/slack/internal/install-url", install_url, methods=["GET"]),
         ],
     )

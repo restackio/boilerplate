@@ -21,7 +21,6 @@ import {
   TableRow,
 } from "@workspace/ui/components/ui/table";
 import { Badge } from "@workspace/ui/components/ui/badge";
-import { Checkbox } from "@workspace/ui/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -48,23 +47,24 @@ import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 const SLACK_BOT_URL =
   process.env.NEXT_PUBLIC_SLACK_BOT_URL || "http://localhost:3002";
 
-interface SlackInstallation {
+const SLACK_CHANNEL_TYPE = "slack";
+
+// Generic ``channel_integrations`` row scoped to the Slack provider.
+interface ChannelIntegration {
   id: string;
-  team_id: string;
-  team_name: string;
   workspace_id: string;
-  installed_at?: string;
+  channel_type: string;
+  external_id: string;
   created_at?: string;
 }
 
-interface ChannelAgentMapping {
+// Generic ``channels`` row binding an external channel to an agent.
+interface ChannelBinding {
   id: string;
-  slack_installation_id: string;
-  channel_id: string;
-  channel_name: string;
+  channel_integration_id: string;
+  external_channel_id: string;
   agent_id: string;
   agent_name?: string;
-  is_default: boolean;
   created_at?: string;
 }
 
@@ -85,10 +85,10 @@ export default function SlackIntegrationPage() {
   const { currentWorkspaceId, isReady } = useDatabaseWorkspace();
   const { executeWorkflow } = useWorkspaceScopedActions();
 
-  const [installation, setInstallation] = useState<SlackInstallation | null>(
+  const [integration, setIntegration] = useState<ChannelIntegration | null>(
     null,
   );
-  const [mappings, setMappings] = useState<ChannelAgentMapping[]>([]);
+  const [bindings, setBindings] = useState<ChannelBinding[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -96,65 +96,63 @@ export default function SlackIntegrationPage() {
 
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [newChannelId, setNewChannelId] = useState("");
-  const [newChannelName, setNewChannelName] = useState("");
   const [newAgentId, setNewAgentId] = useState("");
-  const [newIsDefault, setNewIsDefault] = useState(false);
   const [addingMapping, setAddingMapping] = useState(false);
 
-  const fetchInstallation = useCallback(async () => {
+  const fetchIntegration = useCallback(async () => {
     if (!isReady || !currentWorkspaceId) return;
 
     setLoading(true);
     setError(null);
     try {
       const result = await executeWorkflow<
-        | { installations?: SlackInstallation[] }
-        | SlackInstallation[]
-      >("SlackInstallationsByWorkspaceWorkflow", {
+        | { integrations?: ChannelIntegration[] }
+        | ChannelIntegration[]
+      >("ChannelIntegrationsByWorkspaceWorkflow", {
         workspace_id: currentWorkspaceId,
+        channel_type: SLACK_CHANNEL_TYPE,
       });
 
       if (result.success && result.data) {
         const raw = result.data;
-        const installations = Array.isArray(raw)
+        const integrations = Array.isArray(raw)
           ? raw
-          : (raw as { installations?: SlackInstallation[] })
-              .installations ?? [];
-        setInstallation(installations[0] ?? null);
+          : (raw as { integrations?: ChannelIntegration[] })
+              .integrations ?? [];
+        setIntegration(integrations[0] ?? null);
       } else {
-        setInstallation(null);
+        setIntegration(null);
       }
     } catch {
       setError("Failed to load Slack installation status");
-      setInstallation(null);
+      setIntegration(null);
     } finally {
       setLoading(false);
     }
   }, [isReady, currentWorkspaceId, executeWorkflow]);
 
-  const fetchMappings = useCallback(async () => {
-    if (!installation) return;
+  const fetchBindings = useCallback(async () => {
+    if (!integration) return;
 
     try {
       const result = await executeWorkflow<
-        | { channel_agents?: ChannelAgentMapping[] }
-        | ChannelAgentMapping[]
-      >("SlackChannelAgentsByInstallationWorkflow", {
-        slack_installation_id: installation.id,
+        | { channels?: ChannelBinding[] }
+        | ChannelBinding[]
+      >("ChannelsByIntegrationWorkflow", {
+        channel_integration_id: integration.id,
       });
 
       if (result.success && result.data) {
         const raw = result.data;
         const items = Array.isArray(raw)
           ? raw
-          : (raw as { channel_agents?: ChannelAgentMapping[] })
-              .channel_agents ?? [];
-        setMappings(items);
+          : (raw as { channels?: ChannelBinding[] }).channels ?? [];
+        setBindings(items);
       }
     } catch {
-      console.error("Failed to fetch channel-agent mappings");
+      console.error("Failed to fetch channel bindings");
     }
-  }, [installation, executeWorkflow]);
+  }, [integration, executeWorkflow]);
 
   const fetchAgents = useCallback(async () => {
     if (!isReady || !currentWorkspaceId) return;
@@ -174,28 +172,32 @@ export default function SlackIntegrationPage() {
   }, [isReady, currentWorkspaceId, executeWorkflow]);
 
   useEffect(() => {
-    fetchInstallation();
-  }, [fetchInstallation]);
+    fetchIntegration();
+  }, [fetchIntegration]);
 
   useEffect(() => {
-    if (installation) {
-      fetchMappings();
+    if (integration) {
+      fetchBindings();
       fetchAgents();
     }
-  }, [installation, fetchMappings, fetchAgents]);
+  }, [integration, fetchBindings, fetchAgents]);
 
   const handleDisconnect = async () => {
-    if (!installation) return;
+    if (!integration) return;
 
     setActionLoading("disconnect");
     try {
-      const result = await executeWorkflow("SlackInstallationDeleteWorkflow", {
-        team_id: installation.team_id,
-      });
+      const result = await executeWorkflow(
+        "ChannelIntegrationDeleteWorkflow",
+        {
+          channel_type: SLACK_CHANNEL_TYPE,
+          external_id: integration.external_id,
+        },
+      );
 
       if (result.success) {
-        setInstallation(null);
-        setMappings([]);
+        setIntegration(null);
+        setBindings([]);
       } else {
         setError(result.error ?? "Failed to disconnect Slack workspace");
       }
@@ -207,28 +209,21 @@ export default function SlackIntegrationPage() {
   };
 
   const handleAddMapping = async () => {
-    if (!installation || !newChannelId || !newAgentId) return;
+    if (!integration || !newChannelId || !newAgentId) return;
 
     setAddingMapping(true);
     try {
-      const result = await executeWorkflow(
-        "SlackChannelAgentCreateWorkflow",
-        {
-          slack_installation_id: installation.id,
-          channel_id: newChannelId,
-          channel_name: newChannelName || newChannelId,
-          agent_id: newAgentId,
-          is_default: newIsDefault,
-        },
-      );
+      const result = await executeWorkflow("ChannelCreateWorkflow", {
+        channel_integration_id: integration.id,
+        external_channel_id: newChannelId,
+        agent_id: newAgentId,
+      });
 
       if (result.success) {
         setNewChannelId("");
-        setNewChannelName("");
         setNewAgentId("");
-        setNewIsDefault(false);
         setAddDialogOpen(false);
-        await fetchMappings();
+        await fetchBindings();
       } else {
         setError(result.error ?? "Failed to create channel mapping");
       }
@@ -239,16 +234,15 @@ export default function SlackIntegrationPage() {
     }
   };
 
-  const handleDeleteMapping = async (mappingId: string) => {
-    setActionLoading(`delete-${mappingId}`);
+  const handleDeleteMapping = async (bindingId: string) => {
+    setActionLoading(`delete-${bindingId}`);
     try {
-      const result = await executeWorkflow(
-        "SlackChannelAgentDeleteWorkflow",
-        { id: mappingId },
-      );
+      const result = await executeWorkflow("ChannelDeleteWorkflow", {
+        id: bindingId,
+      });
 
       if (result.success) {
-        await fetchMappings();
+        await fetchBindings();
       } else {
         setError(result.error ?? "Failed to delete channel mapping");
       }
@@ -264,8 +258,8 @@ export default function SlackIntegrationPage() {
   };
 
   const handleRefresh = () => {
-    fetchInstallation();
-    if (installation) fetchMappings();
+    fetchIntegration();
+    if (integration) fetchBindings();
   };
 
   const breadcrumbs = [
@@ -308,12 +302,12 @@ export default function SlackIntegrationPage() {
 
         {loading ? (
           <LoadingSkeleton />
-        ) : !installation ? (
+        ) : !integration ? (
           <NotConnectedCard workspaceId={currentWorkspaceId} />
         ) : (
           <>
             <ConnectedWorkspaceCard
-              installation={installation}
+              integration={integration}
               onDisconnect={handleDisconnect}
               disconnecting={actionLoading === "disconnect"}
             />
@@ -334,7 +328,7 @@ export default function SlackIntegrationPage() {
                 </div>
               </CardHeader>
               <CardContent className="pt-4">
-                {mappings.length === 0 ? (
+                {bindings.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-8">
                     No channel mappings yet. Add one to route Slack messages to
                     an agent.
@@ -343,45 +337,36 @@ export default function SlackIntegrationPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Channel</TableHead>
+                        <TableHead>Channel ID</TableHead>
                         <TableHead>Agent</TableHead>
-                        <TableHead>Default</TableHead>
                         <TableHead className="w-[60px]" />
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {mappings.map((mapping) => (
-                        <TableRow key={mapping.id}>
+                      {bindings.map((binding) => (
+                        <TableRow key={binding.id}>
                           <TableCell>
                             <div className="flex items-center gap-2">
                               <Hash className="h-3.5 w-3.5 text-muted-foreground" />
-                              <span className="font-medium">
-                                {mapping.channel_name}
-                              </span>
-                              <span className="text-xs text-muted-foreground">
-                                {mapping.channel_id}
+                              <span className="font-mono text-xs">
+                                {binding.external_channel_id}
                               </span>
                             </div>
                           </TableCell>
                           <TableCell>
-                            {mapping.agent_name ??
-                              getAgentName(mapping.agent_id)}
-                          </TableCell>
-                          <TableCell>
-                            {mapping.is_default && (
-                              <Badge variant="secondary">Default</Badge>
-                            )}
+                            {binding.agent_name ??
+                              getAgentName(binding.agent_id)}
                           </TableCell>
                           <TableCell>
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handleDeleteMapping(mapping.id)}
+                              onClick={() => handleDeleteMapping(binding.id)}
                               disabled={
-                                actionLoading === `delete-${mapping.id}`
+                                actionLoading === `delete-${binding.id}`
                               }
                             >
-                              {actionLoading === `delete-${mapping.id}` ? (
+                              {actionLoading === `delete-${binding.id}` ? (
                                 <RefreshCw className="h-4 w-4 animate-spin" />
                               ) : (
                                 <Trash2 className="h-4 w-4 text-destructive" />
@@ -402,12 +387,8 @@ export default function SlackIntegrationPage() {
               agents={agents}
               channelId={newChannelId}
               onChannelIdChange={setNewChannelId}
-              channelName={newChannelName}
-              onChannelNameChange={setNewChannelName}
               agentId={newAgentId}
               onAgentIdChange={setNewAgentId}
-              isDefault={newIsDefault}
-              onIsDefaultChange={setNewIsDefault}
               onSubmit={handleAddMapping}
               submitting={addingMapping}
             />
@@ -473,15 +454,15 @@ function NotConnectedCard({
 }
 
 function ConnectedWorkspaceCard({
-  installation,
+  integration,
   onDisconnect,
   disconnecting,
 }: {
-  installation: SlackInstallation;
+  integration: ChannelIntegration;
   onDisconnect: () => void;
   disconnecting: boolean;
 }) {
-  const installedDate = installation.installed_at ?? installation.created_at;
+  const installedDate = integration.created_at;
 
   return (
     <Card>
@@ -492,13 +473,13 @@ function ConnectedWorkspaceCard({
               <SlackIcon className="h-5 w-5" />
             </div>
             <div>
-              <CardTitle>{installation.team_name}</CardTitle>
+              <CardTitle>Slack Workspace</CardTitle>
               <CardDescription className="flex items-center gap-2 mt-1">
                 <Badge variant="secondary" className="text-xs">
                   Connected
                 </Badge>
-                <span className="text-xs">
-                  Team ID: {installation.team_id}
+                <span className="text-xs font-mono">
+                  Team ID: {integration.external_id}
                 </span>
                 {installedDate && (
                   <span className="text-xs">
@@ -534,12 +515,8 @@ function AddMappingDialog({
   agents,
   channelId,
   onChannelIdChange,
-  channelName,
-  onChannelNameChange,
   agentId,
   onAgentIdChange,
-  isDefault,
-  onIsDefaultChange,
   onSubmit,
   submitting,
 }: {
@@ -548,12 +525,8 @@ function AddMappingDialog({
   agents: Agent[];
   channelId: string;
   onChannelIdChange: (v: string) => void;
-  channelName: string;
-  onChannelNameChange: (v: string) => void;
   agentId: string;
   onAgentIdChange: (v: string) => void;
-  isDefault: boolean;
-  onIsDefaultChange: (v: boolean) => void;
   onSubmit: () => void;
   submitting: boolean;
 }) {
@@ -576,15 +549,9 @@ function AddMappingDialog({
               value={channelId}
               onChange={(e) => onChannelIdChange(e.target.value)}
             />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="channel-name">Channel Name</Label>
-            <Input
-              id="channel-name"
-              placeholder="#general"
-              value={channelName}
-              onChange={(e) => onChannelNameChange(e.target.value)}
-            />
+            <p className="text-xs text-muted-foreground">
+              Find this in Slack: channel details → About → Channel ID.
+            </p>
           </div>
           <div className="space-y-2">
             <Label>Agent</Label>
@@ -600,16 +567,6 @@ function AddMappingDialog({
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="is-default"
-              checked={isDefault}
-              onCheckedChange={(checked) => onIsDefaultChange(checked === true)}
-            />
-            <Label htmlFor="is-default" className="text-sm font-normal">
-              Set as default mapping for unmatched channels
-            </Label>
           </div>
         </div>
         <DialogFooter>

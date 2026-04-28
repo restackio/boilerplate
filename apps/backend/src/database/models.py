@@ -784,82 +784,89 @@ class MetricDefinition(Base):
     )
 
 
-class SlackInstallation(Base):
-    __tablename__ = "slack_installations"
+class ChannelIntegration(Base):
+    """Polymorphic per-workspace messaging integration (Slack, future: Telegram, etc.).
+
+    ``credentials`` is a provider-shaped JSONB blob; for Slack today this is
+    ``{"bot_token": "xoxb-..."}``. Display names (workspace name) are not
+    stored here — providers resolve them on demand or snapshot them onto
+    task metadata when history matters.
+    """
+
+    __tablename__ = "channel_integrations"
 
     id = Column(UUID(as_uuid=True), primary_key=True)
-    team_id = Column(String(64), nullable=False, unique=True)
-    team_name = Column(String(255), nullable=False, default="")
-    bot_token = Column(String(500), nullable=False)
-    bot_user_id = Column(String(64), nullable=False, default="")
     workspace_id = Column(
         UUID(as_uuid=True),
         ForeignKey("workspaces.id", ondelete="CASCADE"),
         nullable=False,
     )
-    installed_by = Column(String(64), nullable=True)
-    installed_at = Column(
+    channel_type = Column(String(32), nullable=False)
+    external_id = Column(String(128), nullable=False)
+    credentials = Column(JSONB, nullable=False, default=dict)
+    created_at = Column(
         DateTime,
         default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
     )
-    updated_at = Column(
-        DateTime,
-        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
-        onupdate=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+
+    __table_args__ = (
+        UniqueConstraint(
+            "channel_type",
+            "external_id",
+            name="uq_channel_integrations_type_external",
+        ),
+        Index(
+            "idx_channel_integrations_workspace",
+            "workspace_id",
+        ),
     )
 
     workspace = relationship("Workspace")
-    channel_agents = relationship(
-        "SlackChannelAgent",
-        back_populates="installation",
+    channels = relationship(
+        "Channel",
+        back_populates="integration",
         cascade="all, delete-orphan",
     )
 
 
-class SlackChannelAgent(Base):
-    __tablename__ = "slack_channel_agents"
+class Channel(Base):
+    """Per-channel binding from an external messaging channel to an agent."""
+
+    __tablename__ = "channels"
 
     id = Column(UUID(as_uuid=True), primary_key=True)
-    slack_installation_id = Column(
+    channel_integration_id = Column(
         UUID(as_uuid=True),
-        ForeignKey("slack_installations.id", ondelete="CASCADE"),
+        ForeignKey("channel_integrations.id", ondelete="CASCADE"),
         nullable=False,
     )
-    channel_id = Column(String(64), nullable=False)
-    channel_name = Column(String(255), nullable=False, default="")
+    external_channel_id = Column(String(128), nullable=False)
     agent_id = Column(
         UUID(as_uuid=True),
         ForeignKey("agents.id", ondelete="CASCADE"),
         nullable=False,
     )
-    is_default = Column(Boolean, nullable=False, default=False)
-    enabled = Column(Boolean, nullable=False, default=True)
     created_at = Column(
         DateTime,
         default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
     )
-    updated_at = Column(
-        DateTime,
-        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
-        onupdate=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
-    )
 
     __table_args__ = (
         UniqueConstraint(
-            "slack_installation_id",
-            "channel_id",
+            "channel_integration_id",
+            "external_channel_id",
             "agent_id",
-            name="uq_slack_channel_agent",
+            name="uq_channels_integration_external_agent",
         ),
         Index(
-            "idx_slack_channel_agents_lookup",
-            "channel_id",
-            "slack_installation_id",
+            "idx_channels_lookup",
+            "external_channel_id",
+            "channel_integration_id",
         ),
     )
 
-    installation = relationship(
-        "SlackInstallation", back_populates="channel_agents"
+    integration = relationship(
+        "ChannelIntegration", back_populates="channels"
     )
     agent = relationship("Agent")
 

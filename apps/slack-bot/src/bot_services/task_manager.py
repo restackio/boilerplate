@@ -22,13 +22,19 @@ async def create_task_from_slack(
     slack_thread_ts: str,
     slack_user_id: str,
     slack_team_id: str | None = None,
+    slack_channel_name: str | None = None,
     assigned_to_id: str | None = None,
 ) -> dict[str, Any] | None:
     """Schedule a TasksCreateWorkflow with Slack metadata attached.
 
-    slack_team_id is needed so the backend can resolve the correct per-workspace
-    bot token (from slack_installations) when posting the agent's replies and
-    completion notifications back into the originating Slack thread.
+    ``slack_team_id`` is needed so the backend can resolve the correct
+    per-workspace bot token (from ``channel_integrations.credentials``) when
+    posting the agent's replies and completion notifications back into the
+    originating Slack thread.
+
+    ``slack_channel_name`` is snapshotted onto ``task_metadata`` because we
+    intentionally don't persist channel display names — this keeps history
+    readable even if the channel is later renamed in Slack.
     """
     from ..client import client as restack_client
 
@@ -42,6 +48,8 @@ async def create_task_from_slack(
     }
     if slack_team_id:
         task_metadata["slack_team_id"] = slack_team_id
+    if slack_channel_name:
+        task_metadata["slack_channel_name"] = slack_channel_name
 
     try:
         run_id = await restack_client.schedule_workflow(

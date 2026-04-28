@@ -2,9 +2,10 @@
 
 Token resolution:
 - Multi-workspace OAuth installs store a per-team bot token in the
-  slack_installations table. Each Slack-originated task embeds the Slack
-  team_id under ``task_metadata["slack_team_id"]`` when it's created; we look
-  up the token for that team at call time.
+  ``channel_integrations`` table under ``credentials->>'bot_token'`` (one row
+  per Slack workspace, ``channel_type='slack'``). Each Slack-originated task
+  embeds the Slack team_id under ``task_metadata["slack_team_id"]`` when it's
+  created; we look up the token for that team at call time.
 - Single-workspace setups can still use a static ``SLACK_BOT_TOKEN`` env var
   as a fallback when no team_id is supplied (or if the DB lookup misses).
 """
@@ -20,7 +21,9 @@ from restack_ai.function import function
 from sqlalchemy import select
 
 from src.database.connection import get_async_db
-from src.database.models import SlackInstallation
+from src.database.models import ChannelIntegration
+
+SLACK_CHANNEL_TYPE = "slack"
 
 logger = logging.getLogger(__name__)
 
@@ -33,23 +36,29 @@ _DESCRIPTION_PREVIEW_MAX = 500
 async def _resolve_bot_token(slack_team_id: str | None) -> str | None:
     """Return the bot token to use for this Slack call.
 
-    Prefers the per-team token from slack_installations when a team_id is
-    provided; falls back to the SLACK_BOT_TOKEN env var for single-workspace
-    deployments.
+    Prefers the per-team token stored in ``channel_integrations.credentials``
+    when a team_id is provided; falls back to the SLACK_BOT_TOKEN env var
+    for single-workspace deployments.
     """
     if slack_team_id:
         try:
             async for db in get_async_db():
                 result = await db.execute(
-                    select(SlackInstallation.bot_token).where(
-                        SlackInstallation.team_id == slack_team_id
+                    select(ChannelIntegration.credentials).where(
+                        ChannelIntegration.channel_type == SLACK_CHANNEL_TYPE,
+                        ChannelIntegration.external_id == slack_team_id,
                     )
                 )
-                token = result.scalar_one_or_none()
-                if token:
+                credentials = result.scalar_one_or_none()
+                token = (
+                    credentials.get("bot_token")
+                    if isinstance(credentials, dict)
+                    else None
+                )
+                if isinstance(token, str) and token:
                     return token
                 logger.warning(
-                    "No Slack installation found for team_id=%s; "
+                    "No Slack integration found for team_id=%s; "
                     "falling back to SLACK_BOT_TOKEN env",
                     slack_team_id,
                 )
@@ -76,7 +85,7 @@ class SlackPostMessageInput(BaseModel):
         None,
         description=(
             "Slack team/workspace id, used to resolve the per-workspace bot "
-            "token from the slack_installations table."
+            "token from channel_integrations.credentials."
         ),
     )
 
@@ -100,7 +109,7 @@ class SlackUpdateMessageInput(BaseModel):
         None,
         description=(
             "Slack team/workspace id, used to resolve the per-workspace bot "
-            "token from the slack_installations table."
+            "token from channel_integrations.credentials."
         ),
     )
 
@@ -120,7 +129,7 @@ class SlackReactionInput(BaseModel):
         None,
         description=(
             "Slack team/workspace id, used to resolve the per-workspace bot "
-            "token from the slack_installations table."
+            "token from channel_integrations.credentials."
         ),
     )
 

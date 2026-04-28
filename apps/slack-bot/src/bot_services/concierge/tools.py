@@ -7,8 +7,8 @@ Each tool is:
 * Dispatched via ``dispatch_tool_call(name, arguments, context)``.
 
 The ``context`` dict carries per-request information the tools need but
-that the LLM must NOT control (workspace_id, installation_id, the Slack
-channel the user is currently in, etc.). This prevents the LLM from
+that the LLM must NOT control (workspace_id, channel_integration_id, the
+Slack channel the user is currently in, etc.). This prevents the LLM from
 configuring a channel it's not in, or impersonating another workspace.
 """
 
@@ -140,8 +140,8 @@ async def _tool_list_agents(context: dict[str, Any]) -> dict[str, Any]:
 
 
 async def _tool_list_channel_mappings(context: dict[str, Any]) -> dict[str, Any]:
-    installation_id = context.get("installation_id")
-    if not installation_id:
+    channel_integration_id = context.get("channel_integration_id")
+    if not channel_integration_id:
         return {"mappings": [], "note": "No Slack installation linked."}
 
     from ...client import client as restack_client
@@ -149,9 +149,11 @@ async def _tool_list_channel_mappings(context: dict[str, Any]) -> dict[str, Any]
     wf_id = f"slack_concierge_list_mappings_{uuid.uuid4().hex[:10]}"
     try:
         run_id = await restack_client.schedule_workflow(
-            workflow_name="SlackChannelAgentsByInstallationWorkflow",
+            workflow_name="ChannelsByIntegrationWorkflow",
             workflow_id=wf_id,
-            workflow_input={"slack_installation_id": installation_id},
+            workflow_input={
+                "channel_integration_id": channel_integration_id,
+            },
             task_queue=config.RESTACK_TASK_QUEUE,
         )
         result = await restack_client.get_workflow_result(
@@ -163,25 +165,27 @@ async def _tool_list_channel_mappings(context: dict[str, Any]) -> dict[str, Any]
 
     mappings_raw: list[Any] = []
     if isinstance(result, dict):
-        mappings_raw = result.get("channel_agents") or []
-    elif hasattr(result, "channel_agents"):
-        mappings_raw = result.channel_agents or []
+        mappings_raw = result.get("channels") or []
+    elif hasattr(result, "channels"):
+        mappings_raw = result.channels or []
 
+    # Channel display names are intentionally not stored — the LLM only
+    # needs the (channel_id → agent_id) mapping to answer "what's set up
+    # where". Slack's renderer turns C-prefixed IDs into clickable
+    # #channel-name links automatically.
     mappings: list[dict[str, Any]] = []
     for m in mappings_raw:
         if isinstance(m, dict):
             mappings.append(
                 {
-                    "channel_id": m.get("channel_id", ""),
-                    "channel_name": m.get("channel_name", ""),
+                    "channel_id": m.get("external_channel_id", ""),
                     "agent_id": m.get("agent_id", ""),
                 }
             )
         else:
             mappings.append(
                 {
-                    "channel_id": getattr(m, "channel_id", ""),
-                    "channel_name": getattr(m, "channel_name", ""),
+                    "channel_id": getattr(m, "external_channel_id", ""),
                     "agent_id": str(getattr(m, "agent_id", "")),
                 }
             )
@@ -195,11 +199,10 @@ async def _tool_configure_channel_agent(
     if not agent_id:
         return {"error": "agent_id is required."}
 
-    installation_id = context.get("installation_id")
+    channel_integration_id = context.get("channel_integration_id")
     channel_id = context.get("channel_id")
-    channel_name = context.get("channel_name", "")
 
-    if not installation_id:
+    if not channel_integration_id:
         return {
             "error": (
                 "No Slack installation linked — cannot persist mapping. "
@@ -221,14 +224,12 @@ async def _tool_configure_channel_agent(
     wf_id = f"slack_concierge_cfg_{channel_id}_{uuid.uuid4().hex[:8]}"
     try:
         run_id = await restack_client.schedule_workflow(
-            workflow_name="SlackChannelAgentCreateWorkflow",
+            workflow_name="ChannelCreateWorkflow",
             workflow_id=wf_id,
             workflow_input={
-                "slack_installation_id": installation_id,
-                "channel_id": channel_id,
-                "channel_name": channel_name,
+                "channel_integration_id": channel_integration_id,
+                "external_channel_id": channel_id,
                 "agent_id": agent_id,
-                "is_default": False,
             },
             task_queue=config.RESTACK_TASK_QUEUE,
         )
@@ -271,6 +272,7 @@ async def _tool_hand_off_to_agent(
     slack_user_id = context.get("slack_user_id", "")
     user_name = context.get("user_name", "Unknown")
     team_id = context.get("team_id") or ""
+    channel_name = context.get("channel_name") or None
 
     title = message[:80] if len(message) > 80 else message
     description = (
@@ -287,6 +289,7 @@ async def _tool_hand_off_to_agent(
         slack_thread_ts=thread_ts,
         slack_user_id=slack_user_id,
         slack_team_id=team_id or None,
+        slack_channel_name=channel_name,
     )
     if not result:
         return {"error": "Failed to create task."}

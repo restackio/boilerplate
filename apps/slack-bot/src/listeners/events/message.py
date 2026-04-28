@@ -59,7 +59,7 @@ async def _handle_new_dm(event, say, client):
 
         team_id = event.get("team") or event.get("team_id") or ""
         workspace_id = None
-        installation_id = None
+        channel_integration_id = None
         agent = None
 
         # Try channel routing first
@@ -67,7 +67,7 @@ async def _handle_new_dm(event, say, client):
             route = await route_slack_event(team_id, channel_id)
             if route:
                 workspace_id = route.get("workspace_id")
-                installation_id = route.get("installation_id")
+                channel_integration_id = route.get("channel_integration_id")
                 if route.get("found") and route.get("agent_id"):
                     agent = {"id": route["agent_id"], "name": route.get("agent_name", "Agent")}
                     if route.get("bot_token"):
@@ -94,7 +94,7 @@ async def _handle_new_dm(event, say, client):
                 user_message=message_text,
                 context={
                     "workspace_id": workspace_id,
-                    "installation_id": installation_id,
+                    "channel_integration_id": channel_integration_id,
                     "channel_id": channel_id,
                     "channel_name": "",
                     "slack_user_id": user_id,

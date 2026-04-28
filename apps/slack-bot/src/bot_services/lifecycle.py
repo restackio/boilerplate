@@ -1,6 +1,6 @@
 """Clean up stale Slack installations when Slack signals they're gone.
 
-Two paths remove a stored ``slack_installations`` row:
+Two paths remove a stored ``channel_integrations`` row (channel_type='slack'):
 
 1. **Push** — Slack sends ``app_uninstalled`` / ``tokens_revoked`` events
    when the admin removes the app or revokes tokens. Handlers in
@@ -42,7 +42,7 @@ def is_revoked_auth_error(err_code: str | None) -> bool:
 
 
 async def drop_installation(team_id: str, reason: str) -> bool:
-    """Delete the SlackInstallation row for ``team_id``.
+    """Delete the Slack channel_integration row for ``team_id``.
 
     Safe to call repeatedly — the backend workflow raises
     ``NonRetryableError`` if the row is already gone, which we swallow.
@@ -60,9 +60,12 @@ async def drop_installation(team_id: str, reason: str) -> bool:
     workflow_id = f"slack_uninstall_{team_id}_{uuid.uuid4().hex[:12]}"
     try:
         run_id = await restack_client.schedule_workflow(
-            workflow_name="SlackInstallationDeleteWorkflow",
+            workflow_name="ChannelIntegrationDeleteWorkflow",
             workflow_id=workflow_id,
-            workflow_input={"team_id": team_id},
+            workflow_input={
+                "channel_type": "slack",
+                "external_id": team_id,
+            },
             task_queue=config.RESTACK_TASK_QUEUE,
         )
         await restack_client.get_workflow_result(
