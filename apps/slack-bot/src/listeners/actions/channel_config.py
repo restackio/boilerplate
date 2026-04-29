@@ -73,6 +73,7 @@ async def _do_configure(body, say, client):
                         "channel_integration_id": channel_integration_id,
                         "external_channel_id": channel_id,
                         "agent_id": agent_id,
+                        "notify_slack": False,
                     },
                     task_queue=config.RESTACK_TASK_QUEUE,
                 )

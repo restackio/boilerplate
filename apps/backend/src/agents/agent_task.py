@@ -560,6 +560,13 @@ class AgentTask:
                 else "Unknown"
             )
 
+            # Build-session test subtasks: allow Slack mapped-channel "task started"
+            # posts (TasksCreateWorkflow otherwise skips all subtasks to avoid
+            # spam when pipeline parents fan out many children).
+            subtask_meta: dict[str, Any] | None = None
+            if getattr(self, "title", "") == "Build":
+                subtask_meta = {"notify_slack_mapped": True}
+
             # Create and start child task using TasksCreateWorkflow
             task_input = TaskCreateInput(
                 workspace_id=self.workspace_id,
@@ -572,6 +579,7 @@ class AgentTask:
                 status="in_progress",
                 parent_task_id=self.task_id,
                 temporal_parent_agent_id=parent_workflow_id,
+                task_metadata=subtask_meta,
             )
 
             child_workflow_id = f"task_create_{uuid()}"

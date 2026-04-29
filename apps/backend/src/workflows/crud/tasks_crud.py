@@ -29,9 +29,12 @@ with import_functions():
     from src.functions.slack_callback import (
         SlackPostTaskStartedInput,
         SlackPostTaskStartedOutput,
+        SlackPostToMappedAgentChannelsInput,
+        SlackPostToMappedAgentChannelsOutput,
         TaskSlackCallbackInput,
         notify_slack_on_task_complete,
         slack_post_task_started,
+        slack_post_task_to_agent_mapped_channels,
     )
     from src.functions.tasks_crud import (
         BuildSessionSnapshotOutput,
@@ -245,11 +248,61 @@ class TasksCreateWorkflow:
                 start_to_close_timeout=timedelta(seconds=2),
             )
 
-            # Post to Slack if configured and this isn't already a Slack-originated or subtask
             task_metadata = result.task.task_metadata or {}
-            if (
-                not task_metadata.get("slack_channel")
-                and not result.task.parent_task_id
+            _origin_ch = task_metadata.get("slack_channel")
+            _exclude_origin = (
+                _origin_ch if isinstance(_origin_ch, str) and _origin_ch else None
+            )
+            _slack_mapped_subtask = task_metadata.get(
+                "notify_slack_mapped"
+            ) is True
+
+            # Post to every Slack channel mapped to this agent (excludes the
+            # origin channel when the task started in Slack to avoid duplicate
+            # notices in that thread). Subtasks are skipped by default (pipeline
+            # fan-out); build-session test subtasks set notify_slack_mapped.
+            if result.task.agent_id and (
+                not result.task.parent_task_id or _slack_mapped_subtask
+            ):
+                try:
+                    _mapped: SlackPostToMappedAgentChannelsOutput = (
+                        await workflow.step(
+                            function=slack_post_task_to_agent_mapped_channels,
+                            function_input=SlackPostToMappedAgentChannelsInput(
+                                workspace_id=result.task.workspace_id,
+                                agent_id=result.task.agent_id,
+                                task_id=result.task.id,
+                                task_title=result.task.title,
+                                task_description=result.task.description
+                                or "",
+                                agent_name=result.task.agent_name
+                                or "Agent",
+                                exclude_slack_channel_id=_exclude_origin,
+                            ),
+                            task_queue=TASK_QUEUE,
+                            start_to_close_timeout=timedelta(seconds=30),
+                        )
+                    )
+                    if _mapped.error:
+                        log.warning(
+                            "Slack mapped-channel task notify: %s",
+                            _mapped.error,
+                        )
+                except (
+                    OSError,
+                    ValueError,
+                    RuntimeError,
+                    NonRetryableError,
+                ) as mapped_err:
+                    log.warning(
+                        "Slack mapped-channel notify failed (non-fatal): %s",
+                        mapped_err,
+                    )
+
+            # Post to default Slack channel (env) if configured; same subtask
+            # exception as mapped-channel posts above.
+            if not task_metadata.get("slack_channel") and (
+                not result.task.parent_task_id or _slack_mapped_subtask
             ):
                 try:
                     slack_result: SlackPostTaskStartedOutput = await workflow.step(

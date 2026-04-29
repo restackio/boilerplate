@@ -10,6 +10,7 @@ through to a per-provider concierge LLM.
 
 from __future__ import annotations
 
+import logging
 import uuid
 from typing import Any
 
@@ -18,7 +19,10 @@ from restack_ai.function import NonRetryableError, function
 from sqlalchemy import select
 
 from src.database.connection import get_async_db
-from src.database.models import Channel, ChannelIntegration
+from src.database.models import Agent, Channel, ChannelIntegration
+from src.functions.slack_callback import _slack_api_call
+
+logger = logging.getLogger(__name__)
 
 # ── Input models ────────────────────────────────────────────────────
 
@@ -62,6 +66,14 @@ class ChannelCreateInput(BaseModel):
     channel_integration_id: str = Field(..., min_length=1)
     external_channel_id: str = Field(..., min_length=1)
     agent_id: str = Field(..., min_length=1)
+    notify_slack: bool = Field(
+        default=True,
+        description=(
+            "If True and the integration is Slack, post a confirmation in the "
+            "Slack channel. Set False when the user already saw confirmation in "
+            "Slack (e.g. the in-app agent picker that updates the prompt message)."
+        ),
+    )
 
 
 class ChannelDeleteInput(BaseModel):
@@ -214,6 +226,53 @@ def _serialize_channel(ch: Channel) -> ChannelOutput:
         agent_id=str(ch.agent_id),
         created_at=ch.created_at.isoformat() if ch.created_at else None,
     )
+
+
+async def _maybe_post_slack_mapping_confirmation(
+    db, ch: Channel, *, agent_name: str, notify: bool
+) -> None:
+    """Post a short in-channel message after a dashboard/API bind (best-effort)."""
+    if not notify:
+        return
+    if ch.external_channel_id.startswith("D"):
+        return
+    inst_row = await db.execute(
+        select(ChannelIntegration).where(
+            ChannelIntegration.id == ch.channel_integration_id
+        )
+    )
+    inst = inst_row.scalar_one_or_none()
+    if not inst or inst.channel_type != "slack":
+        return
+    token = _bot_token_from_credentials(
+        inst.credentials
+        if isinstance(inst.credentials, dict)
+        else None
+    )
+    if not token:
+        return
+    try:
+        result = await _slack_api_call(
+            "chat.postMessage",
+            {
+                "channel": ch.external_channel_id,
+                "text": (
+                    f"*{agent_name}* added to this channel. "
+                ),
+            },
+            token,
+        )
+        if not result.get("ok"):
+            logger.warning(
+                "Slack mapping confirmation not posted: %s (channel=%s)",
+                result.get("error"),
+                ch.external_channel_id,
+            )
+    except Exception:
+        logger.exception(
+            "Slack mapping confirmation post failed (channel=%s)",
+            ch.external_channel_id,
+        )
 
 
 def _bot_token_from_credentials(
@@ -396,6 +455,17 @@ async def channel_create(
             db.add(ch)
             await db.commit()
             await db.refresh(ch)
+            ag_row = await db.execute(
+                select(Agent).where(Agent.id == ch.agent_id)
+            )
+            ag = ag_row.scalar_one_or_none()
+            agent_name = ag.name if ag else "Agent"
+            await _maybe_post_slack_mapping_confirmation(
+                db,
+                ch,
+                agent_name=agent_name,
+                notify=function_input.notify_slack,
+            )
             return ChannelSingleOutput(channel=_serialize_channel(ch))
         except Exception as e:
             await db.rollback()
@@ -545,14 +615,20 @@ async def channel_route_event(
 
             bot_token = _bot_token_from_credentials(inst.credentials)
 
+            # Same Slack channel can be bound to more than one agent (unique on
+            # integration + external channel + *agent*). Route using the latest
+            # mapping so events do not fail with MultipleResultsFound.
             ch_result = await db.execute(
-                select(Channel).where(
+                select(Channel)
+                .where(
                     Channel.channel_integration_id == inst.id,
                     Channel.external_channel_id
                     == function_input.external_channel_id,
                 )
+                .order_by(Channel.created_at.desc())
+                .limit(1)
             )
-            ch = ch_result.scalar_one_or_none()
+            ch = ch_result.scalars().first()
 
             if not ch:
                 return ChannelRouteResult(

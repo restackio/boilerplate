@@ -13,6 +13,7 @@ Token resolution:
 import logging
 import os
 import re
+import uuid
 from typing import Any
 
 import httpx
@@ -21,7 +22,7 @@ from restack_ai.function import function
 from sqlalchemy import select
 
 from src.database.connection import get_async_db
-from src.database.models import ChannelIntegration
+from src.database.models import Channel, ChannelIntegration
 
 SLACK_CHANNEL_TYPE = "slack"
 
@@ -517,6 +518,177 @@ async def notify_slack_on_task_complete(
     return TaskSlackCallbackOutput(notified=False, error=error)
 
 
+def _bot_token_from_integration_credentials(
+    credentials: Any,
+) -> str | None:
+    if not isinstance(credentials, dict):
+        return None
+    t = credentials.get("bot_token")
+    return t if isinstance(t, str) and t else None
+
+
+class SlackPostToMappedAgentChannelsInput(BaseModel):
+    """Post a new-task notice to every Slack channel bound to the task's agent."""
+
+    workspace_id: str = Field(..., min_length=1)
+    agent_id: str = Field(..., min_length=1)
+    task_id: str = Field(..., min_length=1)
+    task_title: str = Field(..., min_length=1)
+    task_description: str = Field(
+        default="",
+        description="User message / task body (may be empty for some flows)",
+    )
+    agent_name: str = Field(default="Agent")
+    exclude_slack_channel_id: str | None = Field(
+        default=None,
+        description=(
+            "If set, skip this Slack channel (e.g. task origin) so the "
+            "thread is not notified twice; other mapped channels still get a post."
+        ),
+    )
+    frontend_url: str | None = None
+
+
+class SlackPostToMappedAgentChannelsOutput(BaseModel):
+    posted_to_channels: int = 0
+    error: str | None = None
+
+
+@function.defn()
+async def slack_post_task_to_agent_mapped_channels(
+    function_input: SlackPostToMappedAgentChannelsInput,
+) -> SlackPostToMappedAgentChannelsOutput:
+    """Notify Slack channels that have a channel→agent mapping for this agent.
+
+    Best-effort: per-channel failures are logged; the activity does not throw.
+    """
+    excl = (function_input.exclude_slack_channel_id or "").strip()
+    try:
+        wid = uuid.UUID(function_input.workspace_id)
+        aid = uuid.UUID(function_input.agent_id)
+    except (ValueError, TypeError) as e:
+        return SlackPostToMappedAgentChannelsOutput(
+            error=f"invalid_ids: {e!s}"
+        )
+
+    frontend_url = function_input.frontend_url or os.getenv(
+        "FRONTEND_URL", "http://localhost:3000"
+    )
+    task_url = _task_dashboard_url(
+        frontend_url,
+        function_input.task_id,
+        function_input.task_title,
+    )
+    desc = function_input.task_description or ""
+    preview = desc[:_DESCRIPTION_PREVIEW_MAX]
+    if len(desc) > _DESCRIPTION_PREVIEW_MAX:
+        preview += "..."
+
+    blocks: list[dict[str, Any]] = [
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": (
+                    f"*New task started*\n\n"
+                    f"*{function_input.task_title}*\n"
+                    f"Agent: {function_input.agent_name}"
+                ),
+            },
+        },
+        *(
+            [
+                {
+                    "type": "section",
+                    "text": {"type": "mrkdwn", "text": preview},
+                }
+            ]
+            if preview.strip()
+            else []
+        ),
+        {
+            "type": "actions",
+            "elements": [
+                {
+                    "type": "button",
+                    "text": {
+                        "type": "plain_text",
+                        "text": "View in Dashboard",
+                    },
+                    "url": task_url,
+                    "action_id": "view_task",
+                }
+            ],
+        },
+    ]
+    text_fallback = (
+        f"New task: {function_input.task_title} (Agent: {function_input.agent_name})"
+    )
+
+    posted = 0
+    async for db in get_async_db():
+        try:
+            q = await db.execute(
+                select(Channel, ChannelIntegration)
+                .join(
+                    ChannelIntegration,
+                    Channel.channel_integration_id
+                    == ChannelIntegration.id,
+                )
+                .where(
+                    ChannelIntegration.workspace_id == wid,
+                    ChannelIntegration.channel_type == SLACK_CHANNEL_TYPE,
+                    Channel.agent_id == aid,
+                )
+            )
+            rows = list(q.all())
+        except Exception as e:
+            logger.exception("Failed to list mapped Slack channels: %s", e)
+            return SlackPostToMappedAgentChannelsOutput(
+                error=f"list_failed: {e!s}"
+            )
+        for ch, inst in rows:
+            cid = (ch.external_channel_id or "").strip()
+            if not cid or cid.startswith("D"):
+                continue
+            if excl and cid == excl:
+                continue
+            token = _bot_token_from_integration_credentials(
+                inst.credentials
+            )
+            if not token:
+                logger.warning(
+                    "No bot token for channel mapping channel=%s integration=%s",
+                    cid,
+                    inst.id,
+                )
+                continue
+            try:
+                result = await _slack_api_call(
+                    "chat.postMessage",
+                    {
+                        "channel": cid,
+                        "text": text_fallback,
+                        "blocks": blocks,
+                    },
+                    token,
+                )
+                if result.get("ok"):
+                    posted += 1
+                else:
+                    logger.warning(
+                        "postMessage to mapped channel %s: %s",
+                        cid,
+                        result.get("error"),
+                    )
+            except Exception:
+                logger.exception("postMessage failed for channel %s", cid)
+        return SlackPostToMappedAgentChannelsOutput(
+            posted_to_channels=posted
+        )
+    return SlackPostToMappedAgentChannelsOutput(error="no_db")
+
+
 class SlackPostTaskStartedInput(BaseModel):
     task_id: str = Field(..., description="Task ID")
     task_title: str = Field(..., description="Task title")
@@ -569,7 +741,7 @@ async def slack_post_task_started(
             "text": {
                 "type": "mrkdwn",
                 "text": (
-                    f":rocket: *New task started*\n\n"
+                    f"*New task started*\n\n"
                     f"*{function_input.task_title}*\n"
                     f"Agent: {function_input.agent_name}"
                 ),

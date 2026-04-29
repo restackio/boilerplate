@@ -154,6 +154,7 @@ from src.functions.slack_callback import (
     slack_add_reaction,
     slack_post_message,
     slack_post_task_started,
+    slack_post_task_to_agent_mapped_channels,
     slack_remove_reaction,
     slack_update_message,
 )
@@ -507,6 +508,7 @@ async def run_restack_service() -> None:
             subtask_notify,
             slack_post_message,
             slack_post_task_started,
+            slack_post_task_to_agent_mapped_channels,
             slack_update_message,
             slack_add_reaction,
             slack_remove_reaction,
