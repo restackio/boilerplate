@@ -10,13 +10,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  Hash,
-  Plus,
-  RefreshCw,
-  Trash2,
-  ExternalLink,
-} from "lucide-react";
+import { Hash, Plus, RefreshCw, Trash2, ExternalLink } from "lucide-react";
 import { Button } from "@workspace/ui/components/ui/button";
 import { Input } from "@workspace/ui/components/ui/input";
 import { Label } from "@workspace/ui/components/ui/label";
@@ -44,11 +38,10 @@ import {
   DialogTitle,
 } from "@workspace/ui/components/ui/dialog";
 import { useWorkspaceScopedActions } from "@/hooks/use-workspace-scoped-actions";
+import { useAddToSlackAuthorizeUrl } from "@/lib/use-add-to-slack-url";
 
 const SLACK_CHANNEL_TYPE = "slack";
 
-const SLACK_BOT_URL =
-  process.env.NEXT_PUBLIC_SLACK_BOT_URL || "http://localhost:3002";
 
 interface ChannelIntegration {
   id: string;
@@ -80,6 +73,7 @@ interface BuildChannelsProps {
 
 export function BuildChannels({ workspaceId, agents }: BuildChannelsProps) {
   const { executeWorkflow } = useWorkspaceScopedActions();
+  const addToSlackUrl = useAddToSlackAuthorizeUrl(workspaceId);
 
   const [integration, setIntegration] = useState<ChannelIntegration | null>(
     null,
@@ -116,7 +110,7 @@ export function BuildChannels({ workspaceId, agents }: BuildChannelsProps) {
       const raw = result.data;
       const integrations = Array.isArray(raw)
         ? raw
-        : (raw as { integrations?: ChannelIntegration[] }).integrations ?? [];
+        : ((raw as { integrations?: ChannelIntegration[] }).integrations ?? []);
       setIntegration(integrations[0] ?? null);
     } else {
       setIntegration(null);
@@ -129,8 +123,7 @@ export function BuildChannels({ workspaceId, agents }: BuildChannelsProps) {
       return;
     }
     const result = await executeWorkflow<
-      | { channels?: ChannelWithIntegration[] }
-      | ChannelWithIntegration[]
+      { channels?: ChannelWithIntegration[] } | ChannelWithIntegration[]
     >("ChannelsByWorkspaceWorkflow", {
       workspace_id: workspaceId,
       channel_type: SLACK_CHANNEL_TYPE,
@@ -140,7 +133,7 @@ export function BuildChannels({ workspaceId, agents }: BuildChannelsProps) {
       const raw = result.data;
       const items = Array.isArray(raw)
         ? raw
-        : (raw as { channels?: ChannelWithIntegration[] }).channels ?? [];
+        : ((raw as { channels?: ChannelWithIntegration[] }).channels ?? []);
       setBindings(items);
     }
   }, [workspaceId, agentIds, executeWorkflow]);
@@ -205,18 +198,12 @@ export function BuildChannels({ workspaceId, agents }: BuildChannelsProps) {
     }
   };
 
-  const oauthUrl = `${SLACK_BOT_URL}/slack/oauth/authorize${
-    workspaceId ? `?workspace_id=${workspaceId}` : ""
-  }`;
-
   const canAdd = Boolean(integration) && agents.length > 0;
 
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <span className="text-xs text-muted-foreground">
-          Slack channel → agent mappings for agents in this build.
-        </span>
+        <span className="text-xs text-muted-foreground"></span>
         <div className="flex items-center gap-1">
           <Button
             size="sm"
@@ -240,8 +227,8 @@ export function BuildChannels({ workspaceId, agents }: BuildChannelsProps) {
               !integration
                 ? "Connect Slack first"
                 : agents.length === 0
-                ? "No agents in this build yet"
-                : "Add a channel mapping"
+                  ? "No agents in this build yet"
+                  : "Add a channel mapping"
             }
           >
             <Plus className="h-3.5 w-3.5 mr-1" />
@@ -250,19 +237,24 @@ export function BuildChannels({ workspaceId, agents }: BuildChannelsProps) {
         </div>
       </div>
 
-      {error && (
-        <div className="text-xs text-destructive">{error}</div>
-      )}
+      {error && <div className="text-xs text-destructive">{error}</div>}
 
       {!integration ? (
         <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground space-y-2">
           <p>No Slack workspace connected.</p>
-          <Button asChild size="sm" variant="outline" className="h-7">
-            <a href={oauthUrl}>
+          {addToSlackUrl ? (
+            <Button asChild size="sm" variant="outline" className="h-7">
+              <a href={addToSlackUrl}>
+                <ExternalLink className="h-3.5 w-3.5 mr-1" />
+                Connect Slack
+              </a>
+            </Button>
+          ) : (
+            <Button size="sm" variant="outline" className="h-7" disabled>
               <ExternalLink className="h-3.5 w-3.5 mr-1" />
               Connect Slack
-            </a>
-          </Button>
+            </Button>
+          )}
         </div>
       ) : bindings.length === 0 ? (
         <p className="text-xs text-muted-foreground py-3">
@@ -360,7 +352,10 @@ export function BuildChannels({ workspaceId, agents }: BuildChannelsProps) {
             <Button
               onClick={() => void handleAdd()}
               disabled={
-                !newChannelId.trim() || !newAgentId || submitting || !integration
+                !newChannelId.trim() ||
+                !newAgentId ||
+                submitting ||
+                !integration
               }
             >
               {submitting ? (

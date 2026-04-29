@@ -43,9 +43,7 @@ import {
   type Agent,
 } from "@/hooks/use-workspace-scoped-actions";
 import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
-
-const SLACK_BOT_URL =
-  process.env.NEXT_PUBLIC_SLACK_BOT_URL || "http://localhost:3002";
+import { useAddToSlackAuthorizeUrl } from "@/lib/use-add-to-slack-url";
 
 const SLACK_CHANNEL_TYPE = "slack";
 
@@ -419,9 +417,7 @@ function NotConnectedCard({
 }: {
   workspaceId: string | null;
 }) {
-  const oauthUrl = `${SLACK_BOT_URL}/slack/oauth/authorize${
-    workspaceId ? `?workspace_id=${workspaceId}` : ""
-  }`;
+  const oauthUrl = useAddToSlackAuthorizeUrl(workspaceId);
 
   return (
     <Card>
@@ -436,12 +432,19 @@ function NotConnectedCard({
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col items-center gap-3 pb-6 pt-2">
-        <Button asChild size="lg">
-          <a href={oauthUrl}>
+        {oauthUrl ? (
+          <Button asChild size="lg">
+            <a href={oauthUrl}>
+              <ExternalLink className="h-4 w-4 mr-2" />
+              Add to Slack
+            </a>
+          </Button>
+        ) : (
+          <Button size="lg" disabled>
             <ExternalLink className="h-4 w-4 mr-2" />
             Add to Slack
-          </a>
-        </Button>
+          </Button>
+        )}
         <p className="text-xs text-muted-foreground max-w-sm text-center">
           Requires the Slack bot to be running in HTTP mode with{" "}
           <code className="text-xs">SLACK_CLIENT_ID</code> and{" "}

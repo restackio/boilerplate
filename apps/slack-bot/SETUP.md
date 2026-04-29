@@ -85,8 +85,18 @@ In this mode, the boilerplate handles everything end-to-end — OAuth installati
 2. They are redirected to Slack's OAuth consent screen using `SLACK_CLIENT_ID`
 3. After approval, Slack redirects back to `SLACK_HTTP_BASE_URL/slack/oauth/callback`
 4. The boilerplate exchanges the code for a bot token using `SLACK_CLIENT_SECRET` and stores the installation in the database
-5. The admin configures **channel→agent mappings** in the frontend (e.g., `#support` → Customer Support Agent, `#engineering` → Code Review Agent)
-6. Incoming Slack events hit the bot's HTTP endpoint, the channel router looks up the mapping, and dispatches to the correct agent
+5. A public **#restack-agents** channel is created (or the bot joins it, if that name already exists and the channel is visible to the bot)
+6. The admin configures **channel→agent mappings** in the frontend (e.g., `#support` → Customer Support Agent, `#engineering` → Code Review Agent)
+7. Incoming Slack events hit the bot's HTTP endpoint, the channel router looks up the mapping, and dispatches to the correct agent
+
+### OAuth v2 best practices (Slack)
+
+The flow follows Slack’s [Installing with OAuth](https://docs.slack.dev/authentication/installing-with-oauth/) guide. Notable points this boilerplate adheres to:
+
+- **One `redirect_uri` for the whole flow** — The same URL is used in the “Add to Slack” link (`/oauth/v2/authorize`) and in the `oauth.v2.access` call. A mismatch returns `bad_redirect_uri` from Slack. It must also appear under your app’s **OAuth & Permissions → Redirect URLs** (or as a subpath of a listed URL).
+- **HTTPS in production** — Use `https://` for your public `SLACK_HTTP_BASE_URL` and frontend URLs in production, as required for redirect URLs.
+- **`state`** — We pass an encoded value that carries the platform workspace id (and optional same-origin return URL for the browser). The callback requires a decodable `state` with a workspace id before continuing; treat production hardening (e.g. a signed or server-stored `state` nonce) as a follow-up if you need stricter CSRF protection than encoding alone.
+- **User-visible result** — After a successful (or failed) install, the user is redirected to the app with `slack_connected` or `slack_error` in the query string, instead of a dead-end HTML page, so the outcome is obvious (recommended in the same doc).
 
 ### Configuration
 
@@ -147,6 +157,8 @@ Use this manifest when creating a Slack app for HTTP / Integrated Router mode. R
       "bot": [
         "app_mentions:read",
         "channels:history",
+        "channels:join",
+        "channels:manage",
         "channels:read",
         "chat:write",
         "chat:write.public",
