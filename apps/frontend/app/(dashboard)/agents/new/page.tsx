@@ -22,6 +22,7 @@ import {
   BarChart3,
   FileSearch,
   FlaskConical,
+  Globe,
   Headset,
   Loader2,
   Megaphone,
@@ -61,6 +62,14 @@ const STARTER_PROMPTS: {
     iconClassName: "text-sky-500",
     prompt:
       "Build a pipeline that pulls data from a REST API on a schedule, stores it in a table, and lets me query or view the latest records.",
+  },
+  {
+    title: "Domain research pipeline",
+    teaser: "Scrape company websites and generate AI use-case briefs.",
+    icon: Globe,
+    iconClassName: "text-blue-500",
+    prompt:
+      "Build a domain research pipeline that uses Firecrawl to scrape company websites, produces AI agent use-case briefs, and provides a chat interface to explore results.\n\nIntegration: Firecrawl (already installed in workspace). Use listworkspaceintegrations with query \"firecrawl\" to find the existing integration, then listintegrationtools and updateagenttool to attach Firecrawl tools to the pipeline agent.\n\nContext store: ClickHouse dataset company-use-case-briefs (same dataset for all three agents).\n\nArchitecture — three agents:\n\n1) Pipeline agent (e.g. company-research-pipeline): type pipeline. For each company domain (one subtask per domain):\n   - Use Firecrawl to crawl up to 3 pages per domain: /about (or /about-us), /services (or /solutions, /what-we-do), /careers (or /jobs, /team). Use crawl or scrape with markdown output mode.\n   - If total scraped markdown < 300 words across all pages, flag confidence_flag = \"needs-manual-research\" and still save partial results.\n   - Otherwise, use transformdata to analyze the combined markdown with this task: \"From this company website content, extract: (1) a one-sentence summary of what the company does, (2) the top 2-3 AI agent use cases most relevant to their business, (3) for each use case a business value argument (1-2 sentences), and (4) an estimated annual dollar value for each use case based on company size/industry signals.\" Output schema: {\"type\": \"object\", \"properties\": {\"company_name\": {\"type\": \"string\"}, \"what_they_do\": {\"type\": \"string\"}, \"use_cases\": {\"type\": \"array\", \"items\": {\"type\": \"object\", \"properties\": {\"use_case\": {\"type\": \"string\"}, \"value_argument\": {\"type\": \"string\"}, \"value_dollars\": {\"type\": \"string\"}}}}, \"confidence_flag\": {\"type\": \"string\", \"enum\": [\"high\", \"medium\", \"needs-manual-research\"]}}}\n   - Use loadintodataset to write the structured output into company-use-case-briefs.\n\n2) Parent orchestrator agent (e.g. company-research-orchestrator): type pipeline. This agent receives a list of domains (via task description), then uses createsubtask to fan out one subtask per domain to the pipeline agent above. Give it updatetodos and createsubtask tools. Instructions: \"You receive a list of company domains. For each domain, create one subtask dispatched to the company-research-pipeline agent with the domain as the task description. Process in batches of 20 to avoid rate limits. Update todos to track progress.\"\n\n3) Interactive agent (e.g. company-research-chat): type interactive. Only reads from the same ClickHouse dataset company-use-case-briefs via clickhouse_run_select_query — do not give this agent Firecrawl or any write tools. Translates user questions into SELECTs behind the scenes and replies in plain English (never show SQL to the user). If the dataset is empty, tell the user the pipeline hasn't run yet.\n\n   Conversation opener (put in this agent's instructions): On the first reply after the user's first message in a new thread, start with a one-line welcome, then: \"Here are a few things you can ask me:\" and a short bullet list of 4-5 concrete examples:\n   - \"Which companies were flagged as needs-manual-research?\"\n   - \"Show me the top 10 companies by estimated AI value in dollars\"\n   - \"What are the most common use cases across all companies?\"\n   - \"Give me the full brief for [domain.com]\"\n   - \"Which companies have use cases around customer support automation?\"\n   If the user's first message is already a substantive question, give the welcome + examples briefly, then answer their question.\n\nNo MockAIIntegration.\n\nModels: Use gpt-5.4-mini for the pipeline agent (cost-efficient for volume), gpt-5.4 for the orchestrator, and gpt-5.4 for the interactive agent.",
   },
   {
     title: "Healthcare chat with PowerBI",

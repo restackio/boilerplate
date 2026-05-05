@@ -36,6 +36,9 @@ from src.workflows.tools.generate_mock import GenerateMock
 from src.workflows.tools.list_integration_tools import (
     ListIntegrationTools,
 )
+from src.workflows.tools.list_workspace_integrations import (
+    ListWorkspaceIntegrations,
+)
 from src.workflows.tools.load_into_dataset import (
     LoadIntoDataset,
 )
@@ -90,6 +93,7 @@ async def run_restack_service() -> None:
             UpdateView,
             UpdatePatternSpecs,
             ListIntegrationTools,
+            ListWorkspaceIntegrations,
             SearchRemoteMcpDirectory,
             GenerateMock,
             MockAIIntegration,
