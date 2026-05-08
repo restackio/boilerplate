@@ -821,6 +821,7 @@ class AgentTask:
                     text=f"💬 *From dashboard:*\n{markdown_to_slack(content)}",
                     thread_ts=self.task_metadata.get("slack_thread_ts"),
                     slack_team_id=self.task_metadata.get("slack_team_id"),
+                    workspace_id=str(self.workspace_id) if self.workspace_id else None,
                 ),
                 task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=10),
@@ -838,6 +839,9 @@ class AgentTask:
         channel = meta["slack_channel"]
         thread_ts = meta.get("slack_thread_ts") or None
         team_id = meta.get("slack_team_id")
+        workspace_id = (
+            str(self.workspace_id) if self.workspace_id else None
+        )
 
         display = markdown_to_slack(text.strip())
         if not display:
@@ -855,6 +859,7 @@ class AgentTask:
                         text=display,
                         thread_ts=thread_ts,
                         slack_team_id=team_id,
+                        workspace_id=workspace_id,
                     ),
                     task_queue=TASK_QUEUE,
                     start_to_close_timeout=timedelta(seconds=10),
@@ -872,6 +877,7 @@ class AgentTask:
                         ts=self._slack_msg_ts,
                         text=display,
                         slack_team_id=team_id,
+                        workspace_id=workspace_id,
                     ),
                     task_queue=TASK_QUEUE,
                     start_to_close_timeout=timedelta(seconds=10),
@@ -1389,6 +1395,10 @@ class AgentTask:
             "workspace_id": agent_input.workspace_id,
             "temporal_agent_id": agent_info().workflow_id,
             "temporal_run_id": agent_info().run_id,
+            # The Restack user who triggered this agent run. Tools that perform
+            # actions on the user's behalf (e.g. slackconnectchannel posting a
+            # welcome message attributing the connection) can pass this through.
+            "user_id": agent_input.user_id,
         }
 
         # Notify parent if this is a subtask (lightweight notification)

@@ -50,12 +50,14 @@ from src.functions.auth_crud import (
     user_signup,
 )
 from src.functions.channels_crud import (
+    channel_consume_pending_welcome,
     channel_create,
     channel_delete,
     channel_integration_delete,
     channel_integration_get_by_external_id,
     channel_integration_upsert,
     channel_integrations_by_workspace,
+    channel_mark_welcome_pending,
     channel_route_event,
     channels_by_integration,
     channels_by_workspace,
@@ -259,6 +261,7 @@ from src.workflows.crud.auth_crud import (
     UserSignupWorkflow,
 )
 from src.workflows.crud.channels_crud import (
+    ChannelConsumePendingWelcomeWorkflow,
     ChannelCreateWorkflow,
     ChannelDeleteWorkflow,
     ChannelIntegrationDeleteWorkflow,
@@ -491,6 +494,7 @@ async def run_restack_service() -> None:
             ChannelsByIntegrationWorkflow,
             ChannelsByWorkspaceWorkflow,
             ChannelRouteEventWorkflow,
+            ChannelConsumePendingWelcomeWorkflow,
             # Analytics workflow
             GetAnalyticsMetrics,
             # Feedback workflows
@@ -654,6 +658,8 @@ async def run_restack_service() -> None:
             channels_by_integration,
             channels_by_workspace,
             channel_route_event,
+            channel_consume_pending_welcome,
+            channel_mark_welcome_pending,
             slack_list_conversations,
             slack_build_install_url,
             slack_join_channel,

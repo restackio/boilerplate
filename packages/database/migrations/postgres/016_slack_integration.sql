@@ -21,9 +21,24 @@ CREATE TABLE IF NOT EXISTS channels (
     channel_integration_id      UUID NOT NULL REFERENCES channel_integrations(id) ON DELETE CASCADE,
     external_channel_id         TEXT NOT NULL,
     agent_id                    UUID NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+    -- Deferred welcome message: when a private Slack channel is connected,
+    -- the bot can't self-join (Slack constraint) so the welcome must wait
+    -- until the user runs /invite. We mark the row pending and let
+    -- member_joined_channel events consume the flag and post the welcome.
+    welcome_pending             BOOLEAN NOT NULL DEFAULT FALSE,
+    -- Restack user who initiated the connect step. Used to attribute the
+    -- welcome message ("connected by <name>"). Nullable so deletion of
+    -- the user doesn't cascade-delete connected channels.
+    connected_by_user_id        UUID REFERENCES users(id) ON DELETE SET NULL,
     created_at                  TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (channel_integration_id, external_channel_id, agent_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_channels_lookup
     ON channels(external_channel_id, channel_integration_id);
+
+-- Speeds up the member_joined_channel hot path: most channels have
+-- welcome_pending=false, so a partial index keeps the working set tiny.
+CREATE INDEX IF NOT EXISTS idx_channels_welcome_pending
+    ON channels(channel_integration_id, external_channel_id)
+    WHERE welcome_pending = TRUE;

@@ -1,10 +1,10 @@
 "use client";
 
 /**
- * Channels view for the agent-builder Data section.
+ * Channels view for the agent-builder.
  *
- * Shows the Slack channel→agent bindings for the agents created in this
- * build session. The "Add" modal does NOT call the Slack API: the user
+ * Shows the Slack channels connected to the agents created in this build
+ * session. The "Connect" modal does NOT call the Slack API: the user
  * pastes a channel ID directly, so we don't need the ``groups:read`` /
  * ``channels:read`` OAuth scopes for browsing.
  */
@@ -177,10 +177,10 @@ export function BuildChannels({ workspaceId, agents }: BuildChannelsProps) {
         setAddOpen(false);
         await fetchBindings();
       } else {
-        setError(result.error ?? "Failed to add channel mapping");
+        setError(result.error ?? "Failed to connect channel");
       }
     } catch {
-      setError("Failed to add channel mapping");
+      setError("Failed to connect channel");
     } finally {
       setSubmitting(false);
     }
@@ -196,10 +196,10 @@ export function BuildChannels({ workspaceId, agents }: BuildChannelsProps) {
       if (result.success) {
         await fetchBindings();
       } else {
-        setError(result.error ?? "Failed to delete channel mapping");
+        setError(result.error ?? "Failed to disconnect channel");
       }
     } catch {
-      setError("Failed to delete channel mapping");
+      setError("Failed to disconnect channel");
     } finally {
       setActionLoading(null);
     }
@@ -215,7 +215,7 @@ export function BuildChannels({ workspaceId, agents }: BuildChannelsProps) {
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <span className="text-xs text-muted-foreground">
-          Slack channel → agent mappings for agents in this build.
+          Slack channels connected to agents in this build.
         </span>
         <div className="flex items-center gap-1">
           <Button
@@ -241,11 +241,11 @@ export function BuildChannels({ workspaceId, agents }: BuildChannelsProps) {
                 ? "Connect Slack first"
                 : agents.length === 0
                 ? "No agents in this build yet"
-                : "Add a channel mapping"
+                : "Connect a channel"
             }
           >
             <Plus className="h-3.5 w-3.5 mr-1" />
-            Add
+            Connect
           </Button>
         </div>
       </div>
@@ -266,7 +266,7 @@ export function BuildChannels({ workspaceId, agents }: BuildChannelsProps) {
         </div>
       ) : bindings.length === 0 ? (
         <p className="text-xs text-muted-foreground py-3">
-          No channel mappings yet.
+          No channels connected yet.
         </p>
       ) : (
         <Table>
@@ -315,7 +315,7 @@ export function BuildChannels({ workspaceId, agents }: BuildChannelsProps) {
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add Channel Mapping</DialogTitle>
+            <DialogTitle>Connect Channel</DialogTitle>
             <DialogDescription>
               Paste a Slack channel ID and pick an agent. Messages in that
               channel will be handled by the selected agent.
@@ -366,10 +366,10 @@ export function BuildChannels({ workspaceId, agents }: BuildChannelsProps) {
               {submitting ? (
                 <>
                   <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
-                  Creating...
+                  Connecting...
                 </>
               ) : (
-                "Create Mapping"
+                "Connect"
               )}
             </Button>
           </DialogFooter>

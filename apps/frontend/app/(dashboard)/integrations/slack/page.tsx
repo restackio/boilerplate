@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useToast } from "@workspace/ui/hooks/use-toast";
 import { PageHeader } from "@workspace/ui/components/page-header";
 import { Button } from "@workspace/ui/components/ui/button";
 import { Input } from "@workspace/ui/components/ui/input";
@@ -84,6 +86,10 @@ function SlackIcon({ className }: { className?: string }) {
 export default function SlackIntegrationPage() {
   const { currentWorkspaceId, isReady } = useDatabaseWorkspace();
   const { executeWorkflow } = useWorkspaceScopedActions();
+  const { toast } = useToast();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   const [integration, setIntegration] = useState<ChannelIntegration | null>(
     null,
@@ -97,7 +103,7 @@ export default function SlackIntegrationPage() {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [newChannelId, setNewChannelId] = useState("");
   const [newAgentId, setNewAgentId] = useState("");
-  const [addingMapping, setAddingMapping] = useState(false);
+  const [connectingChannel, setConnectingChannel] = useState(false);
 
   const fetchIntegration = useCallback(async () => {
     if (!isReady || !currentWorkspaceId) return;
@@ -182,6 +188,61 @@ export default function SlackIntegrationPage() {
     }
   }, [integration, fetchBindings, fetchAgents]);
 
+  // Surface the result of the OAuth round-trip. The slack-bot redirects back
+  // here with ?slack_install=success|already_connected_elsewhere|failed|storage_failed
+  // after handling /slack/oauth/callback. We show a toast, refresh state, and
+  // strip the query params so a manual refresh doesn't re-toast.
+  const oauthHandledRef = useRef(false);
+  useEffect(() => {
+    if (oauthHandledRef.current) return;
+    const status = searchParams.get("slack_install");
+    if (!status) return;
+    oauthHandledRef.current = true;
+
+    const team = searchParams.get("team") || undefined;
+    const reason = searchParams.get("reason") || undefined;
+
+    if (status === "success") {
+      toast({
+        title: "Slack connected",
+        description: team
+          ? `${team} is now connected to this workspace.`
+          : "Your Slack workspace is now connected.",
+      });
+      fetchIntegration();
+    } else if (status === "already_connected_elsewhere") {
+      toast({
+        title: "Slack workspace already connected",
+        description: team
+          ? `${team} is connected to a different Restack workspace. Ask its admin to disconnect it first, then try again.`
+          : "This Slack workspace is connected to a different Restack workspace. Ask its admin to disconnect it first, then try again.",
+        variant: "destructive",
+      });
+    } else if (status === "failed") {
+      toast({
+        title: "Slack install failed",
+        description: reason
+          ? `Slack returned: ${reason}.`
+          : "Slack rejected the install. Please try again.",
+        variant: "destructive",
+      });
+    } else if (status === "storage_failed") {
+      toast({
+        title: "Slack install incomplete",
+        description:
+          "Slack authorized successfully, but we couldn't save the install. Please try again.",
+        variant: "destructive",
+      });
+    }
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("slack_install");
+    params.delete("team");
+    params.delete("reason");
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  }, [searchParams, toast, router, pathname, fetchIntegration]);
+
   const handleDisconnect = async () => {
     if (!integration) return;
 
@@ -208,10 +269,10 @@ export default function SlackIntegrationPage() {
     }
   };
 
-  const handleAddMapping = async () => {
+  const handleConnectChannel = async () => {
     if (!integration || !newChannelId || !newAgentId) return;
 
-    setAddingMapping(true);
+    setConnectingChannel(true);
     try {
       const result = await executeWorkflow("ChannelCreateWorkflow", {
         channel_integration_id: integration.id,
@@ -225,16 +286,16 @@ export default function SlackIntegrationPage() {
         setAddDialogOpen(false);
         await fetchBindings();
       } else {
-        setError(result.error ?? "Failed to create channel mapping");
+        setError(result.error ?? "Failed to connect channel");
       }
     } catch {
-      setError("Failed to create channel mapping");
+      setError("Failed to connect channel");
     } finally {
-      setAddingMapping(false);
+      setConnectingChannel(false);
     }
   };
 
-  const handleDeleteMapping = async (bindingId: string) => {
+  const handleDisconnectChannel = async (bindingId: string) => {
     setActionLoading(`delete-${bindingId}`);
     try {
       const result = await executeWorkflow("ChannelDeleteWorkflow", {
@@ -244,10 +305,10 @@ export default function SlackIntegrationPage() {
       if (result.success) {
         await fetchBindings();
       } else {
-        setError(result.error ?? "Failed to delete channel mapping");
+        setError(result.error ?? "Failed to disconnect channel");
       }
     } catch {
-      setError("Failed to delete channel mapping");
+      setError("Failed to disconnect channel");
     } finally {
       setActionLoading(null);
     }
@@ -316,22 +377,22 @@ export default function SlackIntegrationPage() {
               <CardHeader className="border-b">
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle>Channel-Agent Mappings</CardTitle>
+                    <CardTitle>Connected Channels</CardTitle>
                     <CardDescription>
                       Route Slack channels to specific agents
                     </CardDescription>
                   </div>
                   <Button size="sm" onClick={() => setAddDialogOpen(true)}>
                     <Plus className="h-4 w-4 mr-1" />
-                    Add Mapping
+                    Connect Channel
                   </Button>
                 </div>
               </CardHeader>
               <CardContent className="pt-4">
                 {bindings.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-8">
-                    No channel mappings yet. Add one to route Slack messages to
-                    an agent.
+                    No channels connected yet. Connect one to route Slack
+                    messages to an agent.
                   </p>
                 ) : (
                   <Table>
@@ -361,7 +422,7 @@ export default function SlackIntegrationPage() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handleDeleteMapping(binding.id)}
+                              onClick={() => handleDisconnectChannel(binding.id)}
                               disabled={
                                 actionLoading === `delete-${binding.id}`
                               }
@@ -381,7 +442,7 @@ export default function SlackIntegrationPage() {
               </CardContent>
             </Card>
 
-            <AddMappingDialog
+            <ConnectChannelDialog
               open={addDialogOpen}
               onOpenChange={setAddDialogOpen}
               agents={agents}
@@ -389,8 +450,8 @@ export default function SlackIntegrationPage() {
               onChannelIdChange={setNewChannelId}
               agentId={newAgentId}
               onAgentIdChange={setNewAgentId}
-              onSubmit={handleAddMapping}
-              submitting={addingMapping}
+              onSubmit={handleConnectChannel}
+              submitting={connectingChannel}
             />
           </>
         )}
@@ -509,7 +570,7 @@ function ConnectedWorkspaceCard({
   );
 }
 
-function AddMappingDialog({
+function ConnectChannelDialog({
   open,
   onOpenChange,
   agents,
@@ -534,10 +595,10 @@ function AddMappingDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add Channel Mapping</DialogTitle>
+          <DialogTitle>Connect Channel</DialogTitle>
           <DialogDescription>
-            Map a Slack channel to an agent. Messages in this channel will be
-            handled by the selected agent.
+            Connect a Slack channel to an agent. Messages in this channel will
+            be handled by the selected agent.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
@@ -580,10 +641,10 @@ function AddMappingDialog({
             {submitting ? (
               <>
                 <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
-                Creating...
+                Connecting...
               </>
             ) : (
-              "Create Mapping"
+              "Connect"
             )}
           </Button>
         </DialogFooter>

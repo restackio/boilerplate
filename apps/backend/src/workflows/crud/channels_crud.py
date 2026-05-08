@@ -13,6 +13,8 @@ from src.constants import TASK_QUEUE
 
 with import_functions():
     from src.functions.channels_crud import (
+        ChannelConsumePendingWelcomeInput,
+        ChannelConsumePendingWelcomeOutput,
         ChannelCreateInput,
         ChannelDeleteInput,
         ChannelIntegrationByExternalIdInput,
@@ -28,6 +30,7 @@ with import_functions():
         ChannelSingleOutput,
         ChannelWithIntegrationListOutput,
         DeleteOutput,
+        channel_consume_pending_welcome,
         channel_create,
         channel_delete,
         channel_integration_delete,
@@ -220,5 +223,31 @@ class ChannelRouteEventWorkflow:
             )
         except Exception as e:
             error_message = f"Error in channel_route_event: {e}"
+            log.error(error_message)
+            raise NonRetryableError(message=error_message) from e
+
+
+@workflow.defn()
+class ChannelConsumePendingWelcomeWorkflow:
+    """Pop the welcome_pending flag for a channel; returns names for rendering.
+
+    Called by the slack-bot when ``member_joined_channel`` fires for our
+    bot. Designed as a single round-trip so the listener can stay simple.
+    """
+
+    @workflow.run
+    async def run(
+        self, workflow_input: ChannelConsumePendingWelcomeInput
+    ) -> ChannelConsumePendingWelcomeOutput:
+        log.info("ChannelConsumePendingWelcomeWorkflow started")
+        try:
+            return await workflow.step(
+                function=channel_consume_pending_welcome,
+                function_input=workflow_input,
+                task_queue=TASK_QUEUE,
+                start_to_close_timeout=timedelta(seconds=15),
+            )
+        except Exception as e:
+            error_message = f"Error in channel_consume_pending_welcome: {e}"
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e

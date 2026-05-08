@@ -18,13 +18,13 @@ import time
 from collections import OrderedDict
 from hmac import compare_digest
 from typing import Any
-from urllib.parse import parse_qs, unquote
+from urllib.parse import parse_qs, unquote, urlencode
 
 from slack_bolt import App
 from slack_bolt.request import BoltRequest
 from starlette.applications import Starlette
 from starlette.requests import Request
-from starlette.responses import HTMLResponse, JSONResponse, RedirectResponse
+from starlette.responses import JSONResponse, RedirectResponse
 from starlette.routing import Route
 
 from .config import config
@@ -258,8 +258,24 @@ async def install_url(request: Request) -> JSONResponse:
     return JSONResponse({"install_url": build_authorize_url(workspace_id)})
 
 
-async def oauth_callback(request: Request) -> HTMLResponse | JSONResponse:
-    """GET /slack/oauth/callback?code=...&state=... -> exchange + store."""
+def _frontend_slack_redirect(status: str, **extra: str) -> RedirectResponse:
+    """Build a 302 back to the boilerplate's Slack integrations page.
+
+    The slack-bot serves OAuth on its own host (often an ngrok URL) which is
+    a confusing place to land users after install. We always send them back
+    to the frontend's /integrations/slack page, encoding the outcome in the
+    ``slack_install`` query param so the page can show a toast/banner.
+    """
+    base = config.FRONTEND_URL.rstrip("/")
+    params = {"slack_install": status, **{k: v for k, v in extra.items() if v}}
+    return RedirectResponse(
+        url=f"{base}/integrations/slack?{urlencode(params)}",
+        status_code=302,
+    )
+
+
+async def oauth_callback(request: Request) -> RedirectResponse | JSONResponse:
+    """GET /slack/oauth/callback?code=...&state=... -> exchange + store + redirect."""
     from .bot_services.slack_oauth import exchange_oauth_code
     from .client import client as restack_client
 
@@ -273,11 +289,9 @@ async def oauth_callback(request: Request) -> HTMLResponse | JSONResponse:
     data = await exchange_oauth_code(code, redirect_uri)
 
     if not data.get("ok"):
-        return HTMLResponse(
-            "<html><body><h2>Installation failed</h2>"
-            f"<p>Slack returned an error: {data.get('error', 'unknown')}</p>"
-            "</body></html>",
-            status_code=400,
+        return _frontend_slack_redirect(
+            "failed",
+            reason=str(data.get("error", "unknown")),
         )
 
     team = data.get("team", {})
@@ -287,6 +301,7 @@ async def oauth_callback(request: Request) -> HTMLResponse | JSONResponse:
     installer_user_id = (data.get("authed_user") or {}).get("id")
 
     install_stored = False
+    upsert_error: str | None = None
     try:
         wf_id = f"slack_install_{team_id}_{int(time.time())}"
         run_id = await restack_client.schedule_workflow(
@@ -300,10 +315,35 @@ async def oauth_callback(request: Request) -> HTMLResponse | JSONResponse:
             },
             task_queue=config.RESTACK_TASK_QUEUE,
         )
-        await restack_client.get_workflow_result(workflow_id=wf_id, run_id=run_id)
-        install_stored = True
+        upsert_result = await restack_client.get_workflow_result(
+            workflow_id=wf_id, run_id=run_id
+        )
+        # The workflow returns a structured result. Soft-failures (e.g.
+        # "this Slack workspace is already linked to a different Restack
+        # workspace") come back as ``error="already_connected_elsewhere"``
+        # instead of an exception so we can render a useful page.
+        if isinstance(upsert_result, dict):
+            upsert_error = upsert_result.get("error")
+        else:
+            upsert_error = getattr(upsert_result, "error", None)
+        install_stored = upsert_error is None
     except Exception:
         logger.exception("Failed to store Slack installation for team %s", team_id)
+
+    if upsert_error == "already_connected_elsewhere":
+        # Don't send a welcome DM — the install was rejected, no row exists
+        # for this Restack workspace.
+        logger.warning(
+            "Slack OAuth rejected: team %s is already connected to a "
+            "different Restack workspace; refused takeover from "
+            "workspace_id=%s",
+            team_id,
+            workspace_id,
+        )
+        return _frontend_slack_redirect(
+            "already_connected_elsewhere",
+            team=team_name or "",
+        )
 
     if install_stored and bot_token and installer_user_id:
         try:
@@ -320,13 +360,10 @@ async def oauth_callback(request: Request) -> HTMLResponse | JSONResponse:
                 "Failed to send welcome DM after OAuth for team %s", team_id
             )
 
-    return HTMLResponse(
-        "<html><body>"
-        "<h2>Slack app installed successfully!</h2>"
-        f"<p>Workspace: <strong>{team_name}</strong></p>"
-        "<p>You can close this window.</p>"
-        "</body></html>"
-    )
+    if not install_stored:
+        return _frontend_slack_redirect("storage_failed")
+
+    return _frontend_slack_redirect("success", team=team_name or "")
 
 
 # ---------------------------------------------------------------------------

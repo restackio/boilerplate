@@ -87,7 +87,7 @@ async def _handle_new_dm(event, say, client):
             )
             return
 
-        # DMs with no explicit channel mapping go through the concierge.
+        # DMs with no connected agent go through the concierge.
         # The concierge can chat, list agents, and hand off via its tools.
         if agent is None:
             result = await run_concierge(
