@@ -27,6 +27,7 @@ import {
   Loader2,
   Megaphone,
   Network,
+  Radar,
 } from "lucide-react";
 import { CenteredLoading } from "@workspace/ui/components/loading-states";
 import { posthog } from "@/lib/posthog";
@@ -54,6 +55,63 @@ const STARTER_PROMPTS: {
     iconClassName: "text-orange-500",
     prompt:
       "Build an agent that helps with sales outreach: track leads, draft emails, and suggest follow-ups. I want a table of leads and a way to see pipeline stages.",
+  },
+  {
+    title: "LinkedIn signal radar",
+    teaser:
+      "Watch C-level posts for buying signals; suggest outreach angles per account.",
+    icon: Radar,
+    iconClassName: "text-blue-700",
+    prompt: `I want to monitor LinkedIn activity from C-levels at a list of target accounts and turn relevant posts into outreach signals for our sales team.
+
+Inputs I will provide:
+- A list of LinkedIn profile URLs of C-levels (CEO, CTO, COO, CFO, CRO, VP Eng, VP Product, etc.)
+- A short company brief per target account (industry, what we sell to them, current pain hypotheses, value prop) — I'll upload these as files into the dataset later.
+
+Integration to use:
+- I already installed a LinkedIn MCP integration in this workspace that runs on PhantomBuster. The tool descriptions on that MCP mention "phantombuster". Before designing, please call \`listworkspaceintegrations\` with query "phantombuster" (and also try "linkedin" if nothing comes back) to find its mcp_server_id, then \`listintegrationtools\` to see exactly which tools are exposed (launch agent, fetch results/export, etc.). Use those real tools in the pipeline — do NOT fall back to mockaiintegration unless the lookup actually returns nothing.
+
+Flow I want (weekly cadence):
+1. PhantomBuster runs weekly per profile and extracts new posts / comments / articles, with built-in deduplication.
+2. The agent fetches the export via the PhantomBuster API (through the LinkedIn MCP tools).
+3. An LLM classifies each item as either "relevant" (AI, automation, efficiency, hiring pain, cost pressure, tooling complaints, transformation projects) or "noise" (personal updates, generic reposts, congratulations, motivational quotes, job announcements without context).
+4. For relevant items, the agent matches the post against the corresponding company brief and generates a suggested outreach angle (1–3 sentences: which pain it touches, why now, suggested opener).
+5. Everything — relevant and noise — gets stored in ClickHouse so we have a full audit trail.
+
+Architecture I want (hybrid):
+- One ClickHouse dataset as the shared store.
+- One child pipeline agent: ONE LinkedIn profile per run. It (a) calls the PhantomBuster/LinkedIn MCP tools to fetch the latest export for that profile, (b) for each new item runs the LLM classification, (c) for relevant items reads the company brief from the dataset (file in the dataset for that account) and generates the outreach angle, (d) loads all rows (relevant + noise) into the dataset, (e) calls completetask.
+- One parent agent of type \`pipeline\` (orchestration only — no chat) that takes the list of LinkedIn profile URLs and creates one subtask per profile against the child pipeline. This is what we'd schedule weekly.
+- A SEPARATE interactive agent ("Sales Signals Assistant") that reads from the SAME ClickHouse dataset using clickhouselisttables / clickhouserunselectquery. Sales reps open this every day to ask things like "what's relevant from Acme this week?", "which CEOs talked about AI adoption pain in the last 14 days?", "give me top 5 outreach openers for accounts in fintech".
+
+Suggested dataset columns (feel free to refine):
+- profile_url (string)
+- profile_name (string)
+- profile_company (string)
+- post_url (string)
+- post_type (post | comment | article)
+- post_text (string)
+- posted_at (timestamp)
+- fetched_at (timestamp)
+- classification (relevant | noise)
+- relevance_categories (array: ai, automation, efficiency, pain, hiring, cost, tooling, transformation, other)
+- relevance_reason (string — short LLM justification)
+- company_brief_match (string — which pain hypothesis from the brief it touches, if any)
+- suggested_outreach_angle (string — generated only for relevant items)
+- raw_phantombuster_id (string — for dedup / traceability)
+
+Schedule I want (Phase 2.5):
+- After the build completes, set up a recurring weekly schedule on the pipeline parent: every Monday at 06:00 in Europe/Berlin.
+- The scheduled task description should be the list of LinkedIn profile URLs to fan out (we'll start with a placeholder list and update it later).
+- I understand this also runs the parent once immediately on creation; that's fine.
+
+Please:
+1. First call \`listworkspaceintegrations\` with query "phantombuster" so you confirm the LinkedIn MCP is there before drawing the pattern. Then \`listintegrationtools\` so the diagram references the real tools.
+2. Render the pattern with \`updatepatternspecs\`: dataset in the middle, child pipeline pushes to it, pipeline parent fans out subtasks to the child, interactive "Sales Signals Assistant" pulls from it. Show the LinkedIn/PhantomBuster MCP as an integration node connected to the child pipeline. (You can leave the schedule node off until after the user confirms cadence in Phase 2.5.)
+3. Show me a small dummy table (5–6 columns) with one relevant row and one noise row so I can sanity-check the schema.
+4. Then ask me anything ambiguous and wait for me to reply Build.
+
+Do not create anything yet — plan + pattern + dummy table + questions, then wait for "Build". After you've built everything in Phase 2, ask me to confirm the weekly schedule before calling updateschedule.`,
   },
   {
     title: "API data pipeline",
