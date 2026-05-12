@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   acceptWorkspaceInvite,
@@ -69,7 +69,7 @@ function InviteLayout({
   );
 }
 
-export default function InvitePage() {
+function InvitePageContent() {
   const router = useRouter();
   const { toast } = useToast();
   const searchParams = useSearchParams();
@@ -307,5 +307,21 @@ export default function InvitePage() {
         </div>
       </div>
     </InviteLayout>
+  );
+}
+
+export default function InvitePage() {
+  return (
+    <Suspense
+      fallback={
+        <InviteLayout
+          icon={<Loader2 className="size-6 animate-spin" />}
+          title="Checking invitation"
+          description="Please wait while we validate this invite."
+        />
+      }
+    >
+      <InvitePageContent />
+    </Suspense>
   );
 }
