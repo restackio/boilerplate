@@ -75,7 +75,7 @@ class WorkspaceInviteCreateInput(BaseModel):
     @classmethod
     def validate_invited_email(cls, v: str) -> str:
         if "@" not in v:
-            raise InvalidInviteEmailError()
+            raise InvalidInviteEmailError
         return _normalize_email(v)
 
 
