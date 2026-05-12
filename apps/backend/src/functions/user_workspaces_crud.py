@@ -319,6 +319,9 @@ async def user_workspaces_delete(
     """Remove a user from a workspace."""
     async for db in get_async_db():
         try:
+            success = False
+            status = "not_found"
+
             if function_input.actor_user_id == function_input.user_id:
                 self_membership_query = select(UserWorkspace).where(
                     UserWorkspace.user_id
@@ -333,18 +336,16 @@ async def user_workspaces_delete(
                     self_membership_result.scalar_one_or_none()
                 )
                 if not self_membership:
-                    return UserWorkspaceDeleteOutput(
-                        success=False, status="not_found"
-                    )
-                if self_membership.role == "owner":
-                    return UserWorkspaceDeleteOutput(
-                        success=False,
-                        status="cannot_leave_owner_workspace",
-                    )
-                await db.delete(self_membership)
-                await db.commit()
+                    status = "not_found"
+                elif self_membership.role == "owner":
+                    status = "cannot_leave_owner_workspace"
+                else:
+                    await db.delete(self_membership)
+                    await db.commit()
+                    success = True
+                    status = "ok"
                 return UserWorkspaceDeleteOutput(
-                    success=True, status="ok"
+                    success=success, status=status
                 )
 
             await require_workspace_owner(
@@ -362,17 +363,18 @@ async def user_workspaces_delete(
             user_workspace = result.scalar_one_or_none()
 
             if not user_workspace:
-                return UserWorkspaceDeleteOutput(
-                    success=False, status="not_found"
-                )
-            if user_workspace.role == "owner":
-                return UserWorkspaceDeleteOutput(
-                    success=False, status="cannot_remove_owner"
-                )
-            await db.delete(user_workspace)
-            await db.commit()
+                status = "not_found"
+            elif user_workspace.role == "owner":
+                status = "cannot_remove_owner"
+            else:
+                await db.delete(user_workspace)
+                await db.commit()
+                success = True
+                status = "ok"
 
-            return UserWorkspaceDeleteOutput(success=True, status="ok")
+            return UserWorkspaceDeleteOutput(
+                success=success, status=status
+            )
         except Exception as e:
             await db.rollback()
             raise NonRetryableError(
