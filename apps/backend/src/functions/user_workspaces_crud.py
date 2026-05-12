@@ -319,15 +319,39 @@ async def user_workspaces_delete(
     """Remove a user from a workspace."""
     async for db in get_async_db():
         try:
+            if function_input.actor_user_id == function_input.user_id:
+                self_membership_query = select(UserWorkspace).where(
+                    UserWorkspace.user_id
+                    == uuid.UUID(function_input.actor_user_id),
+                    UserWorkspace.workspace_id
+                    == uuid.UUID(function_input.workspace_id),
+                )
+                self_membership_result = await db.execute(
+                    self_membership_query
+                )
+                self_membership = (
+                    self_membership_result.scalar_one_or_none()
+                )
+                if not self_membership:
+                    return UserWorkspaceDeleteOutput(
+                        success=False, status="not_found"
+                    )
+                if self_membership.role == "owner":
+                    return UserWorkspaceDeleteOutput(
+                        success=False,
+                        status="cannot_leave_owner_workspace",
+                    )
+                await db.delete(self_membership)
+                await db.commit()
+                return UserWorkspaceDeleteOutput(
+                    success=True, status="ok"
+                )
+
             await require_workspace_owner(
                 db,
                 actor_user_id=function_input.actor_user_id,
                 workspace_id=function_input.workspace_id,
             )
-            if function_input.actor_user_id == function_input.user_id:
-                return UserWorkspaceDeleteOutput(
-                    success=False, status="cannot_remove_self"
-                )
             user_workspace_query = select(UserWorkspace).where(
                 UserWorkspace.user_id
                 == uuid.UUID(function_input.user_id),

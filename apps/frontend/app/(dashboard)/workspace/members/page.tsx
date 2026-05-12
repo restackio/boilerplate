@@ -21,7 +21,7 @@ import {
   resendWorkspaceInvite,
   revokeWorkspaceInvite,
 } from "@/app/actions/workspace-invites";
-import { removeWorkspaceMember } from "@/app/actions/workspace-members";
+import { leaveWorkspace, removeWorkspaceMember } from "@/app/actions/workspace-members";
 import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 
 interface MemberRow {
@@ -47,7 +47,7 @@ interface InviteModalState {
 }
 
 export default function WorkspaceMembersPage() {
-  const { currentWorkspaceId, currentUser } = useDatabaseWorkspace();
+  const { currentWorkspaceId, currentUser, refreshData } = useDatabaseWorkspace();
   const [members, setMembers] = useState<MemberRow[]>([]);
   const [pendingInvites, setPendingInvites] = useState<InviteRow[]>([]);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -63,6 +63,8 @@ export default function WorkspaceMembersPage() {
   const [copiedInviteId, setCopiedInviteId] = useState<string | null>(null);
   const [memberToRemove, setMemberToRemove] = useState<MemberRow | null>(null);
   const [removingMember, setRemovingMember] = useState(false);
+  const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
+  const [leavingWorkspace, setLeavingWorkspace] = useState(false);
 
   const isOwner = useMemo(() => {
     if (!currentUser?.id) {
@@ -71,6 +73,13 @@ export default function WorkspaceMembersPage() {
     return members.some(
       (member) => member.user_id === currentUser.id && member.role === "owner",
     );
+  }, [currentUser?.id, members]);
+
+  const currentMembership = useMemo(() => {
+    if (!currentUser?.id) {
+      return null;
+    }
+    return members.find((member) => member.user_id === currentUser.id) ?? null;
   }, [currentUser?.id, members]);
 
   const loadMembers = useCallback(async () => {
@@ -254,6 +263,43 @@ export default function WorkspaceMembersPage() {
     setError("Could not remove member.");
   };
 
+  const onConfirmLeaveWorkspace = async () => {
+    if (!currentWorkspaceId || !currentUser?.id) {
+      return;
+    }
+    setLeavingWorkspace(true);
+    setError(null);
+    setMessage(null);
+
+    const result = await leaveWorkspace({
+      actor_user_id: currentUser.id,
+      workspace_id: currentWorkspaceId,
+    });
+    setLeavingWorkspace(false);
+
+    if (!result.success || !result.data) {
+      setError("Failed to leave workspace.");
+      return;
+    }
+
+    const status = (result.data as { status?: string }).status;
+    if (status === "ok") {
+      setLeaveDialogOpen(false);
+      setMessage("You left this workspace.");
+      await refreshData();
+      return;
+    }
+    if (status === "cannot_leave_owner_workspace") {
+      setError("Workspace owner cannot leave this workspace.");
+      return;
+    }
+    if (status === "not_found") {
+      await refreshData();
+      return;
+    }
+    setError("Could not leave workspace.");
+  };
+
   return (
     <div className="flex-1">
       <PageHeader breadcrumbs={[{ label: "Workspace members" }]} fixed={true} />
@@ -366,6 +412,18 @@ export default function WorkspaceMembersPage() {
             </div>
           )}
         </section>
+
+        {!isOwner && currentMembership && (
+          <section className="border rounded-md p-4 space-y-3">
+            <h2 className="font-semibold">Leave workspace</h2>
+            <p className="text-sm text-muted-foreground">
+              You will lose access to this workspace immediately.
+            </p>
+            <Button variant="destructive" onClick={() => setLeaveDialogOpen(true)}>
+              Leave workspace
+            </Button>
+          </section>
+        )}
       </div>
 
       <Dialog
@@ -437,6 +495,34 @@ export default function WorkspaceMembersPage() {
             </Button>
             <Button onClick={onConfirmRemoveMember} disabled={removingMember}>
               {removingMember ? "Removing..." : "Remove member"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={leaveDialogOpen} onOpenChange={setLeaveDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Leave workspace?</DialogTitle>
+            <DialogDescription>
+              You will lose access to this workspace immediately. You can only
+              rejoin if a workspace owner invites you again.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setLeaveDialogOpen(false)}
+              disabled={leavingWorkspace}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={onConfirmLeaveWorkspace}
+              disabled={leavingWorkspace}
+            >
+              {leavingWorkspace ? "Leaving..." : "Leave workspace"}
             </Button>
           </DialogFooter>
         </DialogContent>
