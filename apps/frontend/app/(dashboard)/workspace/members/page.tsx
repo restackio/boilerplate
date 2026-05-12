@@ -21,6 +21,7 @@ import {
   resendWorkspaceInvite,
   revokeWorkspaceInvite,
 } from "@/app/actions/workspace-invites";
+import { removeWorkspaceMember } from "@/app/actions/workspace-members";
 import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 
 interface MemberRow {
@@ -60,6 +61,8 @@ export default function WorkspaceMembersPage() {
     link: "",
   });
   const [copiedInviteId, setCopiedInviteId] = useState<string | null>(null);
+  const [memberToRemove, setMemberToRemove] = useState<MemberRow | null>(null);
+  const [removingMember, setRemovingMember] = useState(false);
 
   const isOwner = useMemo(() => {
     if (!currentUser?.id) {
@@ -207,6 +210,50 @@ export default function WorkspaceMembersPage() {
     void loadPendingInvites();
   };
 
+  const onConfirmRemoveMember = async () => {
+    if (!currentWorkspaceId || !currentUser?.id || !memberToRemove) {
+      return;
+    }
+
+    setRemovingMember(true);
+    setError(null);
+    setMessage(null);
+
+    const result = await removeWorkspaceMember({
+      actor_user_id: currentUser.id,
+      user_id: memberToRemove.user_id,
+      workspace_id: currentWorkspaceId,
+    });
+    setRemovingMember(false);
+
+    if (!result.success || !result.data) {
+      setError("Failed to remove member.");
+      return;
+    }
+
+    const status = (result.data as { status?: string }).status;
+    if (status === "ok") {
+      setMemberToRemove(null);
+      setMessage("Member removed.");
+      void loadMembers();
+      return;
+    }
+    if (status === "cannot_remove_owner") {
+      setError("Workspace owners cannot be removed.");
+      return;
+    }
+    if (status === "cannot_remove_self") {
+      setError("You cannot remove yourself from this workspace.");
+      return;
+    }
+    if (status === "not_found") {
+      setError("That member is no longer in this workspace.");
+      void loadMembers();
+      return;
+    }
+    setError("Could not remove member.");
+  };
+
   return (
     <div className="flex-1">
       <PageHeader breadcrumbs={[{ label: "Workspace members" }]} fixed={true} />
@@ -299,7 +346,20 @@ export default function WorkspaceMembersPage() {
                       <p className="font-medium">{member.user_name}</p>
                       <p className="text-sm text-muted-foreground">{member.user_email}</p>
                     </div>
-                    <p className="text-sm capitalize">{member.role}</p>
+                    <div className="flex items-center gap-3">
+                      <p className="text-sm capitalize">{member.role}</p>
+                      {isOwner &&
+                        member.role !== "owner" &&
+                        member.user_id !== currentUser?.id && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setMemberToRemove(member)}
+                          >
+                            Remove
+                          </Button>
+                        )}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -339,6 +399,44 @@ export default function WorkspaceMembersPage() {
             <Button onClick={() => copyInviteLink(inviteModal.link)}>
               <Copy className="h-3.5 w-3.5 mr-1" />
               Copy link
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(memberToRemove)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setMemberToRemove(null);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Remove member?</DialogTitle>
+            <DialogDescription>
+              {memberToRemove ? (
+                <>
+                  Remove <strong>{memberToRemove.user_name}</strong> (
+                  {memberToRemove.user_email}) from this workspace? They will
+                  immediately lose access.
+                </>
+              ) : (
+                "This member will immediately lose access to the workspace."
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setMemberToRemove(null)}
+              disabled={removingMember}
+            >
+              Cancel
+            </Button>
+            <Button onClick={onConfirmRemoveMember} disabled={removingMember}>
+              {removingMember ? "Removing..." : "Remove member"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -7,6 +7,7 @@ from sqlalchemy.orm import selectinload
 
 from src.database.connection import get_async_db
 from src.database.models import User, UserWorkspace, Workspace
+from src.utils.auth_context import require_workspace_owner
 
 
 # Pydantic models for input validation
@@ -25,6 +26,7 @@ class UserWorkspaceUpdateInput(BaseModel):
 
 
 class UserWorkspaceDeleteInput(BaseModel):
+    actor_user_id: str = Field(..., min_length=1)
     user_id: str = Field(..., min_length=1)
     workspace_id: str = Field(..., min_length=1)
 
@@ -64,6 +66,7 @@ class UserWorkspaceSingleOutput(BaseModel):
 
 class UserWorkspaceDeleteOutput(BaseModel):
     success: bool
+    status: str
 
 
 @function.defn()
@@ -316,6 +319,15 @@ async def user_workspaces_delete(
     """Remove a user from a workspace."""
     async for db in get_async_db():
         try:
+            await require_workspace_owner(
+                db,
+                actor_user_id=function_input.actor_user_id,
+                workspace_id=function_input.workspace_id,
+            )
+            if function_input.actor_user_id == function_input.user_id:
+                return UserWorkspaceDeleteOutput(
+                    success=False, status="cannot_remove_self"
+                )
             user_workspace_query = select(UserWorkspace).where(
                 UserWorkspace.user_id
                 == uuid.UUID(function_input.user_id),
@@ -326,13 +338,17 @@ async def user_workspaces_delete(
             user_workspace = result.scalar_one_or_none()
 
             if not user_workspace:
-                raise NonRetryableError(
-                    message="User is not a member of this workspace"
+                return UserWorkspaceDeleteOutput(
+                    success=False, status="not_found"
+                )
+            if user_workspace.role == "owner":
+                return UserWorkspaceDeleteOutput(
+                    success=False, status="cannot_remove_owner"
                 )
             await db.delete(user_workspace)
             await db.commit()
 
-            return UserWorkspaceDeleteOutput(success=True)
+            return UserWorkspaceDeleteOutput(success=True, status="ok")
         except Exception as e:
             await db.rollback()
             raise NonRetryableError(
