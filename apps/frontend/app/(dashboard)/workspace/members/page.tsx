@@ -5,6 +5,15 @@ import { PageHeader } from "@workspace/ui/components/page-header";
 import { Button } from "@workspace/ui/components/ui/button";
 import { Input } from "@workspace/ui/components/ui/input";
 import { Label } from "@workspace/ui/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@workspace/ui/components/ui/dialog";
+import { Copy } from "lucide-react";
 import { executeWorkflow } from "@/app/actions/workflow";
 import {
   createWorkspaceInvite,
@@ -26,7 +35,14 @@ interface MemberRow {
 interface InviteRow {
   id: string;
   invited_email: string;
+  token: string;
   created_at: string | null;
+}
+
+interface InviteModalState {
+  open: boolean;
+  email: string;
+  link: string;
 }
 
 export default function WorkspaceMembersPage() {
@@ -38,6 +54,12 @@ export default function WorkspaceMembersPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [inviteModal, setInviteModal] = useState<InviteModalState>({
+    open: false,
+    email: "",
+    link: "",
+  });
+  const [copiedInviteId, setCopiedInviteId] = useState<string | null>(null);
 
   const isOwner = useMemo(() => {
     if (!currentUser?.id) {
@@ -120,6 +142,15 @@ export default function WorkspaceMembersPage() {
     if (status === "ok") {
       setMessage("Invitation sent.");
       setInviteEmail("");
+      const invite = (result.data as { invite?: { token?: string } }).invite;
+      const token = invite?.token;
+      if (token) {
+        setInviteModal({
+          open: true,
+          email: inviteEmail.trim().toLowerCase(),
+          link: `${window.location.origin}/invite?token=${token}`,
+        });
+      }
       void loadPendingInvites();
       return;
     }
@@ -132,6 +163,19 @@ export default function WorkspaceMembersPage() {
       return;
     }
     setError("Could not send invitation.");
+  };
+
+  const copyInviteLink = async (link: string, inviteId?: string) => {
+    try {
+      await navigator.clipboard.writeText(link);
+      if (inviteId) {
+        setCopiedInviteId(inviteId);
+        setTimeout(() => setCopiedInviteId(null), 1500);
+      }
+      setMessage("Invite link copied.");
+    } catch {
+      setError("Could not copy invite link.");
+    }
   };
 
   const onResend = async (inviteId: string) => {
@@ -197,6 +241,10 @@ export default function WorkspaceMembersPage() {
         {isOwner && (
           <section className="border rounded-md p-4 space-y-3">
             <h2 className="font-semibold">Pending invitations</h2>
+            <p className="text-xs text-muted-foreground">
+              Email is sent automatically, and you can also copy links for manual sharing.
+              Invites are email-bound and remain valid until revoked.
+            </p>
             {pendingInvites.length === 0 ? (
               <p className="text-sm text-muted-foreground">No pending invites.</p>
             ) : (
@@ -213,6 +261,19 @@ export default function WorkspaceMembersPage() {
                       </p>
                     </div>
                     <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          copyInviteLink(
+                            `${window.location.origin}/invite?token=${invite.token}`,
+                            invite.id,
+                          )
+                        }
+                      >
+                        <Copy className="h-3.5 w-3.5 mr-1" />
+                        {copiedInviteId === invite.id ? "Copied" : "Copy link"}
+                      </Button>
                       <Button variant="outline" size="sm" onClick={() => onResend(invite.id)}>
                         Resend
                       </Button>
@@ -250,6 +311,42 @@ export default function WorkspaceMembersPage() {
           )}
         </section>
       </div>
+
+      <Dialog
+        open={inviteModal.open}
+        onOpenChange={(open) => setInviteModal((prev) => ({ ...prev, open }))}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Invite ready</DialogTitle>
+            <DialogDescription>
+              We sent an email invite to <strong>{inviteModal.email}</strong>.
+              You can also share this link manually.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2">
+            <Label htmlFor="invite-link">Invite link</Label>
+            <Input id="invite-link" value={inviteModal.link} readOnly />
+            <p className="text-xs text-muted-foreground">
+              Anyone with this link can open the invite page, but only the invited email can accept.
+            </p>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setInviteModal((prev) => ({ ...prev, open: false }))}
+            >
+              Done
+            </Button>
+            <Button onClick={() => copyInviteLink(inviteModal.link)}>
+              <Copy className="h-3.5 w-3.5 mr-1" />
+              Copy link
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
