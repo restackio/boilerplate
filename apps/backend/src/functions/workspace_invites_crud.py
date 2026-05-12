@@ -9,11 +9,21 @@ from restack_ai.function import NonRetryableError, function
 from sqlalchemy import select
 
 from src.database.connection import get_async_db
-from src.database.models import User, UserWorkspace, Workspace, WorkspaceInvite
+from src.database.models import (
+    User,
+    UserWorkspace,
+    Workspace,
+    WorkspaceInvite,
+)
 from src.utils.auth_context import (
     require_workspace_owner,
     resolve_redeemer,
 )
+
+
+class InvalidInviteEmailError(ValueError):
+    def __init__(self) -> None:
+        super().__init__("Email must contain @ symbol")
 
 
 def _now_naive() -> datetime:
@@ -65,7 +75,7 @@ class WorkspaceInviteCreateInput(BaseModel):
     @classmethod
     def validate_invited_email(cls, v: str) -> str:
         if "@" not in v:
-            raise ValueError("Email must contain @ symbol")
+            raise InvalidInviteEmailError()
         return _normalize_email(v)
 
 
