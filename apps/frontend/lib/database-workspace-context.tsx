@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
+import { usePathname } from "next/navigation";
 import { useWorkspaceActions, WorkspaceCreateInput } from "../hooks/use-workspace-actions";
 import { User } from "../types/user";
 import { Workspace } from "../hooks/use-workspace-actions";
@@ -25,6 +26,7 @@ interface DatabaseWorkspaceContextType {
 const DatabaseWorkspaceContext = createContext<DatabaseWorkspaceContextType | undefined>(undefined);
 
 export function DatabaseWorkspaceProvider({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const [currentWorkspaceId, setCurrentWorkspaceIdInternal] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -38,45 +40,49 @@ export function DatabaseWorkspaceProvider({ children }: { children: React.ReactN
 
   const { workspaces, fetchWorkspaces, createWorkspace } = useWorkspaceActions(currentUser);
 
-  // Initialize user and workspace from localStorage on mount
-  useEffect(() => {
-    const initialize = () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-        
-        const storedUser = localStorage.getItem("currentUser");
-        if (!storedUser) {
-          setError("No user session found");
-          setIsLoading(false);
-          return;
-        }
+  const initialize = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
 
-        const userData = JSON.parse(storedUser);
-        if (!userData?.id) {
-          setError("No valid user session found");
-          setIsLoading(false);
-          return;
-        }
-
-        setCurrentUser(userData);
-        
-        // Restore workspace from localStorage if available
-        const storedWorkspaceId = localStorage.getItem("currentWorkspaceId");
-        if (storedWorkspaceId) {
-          setCurrentWorkspaceIdInternal(storedWorkspaceId);
-        }
-        
-        // Note: fetchWorkspaces will be called in a separate useEffect when currentUser is set
-      } catch (error) {
-        console.error("Failed to initialize workspace", error);
-        setError("Failed to initialize workspace");
+      const storedUser = localStorage.getItem("currentUser");
+      if (!storedUser) {
+        setCurrentUser(null);
+        setError("No user session found");
         setIsLoading(false);
+        return;
       }
-    };
 
-    initialize();
-  }, []); // Empty dependency array - only run once on mount
+      const userData = JSON.parse(storedUser);
+      if (!userData?.id) {
+        setCurrentUser(null);
+        setError("No valid user session found");
+        setIsLoading(false);
+        return;
+      }
+
+      setCurrentUser(userData);
+
+      // Restore workspace from localStorage if available
+      const storedWorkspaceId = localStorage.getItem("currentWorkspaceId");
+      if (storedWorkspaceId) {
+        setCurrentWorkspaceIdInternal(storedWorkspaceId);
+      }
+
+      // Note: fetchWorkspaces will be called in a separate useEffect when currentUser is set
+    } catch (error) {
+      console.error("Failed to initialize workspace", error);
+      setCurrentUser(null);
+      setError("Failed to initialize workspace");
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Re-check local session on route changes so signup/login flows
+  // update context state without requiring a full reload.
+  useEffect(() => {
+    void initialize();
+  }, [initialize, pathname]);
 
   // Fetch workspaces when currentUser is set  
   useEffect(() => {
@@ -84,6 +90,7 @@ export function DatabaseWorkspaceProvider({ children }: { children: React.ReactN
       const loadWorkspaces = async () => {
         try {
           await fetchWorkspaces(currentUser);
+          setError(null);
         } catch (error) {
           console.error("Failed to fetch workspaces", error);
           setError("Failed to fetch workspaces");
@@ -171,8 +178,8 @@ export function DatabaseWorkspaceProvider({ children }: { children: React.ReactN
     setCurrentUser,
     refreshData,
     createWorkspace,
-    initialize: async () => {}, // Simplified - no longer needed
-  }), [workspaces, currentWorkspaceId, isAdminWorkspace, currentUser, loading, isReady, setCurrentWorkspaceId, refreshData, createWorkspace]);
+    initialize,
+  }), [workspaces, currentWorkspaceId, isAdminWorkspace, currentUser, loading, isReady, setCurrentWorkspaceId, refreshData, createWorkspace, initialize]);
 
   return (
     <DatabaseWorkspaceContext.Provider value={value}>

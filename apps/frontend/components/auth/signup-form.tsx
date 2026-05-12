@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AuthForm, useAuthFormState } from "@workspace/ui/components";
 import { executeWorkflow } from "@/app/actions/workflow";
 import { posthog } from "@/lib/posthog";
@@ -24,6 +24,12 @@ export function SignupForm({
     setSubmissionError,
   } = useAuthFormState();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const rawReturnTo = searchParams.get("returnTo");
+  const returnTo =
+    rawReturnTo && rawReturnTo.startsWith("/") && !rawReturnTo.startsWith("//")
+      ? rawReturnTo
+      : null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,8 +71,8 @@ export function SignupForm({
           "currentUser",
           JSON.stringify(workflowResult.data.user),
         );
-        // Redirect to workspace creation page
-        router.push("/workspace/create");
+        // Redirect back to invite flow when provided; otherwise go create workspace.
+        router.push(returnTo ?? "/workspace/create");
       } else {
         setSubmissionError(workflowResult?.error || "Signup failed");
       }
