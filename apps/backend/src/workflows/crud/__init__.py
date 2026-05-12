@@ -8,6 +8,7 @@ from . import (
     teams_crud,
     user_workspaces_crud,
     users_crud,
+    workspace_invites_crud,
     workspaces_crud,
 )
 
@@ -20,5 +21,6 @@ __all__ = [
     "teams_crud",
     "user_workspaces_crud",
     "users_crud",
+    "workspace_invites_crud",
     "workspaces_crud",
 ]
