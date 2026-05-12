@@ -15,6 +15,17 @@ import {
   CardHeader,
   CardTitle,
 } from "@workspace/ui/components/ui/card";
+import { Badge } from "@workspace/ui/components/ui/badge";
+import { useToast } from "@workspace/ui/hooks/use-toast";
+import {
+  AlertCircle,
+  CheckCircle2,
+  Loader2,
+  Mail,
+  ShieldCheck,
+  UserX,
+  XCircle,
+} from "lucide-react";
 
 type InviteViewState =
   | "loading"
@@ -24,8 +35,43 @@ type InviteViewState =
   | "already_member"
   | "declined";
 
+function InviteLayout({
+  icon,
+  title,
+  description,
+  badge,
+  children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: React.ReactNode;
+  badge?: React.ReactNode;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className="min-h-svh bg-gradient-to-b from-background to-muted/40 flex items-center justify-center p-4 sm:p-6">
+      <Card className="w-full max-w-xl border shadow-sm">
+        <CardHeader className="space-y-3 sm:space-y-4 pb-4 sm:pb-6">
+          <div className="flex items-center justify-center">
+            <div className="size-10 sm:size-12 rounded-full bg-primary/10 text-primary flex items-center justify-center">
+              {icon}
+            </div>
+          </div>
+          <div className="text-center space-y-1.5 sm:space-y-2">
+            {badge ? <div className="flex justify-center">{badge}</div> : null}
+            <CardTitle className="text-xl sm:text-2xl">{title}</CardTitle>
+            <CardDescription className="text-sm sm:text-base">{description}</CardDescription>
+          </div>
+        </CardHeader>
+        {children ? <CardContent className="pt-0">{children}</CardContent> : null}
+      </Card>
+    </div>
+  );
+}
+
 export default function InvitePage() {
   const router = useRouter();
+  const { toast } = useToast();
   const searchParams = useSearchParams();
   const token = useMemo(() => searchParams.get("token") ?? "", [searchParams]);
 
@@ -121,6 +167,10 @@ export default function InvitePage() {
       if (workspaceId) {
         localStorage.setItem("currentWorkspaceId", workspaceId);
       }
+      toast({
+        title: "Joined workspace",
+        description: "Your invitation was accepted successfully.",
+      });
       router.replace("/dashboard");
       return;
     }
@@ -163,94 +213,99 @@ export default function InvitePage() {
 
   if (state === "loading") {
     return (
-      <div className="min-h-svh flex items-center justify-center p-6">
-        <Card className="w-full max-w-lg">
-          <CardHeader>
-            <CardTitle>Checking invitation...</CardTitle>
-          </CardHeader>
-        </Card>
-      </div>
+      <InviteLayout
+        icon={<Loader2 className="size-6 animate-spin" />}
+        title="Checking invitation"
+        description="Please wait while we validate this invite."
+      />
     );
   }
 
   if (state === "declined") {
     return (
-      <div className="min-h-svh flex items-center justify-center p-6">
-        <Card className="w-full max-w-lg">
-          <CardHeader>
-            <CardTitle>Invitation declined</CardTitle>
-            <CardDescription>You declined this workspace invitation.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={() => router.push("/dashboard")}>Go to dashboard</Button>
-          </CardContent>
-        </Card>
-      </div>
+      <InviteLayout
+        icon={<XCircle className="size-6" />}
+        title="Invitation declined"
+        description="You chose not to join this workspace."
+      >
+        <div className="flex justify-center">
+          <Button onClick={() => router.push("/dashboard")}>Go to dashboard</Button>
+        </div>
+      </InviteLayout>
     );
   }
 
   if (state === "mismatch") {
     return (
-      <div className="min-h-svh flex items-center justify-center p-6">
-        <Card className="w-full max-w-lg">
-          <CardHeader>
-            <CardTitle>Invitation blocked</CardTitle>
-            <CardDescription>
-              This invitation is not for the currently logged-in user.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={onSignOut}>Sign out</Button>
-          </CardContent>
-        </Card>
-      </div>
+      <InviteLayout
+        icon={<UserX className="size-6" />}
+        title="Invitation blocked"
+        description="This invitation does not match the currently logged-in user."
+      >
+        <div className="flex justify-center">
+          <Button onClick={onSignOut}>Sign out and switch account</Button>
+        </div>
+      </InviteLayout>
     );
   }
 
   if (state === "already_member") {
     return (
-      <div className="min-h-svh flex items-center justify-center p-6">
-        <Card className="w-full max-w-lg">
-          <CardHeader>
-            <CardTitle>You are already a member</CardTitle>
-            <CardDescription>Redirecting to your dashboard.</CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
+      <InviteLayout
+        icon={<CheckCircle2 className="size-6" />}
+        title="Already in workspace"
+        description="You are already a member. Redirecting to your dashboard."
+      />
     );
   }
 
   if (state === "invalid") {
     return (
-      <div className="min-h-svh flex items-center justify-center p-6">
-        <Card className="w-full max-w-lg">
-          <CardHeader>
-            <CardTitle>Invitation not available</CardTitle>
-            <CardDescription>This invitation is no longer valid.</CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
+      <InviteLayout
+        icon={<AlertCircle className="size-6" />}
+        title="Invitation unavailable"
+        description="This invitation is no longer valid."
+      />
     );
   }
 
   return (
-    <div className="min-h-svh flex items-center justify-center p-6">
-      <Card className="w-full max-w-lg">
-        <CardHeader>
-          <CardTitle>Join workspace</CardTitle>
-          <CardDescription>
-            Do you want to join {workspaceName ? <strong>{workspaceName}</strong> : "this workspace"}?
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex gap-3">
-          <Button onClick={onAccept} disabled={isSubmitting}>
-            {isSubmitting ? "Processing..." : "Accept"}
+    <InviteLayout
+      icon={<Mail className="size-6" />}
+      title="Workspace invitation"
+      description={
+        <>
+          You were invited to join{" "}
+          <span className="font-semibold text-foreground">
+            {workspaceName ?? "this workspace"}
+          </span>
+          .
+        </>
+      }
+      badge={<Badge variant="secondary">Email-verified invite</Badge>}
+    >
+      <div className="space-y-4 sm:space-y-5">
+        <div className="rounded-md border bg-muted/30 p-3 text-xs sm:text-sm text-muted-foreground flex items-start gap-2">
+          <ShieldCheck className="size-4 mt-0.5 text-primary" />
+          <p>
+            This invite is bound to your email. Only the intended account can accept it.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
+          <Button onClick={onAccept} disabled={isSubmitting} className="w-full">
+            {isSubmitting ? "Processing..." : "Accept invitation"}
           </Button>
-          <Button variant="outline" onClick={onDecline} disabled={isSubmitting}>
+          <Button
+            variant="outline"
+            onClick={onDecline}
+            disabled={isSubmitting}
+            className="w-full"
+          >
             Decline
           </Button>
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+      </div>
+    </InviteLayout>
   );
 }

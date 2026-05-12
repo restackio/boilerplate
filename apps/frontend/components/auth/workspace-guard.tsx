@@ -11,13 +11,16 @@ export function WorkspaceGuard({ children }: { children: React.ReactNode }) {
   const { isReady, loading, workspaces } = useDatabaseWorkspace();
   const router = useRouter();
   const hasRedirectedRef = useRef(false);
+  const isSessionError =
+    loading.error === "No user session found" ||
+    loading.error === "No valid user session found";
 
   useEffect(() => {
-    // Simple logic: if there's an error, redirect to login
-    if (loading.error) {
+    // Redirect to login only for actual missing/invalid session errors.
+    if (isSessionError) {
       router.push("/login");
     }
-  }, [loading.error, router]);
+  }, [isSessionError, router]);
 
   useEffect(() => {
     // Only check for empty workspaces once after loading completes

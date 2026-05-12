@@ -26,6 +26,7 @@ export function LoginForm({
     rawReturnTo && rawReturnTo.startsWith("/") && !rawReturnTo.startsWith("//")
       ? rawReturnTo
       : "/dashboard";
+  const signupHref = `/signup${returnTo !== "/dashboard" ? `?returnTo=${encodeURIComponent(returnTo)}` : ""}`;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -114,7 +115,7 @@ export function LoginForm({
       footerLink={{
         text: "Don't have an account?",
         linkText: "Sign up",
-        href: "/signup",
+        href: signupHref,
       }}
       className={className}
       {...props}

@@ -162,26 +162,24 @@ async def workspace_invites_create(
             user_query = select(User).where(User.email == invited_email)
             user_result = await db.execute(user_query)
             invited_user = user_result.scalar_one_or_none()
-            if not invited_user:
-                return WorkspaceInviteActionOutput(
-                    success=False,
-                    status="user_not_registered",
-                )
 
-            existing_member_query = select(UserWorkspace).where(
-                UserWorkspace.workspace_id
-                == uuid.UUID(function_input.workspace_id),
-                UserWorkspace.user_id == invited_user.id,
-            )
-            existing_member_result = await db.execute(
-                existing_member_query
-            )
-            existing_member = existing_member_result.scalar_one_or_none()
-            if existing_member:
-                return WorkspaceInviteActionOutput(
-                    success=False,
-                    status="already_member",
+            if invited_user:
+                existing_member_query = select(UserWorkspace).where(
+                    UserWorkspace.workspace_id
+                    == uuid.UUID(function_input.workspace_id),
+                    UserWorkspace.user_id == invited_user.id,
                 )
+                existing_member_result = await db.execute(
+                    existing_member_query
+                )
+                existing_member = (
+                    existing_member_result.scalar_one_or_none()
+                )
+                if existing_member:
+                    return WorkspaceInviteActionOutput(
+                        success=False,
+                        status="already_member",
+                    )
 
             pending_query = select(WorkspaceInvite).where(
                 WorkspaceInvite.workspace_id

@@ -154,10 +154,6 @@ export default function WorkspaceMembersPage() {
       void loadPendingInvites();
       return;
     }
-    if (status === "user_not_registered") {
-      setError("That email is not registered yet.");
-      return;
-    }
     if (status === "already_member") {
       setError("That user is already in this workspace.");
       return;
