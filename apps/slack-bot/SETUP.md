@@ -69,7 +69,7 @@ In HTTP mode, `SLACK_BOT_TOKEN` and `SLACK_APP_TOKEN` are **not needed** — the
 
 1. The deployment registers with the central router at startup (or from the frontend's Integrations page)
 2. The router provides an "Add to Slack" OAuth URL
-3. When a user installs the app, the router stores the workspace mapping
+3. When a user installs the app, the router stores the workspace installation
 4. Incoming Slack events are forwarded to your deployment's `/slack/events` endpoint
 5. Your bot processes the event and streams responses directly to Slack
 
@@ -86,8 +86,8 @@ In this mode, the boilerplate handles everything end-to-end — OAuth installati
 3. After approval, Slack redirects back to `SLACK_HTTP_BASE_URL/slack/oauth/callback`
 4. The boilerplate exchanges the code for a bot token using `SLACK_CLIENT_SECRET` and stores the installation in the database
 5. A public **#restack-agents** channel is created (or the bot joins it, if that name already exists and the channel is visible to the bot)
-6. The admin configures **channel→agent mappings** in the frontend (e.g., `#support` → Customer Support Agent, `#engineering` → Code Review Agent)
-7. Incoming Slack events hit the bot's HTTP endpoint, the channel router looks up the mapping, and dispatches to the correct agent
+6. The admin configures **channel→agent connections** in the frontend (e.g., `#support` → Customer Support Agent, `#engineering` → Code Review Agent)
+7. Incoming Slack events hit the bot's HTTP endpoint, the channel router looks up the connected agent, and dispatches the event to it
 
 ### OAuth v2 best practices (Slack)
 

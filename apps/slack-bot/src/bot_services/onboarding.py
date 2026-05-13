@@ -331,7 +331,7 @@ def send_no_agent_configured_message(
     thread_ts: str,
     frontend_url: str,
 ) -> None:
-    """Reply in-thread when the channel has no mapped agent."""
+    """Reply in-thread when the channel has no connected agent."""
     url = f"{frontend_url.rstrip('/')}/integrations/slack"
     blocks: list[dict[str, Any]] = [
         {

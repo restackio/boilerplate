@@ -846,6 +846,16 @@ class Channel(Base):
         ForeignKey("agents.id", ondelete="CASCADE"),
         nullable=False,
     )
+    welcome_pending = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+    )
+    connected_by_user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     created_at = Column(
         DateTime,
         default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),

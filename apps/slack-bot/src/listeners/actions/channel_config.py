@@ -1,8 +1,8 @@
 """Handle inline channel-agent configuration from Slack.
 
-When a user @mentions the bot in a channel with no mapped agent, the bot
-shows a dropdown.  Selecting an agent triggers this handler which:
-1. Persists the channel → agent mapping in the database
+When a user @mentions the bot in a channel with no connected agent, the
+bot shows a dropdown.  Selecting an agent triggers this handler which:
+1. Persists the channel → agent connection in the database
 2. Confirms the configuration
 3. Processes the original message as a new task
 """
@@ -58,7 +58,7 @@ async def _do_configure(body, say, client):
             )
             return
 
-        # -- 1. Persist the channel → agent mapping --
+        # -- 1. Persist the channel → agent connection --
         if channel_integration_id:
             try:
                 from ...client import client as restack_client
@@ -73,7 +73,6 @@ async def _do_configure(body, say, client):
                         "channel_integration_id": channel_integration_id,
                         "external_channel_id": channel_id,
                         "agent_id": agent_id,
-                        "notify_slack": False,
                     },
                     task_queue=config.RESTACK_TASK_QUEUE,
                 )
@@ -81,13 +80,13 @@ async def _do_configure(body, say, client):
                     workflow_id=wf_id, run_id=run_id
                 )
                 logger.info(
-                    "Persisted channel mapping %s → agent %s (%s)",
+                    "Connected channel %s → agent %s (%s)",
                     channel_id,
                     agent_id,
                     agent_name,
                 )
             except Exception:
-                logger.exception("Failed to persist channel mapping for %s", channel_id)
+                logger.exception("Failed to connect channel %s", channel_id)
 
         # -- 2. Update the selector message to show confirmation --
         client.chat_update(

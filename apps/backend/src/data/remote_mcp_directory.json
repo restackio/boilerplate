@@ -315,15 +315,6 @@
     "auth_type": "oauth"
   },
   {
-    "id": "slack",
-    "name": "Slack",
-    "server_label": "slack",
-    "server_url": "https://mcp.slack.com/mcp",
-    "description": "Send messages, list channels, and manage Slack workspace.",
-    "tags": ["slack", "messaging", "channels"],
-    "auth_type": "oauth"
-  },
-  {
     "id": "gamma",
     "name": "Gamma",
     "server_label": "gamma",

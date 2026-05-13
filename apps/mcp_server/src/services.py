@@ -36,6 +36,9 @@ from src.workflows.tools.generate_mock import GenerateMock
 from src.workflows.tools.list_integration_tools import (
     ListIntegrationTools,
 )
+from src.workflows.tools.list_workspace_integrations import (
+    ListWorkspaceIntegrations,
+)
 from src.workflows.tools.load_into_dataset import (
     LoadIntoDataset,
 )
@@ -45,11 +48,11 @@ from src.workflows.tools.mock_ai_integration import (
 from src.workflows.tools.search_remote_mcp_directory import (
     SearchRemoteMcpDirectory,
 )
-from src.workflows.tools.slack_bind_channel import (
-    SlackBindChannel,
-)
 from src.workflows.tools.slack_check_connection import (
     SlackCheckConnection,
+)
+from src.workflows.tools.slack_connect_channel import (
+    SlackConnectChannel,
 )
 from src.workflows.tools.slack_list_channels import (
     SlackListChannels,
@@ -90,6 +93,7 @@ async def run_restack_service() -> None:
             UpdateView,
             UpdatePatternSpecs,
             ListIntegrationTools,
+            ListWorkspaceIntegrations,
             SearchRemoteMcpDirectory,
             GenerateMock,
             MockAIIntegration,
@@ -107,7 +111,7 @@ async def run_restack_service() -> None:
             CompleteTask,
             SlackCheckConnection,
             SlackListChannels,
-            SlackBindChannel,
+            SlackConnectChannel,
         ],
         functions=[
             llm_response,

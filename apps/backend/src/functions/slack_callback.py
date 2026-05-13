@@ -22,7 +22,7 @@ from restack_ai.function import function
 from sqlalchemy import select
 
 from src.database.connection import get_async_db
-from src.database.models import Channel, ChannelIntegration
+from src.database.models import ChannelIntegration
 
 SLACK_CHANNEL_TYPE = "slack"
 
@@ -34,42 +34,81 @@ SLACK_API_BASE = "https://slack.com/api"
 _DESCRIPTION_PREVIEW_MAX = 500
 
 
-async def _resolve_bot_token(slack_team_id: str | None) -> str | None:
+async def _resolve_bot_token(
+    slack_team_id: str | None,
+    workspace_id: str | None = None,
+) -> str | None:
     """Return the bot token to use for this Slack call.
 
     Prefers the per-team token stored in ``channel_integrations.credentials``
     when a team_id is provided; falls back to the SLACK_BOT_TOKEN env var
     for single-workspace deployments.
+
+    When ``workspace_id`` is provided we additionally constrain the lookup
+    to that workspace. This is defense-in-depth on top of the
+    cross-workspace takeover block in
+    ``channel_integration_upsert``: even if a row ever ended up bound to
+    the wrong tenant (manual DB write, future migration bug, etc.) we'd
+    rather return ``None`` and surface ``no_bot_token`` than hand out a
+    stranger's bot token.
+
+    Callers SHOULD pass ``workspace_id`` whenever they have it. We
+    log a warning when it's missing so we can tighten this to required
+    in a future release.
     """
-    if slack_team_id:
-        try:
-            async for db in get_async_db():
-                result = await db.execute(
-                    select(ChannelIntegration.credentials).where(
-                        ChannelIntegration.channel_type == SLACK_CHANNEL_TYPE,
-                        ChannelIntegration.external_id == slack_team_id,
-                    )
-                )
-                credentials = result.scalar_one_or_none()
-                token = (
-                    credentials.get("bot_token")
-                    if isinstance(credentials, dict)
-                    else None
-                )
-                if isinstance(token, str) and token:
-                    return token
-                logger.warning(
-                    "No Slack integration found for team_id=%s; "
-                    "falling back to SLACK_BOT_TOKEN env",
-                    slack_team_id,
-                )
-                break
-        except Exception:
-            logger.exception(
-                "Failed to look up Slack bot token for team_id=%s; "
-                "falling back to SLACK_BOT_TOKEN env",
-                slack_team_id,
+    if not slack_team_id:
+        return SLACK_BOT_TOKEN
+
+    if not workspace_id:
+        logger.warning(
+            "_resolve_bot_token called without workspace_id for "
+            "team_id=%s; falling back to external_id-only lookup",
+            slack_team_id,
+        )
+
+    try:
+        async for db in get_async_db():
+            stmt = select(ChannelIntegration.credentials).where(
+                ChannelIntegration.channel_type == SLACK_CHANNEL_TYPE,
+                ChannelIntegration.external_id == slack_team_id,
             )
+            if workspace_id:
+                try:
+                    workspace_uuid = uuid.UUID(workspace_id)
+                except ValueError:
+                    logger.warning(
+                        "Invalid workspace_id=%s passed to "
+                        "_resolve_bot_token; falling back to env",
+                        workspace_id,
+                    )
+                    return SLACK_BOT_TOKEN
+                stmt = stmt.where(
+                    ChannelIntegration.workspace_id == workspace_uuid
+                )
+
+            result = await db.execute(stmt)
+            credentials = result.scalar_one_or_none()
+            token = (
+                credentials.get("bot_token")
+                if isinstance(credentials, dict)
+                else None
+            )
+            if isinstance(token, str) and token:
+                return token
+            logger.warning(
+                "No Slack integration found for team_id=%s "
+                "workspace_id=%s; falling back to SLACK_BOT_TOKEN env",
+                slack_team_id,
+                workspace_id,
+            )
+            break
+    except Exception:
+        logger.exception(
+            "Failed to look up Slack bot token for team_id=%s "
+            "workspace_id=%s; falling back to SLACK_BOT_TOKEN env",
+            slack_team_id,
+            workspace_id,
+        )
     return SLACK_BOT_TOKEN
 
 
@@ -87,6 +126,14 @@ class SlackPostMessageInput(BaseModel):
         description=(
             "Slack team/workspace id, used to resolve the per-workspace bot "
             "token from channel_integrations.credentials."
+        ),
+    )
+    workspace_id: str | None = Field(
+        None,
+        description=(
+            "Restack workspace id. When provided, constrains token "
+            "resolution to that workspace as defense-in-depth against "
+            "cross-tenant token leakage."
         ),
     )
 
@@ -113,6 +160,14 @@ class SlackUpdateMessageInput(BaseModel):
             "token from channel_integrations.credentials."
         ),
     )
+    workspace_id: str | None = Field(
+        None,
+        description=(
+            "Restack workspace id. When provided, constrains token "
+            "resolution to that workspace as defense-in-depth against "
+            "cross-tenant token leakage."
+        ),
+    )
 
 
 class SlackUpdateMessageOutput(BaseModel):
@@ -131,6 +186,14 @@ class SlackReactionInput(BaseModel):
         description=(
             "Slack team/workspace id, used to resolve the per-workspace bot "
             "token from channel_integrations.credentials."
+        ),
+    )
+    workspace_id: str | None = Field(
+        None,
+        description=(
+            "Restack workspace id. When provided, constrains token "
+            "resolution to that workspace as defense-in-depth against "
+            "cross-tenant token leakage."
         ),
     )
 
@@ -269,7 +332,9 @@ async def slack_post_message(
     function_input: SlackPostMessageInput,
 ) -> SlackPostMessageOutput:
     """Post a new message to a Slack channel or thread."""
-    bot_token = await _resolve_bot_token(function_input.slack_team_id)
+    bot_token = await _resolve_bot_token(
+        function_input.slack_team_id, function_input.workspace_id
+    )
     if not bot_token:
         return SlackPostMessageOutput(
             ok=False, error="no_bot_token"
@@ -302,7 +367,9 @@ async def slack_update_message(
     function_input: SlackUpdateMessageInput,
 ) -> SlackUpdateMessageOutput:
     """Update an existing Slack message (for progressive streaming)."""
-    bot_token = await _resolve_bot_token(function_input.slack_team_id)
+    bot_token = await _resolve_bot_token(
+        function_input.slack_team_id, function_input.workspace_id
+    )
     if not bot_token:
         return SlackUpdateMessageOutput(
             ok=False, error="no_bot_token"
@@ -331,7 +398,9 @@ async def slack_add_reaction(
     function_input: SlackReactionInput,
 ) -> SlackReactionOutput:
     """Add an emoji reaction to a Slack message."""
-    bot_token = await _resolve_bot_token(function_input.slack_team_id)
+    bot_token = await _resolve_bot_token(
+        function_input.slack_team_id, function_input.workspace_id
+    )
     if not bot_token:
         return SlackReactionOutput(
             ok=False, error="no_bot_token"
@@ -363,7 +432,9 @@ async def slack_remove_reaction(
     function_input: SlackReactionInput,
 ) -> SlackReactionOutput:
     """Remove an emoji reaction from a Slack message."""
-    bot_token = await _resolve_bot_token(function_input.slack_team_id)
+    bot_token = await _resolve_bot_token(
+        function_input.slack_team_id, function_input.workspace_id
+    )
     if not bot_token:
         return SlackReactionOutput(
             ok=False, error="no_bot_token"
@@ -396,6 +467,7 @@ async def notify_slack_on_task_complete(
     slack_channel = meta.get("slack_channel")
     slack_thread_ts = meta.get("slack_thread_ts") or None
     slack_team_id = meta.get("slack_team_id")
+    workspace_id = meta.get("workspace_id")
 
     if not slack_channel:
         return TaskSlackCallbackOutput(
@@ -403,7 +475,7 @@ async def notify_slack_on_task_complete(
             error="No Slack context in task metadata",
         )
 
-    bot_token = await _resolve_bot_token(slack_team_id)
+    bot_token = await _resolve_bot_token(slack_team_id, workspace_id)
     if not bot_token:
         return TaskSlackCallbackOutput(
             notified=False,
@@ -516,177 +588,6 @@ async def notify_slack_on_task_complete(
         "Failed to notify Slack on task complete: %s", error
     )
     return TaskSlackCallbackOutput(notified=False, error=error)
-
-
-def _bot_token_from_integration_credentials(
-    credentials: Any,
-) -> str | None:
-    if not isinstance(credentials, dict):
-        return None
-    t = credentials.get("bot_token")
-    return t if isinstance(t, str) and t else None
-
-
-class SlackPostToMappedAgentChannelsInput(BaseModel):
-    """Post a new-task notice to every Slack channel bound to the task's agent."""
-
-    workspace_id: str = Field(..., min_length=1)
-    agent_id: str = Field(..., min_length=1)
-    task_id: str = Field(..., min_length=1)
-    task_title: str = Field(..., min_length=1)
-    task_description: str = Field(
-        default="",
-        description="User message / task body (may be empty for some flows)",
-    )
-    agent_name: str = Field(default="Agent")
-    exclude_slack_channel_id: str | None = Field(
-        default=None,
-        description=(
-            "If set, skip this Slack channel (e.g. task origin) so the "
-            "thread is not notified twice; other mapped channels still get a post."
-        ),
-    )
-    frontend_url: str | None = None
-
-
-class SlackPostToMappedAgentChannelsOutput(BaseModel):
-    posted_to_channels: int = 0
-    error: str | None = None
-
-
-@function.defn()
-async def slack_post_task_to_agent_mapped_channels(
-    function_input: SlackPostToMappedAgentChannelsInput,
-) -> SlackPostToMappedAgentChannelsOutput:
-    """Notify Slack channels that have a channel→agent mapping for this agent.
-
-    Best-effort: per-channel failures are logged; the activity does not throw.
-    """
-    excl = (function_input.exclude_slack_channel_id or "").strip()
-    try:
-        wid = uuid.UUID(function_input.workspace_id)
-        aid = uuid.UUID(function_input.agent_id)
-    except (ValueError, TypeError) as e:
-        return SlackPostToMappedAgentChannelsOutput(
-            error=f"invalid_ids: {e!s}"
-        )
-
-    frontend_url = function_input.frontend_url or os.getenv(
-        "FRONTEND_URL", "http://localhost:3000"
-    )
-    task_url = _task_dashboard_url(
-        frontend_url,
-        function_input.task_id,
-        function_input.task_title,
-    )
-    desc = function_input.task_description or ""
-    preview = desc[:_DESCRIPTION_PREVIEW_MAX]
-    if len(desc) > _DESCRIPTION_PREVIEW_MAX:
-        preview += "..."
-
-    blocks: list[dict[str, Any]] = [
-        {
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": (
-                    f"*New task started*\n\n"
-                    f"*{function_input.task_title}*\n"
-                    f"Agent: {function_input.agent_name}"
-                ),
-            },
-        },
-        *(
-            [
-                {
-                    "type": "section",
-                    "text": {"type": "mrkdwn", "text": preview},
-                }
-            ]
-            if preview.strip()
-            else []
-        ),
-        {
-            "type": "actions",
-            "elements": [
-                {
-                    "type": "button",
-                    "text": {
-                        "type": "plain_text",
-                        "text": "View in Dashboard",
-                    },
-                    "url": task_url,
-                    "action_id": "view_task",
-                }
-            ],
-        },
-    ]
-    text_fallback = (
-        f"New task: {function_input.task_title} (Agent: {function_input.agent_name})"
-    )
-
-    posted = 0
-    async for db in get_async_db():
-        try:
-            q = await db.execute(
-                select(Channel, ChannelIntegration)
-                .join(
-                    ChannelIntegration,
-                    Channel.channel_integration_id
-                    == ChannelIntegration.id,
-                )
-                .where(
-                    ChannelIntegration.workspace_id == wid,
-                    ChannelIntegration.channel_type == SLACK_CHANNEL_TYPE,
-                    Channel.agent_id == aid,
-                )
-            )
-            rows = list(q.all())
-        except Exception as e:
-            logger.exception("Failed to list mapped Slack channels: %s", e)
-            return SlackPostToMappedAgentChannelsOutput(
-                error=f"list_failed: {e!s}"
-            )
-        for ch, inst in rows:
-            cid = (ch.external_channel_id or "").strip()
-            if not cid or cid.startswith("D"):
-                continue
-            if excl and cid == excl:
-                continue
-            token = _bot_token_from_integration_credentials(
-                inst.credentials
-            )
-            if not token:
-                logger.warning(
-                    "No bot token for channel mapping channel=%s integration=%s",
-                    cid,
-                    inst.id,
-                )
-                continue
-            try:
-                result = await _slack_api_call(
-                    "chat.postMessage",
-                    {
-                        "channel": cid,
-                        "text": text_fallback,
-                        "blocks": blocks,
-                    },
-                    token,
-                )
-                if result.get("ok"):
-                    posted += 1
-                else:
-                    logger.warning(
-                        "postMessage to mapped channel %s: %s",
-                        cid,
-                        result.get("error"),
-                    )
-            except Exception:
-                logger.exception("postMessage failed for channel %s", cid)
-        return SlackPostToMappedAgentChannelsOutput(
-            posted_to_channels=posted
-        )
-    return SlackPostToMappedAgentChannelsOutput(error="no_db")
 
 
 class SlackPostTaskStartedInput(BaseModel):

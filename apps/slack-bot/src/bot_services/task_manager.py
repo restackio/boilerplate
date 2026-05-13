@@ -44,6 +44,7 @@ async def create_task_from_slack(
         "slack_channel": slack_channel,
         "slack_thread_ts": slack_thread_ts,
         "slack_user_id": slack_user_id,
+        "workspace_id": workspace_id,
         "source": "slack",
     }
     if slack_team_id:

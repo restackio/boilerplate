@@ -57,7 +57,11 @@ run_admin_sql() {
   GEN_OUT=$(mktemp)
   python3 "$SCRIPT_DIR/generate_admin_password.py" "$ADMIN_SQL_FILE" 2>/dev/null > "$GEN_OUT"
   ADMIN_PASS=$(head -1 "$GEN_OUT")
-  tail -n +3 "$GEN_OUT" | psql "$DATABASE_URL" -f -
+  # ON_ERROR_STOP=1 + set -e above means SQL errors fail loudly instead of
+  # being printed and ignored. Without this flag psql reports errors but
+  # exits 0, so the bash script claimed success even when the seed had a
+  # broken ON CONFLICT clause and silently dropped required tool rows.
+  tail -n +3 "$GEN_OUT" | psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f -
   rm -f "$GEN_OUT"
 }
 
@@ -68,7 +72,7 @@ if [ "$workspace_exists" = "0" ]; then
     trap 'rm -f "$GEN_OUT"' EXIT
     python3 "$SCRIPT_DIR/generate_admin_password.py" "$ADMIN_SQL_FILE" 2>/dev/null > "$GEN_OUT"
     ADMIN_PASS=$(head -1 "$GEN_OUT")
-    tail -n +3 "$GEN_OUT" | psql "$DATABASE_URL" -f - > /dev/null
+    tail -n +3 "$GEN_OUT" | psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f - > /dev/null
     rm -f "$GEN_OUT"
     trap - EXIT
     echo "✓ PostgreSQL admin data inserted"
@@ -92,7 +96,7 @@ else
       ESCAPED_HASH="${EXISTING_HASH//\\/\\\\}"
       ESCAPED_HASH="${ESCAPED_HASH//\$/\\$}"
       ESCAPED_HASH="${ESCAPED_HASH//&/\\&}"
-      sed "s|__ADMIN_PASSWORD_HASH__|$ESCAPED_HASH|g" "$ADMIN_SQL_FILE" | psql "$DATABASE_URL" -f - > /dev/null
+      sed "s|__ADMIN_PASSWORD_HASH__|$ESCAPED_HASH|g" "$ADMIN_SQL_FILE" | psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f - > /dev/null
     else
       run_admin_sql > /dev/null
       NEW_ADMIN_PASS="$ADMIN_PASS"

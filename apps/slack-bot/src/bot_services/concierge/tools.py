@@ -45,10 +45,11 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
     {
         "type": "function",
         "function": {
-            "name": "list_channel_mappings",
+            "name": "list_connected_channels",
             "description": (
-                "List which Slack channels in this workspace are mapped to "
-                "which agents. Useful when the user asks 'what's set up where'."
+                "List which Slack channels in this workspace are connected "
+                "to which agents. Useful when the user asks 'what's set up "
+                "where'."
             ),
             "parameters": {
                 "type": "object",
@@ -62,10 +63,10 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
         "function": {
             "name": "configure_channel_agent",
             "description": (
-                "Map the current Slack channel to a specific agent. After "
-                "this, all @mentions in this channel will be routed to that "
-                "agent automatically. Use this when the user has picked an "
-                "agent for the channel they're messaging from."
+                "Connect the current Slack channel to a specific agent. "
+                "After this, all @mentions in this channel will be routed "
+                "to that agent automatically. Use this when the user has "
+                "picked an agent for the channel they're messaging from."
             ),
             "parameters": {
                 "type": "object",
@@ -73,8 +74,8 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                     "agent_id": {
                         "type": "string",
                         "description": (
-                            "The id of the agent to map. Must come from a "
-                            "prior list_agents() call."
+                            "The id of the agent to connect. Must come "
+                            "from a prior list_agents() call."
                         ),
                     },
                 },
@@ -139,14 +140,16 @@ async def _tool_list_agents(context: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-async def _tool_list_channel_mappings(context: dict[str, Any]) -> dict[str, Any]:
+async def _tool_list_connected_channels(
+    context: dict[str, Any],
+) -> dict[str, Any]:
     channel_integration_id = context.get("channel_integration_id")
     if not channel_integration_id:
-        return {"mappings": [], "note": "No Slack installation linked."}
+        return {"channels": [], "note": "No Slack installation linked."}
 
     from ...client import client as restack_client
 
-    wf_id = f"slack_concierge_list_mappings_{uuid.uuid4().hex[:10]}"
+    wf_id = f"slack_concierge_list_channels_{uuid.uuid4().hex[:10]}"
     try:
         run_id = await restack_client.schedule_workflow(
             workflow_name="ChannelsByIntegrationWorkflow",
@@ -160,36 +163,36 @@ async def _tool_list_channel_mappings(context: dict[str, Any]) -> dict[str, Any]
             workflow_id=wf_id, run_id=run_id
         )
     except Exception as e:
-        logger.warning("list_channel_mappings failed: %s", e)
-        return {"error": f"Could not fetch mappings: {e}"}
+        logger.warning("list_connected_channels failed: %s", e)
+        return {"error": f"Could not fetch connected channels: {e}"}
 
-    mappings_raw: list[Any] = []
+    rows_raw: list[Any] = []
     if isinstance(result, dict):
-        mappings_raw = result.get("channels") or []
+        rows_raw = result.get("channels") or []
     elif hasattr(result, "channels"):
-        mappings_raw = result.channels or []
+        rows_raw = result.channels or []
 
     # Channel display names are intentionally not stored — the LLM only
-    # needs the (channel_id → agent_id) mapping to answer "what's set up
+    # needs the (channel_id → agent_id) pair to answer "what's set up
     # where". Slack's renderer turns C-prefixed IDs into clickable
     # #channel-name links automatically.
-    mappings: list[dict[str, Any]] = []
-    for m in mappings_raw:
-        if isinstance(m, dict):
-            mappings.append(
+    channels: list[dict[str, Any]] = []
+    for row in rows_raw:
+        if isinstance(row, dict):
+            channels.append(
                 {
-                    "channel_id": m.get("external_channel_id", ""),
-                    "agent_id": m.get("agent_id", ""),
+                    "channel_id": row.get("external_channel_id", ""),
+                    "agent_id": row.get("agent_id", ""),
                 }
             )
         else:
-            mappings.append(
+            channels.append(
                 {
-                    "channel_id": getattr(m, "external_channel_id", ""),
-                    "agent_id": str(getattr(m, "agent_id", "")),
+                    "channel_id": getattr(row, "external_channel_id", ""),
+                    "agent_id": str(getattr(row, "agent_id", "")),
                 }
             )
-    return {"mappings": mappings}
+    return {"channels": channels}
 
 
 async def _tool_configure_channel_agent(
@@ -205,8 +208,9 @@ async def _tool_configure_channel_agent(
     if not channel_integration_id:
         return {
             "error": (
-                "No Slack installation linked — cannot persist mapping. "
-                "User should reinstall the Slack app from the dashboard."
+                "No Slack installation linked — cannot connect this "
+                "channel. User should reinstall the Slack app from the "
+                "dashboard."
             )
         }
     if not channel_id:
@@ -214,8 +218,8 @@ async def _tool_configure_channel_agent(
     if channel_id.startswith("D"):
         return {
             "error": (
-                "This is a DM, not a channel. Channel-agent mappings only "
-                "apply to real channels."
+                "This is a DM, not a channel. Channel-to-agent "
+                "connections only apply to real channels."
             )
         }
 
@@ -236,7 +240,7 @@ async def _tool_configure_channel_agent(
         await restack_client.get_workflow_result(workflow_id=wf_id, run_id=run_id)
     except Exception as e:
         logger.exception("configure_channel_agent failed")
-        return {"error": f"Failed to persist mapping: {e}"}
+        return {"error": f"Failed to connect channel: {e}"}
 
     return {
         "ok": True,
@@ -315,8 +319,8 @@ async def dispatch_tool_call(
     try:
         if name == "list_agents":
             result = await _tool_list_agents(context)
-        elif name == "list_channel_mappings":
-            result = await _tool_list_channel_mappings(context)
+        elif name == "list_connected_channels":
+            result = await _tool_list_connected_channels(context)
         elif name == "configure_channel_agent":
             result = await _tool_configure_channel_agent(args, context)
         elif name == "hand_off_to_agent":

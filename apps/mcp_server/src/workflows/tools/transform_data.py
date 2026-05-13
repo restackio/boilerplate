@@ -91,7 +91,7 @@ def _make_schema_strict(schema: Any) -> Any:
                     patched["required"] = list(props.keys())
                 else:
                     missing = [
-                        k for k in props.keys() if k not in existing_required
+                        k for k in props if k not in existing_required
                     ]
                     if missing:
                         patched["required"] = [*existing_required, *missing]
