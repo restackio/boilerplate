@@ -80,7 +80,7 @@ async def route_slack_event(team_id: str, channel_id: str) -> dict[str, Any] | N
         )
         return None
 
-
+# private-channel auto-join problem
 async def consume_pending_welcome(
     team_id: str, channel_id: str
 ) -> dict[str, Any] | None:
