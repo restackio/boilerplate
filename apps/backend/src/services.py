@@ -215,6 +215,15 @@ from src.functions.users_crud import (
     users_read,
     users_update,
 )
+from src.functions.workspace_invites_crud import (
+    workspace_invites_accept,
+    workspace_invites_create,
+    workspace_invites_decline,
+    workspace_invites_get_by_token,
+    workspace_invites_list_pending,
+    workspace_invites_resend,
+    workspace_invites_revoke,
+)
 from src.functions.workspaces_crud import (
     workspaces_create,
     workspaces_delete,
@@ -354,6 +363,15 @@ from src.workflows.crud.users_crud import (
     UsersReadWorkflow,
     UsersUpdateWorkflow,
 )
+from src.workflows.crud.workspace_invites_crud import (
+    WorkspaceInvitesAcceptWorkflow,
+    WorkspaceInvitesCreateWorkflow,
+    WorkspaceInvitesDeclineWorkflow,
+    WorkspaceInvitesGetByTokenWorkflow,
+    WorkspaceInvitesListPendingWorkflow,
+    WorkspaceInvitesResendWorkflow,
+    WorkspaceInvitesRevokeWorkflow,
+)
 from src.workflows.crud.workspaces_crud import (
     WorkspacesCreateWorkflow,
     WorkspacesDeleteWorkflow,
@@ -414,6 +432,13 @@ async def run_restack_service() -> None:
             WorkspacesUpdateWorkflow,
             WorkspacesDeleteWorkflow,
             WorkspacesGetByIdWorkflow,
+            WorkspaceInvitesCreateWorkflow,
+            WorkspaceInvitesGetByTokenWorkflow,
+            WorkspaceInvitesAcceptWorkflow,
+            WorkspaceInvitesDeclineWorkflow,
+            WorkspaceInvitesListPendingWorkflow,
+            WorkspaceInvitesRevokeWorkflow,
+            WorkspaceInvitesResendWorkflow,
             UsersReadWorkflow,
             UsersCreateWorkflow,
             UsersUpdateWorkflow,
@@ -556,6 +581,13 @@ async def run_restack_service() -> None:
             workspaces_update,
             workspaces_delete,
             workspaces_get_by_id,
+            workspace_invites_create,
+            workspace_invites_get_by_token,
+            workspace_invites_accept,
+            workspace_invites_decline,
+            workspace_invites_list_pending,
+            workspace_invites_revoke,
+            workspace_invites_resend,
             users_read,
             users_create,
             users_update,

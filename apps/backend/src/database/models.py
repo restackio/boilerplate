@@ -200,6 +200,51 @@ class PasswordResetToken(Base):
     )
 
 
+class WorkspaceInvite(Base):
+    __tablename__ = "workspace_invites"
+
+    id = Column(UUID(as_uuid=True), primary_key=True)
+    workspace_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    invited_email = Column(String(255), nullable=False)
+    invited_by_user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    role = Column(String(50), nullable=False, default="member")
+    token = Column(String(128), nullable=False, unique=True)
+    status = Column(String(50), nullable=False, default="pending")
+    created_at = Column(
+        DateTime,
+        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+    )
+    accepted_at = Column(DateTime, nullable=True)
+    declined_at = Column(DateTime, nullable=True)
+    revoked_at = Column(DateTime, nullable=True)
+    accepted_by_user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            role.in_(["owner", "admin", "member"]),
+            name="workspace_invites_valid_role",
+        ),
+        CheckConstraint(
+            status.in_(
+                ["pending", "accepted", "declined", "revoked"]
+            ),
+            name="workspace_invites_valid_status",
+        ),
+    )
+
+
 class Agent(Base):
     __tablename__ = "agents"
 

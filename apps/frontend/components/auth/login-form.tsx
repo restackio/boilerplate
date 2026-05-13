@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { AuthForm, useAuthFormState } from "@workspace/ui/components";
 import { executeWorkflow } from "@/app/actions/workflow";
 import { posthog } from "@/lib/posthog";
@@ -10,6 +11,7 @@ export function LoginForm({
   className,
   ...props
 }: React.ComponentProps<"form">) {
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const {
@@ -19,6 +21,12 @@ export function LoginForm({
     finishSubmission,
     setSubmissionError,
   } = useAuthFormState();
+  const rawReturnTo = searchParams.get("returnTo");
+  const returnTo =
+    rawReturnTo && rawReturnTo.startsWith("/") && !rawReturnTo.startsWith("//")
+      ? rawReturnTo
+      : "/dashboard";
+  const signupHref = `/signup${returnTo !== "/dashboard" ? `?returnTo=${encodeURIComponent(returnTo)}` : ""}`;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,7 +55,7 @@ export function LoginForm({
           "currentUser",
           JSON.stringify(workflowResult.data.user),
         );
-        window.location.href = "/dashboard";
+        window.location.href = returnTo;
       } else {
         setSubmissionError(
           workflowResult?.error ||
@@ -107,7 +115,7 @@ export function LoginForm({
       footerLink={{
         text: "Don't have an account?",
         linkText: "Sign up",
-        href: "/signup",
+        href: signupHref,
       }}
       className={className}
       {...props}
