@@ -1,4 +1,4 @@
-"""Restack Slack concierge: LLM front-desk for unmapped channels and DMs."""
+"""Restack Slack concierge: LLM front-desk for unconnected channels and DMs."""
 
 from .agent import ConciergeResult, run_concierge
 

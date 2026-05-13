@@ -80,7 +80,7 @@ def _extract_installations(result: Any) -> list[SlackInstallationSummary]:
     name="SlackCheckConnection",
     description=(
         "Check whether the user's workspace has Slack connected. Call this "
-        "before slacklistchannels / slackbindchannel. When connected=false, "
+        "before slacklistchannels / slackconnectchannel. When connected=false, "
         "share the returned install_url with the user and ask them to reply "
         "once they've completed OAuth; then call this tool again to verify."
     ),

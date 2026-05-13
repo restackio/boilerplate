@@ -296,7 +296,7 @@ CREATE INDEX IF NOT EXISTS idx_agent_tools_enabled ON agent_tools(agent_id, tool
 
 -- Covering indexes for read-heavy operations
 CREATE INDEX IF NOT EXISTS idx_agents_list_covering ON agents(workspace_id, status) INCLUDE (id, name, description, type, created_at, updated_at);
-CREATE INDEX IF NOT EXISTS idx_tasks_list_covering ON tasks(workspace_id, status) INCLUDE (id, title, description, agent_id, assigned_to_id, created_at, updated_at);
+CREATE INDEX IF NOT EXISTS idx_tasks_list_covering ON tasks(workspace_id, status) INCLUDE (id, title, agent_id, assigned_to_id, created_at, updated_at);
 CREATE INDEX IF NOT EXISTS idx_datasets_list_covering ON datasets(workspace_id) INCLUDE (id, name, description, created_at, updated_at);
 
 -- Index for email lookups (very common in auth)

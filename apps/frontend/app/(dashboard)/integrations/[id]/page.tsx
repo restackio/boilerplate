@@ -125,7 +125,6 @@ export default function IntegrationDetailPage() {
 
   const handleSave = async () => {
     if (!server || !setupData.formData) {
-      console.error("No server or setup data available for saving");
       return;
     }
 

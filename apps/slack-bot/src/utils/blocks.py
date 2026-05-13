@@ -140,9 +140,10 @@ def channel_config_blocks(
     user_id: str,
     message_preview: str,
 ) -> list[dict[str, Any]]:
-    """Inline agent picker shown when a channel has no agent mapped yet.
+    """Inline agent picker shown when a channel has no agent connected yet.
 
-    Selecting an agent persists the mapping *and* handles the original message.
+    Selecting an agent persists the channel-to-agent connection *and*
+    handles the original message.
     """
     truncated = message_preview[:100] + ("..." if len(message_preview) > 100 else "")
     options = [

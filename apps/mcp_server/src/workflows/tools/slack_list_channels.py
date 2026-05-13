@@ -134,7 +134,7 @@ def _channels_from(
     name="SlackListChannels",
     description=(
         "List Slack channels visible to the connected Slack workspace so the "
-        "user can pick one to bind to this agent. Call after "
+        "user can pick one to connect to this agent. Call after "
         "slackcheckconnection confirms connected=true. Pass workspace_id from "
         "meta_info; team_id is optional when there is exactly one "
         "installation. Returns channels with is_member flagged — remind the "
@@ -200,6 +200,7 @@ class SlackListChannels:
                 function="slack_list_conversations",
                 function_input={
                     "slack_team_id": team_id,
+                    "workspace_id": workflow_input.workspace_id,
                     "include_private": workflow_input.include_private,
                     "limit": workflow_input.limit,
                 },

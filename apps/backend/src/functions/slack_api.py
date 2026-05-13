@@ -49,6 +49,14 @@ class SlackListConversationsInput(BaseModel):
             "token from channel_integrations.credentials."
         ),
     )
+    workspace_id: str | None = Field(
+        None,
+        description=(
+            "Restack workspace id. When provided, constrains token "
+            "resolution to that workspace as defense-in-depth against "
+            "cross-tenant token leakage."
+        ),
+    )
     include_private: bool = Field(
         default=True,
         description="Include private channels the bot is a member of.",
@@ -153,7 +161,9 @@ async def slack_list_conversations(
     public-only rather than failing the whole call — this keeps agent-builder
     flows usable for existing installs that predate the scope.
     """
-    bot_token = await _resolve_bot_token(function_input.slack_team_id)
+    bot_token = await _resolve_bot_token(
+        function_input.slack_team_id, function_input.workspace_id
+    )
     if not bot_token:
         return SlackListConversationsOutput(ok=False, error="no_bot_token")
 
@@ -213,6 +223,14 @@ class SlackJoinChannelInput(BaseModel):
             "token from channel_integrations.credentials."
         ),
     )
+    workspace_id: str | None = Field(
+        None,
+        description=(
+            "Restack workspace id. When provided, constrains token "
+            "resolution to that workspace as defense-in-depth against "
+            "cross-tenant token leakage."
+        ),
+    )
     channel_id: str = Field(
         ...,
         description="Slack channel id (e.g. C01234ABC) to join.",
@@ -242,7 +260,9 @@ async def slack_join_channel(
     channel_type`` or ``channel_not_found`` — surfaced as ``requires_invite``
     so the caller can ask the user to ``/invite @<bot>`` instead.
     """
-    bot_token = await _resolve_bot_token(function_input.slack_team_id)
+    bot_token = await _resolve_bot_token(
+        function_input.slack_team_id, function_input.workspace_id
+    )
     if not bot_token:
         return SlackJoinChannelOutput(ok=False, error="no_bot_token")
 

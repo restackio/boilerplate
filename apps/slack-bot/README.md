@@ -193,11 +193,11 @@ await workflow.step(
 
 ### Multiple agents per Slack channel (many-to-one)
 
-Today the system enforces a **one-to-one** mapping between a Slack channel and an
-agent at runtime: `channel_route_event` in
+Today the system enforces a **one-to-one** connection between a Slack channel
+and an agent at runtime: `channel_route_event` in
 `apps/backend/src/functions/channels_crud.py` uses `scalar_one_or_none()` when
-looking up the channel→agent mapping, so if more than one `channels` row ever
-existed for the same external channel the lookup would raise
+looking up the channel's connected agent, so if more than one `channels` row
+ever existed for the same external channel the lookup would raise
 `MultipleResultsFound` and fail the event.
 
 The underlying schema (`packages/database/migrations/postgres/016_slack_integration.sql`)

@@ -245,7 +245,6 @@ class TasksCreateWorkflow:
                 start_to_close_timeout=timedelta(seconds=2),
             )
 
-            # Post to Slack if configured and this isn't already a Slack-originated or subtask
             task_metadata = result.task.task_metadata or {}
             if (
                 not task_metadata.get("slack_channel")

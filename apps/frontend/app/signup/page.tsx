@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { SignupForm } from "@/components/auth/signup-form";
 import Logo from "@/components/logo";
 
@@ -7,7 +8,9 @@ export default function SignupPage() {
       <div className="flex flex-col gap-4 p-6 md:p-10 lg:col-span-2">
         <div className="flex flex-1 items-center justify-center">
           <div className="w-full max-w-xs">
-            <SignupForm />
+            <Suspense fallback={<div className="text-sm text-muted-foreground">Loading...</div>}>
+              <SignupForm />
+            </Suspense>
           </div>
         </div>
       </div>

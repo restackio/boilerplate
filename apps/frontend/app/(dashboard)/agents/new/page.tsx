@@ -22,10 +22,12 @@ import {
   BarChart3,
   FileSearch,
   FlaskConical,
+  Globe,
   Headset,
   Loader2,
   Megaphone,
   Network,
+  Radar,
 } from "lucide-react";
 import { CenteredLoading } from "@workspace/ui/components/loading-states";
 import { posthog } from "@/lib/posthog";
@@ -55,12 +57,77 @@ const STARTER_PROMPTS: {
       "Build an agent that helps with sales outreach: track leads, draft emails, and suggest follow-ups. I want a table of leads and a way to see pipeline stages.",
   },
   {
+    title: "LinkedIn signal radar",
+    teaser:
+      "Watch C-level posts for buying signals; suggest outreach angles per account.",
+    icon: Radar,
+    iconClassName: "text-blue-700",
+    prompt: `I want to monitor LinkedIn activity from C-levels at a list of target accounts and turn relevant posts into outreach signals for our sales team.
+
+Inputs I will provide:
+- A list of LinkedIn profile URLs of C-levels (CEO, CTO, COO, CFO, CRO, VP Eng, VP Product, etc.)
+- A short company brief per target account (industry, what we sell to them, current pain hypotheses, value prop) — I'll upload these as files into the dataset later.
+
+Integration to use:
+- I already installed a LinkedIn MCP integration in this workspace that runs on PhantomBuster. The tool descriptions on that MCP mention "phantombuster". Before designing, please call \`listworkspaceintegrations\` with query "phantombuster" (and also try "linkedin" if nothing comes back) to find its mcp_server_id, then \`listintegrationtools\` to see exactly which tools are exposed (launch agent, fetch results/export, etc.). Use those real tools in the pipeline — do NOT fall back to mockaiintegration unless the lookup actually returns nothing.
+
+Flow I want (weekly cadence):
+1. PhantomBuster runs weekly per profile and extracts new posts / comments / articles, with built-in deduplication.
+2. The agent fetches the export via the PhantomBuster API (through the LinkedIn MCP tools).
+3. An LLM classifies each item as either "relevant" (AI, automation, efficiency, hiring pain, cost pressure, tooling complaints, transformation projects) or "noise" (personal updates, generic reposts, congratulations, motivational quotes, job announcements without context).
+4. For relevant items, the agent matches the post against the corresponding company brief and generates a suggested outreach angle (1–3 sentences: which pain it touches, why now, suggested opener).
+5. Everything — relevant and noise — gets stored in ClickHouse so we have a full audit trail.
+
+Architecture I want (hybrid):
+- One ClickHouse dataset as the shared store.
+- One child pipeline agent: ONE LinkedIn profile per run. It (a) calls the PhantomBuster/LinkedIn MCP tools to fetch the latest export for that profile, (b) for each new item runs the LLM classification, (c) for relevant items reads the company brief from the dataset (file in the dataset for that account) and generates the outreach angle, (d) loads all rows (relevant + noise) into the dataset, (e) calls completetask.
+- One parent agent of type \`pipeline\` (orchestration only — no chat) that takes the list of LinkedIn profile URLs and creates one subtask per profile against the child pipeline. This is what we'd schedule weekly.
+- A SEPARATE interactive agent ("Sales Signals Assistant") that reads from the SAME ClickHouse dataset using clickhouselisttables / clickhouserunselectquery. Sales reps open this every day to ask things like "what's relevant from Acme this week?", "which CEOs talked about AI adoption pain in the last 14 days?", "give me top 5 outreach openers for accounts in fintech".
+
+Suggested dataset columns (feel free to refine):
+- profile_url (string)
+- profile_name (string)
+- profile_company (string)
+- post_url (string)
+- post_type (post | comment | article)
+- post_text (string)
+- posted_at (timestamp)
+- fetched_at (timestamp)
+- classification (relevant | noise)
+- relevance_categories (array: ai, automation, efficiency, pain, hiring, cost, tooling, transformation, other)
+- relevance_reason (string — short LLM justification)
+- company_brief_match (string — which pain hypothesis from the brief it touches, if any)
+- suggested_outreach_angle (string — generated only for relevant items)
+- raw_phantombuster_id (string — for dedup / traceability)
+
+Schedule I want (Phase 2.5):
+- After the build completes, set up a recurring weekly schedule on the pipeline parent: every Monday at 06:00 in Europe/Berlin.
+- The scheduled task description should be the list of LinkedIn profile URLs to fan out (we'll start with a placeholder list and update it later).
+- I understand this also runs the parent once immediately on creation; that's fine.
+
+Please:
+1. First call \`listworkspaceintegrations\` with query "phantombuster" so you confirm the LinkedIn MCP is there before drawing the pattern. Then \`listintegrationtools\` so the diagram references the real tools.
+2. Render the pattern with \`updatepatternspecs\`: dataset in the middle, child pipeline pushes to it, pipeline parent fans out subtasks to the child, interactive "Sales Signals Assistant" pulls from it. Show the LinkedIn/PhantomBuster MCP as an integration node connected to the child pipeline. (You can leave the schedule node off until after the user confirms cadence in Phase 2.5.)
+3. Show me a small dummy table (5–6 columns) with one relevant row and one noise row so I can sanity-check the schema.
+4. Then ask me anything ambiguous and wait for me to reply Build.
+
+Do not create anything yet — plan + pattern + dummy table + questions, then wait for "Build". After you've built everything in Phase 2, ask me to confirm the weekly schedule before calling updateschedule.`,
+  },
+  {
     title: "API data pipeline",
     teaser: "Ingest scheduled API data into queryable tables.",
     icon: Network,
     iconClassName: "text-sky-500",
     prompt:
       "Build a pipeline that pulls data from a REST API on a schedule, stores it in a table, and lets me query or view the latest records.",
+  },
+  {
+    title: "Domain research pipeline",
+    teaser: "Scrape company websites and generate AI use-case briefs.",
+    icon: Globe,
+    iconClassName: "text-blue-500",
+    prompt:
+      "Build a domain research pipeline that uses Firecrawl to scrape company websites, produces AI agent use-case briefs, and provides a chat interface to explore results.\n\nIntegration: Firecrawl (already installed in workspace). Use listworkspaceintegrations with query \"firecrawl\" to find the existing integration, then listintegrationtools and updateagenttool to attach Firecrawl tools to the pipeline agent.\n\nContext store: ClickHouse dataset company-use-case-briefs (same dataset for all three agents).\n\nArchitecture — three agents:\n\n1) Pipeline agent (e.g. company-research-pipeline): type pipeline. For each company domain (one subtask per domain):\n   - Use Firecrawl to crawl up to 3 pages per domain: /about (or /about-us), /services (or /solutions, /what-we-do), /careers (or /jobs, /team). Use crawl or scrape with markdown output mode.\n   - If total scraped markdown < 300 words across all pages, flag confidence_flag = \"needs-manual-research\" and still save partial results.\n   - Otherwise, use transformdata to analyze the combined markdown with this task: \"From this company website content, extract: (1) a one-sentence summary of what the company does, (2) the top 2-3 AI agent use cases most relevant to their business, (3) for each use case a business value argument (1-2 sentences), and (4) an estimated annual dollar value for each use case based on company size/industry signals.\" Output schema: {\"type\": \"object\", \"properties\": {\"company_name\": {\"type\": \"string\"}, \"what_they_do\": {\"type\": \"string\"}, \"use_cases\": {\"type\": \"array\", \"items\": {\"type\": \"object\", \"properties\": {\"use_case\": {\"type\": \"string\"}, \"value_argument\": {\"type\": \"string\"}, \"value_dollars\": {\"type\": \"string\"}}}}, \"confidence_flag\": {\"type\": \"string\", \"enum\": [\"high\", \"medium\", \"needs-manual-research\"]}}}\n   - Use loadintodataset to write the structured output into company-use-case-briefs.\n\n2) Parent orchestrator agent (e.g. company-research-orchestrator): type pipeline. This agent receives a list of domains (via task description), then uses createsubtask to fan out one subtask per domain to the pipeline agent above. Give it updatetodos and createsubtask tools. Instructions: \"You receive a list of company domains. For each domain, create one subtask dispatched to the company-research-pipeline agent with the domain as the task description. Process in batches of 20 to avoid rate limits. Update todos to track progress.\"\n\n3) Interactive agent (e.g. company-research-chat): type interactive. Only reads from the same ClickHouse dataset company-use-case-briefs via clickhouse_run_select_query — do not give this agent Firecrawl or any write tools. Translates user questions into SELECTs behind the scenes and replies in plain English (never show SQL to the user). If the dataset is empty, tell the user the pipeline hasn't run yet.\n\n   Conversation opener (put in this agent's instructions): On the first reply after the user's first message in a new thread, start with a one-line welcome, then: \"Here are a few things you can ask me:\" and a short bullet list of 4-5 concrete examples:\n   - \"Which companies were flagged as needs-manual-research?\"\n   - \"Show me the top 10 companies by estimated AI value in dollars\"\n   - \"What are the most common use cases across all companies?\"\n   - \"Give me the full brief for [domain.com]\"\n   - \"Which companies have use cases around customer support automation?\"\n   If the user's first message is already a substantive question, give the welcome + examples briefly, then answer their question.\n\nNo MockAIIntegration.\n\nModels: Use gpt-5.4-mini for the pipeline agent (cost-efficient for volume), gpt-5.4 for the orchestrator, and gpt-5.4 for the interactive agent.",
   },
   {
     title: "Healthcare chat with PowerBI",
