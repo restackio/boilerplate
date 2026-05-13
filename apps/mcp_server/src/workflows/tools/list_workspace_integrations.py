@@ -101,7 +101,9 @@ class ListWorkspaceIntegrations:
                     local = s.get("local", False)
                 else:
                     label = getattr(s, "server_label", "")
-                    desc = getattr(s, "server_description", "") or ""
+                    desc = (
+                        getattr(s, "server_description", "") or ""
+                    )
                     url = getattr(s, "server_url", None)
                     sid = getattr(s, "id", "")
                     local = getattr(s, "local", False)

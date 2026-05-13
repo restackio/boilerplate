@@ -69,7 +69,10 @@ async def _handle_new_dm(event, say, client):
                 workspace_id = route.get("workspace_id")
                 channel_integration_id = route.get("channel_integration_id")
                 if route.get("found") and route.get("agent_id"):
-                    agent = {"id": route["agent_id"], "name": route.get("agent_name", "Agent")}
+                    agent = {
+                        "id": route["agent_id"],
+                        "name": route.get("agent_name", "Agent"),
+                    }
                     if route.get("bot_token"):
                         client.token = route["bot_token"]
 

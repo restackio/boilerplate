@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS channels (
     id                          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     channel_integration_id      UUID NOT NULL REFERENCES channel_integrations(id) ON DELETE CASCADE,
     external_channel_id         TEXT NOT NULL,
+    external_channel_name       TEXT,
     agent_id                    UUID NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
     welcome_pending             BOOLEAN NOT NULL DEFAULT FALSE,
     connected_by_user_id        UUID REFERENCES users(id) ON DELETE SET NULL,

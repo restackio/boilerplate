@@ -58,7 +58,9 @@ class ChannelIntegrationUpsertWorkflow:
                 start_to_close_timeout=timedelta(seconds=30),
             )
         except Exception as e:
-            error_message = f"Error in channel_integration_upsert: {e}"
+            error_message = (
+                f"Error in channel_integration_upsert: {e}"
+            )
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e
 
@@ -69,7 +71,9 @@ class ChannelIntegrationGetByExternalIdWorkflow:
     async def run(
         self, workflow_input: ChannelIntegrationByExternalIdInput
     ) -> ChannelIntegrationSingleOutput:
-        log.info("ChannelIntegrationGetByExternalIdWorkflow started")
+        log.info(
+            "ChannelIntegrationGetByExternalIdWorkflow started"
+        )
         try:
             return await workflow.step(
                 function=channel_integration_get_by_external_id,
@@ -78,9 +82,7 @@ class ChannelIntegrationGetByExternalIdWorkflow:
                 start_to_close_timeout=timedelta(seconds=30),
             )
         except Exception as e:
-            error_message = (
-                f"Error in channel_integration_get_by_external_id: {e}"
-            )
+            error_message = f"Error in channel_integration_get_by_external_id: {e}"
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e
 
@@ -122,7 +124,9 @@ class ChannelIntegrationDeleteWorkflow:
                 start_to_close_timeout=timedelta(seconds=30),
             )
         except Exception as e:
-            error_message = f"Error in channel_integration_delete: {e}"
+            error_message = (
+                f"Error in channel_integration_delete: {e}"
+            )
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e
 
@@ -182,7 +186,9 @@ class ChannelsByIntegrationWorkflow:
                 start_to_close_timeout=timedelta(seconds=30),
             )
         except Exception as e:
-            error_message = f"Error in channels_by_integration: {e}"
+            error_message = (
+                f"Error in channels_by_integration: {e}"
+            )
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e
 
@@ -248,6 +254,8 @@ class ChannelConsumePendingWelcomeWorkflow:
                 start_to_close_timeout=timedelta(seconds=15),
             )
         except Exception as e:
-            error_message = f"Error in channel_consume_pending_welcome: {e}"
+            error_message = (
+                f"Error in channel_consume_pending_welcome: {e}"
+            )
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e

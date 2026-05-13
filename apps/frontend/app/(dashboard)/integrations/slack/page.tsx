@@ -63,6 +63,7 @@ interface ChannelBinding {
   id: string;
   channel_integration_id: string;
   external_channel_id: string;
+  external_channel_name?: string | null;
   agent_id: string;
   agent_name?: string;
   created_at?: string;
@@ -158,6 +159,23 @@ export default function SlackIntegrationPage() {
     }
   }, [integration, executeWorkflow]);
 
+  const refreshChannelNames = useCallback(async () => {
+    if (!integration) return;
+    try {
+      const result = await executeWorkflow<{
+        ok?: boolean;
+        updated_count?: number;
+      }>("SlackRefreshChannelNamesWorkflow", {
+        channel_integration_id: integration.id,
+      });
+      if (result.success && result.data?.updated_count) {
+        await fetchBindings();
+      }
+    } catch {
+      // intentional: refresh is best-effort
+    }
+  }, [integration, executeWorkflow, fetchBindings]);
+
   const fetchAgents = useCallback(async () => {
     if (!isReady || !currentWorkspaceId) return;
 
@@ -183,8 +201,9 @@ export default function SlackIntegrationPage() {
     if (integration) {
       fetchBindings();
       fetchAgents();
+      refreshChannelNames();
     }
-  }, [integration, fetchBindings, fetchAgents]);
+  }, [integration, fetchBindings, fetchAgents, refreshChannelNames]);
 
   // Surface the result of the OAuth round-trip. The slack-bot redirects back
   // to whatever URL the frontend originally encoded into ``state.r``; on
@@ -391,20 +410,50 @@ export default function SlackIntegrationPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Channel ID</TableHead>
+                        <TableHead>Channel</TableHead>
                         <TableHead>Agent</TableHead>
                         <TableHead className="w-[60px]" />
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {bindings.map((binding) => (
+                      {bindings.map((binding) => {
+                        const teamId = integration?.external_id;
+                        const channelDeepLink = teamId
+                          ? `https://slack.com/app_redirect?channel=${binding.external_channel_id}&team=${teamId}`
+                          : null;
+                        const displayName = binding.external_channel_name;
+                        return (
                         <TableRow key={binding.id}>
                           <TableCell>
                             <div className="flex items-center gap-2">
                               <Hash className="h-3.5 w-3.5 text-muted-foreground" />
-                              <span className="font-mono text-xs">
-                                {binding.external_channel_id}
-                              </span>
+                              <div className="flex flex-col">
+                                {displayName ? (
+                                  channelDeepLink ? (
+                                    <a
+                                      href={channelDeepLink}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="font-medium hover:underline"
+                                    >
+                                      {displayName}
+                                    </a>
+                                  ) : (
+                                    <span className="font-medium">
+                                      {displayName}
+                                    </span>
+                                  )
+                                ) : (
+                                  <span className="font-mono text-xs">
+                                    {binding.external_channel_id}
+                                  </span>
+                                )}
+                                {displayName ? (
+                                  <span className="font-mono text-xs text-muted-foreground">
+                                    {binding.external_channel_id}
+                                  </span>
+                                ) : null}
+                              </div>
                             </div>
                           </TableCell>
                           <TableCell>
@@ -428,7 +477,8 @@ export default function SlackIntegrationPage() {
                             </Button>
                           </TableCell>
                         </TableRow>
-                      ))}
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 )}

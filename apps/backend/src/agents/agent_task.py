@@ -87,7 +87,11 @@ def create_agent_error_event_dict(
             "error_type": code_val,
             "error_message": message,
             "error_source": "backend",
-            "error_details": {"code": code_val, "message": message, "param": param},
+            "error_details": {
+                "code": code_val,
+                "message": message,
+                "param": param,
+            },
         },
     }
 
@@ -310,8 +314,13 @@ class AgentTask:
                     }
                     self.events.append(user_event)
 
-                    if not from_slack and self._has_slack_context():
-                        await self._mirror_user_message_to_slack(message.content)
+                    if (
+                        not from_slack
+                        and self._has_slack_context()
+                    ):
+                        await self._mirror_user_message_to_slack(
+                            message.content
+                        )
 
                 try:
                     # Wait for any in-progress response to complete before starting new one
@@ -772,22 +781,37 @@ class AgentTask:
         if not isinstance(error_info, dict):
             error_info = {}
         event_type = event_data.get("type", "")
-        message = error_info.get("message") or event_data.get("message") or "Unknown error"
+        message = (
+            error_info.get("message")
+            or event_data.get("message")
+            or "Unknown error"
+        )
         code = (
             error_info.get("code")
             or event_data.get("code")
-            or ("openai_error" if "mcp" not in event_type else "mcp_error")
+            or (
+                "openai_error"
+                if "mcp" not in event_type
+                else "mcp_error"
+            )
         )
         self.events.append(
             create_agent_error_event_dict(
                 message=message,
-                error_type=error_info.get("type") or event_data.get("type") or "unknown_error",
+                error_type=error_info.get("type")
+                or event_data.get("type")
+                or "unknown_error",
                 code=code,
-                param=error_info.get("param") or event_data.get("param"),
-                sequence_number=event_data.get("sequence_number", 0),
+                param=error_info.get("param")
+                or event_data.get("param"),
+                sequence_number=event_data.get(
+                    "sequence_number", 0
+                ),
             )
         )
-        log.error(f"OpenAI/MCP error: code={code} message={message[:200]}")
+        log.error(
+            f"OpenAI/MCP error: code={code} message={message[:200]}"
+        )
 
         # Notify parent of error if this is a subtask
         if self.temporal_parent_agent_id and self.task_id:
@@ -810,7 +834,9 @@ class AgentTask:
         meta = self.task_metadata or {}
         return bool(meta.get("slack_channel"))
 
-    async def _mirror_user_message_to_slack(self, content: str) -> None:
+    async def _mirror_user_message_to_slack(
+        self, content: str
+    ) -> None:
         """Post a dashboard-originated user message into the Slack thread."""
         try:
             await agent.step(
@@ -818,15 +844,23 @@ class AgentTask:
                 function_input=SlackPostMessageInput(
                     channel=self.task_metadata["slack_channel"],
                     text=f"💬 *From dashboard:*\n{markdown_to_slack(content)}",
-                    thread_ts=self.task_metadata.get("slack_thread_ts"),
-                    slack_team_id=self.task_metadata.get("slack_team_id"),
-                    workspace_id=str(self.workspace_id) if self.workspace_id else None,
+                    thread_ts=self.task_metadata.get(
+                        "slack_thread_ts"
+                    ),
+                    slack_team_id=self.task_metadata.get(
+                        "slack_team_id"
+                    ),
+                    workspace_id=str(self.workspace_id)
+                    if self.workspace_id
+                    else None,
                 ),
                 task_queue=TASK_QUEUE,
                 start_to_close_timeout=timedelta(seconds=10),
             )
         except (OSError, ValueError, TypeError) as e:
-            log.warning(f"Failed to mirror user message to Slack: {e}")
+            log.warning(
+                f"Failed to mirror user message to Slack: {e}"
+            )
 
     async def _slack_post_or_update(
         self, text: str, *, final: bool = False
@@ -1057,7 +1091,9 @@ class AgentTask:
 
         terminal = ("completed", "failed")
         pending = [
-            s for s in self.subtasks.values() if s.get("status") not in terminal
+            s
+            for s in self.subtasks.values()
+            if s.get("status") not in terminal
         ]
         if not pending:
             return
@@ -1261,10 +1297,15 @@ class AgentTask:
                 self.response_in_progress = False
                 # Persist agent state first (fire-and-forget) so messages/todos/subtasks
                 # survive when the user leaves and returns; don't block on save
-                save_task = asyncio.create_task(self._save_final_state())
+                save_task = asyncio.create_task(
+                    self._save_final_state()
+                )
                 save_task.add_done_callback(
-                    lambda t: log.warning("State save failed: %s", t.exception())
-                    if not t.cancelled() and t.exception() else None
+                    lambda t: log.warning(
+                        "State save failed: %s", t.exception()
+                    )
+                    if not t.cancelled() and t.exception()
+                    else None
                 )
                 assistant_content = (
                     self._extract_assistant_content(response)
@@ -1323,7 +1364,11 @@ class AgentTask:
                 and not self.end
                 and self.subtasks
                 and all(
-                    (s.get("status") if isinstance(s, dict) else None)
+                    (
+                        s.get("status")
+                        if isinstance(s, dict)
+                        else None
+                    )
                     in ("completed", "failed")
                     for s in self.subtasks.values()
                 )

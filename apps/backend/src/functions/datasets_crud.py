@@ -529,7 +529,11 @@ async def _resolve_build_task_id(
             """),
             {"tid": str(build_task_uuid), "wid": workspace_id},
         )
-        return str(build_task_uuid) if check.mappings().first() is not None else None
+        return (
+            str(build_task_uuid)
+            if check.mappings().first() is not None
+            else None
+        )
     except (ValueError, TypeError):
         return None
 
@@ -636,10 +640,12 @@ async def datasets_create(  # noqa: C901
                     function_input.tags
                 )
 
-            effective_build_task_id = await _resolve_build_task_id(
-                db,
-                function_input.build_task_id,
-                function_input.workspace_id,
+            effective_build_task_id = (
+                await _resolve_build_task_id(
+                    db,
+                    function_input.build_task_id,
+                    function_input.workspace_id,
+                )
             )
 
             await db.execute(

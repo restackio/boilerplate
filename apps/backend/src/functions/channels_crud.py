@@ -66,6 +66,15 @@ class ChannelIntegrationsByWorkspaceInput(BaseModel):
 class ChannelCreateInput(BaseModel):
     channel_integration_id: str = Field(..., min_length=1)
     external_channel_id: str = Field(..., min_length=1)
+    external_channel_name: str | None = Field(
+        default=None,
+        description=(
+            "Display name snapshot for the provider-side channel "
+            "(e.g. 'general'). Optional — the UI falls back to the id "
+            "when missing and a background refresh keeps the column "
+            "in sync with renames on the provider side."
+        ),
+    )
     agent_id: str = Field(..., min_length=1)
     welcome_pending: bool = Field(
         default=False,
@@ -213,6 +222,7 @@ class ChannelOutput(BaseModel):
     id: str
     channel_integration_id: str
     external_channel_id: str
+    external_channel_name: str | None = None
     agent_id: str
     created_at: str | None
 
@@ -238,6 +248,7 @@ class ChannelWithIntegrationOutput(BaseModel):
     id: str
     channel_integration_id: str
     external_channel_id: str
+    external_channel_name: str | None = None
     agent_id: str
     created_at: str | None
     channel_type: str
@@ -281,7 +292,9 @@ def _serialize_integration(
         workspace_id=str(inst.workspace_id),
         channel_type=inst.channel_type,
         external_id=inst.external_id,
-        created_at=inst.created_at.isoformat() if inst.created_at else None,
+        created_at=inst.created_at.isoformat()
+        if inst.created_at
+        else None,
     )
 
 
@@ -290,8 +303,11 @@ def _serialize_channel(ch: Channel) -> ChannelOutput:
         id=str(ch.id),
         channel_integration_id=str(ch.channel_integration_id),
         external_channel_id=ch.external_channel_id,
+        external_channel_name=ch.external_channel_name,
         agent_id=str(ch.agent_id),
-        created_at=ch.created_at.isoformat() if ch.created_at else None,
+        created_at=ch.created_at.isoformat()
+        if ch.created_at
+        else None,
     )
 
 
@@ -358,7 +374,9 @@ async def channel_integration_upsert(
                         error="already_connected_elsewhere",
                     )
 
-                existing.credentials = dict(function_input.credentials)
+                existing.credentials = dict(
+                    function_input.credentials
+                )
                 await db.commit()
                 await db.refresh(existing)
                 return ChannelIntegrationSingleOutput(
@@ -403,7 +421,9 @@ async def channel_integration_get_by_external_id(
             )
             inst = result.scalar_one_or_none()
             if not inst:
-                return ChannelIntegrationSingleOutput(integration=None)
+                return ChannelIntegrationSingleOutput(
+                    integration=None
+                )
             return ChannelIntegrationSingleOutput(
                 integration=_serialize_integration(inst)
             )
@@ -430,12 +450,15 @@ async def channel_integrations_by_workspace(
                     ChannelIntegration.channel_type
                     == function_input.channel_type
                 )
-            stmt = stmt.order_by(ChannelIntegration.created_at.desc())
+            stmt = stmt.order_by(
+                ChannelIntegration.created_at.desc()
+            )
             result = await db.execute(stmt)
             integrations = result.scalars().all()
             return ChannelIntegrationListOutput(
                 integrations=[
-                    _serialize_integration(i) for i in integrations
+                    _serialize_integration(i)
+                    for i in integrations
                 ]
             )
         except Exception as e:
@@ -497,8 +520,11 @@ async def channel_create(
                     function_input.channel_integration_id
                 ),
                 external_channel_id=function_input.external_channel_id,
+                external_channel_name=function_input.external_channel_name,
                 agent_id=uuid.UUID(function_input.agent_id),
-                welcome_pending=bool(function_input.welcome_pending),
+                welcome_pending=bool(
+                    function_input.welcome_pending
+                ),
                 connected_by_user_id=(
                     uuid.UUID(function_input.connected_by_user_id)
                     if function_input.connected_by_user_id
@@ -508,7 +534,9 @@ async def channel_create(
             db.add(ch)
             await db.commit()
             await db.refresh(ch)
-            return ChannelSingleOutput(channel=_serialize_channel(ch))
+            return ChannelSingleOutput(
+                channel=_serialize_channel(ch)
+            )
         except Exception as e:
             await db.rollback()
             raise NonRetryableError(
@@ -537,7 +565,9 @@ async def channel_mark_welcome_pending(
             ch.welcome_pending = True
             await db.commit()
             await db.refresh(ch)
-            return ChannelSingleOutput(channel=_serialize_channel(ch))
+            return ChannelSingleOutput(
+                channel=_serialize_channel(ch)
+            )
         except NonRetryableError:
             raise
         except Exception as e:
@@ -579,12 +609,15 @@ async def channel_consume_pending_welcome(
             )
             integration_id = inst_result.scalar_one_or_none()
             if integration_id is None:
-                return ChannelConsumePendingWelcomeOutput(found=False)
+                return ChannelConsumePendingWelcomeOutput(
+                    found=False
+                )
 
             stmt = (
                 select(Channel)
                 .where(
-                    Channel.channel_integration_id == integration_id,
+                    Channel.channel_integration_id
+                    == integration_id,
                     Channel.external_channel_id
                     == function_input.external_channel_id,
                     Channel.welcome_pending.is_(True),
@@ -595,7 +628,9 @@ async def channel_consume_pending_welcome(
             result = await db.execute(stmt)
             ch = result.scalar_one_or_none()
             if ch is None:
-                return ChannelConsumePendingWelcomeOutput(found=False)
+                return ChannelConsumePendingWelcomeOutput(
+                    found=False
+                )
 
             agent_name: str | None = None
             connected_by_user_name: str | None = None
@@ -611,7 +646,9 @@ async def channel_consume_pending_welcome(
                         User.id == ch.connected_by_user_id
                     )
                 )
-                connected_by_user_name = user_result.scalar_one_or_none()
+                connected_by_user_name = (
+                    user_result.scalar_one_or_none()
+                )
 
             ch.welcome_pending = False
             await db.commit()
@@ -673,7 +710,9 @@ async def channels_by_integration(
                 select(Channel)
                 .where(
                     Channel.channel_integration_id
-                    == uuid.UUID(function_input.channel_integration_id)
+                    == uuid.UUID(
+                        function_input.channel_integration_id
+                    )
                 )
                 .order_by(Channel.created_at.desc())
             )
@@ -707,7 +746,8 @@ async def channels_by_workspace(
                 )
                 .join(
                     ChannelIntegration,
-                    Channel.channel_integration_id == ChannelIntegration.id,
+                    Channel.channel_integration_id
+                    == ChannelIntegration.id,
                 )
                 .where(
                     ChannelIntegration.workspace_id
@@ -722,7 +762,10 @@ async def channels_by_workspace(
             if function_input.agent_ids:
                 stmt = stmt.where(
                     Channel.agent_id.in_(
-                        [uuid.UUID(a) for a in function_input.agent_ids]
+                        [
+                            uuid.UUID(a)
+                            for a in function_input.agent_ids
+                        ]
                     )
                 )
             stmt = stmt.order_by(Channel.created_at.desc())
@@ -732,11 +775,16 @@ async def channels_by_workspace(
                 channels=[
                     ChannelWithIntegrationOutput(
                         id=str(ch.id),
-                        channel_integration_id=str(ch.channel_integration_id),
+                        channel_integration_id=str(
+                            ch.channel_integration_id
+                        ),
                         external_channel_id=ch.external_channel_id,
+                        external_channel_name=ch.external_channel_name,
                         agent_id=str(ch.agent_id),
                         created_at=(
-                            ch.created_at.isoformat() if ch.created_at else None
+                            ch.created_at.isoformat()
+                            if ch.created_at
+                            else None
                         ),
                         channel_type=channel_type,
                         external_id=external_id,
@@ -770,7 +818,9 @@ async def channel_route_event(
             if not inst:
                 return ChannelRouteResult(found=False)
 
-            bot_token = _bot_token_from_credentials(inst.credentials)
+            bot_token = _bot_token_from_credentials(
+                inst.credentials
+            )
 
             # Today: one channel ↔ one agent (uniqueness enforced on
             # ``(channel_integration_id, external_channel_id)``). If we ever

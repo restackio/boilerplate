@@ -128,7 +128,9 @@ def append_oauth_result_to_return_url(
     """
     p = urlparse(return_url)
     pairs = [
-        (k, v) for k, v in parse_qsl(p.query, keep_blank_values=True) if not k.startswith("slack_")
+        (k, v)
+        for k, v in parse_qsl(p.query, keep_blank_values=True)
+        if not k.startswith("slack_")
     ]
     if ensure_workspace_id:
         pairs = [(k, v) for k, v in pairs if k != "workspaceId"]
@@ -139,6 +141,7 @@ def append_oauth_result_to_return_url(
         pairs.append(("slack_error", error or "unknown"))
     newquery = urlencode(pairs, doseq=True, safe="/")
     return urlunparse((p.scheme, p.netloc, p.path, p.params, newquery, p.fragment))
+
 
 SLACK_OAUTH_SCOPES = (
     "app_mentions:read,"
@@ -181,9 +184,7 @@ async def exchange_oauth_code(code: str, redirect_uri: str) -> dict:
         return data
 
 
-def build_authorize_url(
-    workspace_id: str, return_url: str | None = None
-) -> str:
+def build_authorize_url(workspace_id: str, return_url: str | None = None) -> str:
     """Build the Slack OAuth authorize URL.
 
     ``state`` is base64url JSON with ``w`` = platform workspace id and

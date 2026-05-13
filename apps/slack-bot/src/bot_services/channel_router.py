@@ -22,9 +22,7 @@ def _to_dict(result: Any) -> dict[str, Any] | None:
             "agent_id": getattr(result, "agent_id", None),
             "workspace_id": getattr(result, "workspace_id", None),
             "bot_token": getattr(result, "bot_token", None),
-            "channel_integration_id": getattr(
-                result, "channel_integration_id", None
-            ),
+            "channel_integration_id": getattr(result, "channel_integration_id", None),
         }
     return None
 
@@ -80,6 +78,7 @@ async def route_slack_event(team_id: str, channel_id: str) -> dict[str, Any] | N
         )
         return None
 
+
 # private-channel auto-join problem
 async def consume_pending_welcome(
     team_id: str, channel_id: str
@@ -94,8 +93,7 @@ async def consume_pending_welcome(
     from ..client import client as restack_client
 
     workflow_id = (
-        f"channel_consume_welcome_{team_id}_{channel_id}_"
-        f"{uuid.uuid4().hex[:12]}"
+        f"channel_consume_welcome_{team_id}_{channel_id}_{uuid.uuid4().hex[:12]}"
     )
 
     try:
@@ -132,7 +130,5 @@ async def consume_pending_welcome(
         "channel_id": getattr(result, "channel_id", None),
         "agent_id": getattr(result, "agent_id", None),
         "agent_name": getattr(result, "agent_name", None),
-        "connected_by_user_name": getattr(
-            result, "connected_by_user_name", None
-        ),
+        "connected_by_user_name": getattr(result, "connected_by_user_name", None),
     }

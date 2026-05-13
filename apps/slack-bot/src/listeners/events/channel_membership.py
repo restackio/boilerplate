@@ -69,9 +69,7 @@ async def _handle_member_joined_channel(event, body, client):
                 team_id,
             )
             return
-        logger.exception(
-            "auth_test failed; cannot decide if joiner is the bot"
-        )
+        logger.exception("auth_test failed; cannot decide if joiner is the bot")
         return
 
     if not bot_user_id or user_id != bot_user_id:

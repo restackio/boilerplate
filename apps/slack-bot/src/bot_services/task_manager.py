@@ -93,7 +93,10 @@ async def send_message_to_agent(
         await restack_client.send_agent_event(
             event_name="messages",
             agent_id=temporal_agent_id,
-            event_input={"messages": [{"role": "user", "content": message_text}], "source": "slack"},
+            event_input={
+                "messages": [{"role": "user", "content": message_text}],
+                "source": "slack",
+            },
         )
         logger.info("Sent message to agent %s", temporal_agent_id)
         return True

@@ -50,9 +50,7 @@ async def drop_installation(team_id: str, reason: str) -> bool:
     Returns True on successful delete, False on no-op / error.
     """
     if not team_id:
-        logger.warning(
-            "drop_installation called without team_id (reason=%s)", reason
-        )
+        logger.warning("drop_installation called without team_id (reason=%s)", reason)
         return False
 
     from ..client import client as restack_client
@@ -68,9 +66,7 @@ async def drop_installation(team_id: str, reason: str) -> bool:
             },
             task_queue=config.RESTACK_TASK_QUEUE,
         )
-        await restack_client.get_workflow_result(
-            workflow_id=workflow_id, run_id=run_id
-        )
+        await restack_client.get_workflow_result(workflow_id=workflow_id, run_id=run_id)
     except Exception:
         # Row may already be gone (e.g. both app_uninstalled and
         # tokens_revoked arrive back-to-back); don't propagate.
@@ -82,9 +78,7 @@ async def drop_installation(team_id: str, reason: str) -> bool:
         )
         return False
 
-    logger.info(
-        "Dropped Slack installation for team %s (reason=%s)", team_id, reason
-    )
+    logger.info("Dropped Slack installation for team %s (reason=%s)", team_id, reason)
     return True
 
 
@@ -110,9 +104,7 @@ def _extract_slack_error_code(exc: BaseException) -> str | None:
     return None
 
 
-async def maybe_handle_auth_failure(
-    team_id: str | None, exc: BaseException
-) -> bool:
+async def maybe_handle_auth_failure(team_id: str | None, exc: BaseException) -> bool:
     """If ``exc`` is a revoked-auth SlackApiError, drop the installation.
 
     Returns True iff the installation was dropped as a result. Callers can

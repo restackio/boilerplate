@@ -886,6 +886,7 @@ class Channel(Base):
         nullable=False,
     )
     external_channel_id = Column(String(128), nullable=False)
+    external_channel_name = Column(String(256), nullable=True)
     agent_id = Column(
         UUID(as_uuid=True),
         ForeignKey("agents.id", ondelete="CASCADE"),

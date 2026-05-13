@@ -279,9 +279,7 @@ async def _tool_hand_off_to_agent(
     channel_name = context.get("channel_name") or None
 
     title = message[:80] if len(message) > 80 else message
-    description = (
-        f"Message from {user_name} in Slack:\n\n{message}"
-    )
+    description = f"Message from {user_name} in Slack:\n\n{message}"
 
     result = await create_task_from_slack(
         workspace_id=workspace_id,

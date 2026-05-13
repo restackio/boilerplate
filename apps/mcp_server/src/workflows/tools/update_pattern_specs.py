@@ -21,7 +21,10 @@ def _normalize_pattern_specs_edges(spec: dict) -> dict:
         for key in ("sourceHandle", "targetHandle"):
             if key in edge:
                 val = edge[key]
-                if val is None or (isinstance(val, str) and val.strip().lower() == "null"):
+                if val is None or (
+                    isinstance(val, str)
+                    and val.strip().lower() == "null"
+                ):
                     edge.pop(key, None)
         normalized.append(edge)
     return {**spec, "edges": normalized}

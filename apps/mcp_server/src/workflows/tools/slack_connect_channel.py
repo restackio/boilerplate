@@ -152,14 +152,22 @@ def _integrations_from(result: Any) -> list[dict[str, Any]]:
             out.append(
                 {
                     "id": getattr(item, "id", "") or "",
-                    "external_id": getattr(item, "external_id", "") or "",
-                    "channel_type": getattr(item, "channel_type", "") or "",
+                    "external_id": getattr(
+                        item, "external_id", ""
+                    )
+                    or "",
+                    "channel_type": getattr(
+                        item, "channel_type", ""
+                    )
+                    or "",
                 }
             )
     return out
 
 
-def _integration_id_from_single(result: Any) -> tuple[str | None, str | None]:
+def _integration_id_from_single(
+    result: Any,
+) -> tuple[str | None, str | None]:
     """Return (integration_id, external_id) from a single-integration result."""
     inst: Any
     if isinstance(result, dict):
@@ -169,7 +177,9 @@ def _integration_id_from_single(result: Any) -> tuple[str | None, str | None]:
     if inst is None:
         return None, None
     if isinstance(inst, dict):
-        return inst.get("id") or None, inst.get("external_id") or None
+        return inst.get("id") or None, inst.get(
+            "external_id"
+        ) or None
     return (
         getattr(inst, "id", None),
         getattr(inst, "external_id", None),
@@ -206,7 +216,9 @@ def _is_already_connected_error(message: str) -> bool:
     return any(h in lowered for h in _ALREADY_CONNECTED_HINTS)
 
 
-def _join_result_from(result: Any) -> tuple[bool, bool, bool, bool, str | None]:
+def _join_result_from(
+    result: Any,
+) -> tuple[bool, bool, bool, bool, str | None]:
     """Return (ok, already_member, requires_invite, missing_scope, error)."""
     if isinstance(result, dict):
         ok = bool(result.get("ok"))
@@ -217,10 +229,20 @@ def _join_result_from(result: Any) -> tuple[bool, bool, bool, bool, str | None]:
     else:
         ok = bool(getattr(result, "ok", False))
         already = bool(getattr(result, "already_member", False))
-        requires_invite = bool(getattr(result, "requires_invite", False))
-        missing_scope = bool(getattr(result, "missing_scope", False))
+        requires_invite = bool(
+            getattr(result, "requires_invite", False)
+        )
+        missing_scope = bool(
+            getattr(result, "missing_scope", False)
+        )
         error = getattr(result, "error", None)
-    return ok or already, already, requires_invite, missing_scope, error
+    return (
+        ok or already,
+        already,
+        requires_invite,
+        missing_scope,
+        error,
+    )
 
 
 def _user_name_from(result: Any) -> str | None:
@@ -253,7 +275,9 @@ def _agent_name_from(result: Any) -> str | None:
     return getattr(agent, "name", None) or None
 
 
-def _slack_channel_deep_link(team_id: str, channel_id: str) -> str | None:
+def _slack_channel_deep_link(
+    team_id: str, channel_id: str
+) -> str | None:
     """Build a universal Slack deep link to a channel.
 
     Returns ``https://slack.com/app_redirect?...`` because that URL works
@@ -263,9 +287,7 @@ def _slack_channel_deep_link(team_id: str, channel_id: str) -> str | None:
     """
     if not team_id or not channel_id:
         return None
-    return (
-        f"https://slack.com/app_redirect?channel={channel_id}&team={team_id}"
-    )
+    return f"https://slack.com/app_redirect?channel={channel_id}&team={team_id}"
 
 
 @workflow.defn(
@@ -326,7 +348,9 @@ class SlackConnectChannel:
                     success=False,
                     error=f"Failed to resolve installation: {e!s}",
                 )
-            integration_id, _ = _integration_id_from_single(inst_result)
+            integration_id, _ = _integration_id_from_single(
+                inst_result
+            )
             if not integration_id:
                 return SlackConnectChannelOutput(
                     success=False,
@@ -386,12 +410,20 @@ class SlackConnectChannel:
                 function_input={
                     "channel_integration_id": integration_id,
                     "external_channel_id": workflow_input.channel_id,
+                    # Snapshot the picker-side name so the integrations page
+                    # shows ``#general`` immediately, before the background
+                    # refresh runs. A subsequent refresh keeps it in sync
+                    # with renames on Slack's side.
+                    "external_channel_name": (
+                        workflow_input.channel_name or None
+                    ),
                     "agent_id": workflow_input.agent_id,
                     # Persist the connecting user up front so a deferred
                     # welcome (private channels) can attribute correctly
                     # even if it fires hours after the connect step.
                     "connected_by_user_id": (
-                        workflow_input.connected_by_user_id or None
+                        workflow_input.connected_by_user_id
+                        or None
                     ),
                     # Default false: public channels post the welcome
                     # immediately below. Flipped to true after the join
@@ -404,13 +436,19 @@ class SlackConnectChannel:
         except Exception as e:  # noqa: BLE001
             message = str(e)
             if _is_already_connected_error(message):
-                log.info("SlackConnectChannel: channel already connected")
+                log.info(
+                    "SlackConnectChannel: channel already connected"
+                )
                 return SlackConnectChannelOutput(
                     success=False,
-                    channel_name=workflow_input.channel_name or None,
+                    channel_name=workflow_input.channel_name
+                    or None,
                     error="channel_already_connected",
                 )
-            log.error("SlackConnectChannel: create failed", error=message)
+            log.error(
+                "SlackConnectChannel: create failed",
+                error=message,
+            )
             return SlackConnectChannelOutput(
                 success=False,
                 error=f"Failed to connect channel: {message}",
@@ -502,7 +540,9 @@ class SlackConnectChannel:
             ),
         )
 
-    async def _mark_welcome_pending(self, *, channel_id: str) -> bool:
+    async def _mark_welcome_pending(
+        self, *, channel_id: str
+    ) -> bool:
         """Flip welcome_pending=true on the channel row.
 
         Called for private channels so the deferred welcome fires when
@@ -555,7 +595,9 @@ class SlackConnectChannel:
             try:
                 user_result = await workflow.step(
                     function="users_get_by_id",
-                    function_input={"user_id": connected_by_user_id},
+                    function_input={
+                        "user_id": connected_by_user_id
+                    },
                     task_queue="backend",
                     start_to_close_timeout=timedelta(seconds=15),
                 )

@@ -38,8 +38,7 @@ def _welcome_blocks(
             "text": {
                 "type": "mrkdwn",
                 "text": (
-                    f"I've been installed to *{team_name}*. "
-                    "Here's how to get started:"
+                    f"I've been installed to *{team_name}*. Here's how to get started:"
                 ),
             },
         },
@@ -135,7 +134,9 @@ async def _find_public_channel_id_by_name(
         )
         data = list_resp.json()
         if not data.get("ok"):
-            logger.warning("conversations.list (find channel) failed: %s", data.get("error"))
+            logger.warning(
+                "conversations.list (find channel) failed: %s", data.get("error")
+            )
             return None
         for ch in data.get("channels") or []:
             if ch.get("name") == name:
@@ -191,9 +192,14 @@ async def ensure_default_restack_channel(bot_token: str) -> str | None:
                     timeout=20.0,
                 )
                 join_data = join_resp.json()
-                if join_data.get("ok") or join_data.get("error") == "already_in_channel":
+                if (
+                    join_data.get("ok")
+                    or join_data.get("error") == "already_in_channel"
+                ):
                     if join_data.get("ok"):
-                        logger.info("Joined existing Slack channel #%s (%s)", name, found)
+                        logger.info(
+                            "Joined existing Slack channel #%s (%s)", name, found
+                        )
                     return found
                 logger.warning(
                     "conversations.join for #%s failed: %s",

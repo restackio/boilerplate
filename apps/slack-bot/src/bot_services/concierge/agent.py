@@ -214,17 +214,13 @@ async def run_concierge(
                 fn = tc.get("function", {}) or {}
                 name = fn.get("name", "")
                 arguments = fn.get("arguments", "") or ""
-                result_json = await tools.dispatch_tool_call(
-                    name, arguments, context
-                )
+                result_json = await tools.dispatch_tool_call(name, arguments, context)
                 try:
                     side_effects.append(
                         {"tool": name, "result": json.loads(result_json)}
                     )
                 except json.JSONDecodeError:
-                    side_effects.append(
-                        {"tool": name, "result": {"raw": result_json}}
-                    )
+                    side_effects.append({"tool": name, "result": {"raw": result_json}})
                 messages.append(
                     {
                         "role": "tool",

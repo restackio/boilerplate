@@ -82,7 +82,10 @@ def _make_schema_strict(schema: Any) -> Any:
         for key, value in schema.items():
             patched[key] = _make_schema_strict(value)
 
-        if patched.get("type") == "object" or "properties" in patched:
+        if (
+            patched.get("type") == "object"
+            or "properties" in patched
+        ):
             patched.setdefault("additionalProperties", False)
             props = patched.get("properties")
             if isinstance(props, dict):
@@ -91,10 +94,15 @@ def _make_schema_strict(schema: Any) -> Any:
                     patched["required"] = list(props.keys())
                 else:
                     missing = [
-                        k for k in props if k not in existing_required
+                        k
+                        for k in props
+                        if k not in existing_required
                     ]
                     if missing:
-                        patched["required"] = [*existing_required, *missing]
+                        patched["required"] = [
+                            *existing_required,
+                            *missing,
+                        ]
         return patched
 
     if isinstance(schema, list):

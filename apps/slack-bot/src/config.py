@@ -45,9 +45,7 @@ class Config:
     def is_configured(cls) -> bool:
         if cls.is_socket_mode():
             return bool(
-                cls.SLACK_BOT_TOKEN
-                and cls.SLACK_APP_TOKEN
-                and cls.SLACK_SIGNING_SECRET
+                cls.SLACK_BOT_TOKEN and cls.SLACK_APP_TOKEN and cls.SLACK_SIGNING_SECRET
             )
         return bool(cls.SLACK_ROUTER_API_KEY or cls.SLACK_CLIENT_ID)
 

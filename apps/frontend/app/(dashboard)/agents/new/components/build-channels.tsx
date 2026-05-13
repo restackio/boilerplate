@@ -55,6 +55,7 @@ interface ChannelWithIntegration {
   id: string;
   channel_integration_id: string;
   external_channel_id: string;
+  external_channel_name?: string | null;
   agent_id: string;
   channel_type: string;
   external_id: string;
@@ -153,6 +154,28 @@ export function BuildChannels({ workspaceId, agents }: BuildChannelsProps) {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    if (!integration) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const result = await executeWorkflow<{
+          ok?: boolean;
+          updated_count?: number;
+        }>("SlackRefreshChannelNamesWorkflow", {
+          channel_integration_id: integration.id,
+        });
+        if (!cancelled && result.success && result.data?.updated_count) {
+          await fetchBindings();
+        }
+      } catch {
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [integration, executeWorkflow, fetchBindings]);
 
   const handleAdd = async () => {
     if (!integration || !newChannelId.trim() || !newAgentId) return;
@@ -266,42 +289,73 @@ export function BuildChannels({ workspaceId, agents }: BuildChannelsProps) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="h-8">Channel ID</TableHead>
+              <TableHead className="h-8">Channel</TableHead>
               <TableHead className="h-8">Agent</TableHead>
               <TableHead className="h-8 w-[60px]" />
             </TableRow>
           </TableHeader>
           <TableBody>
-            {bindings.map((b) => (
-              <TableRow key={b.id}>
-                <TableCell className="py-2">
-                  <div className="flex items-center gap-1.5">
-                    <Hash className="h-3 w-3 text-muted-foreground" />
-                    <span className="font-mono text-xs">
-                      {b.external_channel_id}
-                    </span>
-                  </div>
-                </TableCell>
-                <TableCell className="py-2 text-xs">
-                  {agentNameById.get(b.agent_id) ?? b.agent_id}
-                </TableCell>
-                <TableCell className="py-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 w-7 p-0"
-                    onClick={() => void handleDelete(b.id)}
-                    disabled={actionLoading === `delete-${b.id}`}
-                  >
-                    {actionLoading === `delete-${b.id}` ? (
-                      <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                    )}
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
+            {bindings.map((b) => {
+              const teamId = b.external_id || integration?.external_id;
+              const channelDeepLink = teamId
+                ? `https://slack.com/app_redirect?channel=${b.external_channel_id}&team=${teamId}`
+                : null;
+              const displayName = b.external_channel_name;
+              return (
+                <TableRow key={b.id}>
+                  <TableCell className="py-2">
+                    <div className="flex items-center gap-1.5">
+                      <Hash className="h-3 w-3 text-muted-foreground" />
+                      <div className="flex flex-col leading-tight">
+                        {displayName ? (
+                          channelDeepLink ? (
+                            <a
+                              href={channelDeepLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs font-medium hover:underline"
+                            >
+                              {displayName}
+                            </a>
+                          ) : (
+                            <span className="text-xs font-medium">
+                              {displayName}
+                            </span>
+                          )
+                        ) : (
+                          <span className="font-mono text-xs">
+                            {b.external_channel_id}
+                          </span>
+                        )}
+                        {displayName ? (
+                          <span className="font-mono text-[10px] text-muted-foreground">
+                            {b.external_channel_id}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="py-2 text-xs">
+                    {agentNameById.get(b.agent_id) ?? b.agent_id}
+                  </TableCell>
+                  <TableCell className="py-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-7 p-0"
+                      onClick={() => void handleDelete(b.id)}
+                      disabled={actionLoading === `delete-${b.id}`}
+                    >
+                      {actionLoading === `delete-${b.id}` ? (
+                        <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                      )}
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       )}

@@ -723,14 +723,20 @@ async def _resolve_build_task_id(
     try:
         build_task_uuid = uuid.UUID(build_task_id_str)
         task_result = await db.execute(
-            select(Task).where(
+            select(Task)
+            .where(
                 and_(
                     Task.id == build_task_uuid,
                     Task.workspace_id == workspace_uuid,
                 )
-            ).limit(1)
+            )
+            .limit(1)
         )
-        return build_task_uuid if task_result.scalar_one_or_none() is not None else None
+        return (
+            build_task_uuid
+            if task_result.scalar_one_or_none() is not None
+            else None
+        )
     except ValueError:
         return None
 
@@ -779,8 +785,10 @@ async def agents_create(
                 except ValueError:
                     pass
 
-            effective_build_task_id = await _resolve_build_task_id(
-                db, agent_data.build_task_id, workspace_uuid
+            effective_build_task_id = (
+                await _resolve_build_task_id(
+                    db, agent_data.build_task_id, workspace_uuid
+                )
             )
 
             agent = Agent(

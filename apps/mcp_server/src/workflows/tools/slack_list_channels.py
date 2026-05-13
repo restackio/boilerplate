@@ -40,8 +40,12 @@ class SlackListChannelsInput(BaseModel):
 
 
 class SlackChannelSummary(BaseModel):
-    id: str = Field(..., description="Slack channel id (e.g. C01234ABC).")
-    name: str = Field(..., description="Channel name without the '#' prefix.")
+    id: str = Field(
+        ..., description="Slack channel id (e.g. C01234ABC)."
+    )
+    name: str = Field(
+        ..., description="Channel name without the '#' prefix."
+    )
     is_private: bool = False
     is_member: bool = Field(
         default=False,
@@ -55,7 +59,9 @@ class SlackChannelSummary(BaseModel):
 
 class SlackListChannelsOutput(BaseModel):
     success: bool
-    channels: list[SlackChannelSummary] = Field(default_factory=list)
+    channels: list[SlackChannelSummary] = Field(
+        default_factory=list
+    )
     team_id: str | None = Field(
         default=None,
         description="The team_id the channels were listed for.",
@@ -97,7 +103,9 @@ def _channels_from(
         ok = bool(result.get("ok"))
         channels_raw = result.get("channels") or []
         error = result.get("error")
-        private_unavailable = bool(result.get("private_channels_unavailable"))
+        private_unavailable = bool(
+            result.get("private_channels_unavailable")
+        )
     else:
         ok = bool(getattr(result, "ok", False))
         channels_raw = getattr(result, "channels", None) or []
@@ -122,8 +130,12 @@ def _channels_from(
                 SlackChannelSummary(
                     id=getattr(ch, "id", "") or "",
                     name=getattr(ch, "name", "") or "",
-                    is_private=bool(getattr(ch, "is_private", False)),
-                    is_member=bool(getattr(ch, "is_member", False)),
+                    is_private=bool(
+                        getattr(ch, "is_private", False)
+                    ),
+                    is_member=bool(
+                        getattr(ch, "is_member", False)
+                    ),
                 )
             )
     return ok, channels, error, private_unavailable
@@ -190,7 +202,8 @@ class SlackListChannels:
                     success=False,
                     error=(
                         "Workspace has multiple Slack installations; pass "
-                        "team_id explicitly. Available: " + ", ".join(team_ids)
+                        "team_id explicitly. Available: "
+                        + ", ".join(team_ids)
                     ),
                 )
             team_id = team_ids[0]
@@ -208,14 +221,19 @@ class SlackListChannels:
                 start_to_close_timeout=timedelta(seconds=30),
             )
         except Exception as e:  # noqa: BLE001
-            log.error("SlackListChannels: conversations.list failed", error=str(e))
+            log.error(
+                "SlackListChannels: conversations.list failed",
+                error=str(e),
+            )
             return SlackListChannelsOutput(
                 success=False,
                 team_id=team_id,
                 error=f"Failed to list channels: {e!s}",
             )
 
-        ok, channels, error, private_unavailable = _channels_from(result)
+        ok, channels, error, private_unavailable = _channels_from(
+            result
+        )
         if not ok:
             return SlackListChannelsOutput(
                 success=False,

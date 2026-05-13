@@ -150,6 +150,7 @@ from src.functions.slack_api import (
     slack_build_install_url,
     slack_join_channel,
     slack_list_conversations,
+    slack_refresh_channel_names,
 )
 from src.functions.slack_callback import (
     notify_slack_on_task_complete,
@@ -389,6 +390,9 @@ from src.workflows.get_task_traces import GetTaskTracesWorkflow
 from src.workflows.retroactive_metrics import (
     RetroactiveMetrics,
 )
+from src.workflows.slack_refresh_channel_names import (
+    SlackRefreshChannelNamesWorkflow,
+)
 from src.workflows.task_metrics import TaskMetricsWorkflow
 from src.workflows.tasks_by_metrics import (
     GetTasksByFeedbackWorkflow,
@@ -520,6 +524,7 @@ async def run_restack_service() -> None:
             ChannelsByWorkspaceWorkflow,
             ChannelRouteEventWorkflow,
             ChannelConsumePendingWelcomeWorkflow,
+            SlackRefreshChannelNamesWorkflow,
             # Analytics workflow
             GetAnalyticsMetrics,
             # Feedback workflows
@@ -695,6 +700,7 @@ async def run_restack_service() -> None:
             slack_list_conversations,
             slack_build_install_url,
             slack_join_channel,
+            slack_refresh_channel_names,
             # Feedback functions
             ingest_feedback_metric,
             get_task_feedback,

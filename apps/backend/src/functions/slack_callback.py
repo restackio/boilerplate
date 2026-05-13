@@ -69,7 +69,8 @@ async def _resolve_bot_token(
     try:
         async for db in get_async_db():
             stmt = select(ChannelIntegration.credentials).where(
-                ChannelIntegration.channel_type == SLACK_CHANNEL_TYPE,
+                ChannelIntegration.channel_type
+                == SLACK_CHANNEL_TYPE,
                 ChannelIntegration.external_id == slack_team_id,
             )
             if workspace_id:
@@ -83,7 +84,8 @@ async def _resolve_bot_token(
                     )
                     return SLACK_BOT_TOKEN
                 stmt = stmt.where(
-                    ChannelIntegration.workspace_id == workspace_uuid
+                    ChannelIntegration.workspace_id
+                    == workspace_uuid
                 )
 
             result = await db.execute(stmt)
@@ -230,7 +232,9 @@ class TaskSlackCallbackOutput(BaseModel):
 
 
 def _task_dashboard_url(
-    frontend_url: str, task_id: str, task_title: str,
+    frontend_url: str,
+    task_id: str,
+    task_title: str,
 ) -> str:
     """Build tasks use the builder canvas; regular tasks use the task detail page."""
     if task_title == "Build":
@@ -253,7 +257,9 @@ def _table_rows_to_code_block(rows: list[list[str]]) -> str:
         ]
         formatted.append(" | ".join(padded))
         if idx == 0:
-            formatted.append("-+-".join("-" * w for w in col_widths))
+            formatted.append(
+                "-+-".join("-" * w for w in col_widths)
+            )
     return "```\n" + "\n".join(formatted) + "\n```"
 
 
@@ -262,7 +268,9 @@ def _convert_inline_markdown(line: str) -> str:
     result = re.sub(r"\*\*(.+?)\*\*", r"*\1*", line)
     result = re.sub(r"__(.+?)__", r"*\1*", result)
     result = re.sub(
-        r"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)", r"_\1_", result,
+        r"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)",
+        r"_\1_",
+        result,
     )
     result = re.sub(r"~~(.+?)~~", r"~\1~", result)
     return re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r"<\2|\1>", result)
@@ -284,7 +292,9 @@ def markdown_to_slack(text: str) -> str:
         if stripped.startswith("|") and stripped.endswith("|"):
             if _TABLE_SEPARATOR_RE.match(stripped):
                 continue
-            cells = [c.strip() for c in stripped.strip("|").split("|")]
+            cells = [
+                c.strip() for c in stripped.strip("|").split("|")
+            ]
             table_rows.append(cells)
             continue
 
@@ -349,7 +359,9 @@ async def slack_post_message(
     if function_input.thread_ts:
         payload["thread_ts"] = function_input.thread_ts
 
-    result = await _slack_api_call("chat.postMessage", payload, bot_token)
+    result = await _slack_api_call(
+        "chat.postMessage", payload, bot_token
+    )
 
     if result.get("ok"):
         return SlackPostMessageOutput(
@@ -383,7 +395,9 @@ async def slack_update_message(
     if function_input.blocks:
         payload["blocks"] = function_input.blocks
 
-    result = await _slack_api_call("chat.update", payload, bot_token)
+    result = await _slack_api_call(
+        "chat.update", payload, bot_token
+    )
 
     if result.get("ok"):
         return SlackUpdateMessageOutput(ok=True)
@@ -402,9 +416,7 @@ async def slack_add_reaction(
         function_input.slack_team_id, function_input.workspace_id
     )
     if not bot_token:
-        return SlackReactionOutput(
-            ok=False, error="no_bot_token"
-        )
+        return SlackReactionOutput(ok=False, error="no_bot_token")
 
     result = await _slack_api_call(
         "reactions.add",
@@ -436,9 +448,7 @@ async def slack_remove_reaction(
         function_input.slack_team_id, function_input.workspace_id
     )
     if not bot_token:
-        return SlackReactionOutput(
-            ok=False, error="no_bot_token"
-        )
+        return SlackReactionOutput(ok=False, error="no_bot_token")
 
     result = await _slack_api_call(
         "reactions.remove",
@@ -475,7 +485,9 @@ async def notify_slack_on_task_complete(
             error="No Slack context in task metadata",
         )
 
-    bot_token = await _resolve_bot_token(slack_team_id, workspace_id)
+    bot_token = await _resolve_bot_token(
+        slack_team_id, workspace_id
+    )
     if not bot_token:
         return TaskSlackCallbackOutput(
             notified=False,
@@ -492,7 +504,9 @@ async def notify_slack_on_task_complete(
         "FRONTEND_URL", "http://localhost:3000"
     )
     task_url = _task_dashboard_url(
-        frontend_url, function_input.task_id, function_input.task_title,
+        frontend_url,
+        function_input.task_id,
+        function_input.task_title,
     )
 
     blocks: list[dict[str, Any]] = [
@@ -629,11 +643,18 @@ async def slack_post_task_started(
         "FRONTEND_URL", "http://localhost:3000"
     )
     task_url = _task_dashboard_url(
-        frontend_url, function_input.task_id, function_input.task_title,
+        frontend_url,
+        function_input.task_id,
+        function_input.task_title,
     )
 
-    description_preview = function_input.task_description[:_DESCRIPTION_PREVIEW_MAX]
-    if len(function_input.task_description) > _DESCRIPTION_PREVIEW_MAX:
+    description_preview = function_input.task_description[
+        :_DESCRIPTION_PREVIEW_MAX
+    ]
+    if (
+        len(function_input.task_description)
+        > _DESCRIPTION_PREVIEW_MAX
+    ):
         description_preview += "..."
 
     blocks: list[dict[str, Any]] = [
@@ -689,5 +710,7 @@ async def slack_post_task_started(
         )
 
     error = result.get("error", "unknown_error")
-    logger.warning("Failed to post task-started to Slack: %s", error)
+    logger.warning(
+        "Failed to post task-started to Slack: %s", error
+    )
     return SlackPostTaskStartedOutput(posted=False, error=error)

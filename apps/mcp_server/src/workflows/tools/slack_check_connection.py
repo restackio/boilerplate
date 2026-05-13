@@ -21,7 +21,9 @@ class SlackCheckConnectionInput(BaseModel):
 
 
 class SlackInstallationSummary(BaseModel):
-    team_id: str = Field(..., description="Slack team id (e.g. T01234ABC).")
+    team_id: str = Field(
+        ..., description="Slack team id (e.g. T01234ABC)."
+    )
 
 
 class SlackCheckConnectionOutput(BaseModel):
@@ -47,11 +49,14 @@ class SlackCheckConnectionOutput(BaseModel):
         ),
     )
     error: str | None = Field(
-        default=None, description="Error message if the lookup failed."
+        default=None,
+        description="Error message if the lookup failed.",
     )
 
 
-def _extract_installations(result: Any) -> list[SlackInstallationSummary]:
+def _extract_installations(
+    result: Any,
+) -> list[SlackInstallationSummary]:
     """Normalize ``channel_integrations_by_workspace`` output into Slack summaries.
 
     The backend may deserialize the workflow.step result as either a
@@ -71,7 +76,9 @@ def _extract_installations(result: Any) -> list[SlackInstallationSummary]:
         else:
             external_id = getattr(item, "external_id", "") or ""
         if external_id:
-            summaries.append(SlackInstallationSummary(team_id=external_id))
+            summaries.append(
+                SlackInstallationSummary(team_id=external_id)
+            )
     return summaries
 
 
@@ -130,7 +137,9 @@ class SlackCheckConnection:
         try:
             url_result = await workflow.step(
                 function="slack_build_install_url",
-                function_input={"workspace_id": workflow_input.workspace_id},
+                function_input={
+                    "workspace_id": workflow_input.workspace_id
+                },
                 task_queue="backend",
                 start_to_close_timeout=timedelta(seconds=10),
             )
@@ -158,7 +167,8 @@ class SlackCheckConnection:
             return SlackCheckConnectionOutput(
                 success=True,
                 connected=False,
-                error=error or "slack-bot did not return an install URL",
+                error=error
+                or "slack-bot did not return an install URL",
             )
 
         return SlackCheckConnectionOutput(
