@@ -79,6 +79,12 @@ jobs:
           uv sync --frozen
           uv run ruff check src
 
+      - name: Install and lint Slack Bot
+        working-directory: ./apps/slack-bot
+        run: |
+          uv sync --frozen
+          uv run ruff check .
+
   documentation-lint:
     name: Documentation Lint (Vale)
     runs-on: ubuntu-latest

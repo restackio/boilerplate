@@ -198,8 +198,8 @@ services:
   # Slack Bot (optional - set SLACK_BOT_TOKEN to enable)
   slack-bot:
     build:
-      context: ./apps/slack-bot
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./apps/slack-bot/Dockerfile
     container_name: boilerplate_slack_bot
     env_file:
       - .env
