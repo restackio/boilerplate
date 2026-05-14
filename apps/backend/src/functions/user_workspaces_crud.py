@@ -322,13 +322,8 @@ async def user_workspaces_delete(
             success = False
             status = "not_found"
 
-            if (
-                function_input.actor_user_id
-                == function_input.user_id
-            ):
-                self_membership_query = select(
-                    UserWorkspace
-                ).where(
+            if function_input.actor_user_id == function_input.user_id:
+                self_membership_query = select(UserWorkspace).where(
                     UserWorkspace.user_id
                     == uuid.UUID(function_input.actor_user_id),
                     UserWorkspace.workspace_id

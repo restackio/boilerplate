@@ -114,8 +114,7 @@ class UpdateScheduleOutput(BaseModel):
     """Result of creating/updating a schedule."""
 
     success: bool = Field(
-        ...,
-        description="True if the schedule was created or updated.",
+        ..., description="True if the schedule was created or updated."
     )
     schedule_task_id: str | None = Field(
         default=None,
@@ -134,9 +133,7 @@ class UpdateScheduleOutput(BaseModel):
     )
 
 
-def _spec_to_frontend_dict(
-    spec: ScheduleSpecInput,
-) -> dict[str, Any]:
+def _spec_to_frontend_dict(spec: ScheduleSpecInput) -> dict[str, Any]:
     """Convert ScheduleSpecInput to the dict shape expected by ScheduleCreate/Edit workflows."""
     out: dict[str, Any] = {"timeZone": spec.timeZone or "UTC"}
     if spec.calendars:

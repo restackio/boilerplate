@@ -121,9 +121,7 @@ class WorkspaceInviteListOutput(BaseModel):
     error: str | None = None
 
 
-def _serialize_invite(
-    invite: WorkspaceInvite,
-) -> WorkspaceInviteOutput:
+def _serialize_invite(invite: WorkspaceInvite) -> WorkspaceInviteOutput:
     return WorkspaceInviteOutput(
         id=str(invite.id),
         workspace_id=str(invite.workspace_id),
@@ -153,29 +151,20 @@ async def workspace_invites_create(
             )
 
             workspace_query = select(Workspace).where(
-                Workspace.id
-                == uuid.UUID(function_input.workspace_id)
+                Workspace.id == uuid.UUID(function_input.workspace_id)
             )
             workspace_result = await db.execute(workspace_query)
             workspace = workspace_result.scalar_one_or_none()
             if not workspace:
-                raise NonRetryableError(
-                    message="Workspace not found"
-                )
+                raise NonRetryableError(message="Workspace not found")
 
-            invited_email = _normalize_email(
-                function_input.invited_email
-            )
-            user_query = select(User).where(
-                User.email == invited_email
-            )
+            invited_email = _normalize_email(function_input.invited_email)
+            user_query = select(User).where(User.email == invited_email)
             user_result = await db.execute(user_query)
             invited_user = user_result.scalar_one_or_none()
 
             if invited_user:
-                existing_member_query = select(
-                    UserWorkspace
-                ).where(
+                existing_member_query = select(UserWorkspace).where(
                     UserWorkspace.workspace_id
                     == uuid.UUID(function_input.workspace_id),
                     UserWorkspace.user_id == invited_user.id,
@@ -206,9 +195,7 @@ async def workspace_invites_create(
 
             invite = WorkspaceInvite(
                 id=uuid.uuid4(),
-                workspace_id=uuid.UUID(
-                    function_input.workspace_id
-                ),
+                workspace_id=uuid.UUID(function_input.workspace_id),
                 invited_email=invited_email,
                 invited_by_user_id=uuid.UUID(
                     function_input.actor_user_id
@@ -224,7 +211,9 @@ async def workspace_invites_create(
             inviter = await resolve_redeemer(
                 db, function_input.actor_user_id
             )
-            invite_link = f"{function_input.origin.rstrip('/')}/invite?token={invite.token}"
+            invite_link = (
+                f"{function_input.origin.rstrip('/')}/invite?token={invite.token}"
+            )
             _send_invite_email(
                 to_email=invite.invited_email,
                 inviter_name=inviter.name,
@@ -267,9 +256,9 @@ async def workspace_invites_get_by_token(
             redeemer = await resolve_redeemer(
                 db, function_input.redeemer_user_id
             )
-            if _normalize_email(
-                redeemer.email
-            ) != _normalize_email(invite.invited_email):
+            if _normalize_email(redeemer.email) != _normalize_email(
+                invite.invited_email
+            ):
                 return WorkspaceInviteActionOutput(
                     success=False, status="mismatch"
                 )
@@ -281,9 +270,7 @@ async def workspace_invites_get_by_token(
             existing_member_result = await db.execute(
                 existing_member_query
             )
-            existing_member = (
-                existing_member_result.scalar_one_or_none()
-            )
+            existing_member = existing_member_result.scalar_one_or_none()
             if existing_member:
                 return WorkspaceInviteActionOutput(
                     success=True,
@@ -302,9 +289,7 @@ async def workspace_invites_get_by_token(
                 status="ok",
                 invite=_serialize_invite(invite),
                 workspace_id=str(invite.workspace_id),
-                workspace_name=workspace.name
-                if workspace
-                else None,
+                workspace_name=workspace.name if workspace else None,
             )
         except Exception as e:
             raise NonRetryableError(
@@ -333,9 +318,9 @@ async def workspace_invites_accept(
             redeemer = await resolve_redeemer(
                 db, function_input.redeemer_user_id
             )
-            if _normalize_email(
-                redeemer.email
-            ) != _normalize_email(invite.invited_email):
+            if _normalize_email(redeemer.email) != _normalize_email(
+                invite.invited_email
+            ):
                 return WorkspaceInviteActionOutput(
                     success=False, status="mismatch"
                 )
@@ -394,9 +379,9 @@ async def workspace_invites_decline(
             redeemer = await resolve_redeemer(
                 db, function_input.redeemer_user_id
             )
-            if _normalize_email(
-                redeemer.email
-            ) != _normalize_email(invite.invited_email):
+            if _normalize_email(redeemer.email) != _normalize_email(
+                invite.invited_email
+            ):
                 return WorkspaceInviteActionOutput(
                     success=False, status="mismatch"
                 )
@@ -438,10 +423,7 @@ async def workspace_invites_list_pending(
             invites = invites_result.scalars().all()
             return WorkspaceInviteListOutput(
                 success=True,
-                invites=[
-                    _serialize_invite(invite)
-                    for invite in invites
-                ],
+                invites=[_serialize_invite(invite) for invite in invites],
             )
         except Exception as e:
             raise NonRetryableError(
@@ -457,8 +439,7 @@ async def workspace_invites_revoke(
     async for db in get_async_db():
         try:
             invite_query = select(WorkspaceInvite).where(
-                WorkspaceInvite.id
-                == uuid.UUID(function_input.invite_id)
+                WorkspaceInvite.id == uuid.UUID(function_input.invite_id)
             )
             invite_result = await db.execute(invite_query)
             invite = invite_result.scalar_one_or_none()
@@ -506,8 +487,7 @@ async def workspace_invites_resend(
                 )
 
             invite_query = select(WorkspaceInvite).where(
-                WorkspaceInvite.id
-                == uuid.UUID(function_input.invite_id)
+                WorkspaceInvite.id == uuid.UUID(function_input.invite_id)
             )
             invite_result = await db.execute(invite_query)
             invite = invite_result.scalar_one_or_none()
@@ -532,9 +512,7 @@ async def workspace_invites_resend(
             workspace_result = await db.execute(workspace_query)
             workspace = workspace_result.scalar_one_or_none()
             if not workspace:
-                raise NonRetryableError(
-                    message="Workspace not found"
-                )
+                raise NonRetryableError(message="Workspace not found")
 
             invite.status = "revoked"
             invite.revoked_at = _now_naive()
@@ -557,7 +535,9 @@ async def workspace_invites_resend(
             inviter = await resolve_redeemer(
                 db, function_input.actor_user_id
             )
-            invite_link = f"{function_input.origin.rstrip('/')}/invite?token={new_invite.token}"
+            invite_link = (
+                f"{function_input.origin.rstrip('/')}/invite?token={new_invite.token}"
+            )
             _send_invite_email(
                 to_email=new_invite.invited_email,
                 inviter_name=inviter.name,
