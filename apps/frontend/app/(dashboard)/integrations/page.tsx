@@ -128,10 +128,9 @@ export default function IntegrationsPage() {
   );
 
   return (
-    <div className="flex-1">
+    <div className="flex-1 overflow-y-auto">
       <PageHeader breadcrumbs={breadcrumbs} actions={actions} fixed={true} />
 
-      {/* Main Content - with top padding for fixed header */}
       <div className="p-4 space-y-8">
         {mcpServersLoading.error && (
           <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">

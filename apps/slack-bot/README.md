@@ -54,6 +54,17 @@ pnpm start
 4. Paste contents of `manifest.json`
 5. Click **Create** then **Install to Workspace**
 
+### 1b. Subscribe to lifecycle events (so "Connected" status stays honest)
+
+Under **Event Subscriptions → Subscribe to bot events**, make sure both are listed:
+
+- `app_uninstalled` — fires when an admin removes the app from the workspace
+- `tokens_revoked` — fires when the bot token is revoked
+
+Without these, removing the app from Slack leaves the row in
+`channel_integrations` (with `channel_type='slack'`) and the dashboard keeps
+showing the workspace as "Connected". Neither event needs extra OAuth scopes.
+
 ### 2. Environment Variables
 
 Create `.env` file:
@@ -177,6 +188,43 @@ await workflow.step(
     }
 )
 ```
+
+## Future work
+
+### Multiple agents per Slack channel (many-to-one)
+
+Today the system enforces a **one-to-one** connection between a Slack channel
+and an agent at runtime: `channel_route_event` in
+`apps/backend/src/functions/channels_crud.py` uses `scalar_one_or_none()` when
+looking up the channel's connected agent, so if more than one `channels` row
+ever existed for the same external channel the lookup would raise
+`MultipleResultsFound` and fail the event.
+
+The underlying schema (`packages/database/migrations/postgres/016_slack_integration.sql`)
+does **not** prevent multiple different agents from being mapped to the same
+channel — its unique constraint is
+`(channel_integration_id, external_channel_id, agent_id)`, which only blocks
+exact duplicates. So the one-to-one property is enforced by the routing code,
+not by the data model.
+
+Planned direction: **allow composing multiple agents in a single channel.** The
+rough outline:
+
+- Remove the `scalar_one_or_none()` assumption in `channel_route_event` and
+  return the list of matching agents instead of a single one.
+- Decide and implement a multi-agent UX for incoming messages. Options:
+  - **Picker** – render a Block Kit selector so the user chooses which agent to
+    route the message to.
+  - **LLM-routed (concierge)** – let the concierge LLM pick the best agent based
+    on the message + agent descriptions, then hand off.
+  - **Fan-out** – send the message to every mapped agent in parallel and post
+    their replies as threaded responses.
+- Update the Slack settings UI and the concierge `configure_channel_agent` tool
+  to allow adding additional agents to a channel that already has one, rather
+  than replacing.
+
+Tracked here so we don't forget — for Phase 1 we're intentionally staying
+one-to-one to keep the concierge and UI mental model simple.
 
 ## License
 

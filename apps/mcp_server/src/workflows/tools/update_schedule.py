@@ -154,9 +154,7 @@ def _spec_to_frontend_dict(spec: ScheduleSpecInput) -> dict[str, Any]:
     if spec.cron:
         out["cron"] = spec.cron
         return out
-    msg = (
-        "schedule_spec must contain one of calendars, intervals, or cron"
-    )
+    msg = "schedule_spec must contain one of calendars, intervals, or cron"
     raise NonRetryableError(message=msg)
 
 

@@ -3,7 +3,7 @@ name = "slack-bot"
 version = "0.1.0"
 description = "Slack bot for two-way sync with AI agents via Restack"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12,<3.13"
 dependencies = [
     "slack-bolt>=1.21.2",
     "slack-sdk>=3.33.4",
@@ -12,6 +12,8 @@ dependencies = [
     "restack-ai>=0.0.114",
     "asyncpg>=0.29.0",
     "watchfiles>=0.24.0",
+    "starlette>=0.45.0",
+    "uvicorn>=0.34.0",
 ]
 
 [project.scripts]

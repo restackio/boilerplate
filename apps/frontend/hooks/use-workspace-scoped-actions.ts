@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useDatabaseWorkspace } from "@/lib/database-workspace-context";
 import {
   executeWorkflow as executeWorkflowServer,
@@ -385,19 +385,27 @@ export function useWorkspaceScopedActions() {
     isLoading: false,
     error: null,
   });
+  // Monotonic counter per fetch; prevents a late/stale response from
+  // overwriting state produced by a newer request (e.g. when the same
+  // effect fires twice due to a dependency-chain refresh).
+  const agentsRequestIdRef = useRef(0);
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [tasksLoading, setTasksLoading] = useState<LoadingState>({
     isLoading: false,
     error: null,
   });
+  const tasksRequestIdRef = useRef(0);
 
   const [teams, setTeams] = useState<Team[]>([]);
   const [teamsLoading, setTeamsLoading] = useState<LoadingState>({
     isLoading: false,
     error: null,
   });
-  const [teamsCache, setTeamsCache] = useState<Record<string, Team[]>>({});
+  // Cache lives in a ref (not state) so updating it doesn't invalidate
+  // fetchTeams' useCallback identity — that used to cascade through the
+  // agents page effect and cause duplicate fetchAgents/fetchTasks calls.
+  const teamsCacheRef = useRef<Record<string, Team[]>>({});
 
   const [mcpServers, setMcpServers] = useState<McpServer[]>([]);
   const [mcpServersLoading, setMcpServersLoading] = useState<LoadingState>({
@@ -417,6 +425,7 @@ export function useWorkspaceScopedActions() {
         return { success: false, error: "No valid workspace context" };
       }
 
+      const requestId = ++agentsRequestIdRef.current;
       setAgentsLoading({ isLoading: true, error: null });
       let result;
       try {
@@ -428,6 +437,9 @@ export function useWorkspaceScopedActions() {
           ...(options?.teamId && { team_id: options.teamId }),
         });
 
+        // Drop stale responses: only the latest request may mutate state.
+        if (requestId !== agentsRequestIdRef.current) return result;
+
         if (result.success && result.data) {
           setAgents(result.data);
           setAgentsLoading({ isLoading: false, error: null });
@@ -438,6 +450,7 @@ export function useWorkspaceScopedActions() {
           });
         }
       } catch (error) {
+        if (requestId !== agentsRequestIdRef.current) return result;
         setAgentsLoading({ isLoading: false, error: "Failed to fetch agents" });
       }
       return result;
@@ -727,6 +740,7 @@ export function useWorkspaceScopedActions() {
         return { success: false, error: "No valid workspace context" };
       }
 
+      const requestId = ++tasksRequestIdRef.current;
       setTasksLoading({ isLoading: true, error: null });
       let result;
       try {
@@ -734,6 +748,8 @@ export function useWorkspaceScopedActions() {
           workspace_id: currentWorkspaceId,
           ...(options?.teamId && { team_id: options.teamId }),
         });
+
+        if (requestId !== tasksRequestIdRef.current) return result;
 
         if (result.success && result.data) {
           setTasks(result.data);
@@ -744,9 +760,12 @@ export function useWorkspaceScopedActions() {
           });
         }
       } catch (error) {
+        if (requestId !== tasksRequestIdRef.current) return result;
         setTasksLoading({ isLoading: false, error: "Failed to fetch tasks" });
       }
-      setTasksLoading({ isLoading: false, error: null });
+      if (requestId === tasksRequestIdRef.current) {
+        setTasksLoading({ isLoading: false, error: null });
+      }
       return result;
     },
     [currentWorkspaceId, isReady],
@@ -990,9 +1009,10 @@ export function useWorkspaceScopedActions() {
       }
 
       // Check cache first (unless forcing refresh)
-      if (!forceRefresh && teamsCache[currentWorkspaceId]) {
-        setTeams(teamsCache[currentWorkspaceId]);
-        return { success: true, data: teamsCache[currentWorkspaceId] };
+      const cached = teamsCacheRef.current[currentWorkspaceId];
+      if (!forceRefresh && cached) {
+        setTeams(cached);
+        return { success: true, data: cached };
       }
 
       setTeamsLoading({ isLoading: true, error: null });
@@ -1004,11 +1024,7 @@ export function useWorkspaceScopedActions() {
 
         if (result.success && result.data) {
           setTeams(result.data);
-          // Cache the results
-          setTeamsCache((prev) => ({
-            ...prev,
-            [currentWorkspaceId]: result.data,
-          }));
+          teamsCacheRef.current[currentWorkspaceId] = result.data;
           setTeamsLoading({ isLoading: false, error: null });
         } else {
           setTeamsLoading({
@@ -1021,7 +1037,7 @@ export function useWorkspaceScopedActions() {
       }
       return result;
     },
-    [currentWorkspaceId, isReady, teamsCache],
+    [currentWorkspaceId, isReady],
   );
 
   const createTeam = useCallback(

@@ -46,6 +46,7 @@ class TaskCreateInput(BaseModel):
         None  # Agent design pattern for React Flow
     )
 
+
 class TaskUpdateInput(BaseModel):
     task_id: str = Field(..., min_length=1)
     title: str | None = Field(None, min_length=1, max_length=255)
@@ -220,8 +221,12 @@ class BuildSummaryDatasetOutput(BaseModel):
 class BuildSummaryOutput(BaseModel):
     """Agents, datasets, tasks, and view specs for a build task."""
 
-    agents: list[BuildSummaryAgentOutput] = Field(default_factory=list)
-    datasets: list[BuildSummaryDatasetOutput] = Field(default_factory=list)
+    agents: list[BuildSummaryAgentOutput] = Field(
+        default_factory=list
+    )
+    datasets: list[BuildSummaryDatasetOutput] = Field(
+        default_factory=list
+    )
     tasks: list[TaskOutput] = Field(default_factory=list)
     view_specs: list = Field(default_factory=list)
 
@@ -231,7 +236,9 @@ class BuildSessionSnapshotOutput(BaseModel):
 
     task: TaskOutput
     summary: BuildSummaryOutput
-    task_files: list[DatasetFileSummary] = Field(default_factory=list)
+    task_files: list[DatasetFileSummary] = Field(
+        default_factory=list
+    )
 
 
 class TaskDeleteOutput(BaseModel):
@@ -776,7 +783,9 @@ async def tasks_get_by_id(
                 raise NonRetryableError(
                     message=f"Task with id {function_input.task_id} not found"
                 )
-            return TaskSingleOutput(task=_task_row_to_output(task))
+            return TaskSingleOutput(
+                task=_task_row_to_output(task)
+            )
         except Exception as e:
             raise NonRetryableError(
                 message=f"Failed to get task: {e!s}"
@@ -870,7 +879,9 @@ async def _build_build_summary_output(
                     else None
                 ),
                 assigned_to_id=(
-                    str(t.assigned_to_id) if t.assigned_to_id else None
+                    str(t.assigned_to_id)
+                    if t.assigned_to_id
+                    else None
                 ),
                 assigned_to_name=(
                     t.assigned_to_user.name
@@ -880,7 +891,9 @@ async def _build_build_summary_output(
                 temporal_agent_id=t.temporal_agent_id,
                 agent_state=t.agent_state,
                 parent_task_id=(
-                    str(t.parent_task_id) if t.parent_task_id else None
+                    str(t.parent_task_id)
+                    if t.parent_task_id
+                    else None
                 ),
                 temporal_parent_agent_id=t.temporal_parent_agent_id,
                 schedule_spec=t.schedule_spec,
@@ -899,14 +912,19 @@ async def _build_build_summary_output(
                 ),
                 pattern_specs=(
                     t.pattern_specs
-                    if getattr(t, "pattern_specs", None) is not None
+                    if getattr(t, "pattern_specs", None)
+                    is not None
                     else {}
                 ),
                 created_at=(
-                    t.created_at.isoformat() if t.created_at else None
+                    t.created_at.isoformat()
+                    if t.created_at
+                    else None
                 ),
                 updated_at=(
-                    t.updated_at.isoformat() if t.updated_at else None
+                    t.updated_at.isoformat()
+                    if t.updated_at
+                    else None
                 ),
             )
             for t in tasks_list
@@ -922,8 +940,12 @@ async def tasks_get_build_summary(
     """Get agents, datasets, tasks, and view_specs for a build task. Requires workspace_id for auth."""
     async for db in get_async_db():
         try:
-            build_task_id = uuid.UUID(function_input.build_task_id)
-            workspace_uuid = uuid.UUID(function_input.workspace_id)
+            build_task_id = uuid.UUID(
+                function_input.build_task_id
+            )
+            workspace_uuid = uuid.UUID(
+                function_input.workspace_id
+            )
 
             task_result = await db.execute(
                 select(Task)
@@ -939,7 +961,9 @@ async def tasks_get_build_summary(
                     message="Build task not found or access denied"
                 )
 
-            return await _build_build_summary_output(db, build_task, build_task_id)
+            return await _build_build_summary_output(
+                db, build_task, build_task_id
+            )
         except NonRetryableError:
             raise
         except Exception as e:
@@ -989,8 +1013,12 @@ def _task_row_to_output(task: Task) -> TaskOutput:
         pattern_specs=task.pattern_specs
         if getattr(task, "pattern_specs", None) is not None
         else {},
-        created_at=task.created_at.isoformat() if task.created_at else None,
-        updated_at=task.updated_at.isoformat() if task.updated_at else None,
+        created_at=task.created_at.isoformat()
+        if task.created_at
+        else None,
+        updated_at=task.updated_at.isoformat()
+        if task.updated_at
+        else None,
     )
 
 
@@ -1001,8 +1029,12 @@ async def tasks_get_build_session(
     """Build task + summary + task-files in one workflow step (indexed Postgres + ClickHouse)."""
     async for db in get_async_db():
         try:
-            build_task_id = uuid.UUID(function_input.build_task_id)
-            workspace_uuid = uuid.UUID(function_input.workspace_id)
+            build_task_id = uuid.UUID(
+                function_input.build_task_id
+            )
+            workspace_uuid = uuid.UUID(
+                function_input.workspace_id
+            )
 
             task_result = await db.execute(
                 select(Task)
@@ -1059,7 +1091,9 @@ async def tasks_get_build_session(
             raise NonRetryableError(
                 message=f"Failed to get build session: {e!s}"
             ) from e
-    raise NonRetryableError(message="Failed to get build session: no database session")
+    raise NonRetryableError(
+        message="Failed to get build session: no database session"
+    )
 
 
 def _view_specs_for_dataset(

@@ -1,13 +1,30 @@
-"""Slack notification functions for posting to Slack via bot token."""
+"""Slack notification functions for posting to Slack via bot token.
+
+Token resolution:
+- Multi-workspace OAuth installs store a per-team bot token in the
+  ``channel_integrations`` table under ``credentials->>'bot_token'`` (one row
+  per Slack workspace, ``channel_type='slack'``). Each Slack-originated task
+  embeds the Slack team_id under ``task_metadata["slack_team_id"]`` when it's
+  created; we look up the token for that team at call time.
+- Single-workspace setups can still use a static ``SLACK_BOT_TOKEN`` env var
+  as a fallback when no team_id is supplied (or if the DB lookup misses).
+"""
 
 import logging
 import os
 import re
+import uuid
 from typing import Any
 
 import httpx
 from pydantic import BaseModel, Field
 from restack_ai.function import function
+from sqlalchemy import select
+
+from src.database.connection import get_async_db
+from src.database.models import ChannelIntegration
+
+SLACK_CHANNEL_TYPE = "slack"
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +32,86 @@ SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN")
 SLACK_DEFAULT_CHANNEL_ID = os.getenv("SLACK_DEFAULT_CHANNEL_ID")
 SLACK_API_BASE = "https://slack.com/api"
 _DESCRIPTION_PREVIEW_MAX = 500
+
+
+async def _resolve_bot_token(
+    slack_team_id: str | None,
+    workspace_id: str | None = None,
+) -> str | None:
+    """Return the bot token to use for this Slack call.
+
+    Prefers the per-team token stored in ``channel_integrations.credentials``
+    when a team_id is provided; falls back to the SLACK_BOT_TOKEN env var
+    for single-workspace deployments.
+
+    When ``workspace_id`` is provided we additionally constrain the lookup
+    to that workspace. This is defense-in-depth on top of the
+    cross-workspace takeover block in
+    ``channel_integration_upsert``: even if a row ever ended up bound to
+    the wrong tenant (manual DB write, future migration bug, etc.) we'd
+    rather return ``None`` and surface ``no_bot_token`` than hand out a
+    stranger's bot token.
+
+    Callers SHOULD pass ``workspace_id`` whenever they have it. We
+    log a warning when it's missing so we can tighten this to required
+    in a future release.
+    """
+    if not slack_team_id:
+        return SLACK_BOT_TOKEN
+
+    if not workspace_id:
+        logger.warning(
+            "_resolve_bot_token called without workspace_id for "
+            "team_id=%s; falling back to external_id-only lookup",
+            slack_team_id,
+        )
+
+    try:
+        async for db in get_async_db():
+            stmt = select(ChannelIntegration.credentials).where(
+                ChannelIntegration.channel_type
+                == SLACK_CHANNEL_TYPE,
+                ChannelIntegration.external_id == slack_team_id,
+            )
+            if workspace_id:
+                try:
+                    workspace_uuid = uuid.UUID(workspace_id)
+                except ValueError:
+                    logger.warning(
+                        "Invalid workspace_id=%s passed to "
+                        "_resolve_bot_token; falling back to env",
+                        workspace_id,
+                    )
+                    return SLACK_BOT_TOKEN
+                stmt = stmt.where(
+                    ChannelIntegration.workspace_id
+                    == workspace_uuid
+                )
+
+            result = await db.execute(stmt)
+            credentials = result.scalar_one_or_none()
+            token = (
+                credentials.get("bot_token")
+                if isinstance(credentials, dict)
+                else None
+            )
+            if isinstance(token, str) and token:
+                return token
+            logger.warning(
+                "No Slack integration found for team_id=%s "
+                "workspace_id=%s; falling back to SLACK_BOT_TOKEN env",
+                slack_team_id,
+                workspace_id,
+            )
+            break
+    except Exception:
+        logger.exception(
+            "Failed to look up Slack bot token for team_id=%s "
+            "workspace_id=%s; falling back to SLACK_BOT_TOKEN env",
+            slack_team_id,
+            workspace_id,
+        )
+    return SLACK_BOT_TOKEN
 
 
 class SlackPostMessageInput(BaseModel):
@@ -25,6 +122,21 @@ class SlackPostMessageInput(BaseModel):
     )
     thread_ts: str | None = Field(
         None, description="Thread timestamp to reply in"
+    )
+    slack_team_id: str | None = Field(
+        None,
+        description=(
+            "Slack team/workspace id, used to resolve the per-workspace bot "
+            "token from channel_integrations.credentials."
+        ),
+    )
+    workspace_id: str | None = Field(
+        None,
+        description=(
+            "Restack workspace id. When provided, constrains token "
+            "resolution to that workspace as defense-in-depth against "
+            "cross-tenant token leakage."
+        ),
     )
 
 
@@ -43,6 +155,21 @@ class SlackUpdateMessageInput(BaseModel):
     blocks: list[dict[str, Any]] | None = Field(
         None, description="Updated Block Kit blocks"
     )
+    slack_team_id: str | None = Field(
+        None,
+        description=(
+            "Slack team/workspace id, used to resolve the per-workspace bot "
+            "token from channel_integrations.credentials."
+        ),
+    )
+    workspace_id: str | None = Field(
+        None,
+        description=(
+            "Restack workspace id. When provided, constrains token "
+            "resolution to that workspace as defense-in-depth against "
+            "cross-tenant token leakage."
+        ),
+    )
 
 
 class SlackUpdateMessageOutput(BaseModel):
@@ -55,6 +182,21 @@ class SlackReactionInput(BaseModel):
     timestamp: str = Field(..., description="Message timestamp")
     name: str = Field(
         ..., description="Emoji name without colons"
+    )
+    slack_team_id: str | None = Field(
+        None,
+        description=(
+            "Slack team/workspace id, used to resolve the per-workspace bot "
+            "token from channel_integrations.credentials."
+        ),
+    )
+    workspace_id: str | None = Field(
+        None,
+        description=(
+            "Restack workspace id. When provided, constrains token "
+            "resolution to that workspace as defense-in-depth against "
+            "cross-tenant token leakage."
+        ),
     )
 
 
@@ -90,7 +232,9 @@ class TaskSlackCallbackOutput(BaseModel):
 
 
 def _task_dashboard_url(
-    frontend_url: str, task_id: str, task_title: str,
+    frontend_url: str,
+    task_id: str,
+    task_title: str,
 ) -> str:
     """Build tasks use the builder canvas; regular tasks use the task detail page."""
     if task_title == "Build":
@@ -113,7 +257,9 @@ def _table_rows_to_code_block(rows: list[list[str]]) -> str:
         ]
         formatted.append(" | ".join(padded))
         if idx == 0:
-            formatted.append("-+-".join("-" * w for w in col_widths))
+            formatted.append(
+                "-+-".join("-" * w for w in col_widths)
+            )
     return "```\n" + "\n".join(formatted) + "\n```"
 
 
@@ -122,7 +268,9 @@ def _convert_inline_markdown(line: str) -> str:
     result = re.sub(r"\*\*(.+?)\*\*", r"*\1*", line)
     result = re.sub(r"__(.+?)__", r"*\1*", result)
     result = re.sub(
-        r"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)", r"_\1_", result,
+        r"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)",
+        r"_\1_",
+        result,
     )
     result = re.sub(r"~~(.+?)~~", r"~\1~", result)
     return re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r"<\2|\1>", result)
@@ -144,7 +292,9 @@ def markdown_to_slack(text: str) -> str:
         if stripped.startswith("|") and stripped.endswith("|"):
             if _TABLE_SEPARATOR_RE.match(stripped):
                 continue
-            cells = [c.strip() for c in stripped.strip("|").split("|")]
+            cells = [
+                c.strip() for c in stripped.strip("|").split("|")
+            ]
             table_rows.append(cells)
             continue
 
@@ -166,10 +316,12 @@ def markdown_to_slack(text: str) -> str:
 
 
 async def _slack_api_call(
-    method: str, payload: dict[str, Any]
+    method: str,
+    payload: dict[str, Any],
+    bot_token: str | None,
 ) -> dict[str, Any]:
-    """Make a Slack API call using the bot token."""
-    if not SLACK_BOT_TOKEN:
+    """Make a Slack API call using the provided bot token."""
+    if not bot_token:
         return {"ok": False, "error": "no_bot_token"}
 
     async with httpx.AsyncClient() as client:
@@ -177,7 +329,7 @@ async def _slack_api_call(
             f"{SLACK_API_BASE}/{method}",
             json=payload,
             headers={
-                "Authorization": f"Bearer {SLACK_BOT_TOKEN}",
+                "Authorization": f"Bearer {bot_token}",
                 "Content-Type": "application/json",
             },
             timeout=10,
@@ -190,9 +342,12 @@ async def slack_post_message(
     function_input: SlackPostMessageInput,
 ) -> SlackPostMessageOutput:
     """Post a new message to a Slack channel or thread."""
-    if not SLACK_BOT_TOKEN:
+    bot_token = await _resolve_bot_token(
+        function_input.slack_team_id, function_input.workspace_id
+    )
+    if not bot_token:
         return SlackPostMessageOutput(
-            ok=False, error="SLACK_BOT_TOKEN not configured"
+            ok=False, error="no_bot_token"
         )
 
     payload: dict[str, Any] = {
@@ -204,7 +359,9 @@ async def slack_post_message(
     if function_input.thread_ts:
         payload["thread_ts"] = function_input.thread_ts
 
-    result = await _slack_api_call("chat.postMessage", payload)
+    result = await _slack_api_call(
+        "chat.postMessage", payload, bot_token
+    )
 
     if result.get("ok"):
         return SlackPostMessageOutput(
@@ -222,9 +379,12 @@ async def slack_update_message(
     function_input: SlackUpdateMessageInput,
 ) -> SlackUpdateMessageOutput:
     """Update an existing Slack message (for progressive streaming)."""
-    if not SLACK_BOT_TOKEN:
+    bot_token = await _resolve_bot_token(
+        function_input.slack_team_id, function_input.workspace_id
+    )
+    if not bot_token:
         return SlackUpdateMessageOutput(
-            ok=False, error="SLACK_BOT_TOKEN not configured"
+            ok=False, error="no_bot_token"
         )
 
     payload: dict[str, Any] = {
@@ -235,7 +395,9 @@ async def slack_update_message(
     if function_input.blocks:
         payload["blocks"] = function_input.blocks
 
-    result = await _slack_api_call("chat.update", payload)
+    result = await _slack_api_call(
+        "chat.update", payload, bot_token
+    )
 
     if result.get("ok"):
         return SlackUpdateMessageOutput(ok=True)
@@ -250,10 +412,11 @@ async def slack_add_reaction(
     function_input: SlackReactionInput,
 ) -> SlackReactionOutput:
     """Add an emoji reaction to a Slack message."""
-    if not SLACK_BOT_TOKEN:
-        return SlackReactionOutput(
-            ok=False, error="SLACK_BOT_TOKEN not configured"
-        )
+    bot_token = await _resolve_bot_token(
+        function_input.slack_team_id, function_input.workspace_id
+    )
+    if not bot_token:
+        return SlackReactionOutput(ok=False, error="no_bot_token")
 
     result = await _slack_api_call(
         "reactions.add",
@@ -262,6 +425,7 @@ async def slack_add_reaction(
             "timestamp": function_input.timestamp,
             "name": function_input.name,
         },
+        bot_token,
     )
 
     if (
@@ -280,10 +444,11 @@ async def slack_remove_reaction(
     function_input: SlackReactionInput,
 ) -> SlackReactionOutput:
     """Remove an emoji reaction from a Slack message."""
-    if not SLACK_BOT_TOKEN:
-        return SlackReactionOutput(
-            ok=False, error="SLACK_BOT_TOKEN not configured"
-        )
+    bot_token = await _resolve_bot_token(
+        function_input.slack_team_id, function_input.workspace_id
+    )
+    if not bot_token:
+        return SlackReactionOutput(ok=False, error="no_bot_token")
 
     result = await _slack_api_call(
         "reactions.remove",
@@ -292,6 +457,7 @@ async def slack_remove_reaction(
             "timestamp": function_input.timestamp,
             "name": function_input.name,
         },
+        bot_token,
     )
 
     if result.get("ok") or result.get("error") == "no_reaction":
@@ -310,6 +476,8 @@ async def notify_slack_on_task_complete(
     meta = function_input.task_metadata or {}
     slack_channel = meta.get("slack_channel")
     slack_thread_ts = meta.get("slack_thread_ts") or None
+    slack_team_id = meta.get("slack_team_id")
+    workspace_id = meta.get("workspace_id")
 
     if not slack_channel:
         return TaskSlackCallbackOutput(
@@ -317,10 +485,13 @@ async def notify_slack_on_task_complete(
             error="No Slack context in task metadata",
         )
 
-    if not SLACK_BOT_TOKEN:
+    bot_token = await _resolve_bot_token(
+        slack_team_id, workspace_id
+    )
+    if not bot_token:
         return TaskSlackCallbackOutput(
             notified=False,
-            error="SLACK_BOT_TOKEN not configured",
+            error="no_bot_token",
         )
 
     status_emoji = {
@@ -333,7 +504,9 @@ async def notify_slack_on_task_complete(
         "FRONTEND_URL", "http://localhost:3000"
     )
     task_url = _task_dashboard_url(
-        frontend_url, function_input.task_id, function_input.task_title,
+        frontend_url,
+        function_input.task_id,
+        function_input.task_title,
     )
 
     blocks: list[dict[str, Any]] = [
@@ -389,6 +562,7 @@ async def notify_slack_on_task_complete(
     result = await _slack_api_call(
         "chat.postMessage",
         payload,
+        bot_token,
     )
 
     if result.get("ok"):
@@ -406,6 +580,7 @@ async def notify_slack_on_task_complete(
                     "timestamp": slack_thread_ts,
                     "name": "eyes",
                 },
+                bot_token,
             )
             await _slack_api_call(
                 "reactions.add",
@@ -414,6 +589,7 @@ async def notify_slack_on_task_complete(
                     "timestamp": slack_thread_ts,
                     "name": reaction,
                 },
+                bot_token,
             )
 
         return TaskSlackCallbackOutput(
@@ -467,11 +643,18 @@ async def slack_post_task_started(
         "FRONTEND_URL", "http://localhost:3000"
     )
     task_url = _task_dashboard_url(
-        frontend_url, function_input.task_id, function_input.task_title,
+        frontend_url,
+        function_input.task_id,
+        function_input.task_title,
     )
 
-    description_preview = function_input.task_description[:_DESCRIPTION_PREVIEW_MAX]
-    if len(function_input.task_description) > _DESCRIPTION_PREVIEW_MAX:
+    description_preview = function_input.task_description[
+        :_DESCRIPTION_PREVIEW_MAX
+    ]
+    if (
+        len(function_input.task_description)
+        > _DESCRIPTION_PREVIEW_MAX
+    ):
         description_preview += "..."
 
     blocks: list[dict[str, Any]] = [
@@ -480,7 +663,7 @@ async def slack_post_task_started(
             "text": {
                 "type": "mrkdwn",
                 "text": (
-                    f":rocket: *New task started*\n\n"
+                    f"*New task started*\n\n"
                     f"*{function_input.task_title}*\n"
                     f"Agent: {function_input.agent_name}"
                 ),
@@ -516,6 +699,7 @@ async def slack_post_task_started(
             "text": f"New task: {function_input.task_title} (Agent: {function_input.agent_name})",
             "blocks": blocks,
         },
+        SLACK_BOT_TOKEN,
     )
 
     if result.get("ok"):
@@ -526,5 +710,7 @@ async def slack_post_task_started(
         )
 
     error = result.get("error", "unknown_error")
-    logger.warning("Failed to post task-started to Slack: %s", error)
+    logger.warning(
+        "Failed to post task-started to Slack: %s", error
+    )
     return SlackPostTaskStartedOutput(posted=False, error=error)

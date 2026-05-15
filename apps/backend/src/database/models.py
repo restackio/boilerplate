@@ -829,6 +829,104 @@ class MetricDefinition(Base):
     )
 
 
+class ChannelIntegration(Base):
+    """Polymorphic per-workspace messaging integration (Slack, future: Telegram, etc.).
+
+    ``credentials`` is a provider-shaped JSONB blob; for Slack today this is
+    ``{"bot_token": "xoxb-..."}``. Display names (workspace name) are not
+    stored here — providers resolve them on demand or snapshot them onto
+    task metadata when history matters.
+    """
+
+    __tablename__ = "channel_integrations"
+
+    id = Column(UUID(as_uuid=True), primary_key=True)
+    workspace_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    channel_type = Column(String(32), nullable=False)
+    external_id = Column(String(128), nullable=False)
+    credentials = Column(JSONB, nullable=False, default=dict)
+    created_at = Column(
+        DateTime,
+        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "channel_type",
+            "external_id",
+            name="uq_channel_integrations_type_external",
+        ),
+        Index(
+            "idx_channel_integrations_workspace",
+            "workspace_id",
+        ),
+    )
+
+    workspace = relationship("Workspace")
+    channels = relationship(
+        "Channel",
+        back_populates="integration",
+        cascade="all, delete-orphan",
+    )
+
+
+class Channel(Base):
+    """Per-channel binding from an external messaging channel to an agent."""
+
+    __tablename__ = "channels"
+
+    id = Column(UUID(as_uuid=True), primary_key=True)
+    channel_integration_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("channel_integrations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    external_channel_id = Column(String(128), nullable=False)
+    external_channel_name = Column(String(256), nullable=True)
+    agent_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("agents.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    welcome_pending = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+    )
+    connected_by_user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    created_at = Column(
+        DateTime,
+        default=lambda: datetime.now(tz=UTC).replace(tzinfo=None),
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "channel_integration_id",
+            "external_channel_id",
+            "agent_id",
+            name="uq_channels_integration_external_agent",
+        ),
+        Index(
+            "idx_channels_lookup",
+            "external_channel_id",
+            "channel_integration_id",
+        ),
+    )
+
+    integration = relationship(
+        "ChannelIntegration", back_populates="channels"
+    )
+    agent = relationship("Agent")
+
+
 class MetricAgent(Base):
     __tablename__ = "metric_agents"
 

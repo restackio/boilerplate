@@ -23,6 +23,7 @@ function BuildChatInner({
   onRefreshTask,
   hideCreatedList = false,
   onBuildClickRef,
+  childTasks,
 }: {
   task: Task;
   onFilesAdded?: () => void;
@@ -30,6 +31,8 @@ function BuildChatInner({
   onRefreshTask?: () => void | Promise<void>;
   hideCreatedList?: boolean;
   onBuildClickRef?: React.MutableRefObject<(() => void) | null>;
+  /** Authoritative child statuses from the build summary (DB). */
+  childTasks?: ReadonlyArray<{ id: string; status: string }>;
 }) {
   const [chatMessage, setChatMessage] = useState("");
   const { currentWorkspaceId } = useDatabaseWorkspace();
@@ -119,6 +122,7 @@ function BuildChatInner({
       onBuildClick={handleBuildClick}
       hideCreatedList={hideCreatedList}
       hideFilesList={hideCreatedList}
+      childTasks={childTasks}
     />
   );
 }
@@ -130,6 +134,7 @@ function BuildPageContent({
   filesRefreshTrigger,
   hideCreatedList = false,
   onBuildClickRef,
+  childTasks,
 }: {
   task: Task;
   onRefetch: () => void;
@@ -137,6 +142,7 @@ function BuildPageContent({
   filesRefreshTrigger?: number;
   hideCreatedList?: boolean;
   onBuildClickRef?: React.MutableRefObject<(() => void) | null>;
+  childTasks?: ReadonlyArray<{ id: string; status: string }>;
 }) {
   const agentTaskId = task.temporal_agent_id;
   if (!agentTaskId) {
@@ -162,6 +168,7 @@ function BuildPageContent({
         onRefreshTask={onRefetch}
         hideCreatedList={hideCreatedList}
         onBuildClickRef={onBuildClickRef}
+        childTasks={childTasks}
       />
     </AgentStreamProvider>
   );
@@ -270,6 +277,7 @@ export function BuildSessionView({
               filesRefreshTrigger={filesRefreshTrigger}
               hideCreatedList
               onBuildClickRef={buildClickRef}
+              childTasks={buildSummary?.tasks}
             />
           </div>
         </div>

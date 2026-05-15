@@ -49,6 +49,19 @@ from src.functions.auth_crud import (
     user_login,
     user_signup,
 )
+from src.functions.channels_crud import (
+    channel_consume_pending_welcome,
+    channel_create,
+    channel_delete,
+    channel_integration_delete,
+    channel_integration_get_by_external_id,
+    channel_integration_upsert,
+    channel_integrations_by_workspace,
+    channel_mark_welcome_pending,
+    channel_route_event,
+    channels_by_integration,
+    channels_by_workspace,
+)
 from src.functions.data_ingestion import (
     ingest_pipeline_events,
     ingest_pipeline_events_cockroachdb,
@@ -133,6 +146,12 @@ from src.functions.schedule_crud import (
     schedule_update_workflow,
 )
 from src.functions.send_agent_event import send_agent_event
+from src.functions.slack_api import (
+    slack_build_install_url,
+    slack_join_channel,
+    slack_list_conversations,
+    slack_refresh_channel_names,
+)
 from src.functions.slack_callback import (
     notify_slack_on_task_complete,
     slack_add_reaction,
@@ -251,6 +270,18 @@ from src.workflows.crud.auth_crud import (
     UserLoginWorkflow,
     UserSignupWorkflow,
 )
+from src.workflows.crud.channels_crud import (
+    ChannelConsumePendingWelcomeWorkflow,
+    ChannelCreateWorkflow,
+    ChannelDeleteWorkflow,
+    ChannelIntegrationDeleteWorkflow,
+    ChannelIntegrationGetByExternalIdWorkflow,
+    ChannelIntegrationsByWorkspaceWorkflow,
+    ChannelIntegrationUpsertWorkflow,
+    ChannelRouteEventWorkflow,
+    ChannelsByIntegrationWorkflow,
+    ChannelsByWorkspaceWorkflow,
+)
 from src.workflows.crud.datasets_crud import (
     AddFilesToDatasetWorkflow,
     DatasetsCreateWorkflow,
@@ -358,6 +389,9 @@ from src.workflows.feedback_submission import (
 from src.workflows.get_task_traces import GetTaskTracesWorkflow
 from src.workflows.retroactive_metrics import (
     RetroactiveMetrics,
+)
+from src.workflows.slack_refresh_channel_names import (
+    SlackRefreshChannelNamesWorkflow,
 )
 from src.workflows.task_metrics import TaskMetricsWorkflow
 from src.workflows.tasks_by_metrics import (
@@ -479,6 +513,18 @@ async def run_restack_service() -> None:
             TaskMetricsWorkflow,
             CreateMetricWithRetroactiveWorkflow,
             RetroactiveMetrics,
+            # Channel integration workflows (Slack, future providers)
+            ChannelIntegrationUpsertWorkflow,
+            ChannelIntegrationGetByExternalIdWorkflow,
+            ChannelIntegrationsByWorkspaceWorkflow,
+            ChannelIntegrationDeleteWorkflow,
+            ChannelCreateWorkflow,
+            ChannelDeleteWorkflow,
+            ChannelsByIntegrationWorkflow,
+            ChannelsByWorkspaceWorkflow,
+            ChannelRouteEventWorkflow,
+            ChannelConsumePendingWelcomeWorkflow,
+            SlackRefreshChannelNamesWorkflow,
             # Analytics workflow
             GetAnalyticsMetrics,
             # Feedback workflows
@@ -639,6 +685,22 @@ async def run_restack_service() -> None:
             evaluate_formula_metric,
             ingest_performance_metrics,
             ingest_quality_metrics,
+            # Channel integration functions (Slack, future providers)
+            channel_integration_upsert,
+            channel_integration_get_by_external_id,
+            channel_integrations_by_workspace,
+            channel_integration_delete,
+            channel_create,
+            channel_delete,
+            channels_by_integration,
+            channels_by_workspace,
+            channel_route_event,
+            channel_consume_pending_welcome,
+            channel_mark_welcome_pending,
+            slack_list_conversations,
+            slack_build_install_url,
+            slack_join_channel,
+            slack_refresh_channel_names,
             # Feedback functions
             ingest_feedback_metric,
             get_task_feedback,

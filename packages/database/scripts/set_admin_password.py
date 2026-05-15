@@ -4,6 +4,7 @@ Usage: set_admin_password.py [new_password]
   If new_password is omitted, a random password is generated.
 Requires: PYTHONPATH pointing to backend (apps/backend or /app in Docker), DATABASE_URL.
 """
+
 import os
 import secrets
 import sys
@@ -37,7 +38,10 @@ def main() -> None:
     try:
         import psycopg2
     except ImportError:
-        print("Error: psycopg2 is required (install backend dependencies).", file=sys.stderr)
+        print(
+            "Error: psycopg2 is required (install backend dependencies).",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     password_hash = hash_password(password)
@@ -58,7 +62,10 @@ def main() -> None:
         sys.exit(1)
 
     if updated == 0:
-        print("Error: Admin user (admin@example.com) not found. Run admin seed first.", file=sys.stderr)
+        print(
+            "Error: Admin user (admin@example.com) not found. Run admin seed first.",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     print(password)

@@ -155,8 +155,19 @@ function AgentStreamActiveProvider({
   }, [onResponseComplete, onAgentStateUpdated]);
 
   const handleStateError = useCallback((error: Error) => {
-    console.error("State subscription error:", error?.message || 'Unknown error');
-    setError(error.message || "Failed to subscribe to response state");
+    // The underlying SSE client (event-source-polyfill, via @restackio/react) fires
+    // `onerror` with an empty object whenever it auto-reconnects after its built-in
+    // 45s inactivity timeout. That happens constantly on idle interactive agents
+    // (no events flowing → no activity → polyfill reconnects). Those reconnects
+    // succeed and the UI keeps working, so we must NOT promote them into a visible
+    // error banner or a red console.error. Only real errors carry a message.
+    const message = error?.message;
+    if (!message) {
+      // Transient reconnect / idle timeout — not a real error.
+      return;
+    }
+    console.error("State subscription error:", message);
+    setError(message);
   }, []);
 
   const stateOptions = useMemo(() => ({
@@ -175,7 +186,11 @@ function AgentStreamActiveProvider({
   }, []);
 
   const handleResponseError = useCallback((error: Error) => {
-    console.error("Response subscription error:", error?.message || 'Unknown error');
+    // See `handleStateError` — polyfill reconnect firings arrive as empty objects
+    // and should not be logged as errors.
+    const message = error?.message;
+    if (!message) return;
+    console.error("Response subscription error:", message);
   }, []);
 
   const responseOptions = useMemo(() => ({

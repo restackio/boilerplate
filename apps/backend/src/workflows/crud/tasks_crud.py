@@ -245,7 +245,6 @@ class TasksCreateWorkflow:
                 start_to_close_timeout=timedelta(seconds=2),
             )
 
-            # Post to Slack if configured and this isn't already a Slack-originated or subtask
             task_metadata = result.task.task_metadata or {}
             if (
                 not task_metadata.get("slack_channel")
@@ -257,13 +256,21 @@ class TasksCreateWorkflow:
                         function_input=SlackPostTaskStartedInput(
                             task_id=result.task.id,
                             task_title=result.task.title,
-                            task_description=result.task.description or "",
-                            agent_name=result.task.agent_name or "Agent",
+                            task_description=result.task.description
+                            or "",
+                            agent_name=result.task.agent_name
+                            or "Agent",
                         ),
                         task_queue=TASK_QUEUE,
-                        start_to_close_timeout=timedelta(seconds=10),
+                        start_to_close_timeout=timedelta(
+                            seconds=10
+                        ),
                     )
-                    if slack_result.posted and slack_result.channel and slack_result.thread_ts:
+                    if (
+                        slack_result.posted
+                        and slack_result.channel
+                        and slack_result.thread_ts
+                    ):
                         task_metadata = {
                             **task_metadata,
                             "slack_channel": slack_result.channel,
@@ -277,10 +284,19 @@ class TasksCreateWorkflow:
                                 task_metadata=task_metadata,
                             ),
                             task_queue=TASK_QUEUE,
-                            start_to_close_timeout=timedelta(seconds=5),
+                            start_to_close_timeout=timedelta(
+                                seconds=5
+                            ),
                         )
-                except (OSError, ValueError, RuntimeError, NonRetryableError) as slack_err:
-                    log.warning(f"Slack post-task-started failed (non-fatal): {slack_err}")
+                except (
+                    OSError,
+                    ValueError,
+                    RuntimeError,
+                    NonRetryableError,
+                ) as slack_err:
+                    log.warning(
+                        f"Slack post-task-started failed (non-fatal): {slack_err}"
+                    )
 
             # Get temporal_parent_agent_id from the task (already in DB)
             temporal_parent_agent_id = (
@@ -539,7 +555,9 @@ class TasksGetBuildSummaryWorkflow:
                 start_to_close_timeout=timedelta(seconds=30),
             )
         except Exception as e:
-            error_message = f"Error during tasks_get_build_summary: {e}"
+            error_message = (
+                f"Error during tasks_get_build_summary: {e}"
+            )
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e
 
@@ -560,7 +578,9 @@ class TasksGetBuildSessionWorkflow:
                 start_to_close_timeout=timedelta(seconds=30),
             )
         except Exception as e:
-            error_message = f"Error during tasks_get_build_session: {e}"
+            error_message = (
+                f"Error during tasks_get_build_session: {e}"
+            )
             log.error(error_message)
             raise NonRetryableError(message=error_message) from e
 

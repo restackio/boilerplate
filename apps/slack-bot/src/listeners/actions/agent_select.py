@@ -29,6 +29,7 @@ async def _do_agent_selection(body, say, client):
         channel_id = body["channel"]["id"]
         message = body["message"]
         thread_ts = message.get("thread_ts") or message.get("ts")
+        team_id = (body.get("team") or {}).get("id") or body.get("team_id") or ""
 
         metadata = message.get("metadata", {}).get("event_payload", {})
         workspace_id = metadata.get("workspace_id")
@@ -75,6 +76,15 @@ async def _do_agent_selection(body, say, client):
             is_channel_message=is_channel,
         )
 
+        # Best-effort channel-name snapshot for task_metadata.
+        channel_name = ""
+        if is_channel:
+            try:
+                info = client.conversations_info(channel=channel_id)
+                channel_name = info["channel"].get("name", "")
+            except Exception:
+                pass
+
         result = await create_task_from_slack(
             workspace_id=workspace_id,
             agent_id=agent_id,
@@ -84,6 +94,8 @@ async def _do_agent_selection(body, say, client):
             slack_channel=channel_id,
             slack_thread_ts=thread_ts,
             slack_user_id=user_id,
+            slack_team_id=team_id or None,
+            slack_channel_name=channel_name or None,
         )
 
         if result:

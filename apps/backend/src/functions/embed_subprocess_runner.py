@@ -23,7 +23,9 @@ DATASET_ONLY_AGENT_ID = "00000000-0000-0000-0000-000000000000"
 EXIT_USAGE = 2
 
 
-def _path_for_embed_anything(file_path: str) -> tuple[str, Path | None]:
+def _path_for_embed_anything(
+    file_path: str,
+) -> tuple[str, Path | None]:
     """embed_file supports pdf, md, txt, docx — normalize CSV via a temp .txt."""
     path = Path(file_path)
     if path.suffix.lower() != ".csv":

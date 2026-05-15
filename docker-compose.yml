@@ -198,8 +198,8 @@ services:
   # Slack Bot (optional - set SLACK_BOT_TOKEN to enable)
   slack-bot:
     build:
-      context: ./apps/slack-bot
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./apps/slack-bot/Dockerfile
     container_name: boilerplate_slack_bot
     env_file:
       - .env
@@ -215,6 +215,7 @@ services:
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
       - NO_COLOR=1
       - PYTHONUNBUFFERED=1
+      - SLACK_HTTP_PORT=${SLACK_HTTP_PORT:-3002}
     depends_on:
       backend:
         condition: service_started

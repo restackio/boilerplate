@@ -11,6 +11,7 @@ import {
   Calendar,
   FileText,
   RefreshCw,
+  Hash,
 } from "lucide-react";
 import { Button } from "@workspace/ui/components/ui/button";
 import { PatternFlowViewer } from "@workspace/ui/components/pattern-flow-viewer";
@@ -24,6 +25,7 @@ import { TasksTable } from "@/app/(dashboard)/tasks/components/tasks-table";
 import { deriveCreatedFromPatternSpecs } from "@/app/(dashboard)/tasks/[taskId]/components/task-created-list";
 import type { DatasetFileSummary } from "@/app/(dashboard)/datasets/components/dataset-files-table";
 import { TaskFilesList } from "@/app/(dashboard)/tasks/[taskId]/components/task-files-list";
+import { BuildChannels } from "./build-channels";
 import type { PatternSpecs, Task } from "@/hooks/use-workspace-scoped-actions";
 import {
   Tabs,
@@ -531,6 +533,20 @@ export function BuildCanvas({
               Task files can be added in the chat via the attachment menu.
             </p>
           </div>
+        </CollapsibleSection>
+
+        <CollapsibleSection
+          title="Channels"
+          icon={Hash}
+          defaultExpanded={false}
+          hasContent={agents.length > 0}
+          sectionKey="channels"
+          taskId={task.id}
+        >
+          <BuildChannels
+            workspaceId={task.workspace_id ?? ""}
+            agents={agents.map((a) => ({ id: a.id, name: a.name }))}
+          />
         </CollapsibleSection>
       </div>
     </div>

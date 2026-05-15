@@ -65,6 +65,52 @@ with import_functions():
     )
 
 
+def _make_schema_strict(schema: Any) -> Any:
+    """Recursively make a JSON schema compatible with OpenAI strict structured outputs.
+
+    OpenAI strict mode requires, for every object schema:
+      - `additionalProperties: false`
+      - `required` listing every key in `properties`
+
+    The user passes an arbitrary `output_schema` through `TransformData`, so we can't
+    assume it's strict-compliant. This walks the tree and patches every object node,
+    and recurses into `items`, `properties.*`, `oneOf`/`anyOf`/`allOf` branches, and
+    `$defs`/`definitions` so nested schemas are also normalized.
+    """
+    if isinstance(schema, dict):
+        patched: dict[str, Any] = {}
+        for key, value in schema.items():
+            patched[key] = _make_schema_strict(value)
+
+        if (
+            patched.get("type") == "object"
+            or "properties" in patched
+        ):
+            patched.setdefault("additionalProperties", False)
+            props = patched.get("properties")
+            if isinstance(props, dict):
+                existing_required = patched.get("required")
+                if not isinstance(existing_required, list):
+                    patched["required"] = list(props.keys())
+                else:
+                    missing = [
+                        k
+                        for k in props
+                        if k not in existing_required
+                    ]
+                    if missing:
+                        patched["required"] = [
+                            *existing_required,
+                            *missing,
+                        ]
+        return patched
+
+    if isinstance(schema, list):
+        return [_make_schema_strict(item) for item in schema]
+
+    return schema
+
+
 @workflow.defn(
     mcp=True,
     description="Transform data using AI with structured output",
@@ -94,13 +140,21 @@ class TransformData:
 
             user_message = f"Data to transform:\n{json.dumps(workflow_input.input_data, indent=2)}"
 
-            # Create structured output schema (array of items matching output_schema)
+            # Create structured output schema (array of items matching output_schema).
+            # Normalize the user-supplied output_schema so every nested object has
+            # `additionalProperties: false` and a complete `required` list, which
+            # OpenAI strict mode mandates. Without this, a schema like
+            # `{type: object, properties: {foo: {type: string}}}` is rejected with
+            # "additionalProperties is required to be supplied and to be false".
+            normalized_item_schema = _make_schema_strict(
+                workflow_input.output_schema
+            )
             array_schema = {
                 "type": "object",
                 "properties": {
                     "results": {
                         "type": "array",
-                        "items": workflow_input.output_schema,
+                        "items": normalized_item_schema,
                     }
                 },
                 "required": ["results"],

@@ -140,9 +140,10 @@ class UpdateDataset:
                 "description": workflow_input.description,
                 "storage_type": workflow_input.storage_type,
             }
-            if workflow_input.build_task_id and str(
+            if (
                 workflow_input.build_task_id
-            ).strip():
+                and str(workflow_input.build_task_id).strip()
+            ):
                 create_input["build_task_id"] = str(
                     workflow_input.build_task_id
                 ).strip()

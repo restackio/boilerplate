@@ -18,6 +18,7 @@ try:
         PipelineEventInput,
     )
 except ImportError:
+
     class PipelineEventInput(BaseModel):
         """Fallback event input when backend import is unavailable."""
 
@@ -238,7 +239,9 @@ class MockAIIntegration:
             )
 
             if not records:
-                _raise_non_retryable(EMPTY_GENERATED_RECORDS_MESSAGE)
+                _raise_non_retryable(
+                    EMPTY_GENERATED_RECORDS_MESSAGE
+                )
 
             datasets_result = await workflow.step(
                 function="datasets_read",
@@ -251,7 +254,10 @@ class MockAIIntegration:
 
             dataset: dict[str, Any] | None = None
             for item in datasets_payload.get("datasets", []):
-                if item.get("name") == workflow_input.dataset_name:
+                if (
+                    item.get("name")
+                    == workflow_input.dataset_name
+                ):
                     dataset = item
                     break
 
@@ -270,7 +276,9 @@ class MockAIIntegration:
                 create_payload = _as_dict(create_result)
                 dataset = create_payload.get("dataset")
                 if not dataset:
-                    _raise_non_retryable(DATASET_CREATE_FAILURE_MESSAGE)
+                    _raise_non_retryable(
+                        DATASET_CREATE_FAILURE_MESSAGE
+                    )
 
             effective_storage_type = _normalize_storage_type(
                 str(dataset.get("storage_type") or storage_type)

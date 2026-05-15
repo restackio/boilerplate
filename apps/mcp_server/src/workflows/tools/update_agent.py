@@ -93,7 +93,9 @@ def _agent_id_name_type(
         agent.get("name") if isinstance(agent, dict) else None
     )
     atype = getattr(agent, "type", None) or (
-        agent.get("type") if isinstance(agent, dict) else agent_type
+        agent.get("type")
+        if isinstance(agent, dict)
+        else agent_type
     )
     return (aid, name, atype)
 
@@ -126,8 +128,12 @@ class UpdateAgent:
         )
         try:
             if do_update:
-                return await self._do_update(workflow_input, agent_id, agent_type)
-            return await self._do_create(workflow_input, agent_type)
+                return await self._do_update(
+                    workflow_input, agent_id, agent_type
+                )
+            return await self._do_create(
+                workflow_input, agent_type
+            )
         except Exception as e:
             log.error("UpdateAgent failed", error=str(e))
             raise NonRetryableError(
@@ -150,18 +156,32 @@ class UpdateAgent:
             "status": workflow_input.status or "draft",
         }
         if workflow_input.model:
-            update_payload["model"] = workflow_input.model.strip() or "gpt-5.4"
+            update_payload["model"] = (
+                workflow_input.model.strip() or "gpt-5.4"
+            )
         if workflow_input.reasoning_effort is not None:
-            update_payload["reasoning_effort"] = workflow_input.reasoning_effort
+            update_payload["reasoning_effort"] = (
+                workflow_input.reasoning_effort
+            )
         result = await workflow.step(
             function="agents_update",
             function_input=update_payload,
             task_queue="backend",
             start_to_close_timeout=timedelta(seconds=30),
         )
-        if result and getattr(result, "agent", None):
-            agent = result.agent
-            aid, name, atype = _agent_id_name_type(agent, agent_type)
+        # agents_update returns AgentSingleOutput (Pydantic) which arrives here
+        # as a dict `{"agent": {...}}` after Temporal JSON roundtrip. Accept both
+        # object and dict shapes so a successful update is not misread as failure.
+        agent = None
+        if result is not None:
+            if isinstance(result, dict):
+                agent = result.get("agent")
+            else:
+                agent = getattr(result, "agent", None)
+        if agent:
+            aid, name, atype = _agent_id_name_type(
+                agent, agent_type
+            )
             return UpdateAgentOutput(
                 success=True,
                 agent_id=aid,
@@ -170,8 +190,12 @@ class UpdateAgent:
                 created=False,
             )
         err = (
-            getattr(result, "error", None)
-            or (result.get("error") if isinstance(result, dict) else None)
+            (
+                result.get("error")
+                if isinstance(result, dict)
+                else None
+            )
+            or getattr(result, "error", None)
             or "Update failed"
         )
         return UpdateAgentOutput(success=False, error=str(err))
@@ -185,7 +209,8 @@ class UpdateAgent:
         team_id = (
             workflow_input.team_id
             if workflow_input.team_id
-            and str(workflow_input.team_id).strip() != str(workflow_input.workspace_id).strip()
+            and str(workflow_input.team_id).strip()
+            != str(workflow_input.workspace_id).strip()
             else None
         )
         function_input = {
@@ -198,18 +223,31 @@ class UpdateAgent:
         }
         if team_id:
             function_input["team_id"] = team_id
-        if workflow_input.build_task_id and str(workflow_input.build_task_id).strip():
-            function_input["build_task_id"] = str(workflow_input.build_task_id).strip()
-        function_input["model"] = (workflow_input.model or "").strip() or "gpt-5.4"
+        if (
+            workflow_input.build_task_id
+            and str(workflow_input.build_task_id).strip()
+        ):
+            function_input["build_task_id"] = str(
+                workflow_input.build_task_id
+            ).strip()
+        function_input["model"] = (
+            workflow_input.model or ""
+        ).strip() or "gpt-5.4"
         if workflow_input.reasoning_effort is not None:
-            function_input["reasoning_effort"] = workflow_input.reasoning_effort
+            function_input["reasoning_effort"] = (
+                workflow_input.reasoning_effort
+            )
         result = await workflow.step(
             function="agents_create",
             function_input=function_input,
             task_queue="backend",
             start_to_close_timeout=timedelta(seconds=30),
         )
-        if result and isinstance(result, dict) and result.get("agent"):
+        if (
+            result
+            and isinstance(result, dict)
+            and result.get("agent")
+        ):
             agent = result["agent"]
             return UpdateAgentOutput(
                 success=True,
@@ -221,6 +259,10 @@ class UpdateAgent:
         if result and isinstance(result, dict):
             return UpdateAgentOutput(
                 success=False,
-                error=result.get("error", "Unknown error from backend"),
+                error=result.get(
+                    "error", "Unknown error from backend"
+                ),
             )
-        return UpdateAgentOutput(success=False, error="Backend returned no agent")
+        return UpdateAgentOutput(
+            success=False, error="Backend returned no agent"
+        )

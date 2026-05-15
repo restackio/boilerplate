@@ -135,6 +135,51 @@ def mcp_approval_blocks(
     ]
 
 
+def channel_config_blocks(
+    agents: list[dict[str, Any]],
+    user_id: str,
+    message_preview: str,
+) -> list[dict[str, Any]]:
+    """Inline agent picker shown when a channel has no agent connected yet.
+
+    Selecting an agent persists the channel-to-agent connection *and*
+    handles the original message.
+    """
+    truncated = message_preview[:100] + ("..." if len(message_preview) > 100 else "")
+    options = [
+        {
+            "text": {"type": "plain_text", "text": a["name"][:75]},
+            "value": a["id"],
+        }
+        for a in agents[:25]
+    ]
+    return [
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": (
+                    ":gear: *No agent configured for this channel yet*\n"
+                    "Pick one below — I'll remember it for next time."
+                ),
+            },
+        },
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"_<@{user_id}>: {truncated}_",
+            },
+            "accessory": {
+                "type": "static_select",
+                "placeholder": {"type": "plain_text", "text": "Choose an agent"},
+                "action_id": "configure_channel_agent",
+                "options": options,
+            },
+        },
+    ]
+
+
 def error_blocks(message: str) -> list[dict[str, Any]]:
     """Error message block."""
     return [
