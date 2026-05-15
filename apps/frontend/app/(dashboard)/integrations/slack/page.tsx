@@ -551,12 +551,6 @@ function NotConnectedCard({
             Add to Slack
           </Button>
         )}
-        <p className="text-xs text-muted-foreground max-w-sm text-center">
-          Requires the Slack bot to be running in HTTP mode with{" "}
-          <code className="text-xs">SLACK_CLIENT_ID</code> and{" "}
-          <code className="text-xs">SLACK_CLIENT_SECRET</code> configured.
-          See SETUP.md for details.
-        </p>
       </CardContent>
     </Card>
   );
