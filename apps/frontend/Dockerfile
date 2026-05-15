@@ -35,13 +35,18 @@ COPY packages/database/package.json ./packages/database/ \
 COPY apps/frontend ./apps/frontend
 COPY packages ./packages
 
-# Accept build arguments - can be passed as NEXT_PUBLIC_* or regular vars (we'll map them)
+# Accept build arguments - can be passed as NEXT_PUBLIC_* or regular vars (we'll map them).
+# NEXT_PUBLIC_* values are inlined into the static client bundle at build time,
+# so they MUST be declared here for Kaniko's --build-arg to take effect.
 ARG RESTACK_ENGINE_API_ADDRESS
 ARG POSTHOG_KEY
 ARG POSTHOG_HOST
 ARG NEXT_PUBLIC_RESTACK_ENGINE_API_ADDRESS=${RESTACK_ENGINE_API_ADDRESS}
 ARG NEXT_PUBLIC_POSTHOG_KEY=${POSTHOG_KEY}
 ARG NEXT_PUBLIC_POSTHOG_HOST=${POSTHOG_HOST}
+# Public URL of the slack-bot (e.g. https://<short-id>.<cluster>). Used to build
+# the "Add to Slack" link on /integrations/slack.
+ARG NEXT_PUBLIC_SLACK_BOT_URL
 
 # Prune, install, and build - proper turbo prune workflow
 # 1. Prune to get minimal package.json files and full source
@@ -60,6 +65,7 @@ RUN turbo prune boilerplate-frontend --docker \
        NEXT_PUBLIC_RESTACK_ENGINE_API_KEY="${NEXT_PUBLIC_RESTACK_ENGINE_API_KEY}" \
        NEXT_PUBLIC_POSTHOG_KEY="${NEXT_PUBLIC_POSTHOG_KEY}" \
        NEXT_PUBLIC_POSTHOG_HOST="${NEXT_PUBLIC_POSTHOG_HOST}" \
+       NEXT_PUBLIC_SLACK_BOT_URL="${NEXT_PUBLIC_SLACK_BOT_URL}" \
        pnpm build --filter=boilerplate-frontend
 
 # ============
