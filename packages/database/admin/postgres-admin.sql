@@ -151,10 +151,13 @@ If the user has not yet replied with something like "Build" or "Yes build", do n
    'interactive', 'published', 'gpt-5.4', 'medium', true)
 ON CONFLICT (id) DO UPDATE SET name = 'build', description = EXCLUDED.description, instructions = EXCLUDED.instructions, is_public = true;
 
--- Build agent tools: single update* tools (create if id omitted, update if id provided). Remove legacy create* tools so only update* exist.
+-- Build agent tools: single update* tools (create if id omitted, update if id provided). Remove legacy tool rows
+-- so only the current set exists. Includes:
+--   * create* tools that were consolidated into update* tools
+--   * slackbindchannel — renamed to slackconnectchannel; its old fixed UUID slot is now reused by slacklistchannels
 DELETE FROM agent_tools
 WHERE agent_id = 'e0000000-0000-0000-0000-00000000000e'::uuid AND tool_type = 'mcp'
-  AND tool_name IN ('createagent', 'createdataset', 'createview', 'createintegrationfromremotemcp', 'addagenttool');
+  AND tool_name IN ('createagent', 'createdataset', 'createview', 'createintegrationfromremotemcp', 'addagenttool', 'slackbindchannel');
 
 -- Build agent tools: updatetodos, updatedataset, updateagent, updateagenttool, updateview, updatepatternspecs, updatefile, createsubtask, searchremotemcpdirectory, updateintegration, listintegrationtools, listworkspaceintegrations, updateschedule. Pipeline agents must also get completetask (add via updateagenttool) so they can mark the task complete when done.
 INSERT INTO agent_tools (id, agent_id, tool_type, mcp_server_id, tool_name, custom_description, require_approval, enabled)
@@ -177,7 +180,8 @@ FROM (VALUES
   ('e0000051-0051-0051-0051-000000000051'::uuid, 'e0000000-0000-0000-0000-00000000000e'::uuid, 'listworkspaceintegrations'::varchar, 'List integrations already installed in the workspace. Use before searchremotemcpdirectory to check if the integration is already added and configured. Pass workspace_id from meta_info, optional query (e.g. firecrawl). Returns mcp_server_id for each; pass to listintegrationtools to discover tools.'),
   ('e0000052-0052-0052-0052-000000000052'::uuid, 'e0000000-0000-0000-0000-00000000000e'::uuid, 'updateschedule'::varchar, 'Create or update a recurring schedule on a pipeline parent agent (Phase 2.5). Use only after Phase 2 entities are created and the user explicitly provides a cadence in a separate message. Omit schedule_task_id to create (must pass workspace_id, agent_id of the parent, title, description that becomes the prompt on each fire, and schedule_spec); pass schedule_task_id to update an existing one. schedule_spec is frontend format: { calendars: [{ dayOfWeek: "0"-"6", hour: 0-23, minute: 0-59 }] } OR { intervals: [{ every: "1h"|"2d" }] } OR { cron: "0 9 * * 1-5" } plus timeZone (IANA). Heads up the user: creating a schedule also runs the parent once immediately; subsequent runs follow the cadence.')
 ) AS v(id, agent_id, tool_name, custom_description)
-WHERE NOT EXISTS (SELECT 1 FROM agent_tools t WHERE t.agent_id = v.agent_id AND t.tool_type = 'mcp' AND t.tool_name = v.tool_name);
+WHERE NOT EXISTS (SELECT 1 FROM agent_tools t WHERE t.agent_id = v.agent_id AND t.tool_type = 'mcp' AND t.tool_name = v.tool_name)
+ON CONFLICT (id) DO NOTHING;
 
 -- Ensure required build tools are always present (updatetodos, updateview, updatepatternspecs). Completetask is added to pipeline agents via updateagenttool; the MCP server must expose it so updateagenttool can attach it. If tools are missing in the session, re-run this upsert and ensure RESTACK_ENGINE_MCP_ADDRESS points to the MCP server that registers these workflows.
 INSERT INTO agent_tools (id, agent_id, tool_type, mcp_server_id, tool_name, custom_description, require_approval, enabled)
