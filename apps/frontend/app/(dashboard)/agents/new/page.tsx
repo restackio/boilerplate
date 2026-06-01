@@ -20,6 +20,7 @@ import {
 import {
   ArrowUp,
   BarChart3,
+  Briefcase,
   FileSearch,
   FlaskConical,
   Globe,
@@ -40,22 +41,6 @@ const STARTER_PROMPTS: {
   iconClassName: string;
   prompt: string;
 }[] = [
-  {
-    title: "Deep research brief",
-    teaser: "Track leadership changes across top tech companies.",
-    icon: FlaskConical,
-    iconClassName: "text-violet-500",
-    prompt:
-      "Build a deep research agent: find top 5 tech companies, research leadership change news for each, at C-level and from last 7 days, save results to a table, and summarize which companies had leadership changes.",
-  },
-  {
-    title: "Sales outreach copilot",
-    teaser: "Organize leads, draft outreach, and suggest follow-ups.",
-    icon: Megaphone,
-    iconClassName: "text-orange-500",
-    prompt:
-      "Build an agent that helps with sales outreach: track leads, draft emails, and suggest follow-ups. I want a table of leads and a way to see pipeline stages.",
-  },
   {
     title: "LinkedIn signal radar",
     teaser:
@@ -114,12 +99,62 @@ Please:
 Do not create anything yet — plan + pattern + dummy table + questions, then wait for "Build". After you've built everything in Phase 2, ask me to confirm the weekly schedule before calling updateschedule.`,
   },
   {
-    title: "API data pipeline",
-    teaser: "Ingest scheduled API data into queryable tables.",
-    icon: Network,
-    iconClassName: "text-sky-500",
-    prompt:
-      "Build a pipeline that pulls data from a REST API on a schedule, stores it in a table, and lets me query or view the latest records.",
+    title: "Forward-deployed jobs radar",
+    teaser:
+      "Scrape FDE job postings worldwide; chat to compare countries, salaries, tech stacks.",
+    icon: Briefcase,
+    iconClassName: "text-indigo-600",
+    prompt: `I want to monitor LinkedIn job postings for the keyword "forward deployed engineer" across major markets and let our team chat with the data weekly.
+
+Inputs:
+- Search keyword: "forward deployed engineer".
+- Country list (one subtask per country): United States (geoId 103644278), United Kingdom (101165590), Germany (101282230), France (105015875), Netherlands (102890719), Spain (105646813), Italy (103350119), Sweden (105117694), Ireland (104738515), Switzerland (106693272), Brazil (106057199), Mexico (103323778), Canada (101174742), India (102713980), Singapore (102454443), Australia (101452733), United Arab Emirates (104305776).
+- LinkedIn search URL template per country: https://www.linkedin.com/jobs/search-results/?keywords=forward%20deployed%20engineer&geoId={geoId}
+
+Integration (real data only - no mock fallback):
+- A LinkedIn MCP integration is installed in this workspace. Before designing, call \`listworkspaceintegrations\` with query "linkedin", then call \`listintegrationtools\` and identify the TWO jobs tools I added: (1) a search-page tool that scrapes a LinkedIn jobs search URL and returns the list of matching jobs (job ids / job urls) for that geoId, and (2) a job-details tool that takes a single job id/url and returns the full posting (title, company, location, description, salary if present).
+- Use BOTH tools in the child pipeline: the search-page tool first to enumerate jobs for the country, then the job-details tool per job to get the full posting before classifying. Do NOT use mockaiintegration - we need real data for this build.
+- If either tool is missing, STOP at the end of Phase 1. In your reply, tell me exactly which integration/tools you found, what is missing, and what naming mismatch to fix before I reply Build.
+- Empty results for a country are fine - log them, save zero rows for that country, and continue. Never fabricate rows to fill gaps.
+
+Architecture (hybrid):
+- One ClickHouse dataset \`fde-jobs\` shared by all agents.
+- Child pipeline agent \`fde-jobs-pipeline\` (type pipeline): one country per run. Receives country_code, country_name, geoId, and the search URL via task description. (a) Calls the LinkedIn MCP search-page tool with the per-country search URL to enumerate jobs (ids/urls) for that geoId, (b) for each job, calls the LinkedIn MCP job-details tool to fetch the full posting, (c) passes each full posting to \`transformdata\` to classify role_category as one of coding | sales-consultancy | hybrid | unknown and extract tech stack arrays only when coding is involved, (d) \`loadintodataset\` writes all rows into \`fde-jobs\` (each row tagged with source_country_geoid), (e) \`completetask\`.
+- Parent agent \`fde-jobs-orchestrator\` (type pipeline, orchestration only - no chat): receives the country list above in its task description and uses \`createsubtask\` to fan out one subtask per country to the child pipeline. Use \`updatetodos\` to track progress.
+- Interactive agent \`fde-jobs-assistant\` (type interactive): reads ONLY from \`fde-jobs\` via \`clickhouselisttables\` and \`clickhouserunselectquery\`. Never give it the LinkedIn MCP search-page or job-details tools or any write tools. Translates user questions into SELECTs internally and replies in plain English (never show SQL).
+
+Dataset columns:
+- job_id, job_url, job_title, company_name, company_url
+- country_code, country_name, source_country_geoid (the geoId whose search surfaced this job), city, workplace_type (remote | hybrid | onsite | null), employment_type, seniority_level
+- posted_at, fetched_at
+- salary_min, salary_max, salary_currency, salary_period (yearly | monthly | hourly) - all nullable, often missing on LinkedIn
+- role_category (coding | sales-consultancy | hybrid | unknown), role_category_reason (short LLM justification)
+- tech_stack_languages (array), tech_stack_deployment (array: cloud | aws | gcp | azure | on-prem | hybrid), tech_stack_orchestration (array: kubernetes | ecs | nomad | docker-swarm | airflow | etc.), tech_stack_databases (array), tech_stack_other (array) - populated only when role_category is coding or hybrid
+- job_description_raw (full text so the chat agent can answer ad-hoc questions later)
+
+Transform task prompt (use inside \`transformdata\` for each posting):
+"From this LinkedIn job posting JSON, extract: (1) job_id, job_url, job_title, company_name, company_url, city, workplace_type, employment_type, seniority_level, posted_at; (2) salary_min/max/currency/period if explicitly stated (null otherwise); (3) role_category as one of 'coding', 'sales-consultancy', 'hybrid', 'unknown' with a one-sentence role_category_reason; (4) ONLY if role_category includes coding, tech_stack_languages, tech_stack_deployment, tech_stack_orchestration, tech_stack_databases, tech_stack_other as deduplicated lowercase string arrays; otherwise leave the tech_stack_* arrays empty. Always include job_description_raw verbatim." (country_code, country_name, and source_country_geoid come from the subtask context, not the posting — set them when loading the row.)
+
+Interactive agent conversation opener (put in its instructions):
+On the first reply after the user's first message in a new thread, start with a one-line welcome, then "Here are a few things you can ask me:" and the bullet list below. If the user's first message is already a substantive question, give the welcome + bullets briefly, then answer.
+- "How many open forward-deployed engineer roles per country?"
+- "Which companies are hiring for forward deployed engineer right now?"
+- "What's the salary range across postings that publish one, and how does it vary by country?"
+- "How many of these are coding roles vs sales/consultancy?"
+- "For the coding roles, what are the most common languages, deployment platforms, orchestration tools, and databases mentioned?"
+
+Schedule (Phase 2.5):
+- After Phase 2 completes, set up a recurring weekly schedule on the \`fde-jobs-orchestrator\` parent: every Monday at 06:00 Europe/Berlin.
+- Scheduled task description should be the full country list above so each weekly fire re-fans-out.
+- I understand creating the schedule also runs the parent once immediately; that's fine - it gives me an initial dataset to demo.
+
+Please:
+1. First call \`listworkspaceintegrations\` with query "linkedin" so the diagram references the real integration, then \`listintegrationtools\` to confirm both the search-page and job-details tools.
+2. \`updatepatternspecs\`: dataset \`fde-jobs\` in the middle, child pipeline pushes to it, parent fans out to the child, interactive assistant pulls from it, LinkedIn MCP integration node connected to the child.
+3. Show me a dummy table (5-6 columns) with one coding row and one sales-consultancy row so I can sanity-check the schema.
+4. Ask anything ambiguous and wait for me to reply Build.
+
+Do not create anything yet - plan + pattern + dummy table + questions, then wait for "Build". After Phase 2, confirm the weekly schedule with me before calling updateschedule.`,
   },
   {
     title: "Domain research pipeline",
@@ -128,6 +163,30 @@ Do not create anything yet — plan + pattern + dummy table + questions, then wa
     iconClassName: "text-blue-500",
     prompt:
       "Build a domain research pipeline that uses Firecrawl to scrape company websites, produces AI agent use-case briefs, and provides a chat interface to explore results.\n\nIntegration: Firecrawl (already installed in workspace). Use listworkspaceintegrations with query \"firecrawl\" to find the existing integration, then listintegrationtools and updateagenttool to attach Firecrawl tools to the pipeline agent.\n\nContext store: ClickHouse dataset company-use-case-briefs (same dataset for all three agents).\n\nArchitecture — three agents:\n\n1) Pipeline agent (e.g. company-research-pipeline): type pipeline. For each company domain (one subtask per domain):\n   - Use Firecrawl to crawl up to 3 pages per domain: /about (or /about-us), /services (or /solutions, /what-we-do), /careers (or /jobs, /team). Use crawl or scrape with markdown output mode.\n   - If total scraped markdown < 300 words across all pages, flag confidence_flag = \"needs-manual-research\" and still save partial results.\n   - Otherwise, use transformdata to analyze the combined markdown with this task: \"From this company website content, extract: (1) a one-sentence summary of what the company does, (2) the top 2-3 AI agent use cases most relevant to their business, (3) for each use case a business value argument (1-2 sentences), and (4) an estimated annual dollar value for each use case based on company size/industry signals.\" Output schema: {\"type\": \"object\", \"properties\": {\"company_name\": {\"type\": \"string\"}, \"what_they_do\": {\"type\": \"string\"}, \"use_cases\": {\"type\": \"array\", \"items\": {\"type\": \"object\", \"properties\": {\"use_case\": {\"type\": \"string\"}, \"value_argument\": {\"type\": \"string\"}, \"value_dollars\": {\"type\": \"string\"}}}}, \"confidence_flag\": {\"type\": \"string\", \"enum\": [\"high\", \"medium\", \"needs-manual-research\"]}}}\n   - Use loadintodataset to write the structured output into company-use-case-briefs.\n\n2) Parent orchestrator agent (e.g. company-research-orchestrator): type pipeline. This agent receives a list of domains (via task description), then uses createsubtask to fan out one subtask per domain to the pipeline agent above. Give it updatetodos and createsubtask tools. Instructions: \"You receive a list of company domains. For each domain, create one subtask dispatched to the company-research-pipeline agent with the domain as the task description. Process in batches of 20 to avoid rate limits. Update todos to track progress.\"\n\n3) Interactive agent (e.g. company-research-chat): type interactive. Only reads from the same ClickHouse dataset company-use-case-briefs via clickhouse_run_select_query — do not give this agent Firecrawl or any write tools. Translates user questions into SELECTs behind the scenes and replies in plain English (never show SQL to the user). If the dataset is empty, tell the user the pipeline hasn't run yet.\n\n   Conversation opener (put in this agent's instructions): On the first reply after the user's first message in a new thread, start with a one-line welcome, then: \"Here are a few things you can ask me:\" and a short bullet list of 4-5 concrete examples:\n   - \"Which companies were flagged as needs-manual-research?\"\n   - \"Show me the top 10 companies by estimated AI value in dollars\"\n   - \"What are the most common use cases across all companies?\"\n   - \"Give me the full brief for [domain.com]\"\n   - \"Which companies have use cases around customer support automation?\"\n   If the user's first message is already a substantive question, give the welcome + examples briefly, then answer their question.\n\nNo MockAIIntegration.\n\nModels: Use gpt-5.4-mini for the pipeline agent (cost-efficient for volume), gpt-5.4 for the orchestrator, and gpt-5.4 for the interactive agent.",
+  },
+  {
+    title: "API data pipeline",
+    teaser: "Ingest scheduled API data into queryable tables.",
+    icon: Network,
+    iconClassName: "text-sky-500",
+    prompt:
+      "Build a pipeline that pulls data from a REST API on a schedule, stores it in a table, and lets me query or view the latest records.",
+  },
+  {
+    title: "Deep research brief",
+    teaser: "Track leadership changes across top tech companies.",
+    icon: FlaskConical,
+    iconClassName: "text-violet-500",
+    prompt:
+      "Build a deep research agent: find top 5 tech companies, research leadership change news for each, at C-level and from last 7 days, save results to a table, and summarize which companies had leadership changes.",
+  },
+  {
+    title: "Sales outreach copilot",
+    teaser: "Organize leads, draft outreach, and suggest follow-ups.",
+    icon: Megaphone,
+    iconClassName: "text-orange-500",
+    prompt:
+      "Build an agent that helps with sales outreach: track leads, draft emails, and suggest follow-ups. I want a table of leads and a way to see pipeline stages.",
   },
   {
     title: "Healthcare chat with PowerBI",
