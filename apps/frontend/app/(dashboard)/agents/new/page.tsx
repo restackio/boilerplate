@@ -101,39 +101,35 @@ Do not create anything yet — plan + pattern + dummy table + questions, then wa
   {
     title: "Forward-deployed jobs radar",
     teaser:
-      "Scrape FDE job postings worldwide; chat to compare countries, salaries, tech stacks.",
+      "Scrape FDE job postings worldwide; chat to compare countries, salaries, and role types.",
     icon: Briefcase,
     iconClassName: "text-indigo-600",
-    prompt: `I want to monitor LinkedIn job postings for the keyword "forward deployed engineer" across major markets and let our team chat with the data weekly.
-
-Inputs:
-- Search keyword: "forward deployed engineer".
-- Country list (one subtask per country): United States (geoId 103644278), United Kingdom (101165590), Germany (101282230), France (105015875), Netherlands (102890719), Spain (105646813), Italy (103350119), Sweden (105117694), Ireland (104738515), Switzerland (106693272), Brazil (106057199), Mexico (103323778), Canada (101174742), India (102713980), Singapore (102454443), Australia (101452733), United Arab Emirates (104305776).
-- LinkedIn search URL template per country: https://www.linkedin.com/jobs/search-results/?keywords=forward%20deployed%20engineer&geoId={geoId}
+    prompt: `I want to monitor LinkedIn job postings for "forward deployed engineer" worldwide and let our team chat with the data.
 
 Integration (real data only - no mock fallback):
-- A LinkedIn MCP integration is installed in this workspace. Before designing, call \`listworkspaceintegrations\` with query "linkedin", then call \`listintegrationtools\` and identify the TWO jobs tools I added: (1) a search-page tool that scrapes a LinkedIn jobs search URL and returns the list of matching jobs (job ids / job urls) for that geoId, and (2) a job-details tool that takes a single job id/url and returns the full posting (title, company, location, description, salary if present).
-- Use BOTH tools in the child pipeline: the search-page tool first to enumerate jobs for the country, then the job-details tool per job to get the full posting before classifying. Do NOT use mockaiintegration - we need real data for this build.
-- If either tool is missing, STOP at the end of Phase 1. In your reply, tell me exactly which integration/tools you found, what is missing, and what naming mismatch to fix before I reply Build.
-- Empty results for a country are fine - log them, save zero rows for that country, and continue. Never fabricate rows to fill gaps.
+- A LinkedIn MCP integration is installed in this workspace. Before designing, call \`listworkspaceintegrations\` with query "linkedin", then call \`listintegrationtools\` and identify the jobs search-page tool I added. The tool already has the search query and locations set in its own default settings - it searches LinkedIn for "forward deployed engineer" across all countries on its own. You do NOT pass a search URL, keyword, geoId, or country - just call the tool with no search params. It returns the full list of matching jobs across all countries in one call.
+- Each result item looks like: { jobId, jobUrl, jobTitle, companyName, location, logoUrl, workplaceType (Hybrid|Remote|On-site), isRemote (bool), postedAt (relative text like "6 months ago"), salary (free-text like "$70K/yr - $95K/yr") }. Note: salary is optional - when no salary is posted, the "salary" key is omitted from the item entirely (not null/empty, simply absent). location is a free-text place string (e.g. "Barcelona" or "London, England, United Kingdom").
+- Use ONLY that search-page tool. Do NOT scrape individual job detail pages, and do NOT use mockaiintegration. We need real data for this build.
+- IMPORTANT - the tool is slow and backed by a service that can only run ONE job at a time. Call it EXACTLY ONCE per run. Never call it a second time in the same run. If it times out (e.g. a 504 "Timed out waiting for MCP server response") or errors, do NOT retry it - record the failure and \`completetask\`. A retry would start a second concurrent job and break the run. (Put this no-retry rule in the pipeline agent's instructions explicitly.)
+- If the search-page tool is missing, STOP at the end of Phase 1. In your reply, tell me exactly which integration/tools you found, what is missing, and what naming mismatch to fix before I reply Build.
+- Empty results are fine - if the tool returns no jobs, save zero rows and complete. Never fabricate rows to fill gaps.
 
 Architecture (hybrid):
-- One ClickHouse dataset \`fde-jobs\` shared by all agents.
-- Child pipeline agent \`fde-jobs-pipeline\` (type pipeline): one country per run. Receives country_code, country_name, geoId, and the search URL via task description. (a) Calls the LinkedIn MCP search-page tool with the per-country search URL to enumerate jobs (ids/urls) for that geoId, (b) for each job, calls the LinkedIn MCP job-details tool to fetch the full posting, (c) passes each full posting to \`transformdata\` to classify role_category as one of coding | sales-consultancy | hybrid | unknown and extract tech stack arrays only when coding is involved, (d) \`loadintodataset\` writes all rows into \`fde-jobs\` (each row tagged with source_country_geoid), (e) \`completetask\`.
-- Parent agent \`fde-jobs-orchestrator\` (type pipeline, orchestration only - no chat): receives the country list above in its task description and uses \`createsubtask\` to fan out one subtask per country to the child pipeline. Use \`updatetodos\` to track progress.
-- Interactive agent \`fde-jobs-assistant\` (type interactive): reads ONLY from \`fde-jobs\` via \`clickhouselisttables\` and \`clickhouserunselectquery\`. Never give it the LinkedIn MCP search-page or job-details tools or any write tools. Translates user questions into SELECTs internally and replies in plain English (never show SQL).
+- One ClickHouse dataset \`fde-jobs\` shared by both agents.
+- Pipeline agent \`fde-jobs-pipeline\` (type pipeline): in a single run it (a) calls the LinkedIn MCP search-page tool EXACTLY ONCE to get all jobs across all countries (never retry it - see the no-retry rule above), (b) passes each result item to \`transformdata\` to derive the country from the location text and classify role_category as one of coding | sales-consultancy | hybrid | unknown (inferred from the job title), (c) \`loadintodataset\` writes all rows into \`fde-jobs\`, (d) \`completetask\`. No per-country fan-out and no orchestrator agent are needed - the tool runs the worldwide search itself in one call.
+- Interactive agent \`fde-jobs-assistant\` (type interactive): reads ONLY from \`fde-jobs\` via \`clickhouselisttables\` and \`clickhouserunselectquery\`. Never give it the LinkedIn MCP search-page tool or any write tools. Translates user questions into SELECTs internally and replies in plain English (never show SQL).
 
-Dataset columns:
-- job_id, job_url, job_title, company_name, company_url
-- country_code, country_name, source_country_geoid (the geoId whose search surfaced this job), city, workplace_type (remote | hybrid | onsite | null), employment_type, seniority_level
-- posted_at, fetched_at
-- salary_min, salary_max, salary_currency, salary_period (yearly | monthly | hourly) - all nullable, often missing on LinkedIn
+Dataset columns (from the search-results payload):
+- job_id, job_url, job_title, company_name, company_logo_url
+- location (raw place text from the item), city (best-effort city parsed from location), country (best-effort country derived from location by the LLM, nullable)
+- workplace_type (hybrid | remote | onsite | null), is_remote (bool)
+- posted_at_text (the raw relative text like "6 months ago"), fetched_at (timestamp of the scrape)
+- salary_raw (the original salary string, nullable), salary_min, salary_max, salary_currency, salary_period (yearly | monthly | hourly | null) - parsed from salary_raw when present
 - role_category (coding | sales-consultancy | hybrid | unknown), role_category_reason (short LLM justification)
-- tech_stack_languages (array), tech_stack_deployment (array: cloud | aws | gcp | azure | on-prem | hybrid), tech_stack_orchestration (array: kubernetes | ecs | nomad | docker-swarm | airflow | etc.), tech_stack_databases (array), tech_stack_other (array) - populated only when role_category is coding or hybrid
-- job_description_raw (full text so the chat agent can answer ad-hoc questions later)
+Note: we only scrape the search results (not each job detail page), so there is no full job description. Salary, workplace type, and location come through on the search payload. The payload has no explicit country field, so country is inferred from the location text. Detailed tech-stack extraction stays out of scope since it needs the full description - if you want it later, we re-add a job-details scrape.
 
-Transform task prompt (use inside \`transformdata\` for each posting):
-"From this LinkedIn job posting JSON, extract: (1) job_id, job_url, job_title, company_name, company_url, city, workplace_type, employment_type, seniority_level, posted_at; (2) salary_min/max/currency/period if explicitly stated (null otherwise); (3) role_category as one of 'coding', 'sales-consultancy', 'hybrid', 'unknown' with a one-sentence role_category_reason; (4) ONLY if role_category includes coding, tech_stack_languages, tech_stack_deployment, tech_stack_orchestration, tech_stack_databases, tech_stack_other as deduplicated lowercase string arrays; otherwise leave the tech_stack_* arrays empty. Always include job_description_raw verbatim." (country_code, country_name, and source_country_geoid come from the subtask context, not the posting — set them when loading the row.)
+Transform task prompt (use inside \`transformdata\` for each search-result item):
+"From this LinkedIn job search-result item, extract: (1) job_id (jobId), job_url (jobUrl), job_title (jobTitle), company_name (companyName), company_logo_url (logoUrl), location (the raw location text), workplace_type (lowercase the workplaceType: hybrid|remote|onsite, or null), is_remote (isRemote), posted_at_text (postedAt); (2) from the location text derive city (the city/town) and country (the country name, e.g. 'Barcelona' -> Spain, 'London, England, United Kingdom' -> United Kingdom); if location is just 'Remote' or the country is unclear, set country to null; (3) salary is optional and the "salary" key may be entirely absent from the item - if there is no salary key, set salary_raw and all salary_* fields to null and do not guess; if present, salary_raw = the salary string verbatim, and parse it into salary_min, salary_max (numbers, e.g. '$70K/yr - $95K/yr' -> 70000 and 95000), salary_currency (ISO like USD/EUR), salary_period (yearly|monthly|hourly from /yr, /mo, /hr); (4) role_category as one of 'coding', 'sales-consultancy', 'hybrid', 'unknown' inferred from the job title, with a one-sentence role_category_reason." (fetched_at is the scrape time - set it when loading the row.)
 
 Interactive agent conversation opener (put in its instructions):
 On the first reply after the user's first message in a new thread, start with a one-line welcome, then "Here are a few things you can ask me:" and the bullet list below. If the user's first message is already a substantive question, give the welcome + bullets briefly, then answer.
@@ -141,20 +137,15 @@ On the first reply after the user's first message in a new thread, start with a 
 - "Which companies are hiring for forward deployed engineer right now?"
 - "What's the salary range across postings that publish one, and how does it vary by country?"
 - "How many of these are coding roles vs sales/consultancy?"
-- "For the coding roles, what are the most common languages, deployment platforms, orchestration tools, and databases mentioned?"
-
-Schedule (Phase 2.5):
-- After Phase 2 completes, set up a recurring weekly schedule on the \`fde-jobs-orchestrator\` parent: every Monday at 06:00 Europe/Berlin.
-- Scheduled task description should be the full country list above so each weekly fire re-fans-out.
-- I understand creating the schedule also runs the parent once immediately; that's fine - it gives me an initial dataset to demo.
+- "How many roles are remote vs hybrid vs onsite, and which cities have the most openings?"
 
 Please:
-1. First call \`listworkspaceintegrations\` with query "linkedin" so the diagram references the real integration, then \`listintegrationtools\` to confirm both the search-page and job-details tools.
-2. \`updatepatternspecs\`: dataset \`fde-jobs\` in the middle, child pipeline pushes to it, parent fans out to the child, interactive assistant pulls from it, LinkedIn MCP integration node connected to the child.
-3. Show me a dummy table (5-6 columns) with one coding row and one sales-consultancy row so I can sanity-check the schema.
+1. First call \`listworkspaceintegrations\` with query "linkedin" so the diagram references the real integration, then \`listintegrationtools\` to confirm the search-page tool.
+2. \`updatepatternspecs\`: dataset \`fde-jobs\` in the middle, the pipeline agent pushes to it, the interactive assistant pulls from it, and the LinkedIn MCP integration node connected to the pipeline agent. (No orchestrator/parent node - the tool searches all countries itself.)
+3. Show me a dummy table to sanity-check the schema: columns job_title, company_name, location, country, salary_raw, role_category, with one coding row (e.g. salary present, country derived from a city+country location) and one sales-consultancy row (e.g. no salary, location "Remote" -> country null).
 4. Ask anything ambiguous and wait for me to reply Build.
 
-Do not create anything yet - plan + pattern + dummy table + questions, then wait for "Build". After Phase 2, confirm the weekly schedule with me before calling updateschedule.`,
+Do not create anything yet - plan + pattern + dummy table + questions, then wait for "Build".`,
   },
   {
     title: "Domain research pipeline",
