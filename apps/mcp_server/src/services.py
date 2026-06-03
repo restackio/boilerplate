@@ -76,6 +76,7 @@ from src.workflows.tools.update_pattern_specs import (
 from src.workflows.tools.update_schedule import UpdateSchedule
 from src.workflows.tools.update_todos import UpdateTodos
 from src.workflows.tools.update_view import UpdateView
+from src.workflows.tools.wait import Wait
 
 # Create logger for this module
 logger = logging.getLogger(__name__)
@@ -114,6 +115,7 @@ async def run_restack_service() -> None:
             SlackCheckConnection,
             SlackListChannels,
             SlackConnectChannel,
+            Wait,
         ],
         functions=[
             llm_response,
