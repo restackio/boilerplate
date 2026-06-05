@@ -139,9 +139,7 @@ Architecture (3 scrape pipelines + 1 orchestrator + 1 interactive assistant):
 - One interactive agent \`fde-company-assistant\` (type interactive): reads ONLY from \`fde-company-details\` via \`clickhouselisttables\` and \`clickhouserunselectquery\`. Never give it any PhantomBuster scrape tools, the other two datasets, or any write tools. Translates user questions into SELECTs internally and replies in plain English (never show SQL).
 
 Datasets / columns:
-- For EACH scrape dataset, derive columns from the actual fields present in that phantom's \`resultObject\` items and store them as-is, plus \`fetched_at\` (timestamp of the scrape) and \`container_id\` (string, for traceability). Do not drop fields - \`fde-jobs-search\` and \`fde-job-details\` are kept purely for history. Treat any field that's absent on a given item as null and do not guess.
-- \`fde-company-details\` is the important one (it backs the chat). I don't have its exact field list yet, so build its columns from the company-details \`resultObject\`. Typical company fields to expect (use whatever the phantom actually returns): company_name, company_url, industry, headquarters / location, company_size or employee_count, website, founded, specialties, description - plus \`fetched_at\` and \`container_id\`.
-(If you paste me a sample company-details \`resultObject\`, I'll lock the exact schema and tailor the chat examples below.)
+- Store each \`resultObject\` item RAW, exactly as the phantom returns it: one column per field using the field's own name, values stored as-is. Do NOT rename, derive, parse, reshape, or drop fields - just add \`fetched_at\` (timestamp of the scrape) and \`container_id\` (string, for traceability). Apply this to all three datasets (\`fde-jobs-search\`, \`fde-job-details\`, \`fde-company-details\`); each dataset's column set is simply whatever its phantom outputs, so there is no fixed schema to pre-define. Treat any field absent on a given item as null and do not guess.
 
 Interactive agent conversation opener (put in its instructions):
 On the first reply after the user's first message in a new thread, start with a one-line welcome, then "Here are a few things you can ask me:" and the bullet list below. If the user's first message is already a substantive question, give the welcome + bullets briefly, then answer. (Tailor these once the company-details columns are confirmed.)
@@ -154,7 +152,7 @@ On the first reply after the user's first message in a new thread, start with a 
 Please:
 1. First call \`listworkspaceintegrations\` with query "linkedin" (also try "phantombuster"), then \`listintegrationtools\` to confirm the three Launch tools and the shared \`GetContainerStatusWorkflowPhantombuster\` / \`GetContainerResultWorkflowPhantombuster\` tools.
 2. \`updatepatternspecs\`: show the LinkedIn/PhantomBuster MCP integration node, the \`fde-orchestrator\` running the three scrape pipelines in sequence, each scrape pipeline writing to its own dataset (\`fde-jobs-search\`, \`fde-job-details\`, \`fde-company-details\`), and the \`fde-company-assistant\` pulling ONLY from \`fde-company-details\`.
-3. Show me a small dummy table for \`fde-company-details\` (5-6 likely columns, 2 rows) so I can sanity-check the company schema.
+3. Note that each dataset's columns are created dynamically from its phantom's \`resultObject\` fields (stored raw) plus \`fetched_at\` and \`container_id\`, so there is no fixed schema to pre-approve.
 4. Ask anything ambiguous and wait for me to reply Build.
 
 Do not create anything yet - plan + pattern + dummy table + questions, then wait for "Build".`,
