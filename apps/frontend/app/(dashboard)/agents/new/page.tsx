@@ -101,54 +101,60 @@ Do not create anything yet — plan + pattern + dummy table + questions, then wa
   {
     title: "Forward-deployed jobs radar",
     teaser:
-      "Scrape FDE job postings worldwide; chat to compare countries, salaries, and role types.",
+      "Scrape LinkedIn jobs, job details, and company details; chat about the hiring companies.",
     icon: Briefcase,
     iconClassName: "text-indigo-600",
-    prompt: `I want to monitor LinkedIn job postings for "forward deployed engineer" worldwide and let our team chat with the data.
+    prompt: `I want to monitor LinkedIn for "forward deployed engineer" hiring worldwide using three PhantomBuster scrapes (job search, job details, and company details), store each scrape's output, and let our team chat with the COMPANY data.
 
 Integration (real data only - no mock fallback):
-- A LinkedIn MCP integration is installed in this workspace, backed by PhantomBuster. Before designing, call \`listworkspaceintegrations\` with query "linkedin" (also try "phantombuster" if nothing comes back), then call \`listintegrationtools\` to confirm the async job tools described below.
-- The scrape is long-running, so it uses an ASYNC launch/poll/fetch flow (a single synchronous call would hit OpenAI's MCP connector timeout and return a 504 "Timed out waiting for MCP server response"). Use this trio EXACTLY:
-  1. \`LaunchLinkedinJobsSearchWorkflowPhantombuster\` - starts the scrape and returns almost immediately with a \`containerId\`. Call it with no \`search_url\` to use the tool's default saved searches (these already cover "forward deployed engineer" across all countries). Save the returned \`containerId\`.
-  2. \`GetContainerStatusWorkflowPhantombuster\` - check status with that \`container_id\`, then pause ~5 minutes before checking again, repeating until \`isFinished\` is true (the scrape is long-running, so don't check more often than that). IMPORTANT: an LLM can't pause on its own, so do the waiting with the built-in \`wait\` tool - it sleeps up to 50s per call, so call \`wait\` about 7 times in a row (e.g. \`wait\` with seconds=45) between each status check to add up to ~5 minutes. Do NOT launch again while waiting - exactly one launch per run.
-  TERMINAL CONDITIONS - the ONLY two reasons to stop polling are: (i) \`isFinished\` is true, or (ii) the status/result reports an error (e.g. \`endType\` "error"). While the container is still running/queued/in-progress, "still running" is NOT a stopping condition: keep repeating the wait-then-check cycle. Never decide on your own that the job is stuck, taking too long, or "never left running" and stop early - a long running status is expected and normal. Do not conclude failure from a running status, do not report the job as failed/timed out while it is still running, and do not give up after a fixed number of checks.
-  3. \`GetContainerResultWorkflowPhantombuster\` - once finished, if \`endType\` is "success", call this with the \`container_id\` and parse the returned \`resultObject\` (a JSON string) into an array of job items. If \`endType\` is "error", record the failure and \`completetask\` - do NOT relaunch.
-- Use ONLY this async trio. Do NOT use the synchronous \`GetLinkedinJobsSearchWorkflowPhantombuster\` or \`ScrapeLinkedinJobsWorkflowPhantombuster\` tools (they block and will 504 on long runs), do NOT scrape individual job detail pages, and do NOT use mockaiintegration. We need real data for this build.
-- Each job item in \`resultObject\` has fields like: jobUrl, jobTitle, companyName, location (free-text place string, e.g. "Barcelona" or "London, England, United Kingdom"), postedAt (relative text like "6 months ago"), and query (the originating saved-search URL this job came from). Other fields (e.g. jobId, logoUrl, workplaceType, isRemote, salary) may be present depending on the phantom's configured columns - treat them as optional: when a field is absent, set the matching column to null and do not guess. In particular, salary is often absent.
-- If the async tools are missing, STOP at the end of Phase 1. In your reply, tell me exactly which integration/tools you found, what is missing, and what naming mismatch to fix before I reply Build.
-- Empty results are fine - if \`resultObject\` parses to no jobs, save zero rows and complete. Never fabricate rows to fill gaps.
+- A LinkedIn MCP integration is installed in this workspace, backed by PhantomBuster. Before designing, call \`listworkspaceintegrations\` with query "linkedin" (also try "phantombuster" if nothing comes back), then call \`listintegrationtools\` to confirm the async tools described below.
+- There are THREE launch tools, one per phantom. Each is self-contained: its source/input is already configured on PhantomBuster, so call it with NO input arguments. Each returns a \`containerId\` almost immediately:
+  - \`LaunchLinkedinJobsSearchWorkflowPhantombuster\` - scrapes the LinkedIn job search pages.
+  - \`LaunchLinkedinJobDetailsWorkflowPhantombuster\` - scrapes individual job detail pages.
+  - \`LaunchLinkedinCompanyDetailsWorkflowPhantombuster\` - scrapes company detail pages.
+- TWO shared async tools work for ALL three phantoms (they just take a \`container_id\`):
+  - \`GetContainerStatusWorkflowPhantombuster\` - returns status including \`isFinished\` and \`endType\`.
+  - \`GetContainerResultWorkflowPhantombuster\` - returns \`resultObject\` (a JSON string) once finished.
 
-Architecture (hybrid):
-- One ClickHouse dataset \`fde-jobs\` shared by both agents.
-- Pipeline agent \`fde-jobs-pipeline\` (type pipeline): in a single run it (a) runs the async LinkedIn scrape ONCE - \`LaunchLinkedinJobsSearchWorkflowPhantombuster\` (no search_url), then polls \`GetContainerStatusWorkflowPhantombuster\` until \`isFinished\`, pacing each status check ~5 minutes apart by calling the built-in \`wait\` tool ~7 times (≤50s each, e.g. seconds=45) between checks (an LLM can't pause by itself), then on \`endType\` "success" calls \`GetContainerResultWorkflowPhantombuster\` and parses \`resultObject\` into the jobs array (never relaunch while polling; on \`endType\` "error" record the failure and complete), (b) passes each job item to \`transformdata\` to derive the country from the location text and classify role_category as one of coding | sales-consultancy | hybrid | unknown (inferred from the job title), (c) \`loadintodataset\` writes all rows into \`fde-jobs\`, (d) \`completetask\`. No per-country fan-out and no orchestrator agent are needed - the default saved searches cover all countries in one launch. (Attach the built-in \`wait\` tool to this pipeline agent, and put the launch-once / poll-don't-relaunch rule in its instructions explicitly.)
-- Interactive agent \`fde-jobs-assistant\` (type interactive): reads ONLY from \`fde-jobs\` via \`clickhouselisttables\` and \`clickhouserunselectquery\`. Never give it the LinkedIn/PhantomBuster scrape tools or any write tools. Translates user questions into SELECTs internally and replies in plain English (never show SQL).
+SHARED ASYNC FLOW - every scrape pipeline agent below follows this EXACTLY (a single synchronous call would hit OpenAI's MCP connector timeout and return a 504 "Timed out waiting for MCP server response", which is why we launch/poll/fetch):
+  1. Call the agent's Launch tool with NO input args. Save the returned \`containerId\`. Launch EXACTLY ONCE per run - never launch again while waiting.
+  2. Poll \`GetContainerStatusWorkflowPhantombuster\` with that \`container_id\`: check status, then pause ~5 minutes, then check again, repeating until done. An LLM can't pause on its own, so do the waiting with the built-in \`wait\` tool - it sleeps up to 50s per call, so call \`wait\` about 7 times in a row (e.g. \`wait\` with seconds=45) between status checks to add up to ~5 minutes.
+  TERMINAL CONDITIONS - the ONLY two reasons to stop polling are: (i) \`isFinished\` is true, or (ii) the status/result reports an error (e.g. \`endType\` "error"). While the container is still running/queued/in-progress, "still running" is NOT a stopping condition: keep repeating the wait-then-check cycle. Never decide on your own that the job is stuck, taking too long, or "never left running" and stop early - a long running status is expected and normal. Do not report the job as failed/timed out while it is still running, and do not give up after a fixed number of checks.
+  3. When \`isFinished\` is true: if \`endType\` is "success", call \`GetContainerResultWorkflowPhantombuster\` with the \`container_id\` and parse \`resultObject\` (a JSON string) into an array of items. If \`endType\` is "error", record the failure and \`completetask\` - do NOT relaunch.
+  4. Write every item into THIS agent's own dataset via \`loadintodataset\` (preserve the fields the phantom returns; add \`fetched_at\` = scrape time and \`container_id\` for traceability), then \`completetask\`. Empty results are fine - save zero rows and complete; never fabricate rows.
+- Each scrape pipeline agent must have attached: the built-in \`wait\` tool, its own Launch tool, and the two shared \`GetContainerStatusWorkflowPhantombuster\` / \`GetContainerResultWorkflowPhantombuster\` tools. Put the launch-once / poll-don't-relaunch / terminal-conditions rules in each agent's instructions explicitly.
+- Do NOT use any synchronous variants (e.g. \`GetLinkedinJobsSearchWorkflowPhantombuster\`, \`ScrapeLinkedinJobsWorkflowPhantombuster\`) - they block and will 504 on long runs. Do NOT use mockaiintegration. We need real data for this build.
+- If any of the launch/status/result tools are missing, STOP at the end of Phase 1 and tell me exactly which tools you found, what is missing, and any naming mismatch to fix before I reply Build.
 
-Dataset columns (from each job item in \`resultObject\`):
-- job_url, job_title, company_name
-- job_id (nullable - only if present), company_logo_url (nullable - only if present)
-- location (raw place text from the item), city (best-effort city parsed from location), country (best-effort country derived from location by the LLM, nullable)
-- search_query_url (the item's \`query\` field - the saved-search URL this job originated from, nullable)
-- workplace_type (hybrid | remote | onsite | null - only if the item exposes it), is_remote (bool | null)
-- posted_at_text (the raw relative text like "6 months ago"), fetched_at (timestamp of the scrape)
-- salary_raw (the original salary string, nullable), salary_min, salary_max, salary_currency, salary_period (yearly | monthly | hourly | null) - parsed from salary_raw when present
-- role_category (coding | sales-consultancy | hybrid | unknown), role_category_reason (short LLM justification)
-Note: we only scrape the search results (not each job detail page), so there is no full job description. location and posted_at always come through; salary, workplace type, job_id, and logo are optional and may be absent depending on the phantom's configured columns. The payload has no explicit country field, so country is inferred from the location text. The \`query\` field tells you which saved search a job came from. Detailed tech-stack extraction stays out of scope since it needs the full description - if you want it later, we re-add a job-details scrape.
+Architecture (3 scrape pipelines + 1 orchestrator + 1 interactive assistant):
+- THREE ClickHouse datasets, one per scrape, kept separate:
+  - \`fde-jobs-search\` - job search results (kept for history).
+  - \`fde-job-details\` - job details results (kept for history).
+  - \`fde-company-details\` - company details results (THE dataset we care about; backs the chat).
+- THREE pipeline agents (type pipeline), each following the SHARED ASYNC FLOW above and writing ONLY to its own dataset:
+  - \`fde-jobs-search-pipeline\` -> launches \`LaunchLinkedinJobsSearchWorkflowPhantombuster\`, stores into \`fde-jobs-search\`.
+  - \`fde-job-details-pipeline\` -> launches \`LaunchLinkedinJobDetailsWorkflowPhantombuster\`, stores into \`fde-job-details\`.
+  - \`fde-company-details-pipeline\` -> launches \`LaunchLinkedinCompanyDetailsWorkflowPhantombuster\`, stores into \`fde-company-details\`.
+- One parent orchestrator agent \`fde-orchestrator\` (type pipeline, orchestration only - no chat): runs the three pipelines IN SEQUENCE via \`createsubtask\` - job search first, THEN job details, THEN company details - creating each next subtask only AFTER the previous one has finished (the phantoms are chained on PhantomBuster's side, so order matters even though we pass no inputs). Give it \`createsubtask\` and \`updatetodos\`; it must NOT call PhantomBuster or datasets directly. This is the agent we'd schedule.
+- One interactive agent \`fde-company-assistant\` (type interactive): reads ONLY from \`fde-company-details\` via \`clickhouselisttables\` and \`clickhouserunselectquery\`. Never give it any PhantomBuster scrape tools, the other two datasets, or any write tools. Translates user questions into SELECTs internally and replies in plain English (never show SQL).
 
-Transform task prompt (use inside \`transformdata\` for each job item):
-"From this LinkedIn job search-result item, extract: (1) job_url (jobUrl), job_title (jobTitle), company_name (companyName), location (the raw location text), posted_at_text (postedAt), search_query_url (query - the originating saved-search URL); job_id (jobId), company_logo_url (logoUrl), workplace_type (lowercase the workplaceType: hybrid|remote|onsite), and is_remote (isRemote) are optional - if a field is absent, set it to null and do not guess; (2) from the location text derive city (the city/town) and country (the country name, e.g. 'Barcelona' -> Spain, 'London, England, United Kingdom' -> United Kingdom); if location is just 'Remote' or the country is unclear, set country to null; (3) salary is optional and the "salary" key may be entirely absent from the item - if there is no salary key, set salary_raw and all salary_* fields to null and do not guess; if present, salary_raw = the salary string verbatim, and parse it into salary_min, salary_max (numbers, e.g. '$70K/yr - $95K/yr' -> 70000 and 95000), salary_currency (ISO like USD/EUR), salary_period (yearly|monthly|hourly from /yr, /mo, /hr); (4) role_category as one of 'coding', 'sales-consultancy', 'hybrid', 'unknown' inferred from the job title, with a one-sentence role_category_reason." (fetched_at is the scrape time - set it when loading the row.)
+Datasets / columns:
+- For EACH scrape dataset, derive columns from the actual fields present in that phantom's \`resultObject\` items and store them as-is, plus \`fetched_at\` (timestamp of the scrape) and \`container_id\` (string, for traceability). Do not drop fields - \`fde-jobs-search\` and \`fde-job-details\` are kept purely for history. Treat any field that's absent on a given item as null and do not guess.
+- \`fde-company-details\` is the important one (it backs the chat). I don't have its exact field list yet, so build its columns from the company-details \`resultObject\`. Typical company fields to expect (use whatever the phantom actually returns): company_name, company_url, industry, headquarters / location, company_size or employee_count, website, founded, specialties, description - plus \`fetched_at\` and \`container_id\`.
+(If you paste me a sample company-details \`resultObject\`, I'll lock the exact schema and tailor the chat examples below.)
 
 Interactive agent conversation opener (put in its instructions):
-On the first reply after the user's first message in a new thread, start with a one-line welcome, then "Here are a few things you can ask me:" and the bullet list below. If the user's first message is already a substantive question, give the welcome + bullets briefly, then answer.
-- "How many open forward-deployed engineer roles per country?"
-- "Which companies are hiring for forward deployed engineer right now?"
-- "What's the salary range across postings that publish one, and how does it vary by country?"
-- "How many of these are coding roles vs sales/consultancy?"
-- "How many roles are remote vs hybrid vs onsite, and which cities have the most openings?"
+On the first reply after the user's first message in a new thread, start with a one-line welcome, then "Here are a few things you can ask me:" and the bullet list below. If the user's first message is already a substantive question, give the welcome + bullets briefly, then answer. (Tailor these once the company-details columns are confirmed.)
+- "Which companies are hiring forward deployed engineers?"
+- "Break the companies down by industry."
+- "Which companies are the largest by employee count?"
+- "Where are these companies headquartered?"
+- "Tell me everything we have on [company name]."
 
 Please:
-1. First call \`listworkspaceintegrations\` with query "linkedin" (also try "phantombuster") so the diagram references the real integration, then \`listintegrationtools\` to confirm the async trio (Launch / GetContainerStatus / GetContainerResult).
-2. \`updatepatternspecs\`: dataset \`fde-jobs\` in the middle, the pipeline agent pushes to it, the interactive assistant pulls from it, and the LinkedIn/PhantomBuster MCP integration node connected to the pipeline agent. (No orchestrator/parent node - the default saved searches cover all countries in one launch.)
-3. Show me a dummy table to sanity-check the schema: columns job_title, company_name, location, country, salary_raw, role_category, with one coding row (e.g. salary present, country derived from a city+country location) and one sales-consultancy row (e.g. no salary, location "Remote" -> country null).
+1. First call \`listworkspaceintegrations\` with query "linkedin" (also try "phantombuster"), then \`listintegrationtools\` to confirm the three Launch tools and the shared \`GetContainerStatusWorkflowPhantombuster\` / \`GetContainerResultWorkflowPhantombuster\` tools.
+2. \`updatepatternspecs\`: show the LinkedIn/PhantomBuster MCP integration node, the \`fde-orchestrator\` running the three scrape pipelines in sequence, each scrape pipeline writing to its own dataset (\`fde-jobs-search\`, \`fde-job-details\`, \`fde-company-details\`), and the \`fde-company-assistant\` pulling ONLY from \`fde-company-details\`.
+3. Show me a small dummy table for \`fde-company-details\` (5-6 likely columns, 2 rows) so I can sanity-check the company schema.
 4. Ask anything ambiguous and wait for me to reply Build.
 
 Do not create anything yet - plan + pattern + dummy table + questions, then wait for "Build".`,
