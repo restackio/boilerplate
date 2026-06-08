@@ -51,7 +51,7 @@ POST /webhook/workspace/{workspace_id}/agent/{agent_name}
 
 ### Github pull request
 ```bash
-curl -X POST "http://localhost:3000/webhook/workspace/ws-123/agent/github-pr" \
+curl -X POST "http://localhost:8000/webhook/workspace/ws-123/agent/github-pr" \
   -H "Content-Type: application/json" \
   -H "X-GitHub-Event: pull_request" \
   -d '{"action": "opened", "pull_request": {"title": "Add feature"}}'
@@ -59,7 +59,7 @@ curl -X POST "http://localhost:3000/webhook/workspace/ws-123/agent/github-pr" \
 
 ### Linear issue  
 ```bash
-curl -X POST "http://localhost:3000/webhook/workspace/ws-123/agent/linear-issues" \
+curl -X POST "http://localhost:8000/webhook/workspace/ws-123/agent/linear-issues" \
   -H "Content-Type: application/json" \
   -d '{"type": "Issue", "data": {"title": "Bug: Login broken"}}'
 ```
@@ -84,7 +84,7 @@ uv sync
 uv run dev
 
 # Health check
-curl http://localhost:3000/health
+curl http://localhost:8000/health
 ```
 
 ## Architecture
