@@ -101,28 +101,38 @@ Do not create anything yet — plan + pattern + dummy table + questions, then wa
   {
     title: "Forward-deployed jobs radar",
     teaser:
-      "Ingest the company-details PhantomBuster scrape via webhook; chat about hiring companies.",
+      "Ingest company-details + jobs PhantomBuster scrapes via webhook into one dataset; chat about hiring companies.",
     icon: Briefcase,
     iconClassName: "text-indigo-600",
-    prompt: `I want to monitor LinkedIn companies hiring "forward deployed engineers" using a single PhantomBuster "company details" scrape, store its output in one dataset, and let our team chat with that company data. The phantom is scheduled ON PHANTOMBUSTER's side and calls a webhook when it finishes. So this build does NOT launch, schedule, or poll the phantom - the ingestion agent only INGESTS the finished result.
+    prompt: `I want to monitor LinkedIn companies hiring "forward deployed engineers" using TWO PhantomBuster scrapes - a "company details" scrape and a "jobs" scrape - store BOTH of their outputs in ONE shared dataset, and let our team chat with that combined data. Each phantom is scheduled ON PHANTOMBUSTER's side and calls its own webhook when it finishes. So this build does NOT launch, schedule, or poll any phantom - each ingestion agent only INGESTS the finished result for its own phantom.
 
 Integration (real data only - no mock fallback):
 - A LinkedIn MCP integration is installed in this workspace, backed by PhantomBuster. Before designing, call \`listworkspaceintegrations\` with query "linkedin" (also try "phantombuster"), then call \`listintegrationtools\` to confirm the tool \`GetContainerResultWorkflowPhantombuster\` exists (it takes a \`container_id\` and returns \`resultObject\`).
 - Do NOT use any Launch tools, \`GetContainerStatusWorkflowPhantombuster\`, the \`wait\` tool, or any synchronous scrape variants. Do NOT use mockaiintegration.
 - If \`GetContainerResultWorkflowPhantombuster\` is missing, STOP at the end of Phase 1 and tell me exactly what you found before I reply Build.
 
-Architecture (1 ingestion agent + 1 interactive assistant - NO orchestrator, NO schedule, ONE dataset):
-- ONE ClickHouse dataset: \`fde-company-details\` (backs the chat).
-- ONE pipeline agent \`fde-company-details-pipeline\` (type pipeline), webhook-triggered, writing ONLY to \`fde-company-details\`. It follows this WEBHOOK-TRIGGERED INGEST FLOW EXACTLY:
-  1. It is triggered by a task whose description contains a PhantomBuster "finished" webhook payload as JSON. Fields include: containerId, exitCode, exitMessage. Extract \`containerId\` (string) and \`exitCode\`.
+SHARED WEBHOOK-TRIGGERED INGEST FLOW - both ingestion agents below follow this EXACTLY:
+  1. The agent is triggered by a task whose description contains a PhantomBuster "finished" webhook payload as JSON. Fields include: containerId, exitCode, exitMessage. Extract \`containerId\` (string) and \`exitCode\`.
   2. If exitCode != 0 (failed/killed/timeout): record the failure in todos and call \`completetask\`. Do NOT fetch results, do NOT relaunch.
   3. If exitCode == 0: call \`GetContainerResultWorkflowPhantombuster\` with container_id = the payload's containerId. Parse its \`resultObject\` (it may be a JSON string) into an array of items.
-  4. Write every item into \`fde-company-details\` via \`loadintodataset\`, preserving the phantom's fields exactly as returned (one column per field, values as-is - do NOT rename, derive, reshape, or drop fields); add \`fetched_at\` (timestamp) and \`container_id\` (string, for traceability/dedup). Then \`completetask\`. Empty results are fine - save zero rows and complete; never fabricate rows.
-  - This agent gets ONLY these tools: \`GetContainerResultWorkflowPhantombuster\`, \`loadintodataset\` (plus completetask/updatetodos). Put the "I'm webhook-triggered, never launch/poll" rule in its instructions explicitly.
-- ONE interactive agent \`fde-company-assistant\` (type interactive): reads ONLY from \`fde-company-details\` via \`clickhouselisttables\` and \`clickhouserunselectquery\`. Never give it any PhantomBuster tools or write tools. Translates user questions into SELECTs internally and replies in plain English (never show SQL).
+  4. Build a row per item as described for that agent below, then write all rows into \`fde-linkedin-company-details\` via \`loadintodataset\`. Then \`completetask\`. Empty results are fine - save zero rows and complete; never fabricate rows.
+  - Each ingestion agent gets ONLY these tools: \`GetContainerResultWorkflowPhantombuster\`, \`loadintodataset\` (plus completetask/updatetodos). Put the "I'm webhook-triggered, never launch/poll" rule in each agent's instructions explicitly.
 
-Datasets / columns:
-- Store each \`resultObject\` item RAW, exactly as the phantom returns it, plus \`fetched_at\` and \`container_id\`. The column set is simply whatever the phantom outputs, so there is no fixed schema to pre-define. Treat any field absent on an item as null.
+Architecture (2 ingestion agents + 1 interactive assistant - NO orchestrator, NO schedule, ONE shared dataset):
+- ONE ClickHouse dataset: \`fde-linkedin-company-details\` (shared by BOTH ingestion agents; backs the chat). Rows from the two scrapes are distinguished by a \`record_type\` field, and related by a shared \`companyName\` field.
+- Pipeline agent \`fde-company-details-pipeline\` (type pipeline), triggered by the COMPANY-DETAILS phantom's webhook. For each result item, build a row that:
+  - preserves the company phantom's fields RAW, exactly as returned (one column per field, values as-is - do NOT rename, derive, reshape, or drop fields);
+  - adds \`record_type\` = "company";
+  - adds \`companyName\` = the company's name taken from the result (whatever field the phantom uses for it, e.g. companyName / name / company), so it lines up with the jobs scrape's companyName;
+  - adds \`fetched_at\` (timestamp) and \`container_id\` (string, for traceability/dedup).
+- Pipeline agent \`fde-jobs-pipeline\` (type pipeline), triggered by the JOBS phantom's webhook. For each result item, build a MINIMAL row that contains ONLY:
+  - \`companyName\` (the company name, as returned by the jobs phantom);
+  - \`query\` (the LinkedIn job-description link, as returned by the jobs phantom);
+  - \`record_type\` = "job";
+  - \`fetched_at\` (timestamp) and \`container_id\` (string).
+  Do NOT store any other fields from the jobs phantom - just companyName and query plus those metadata fields.
+- ONE interactive agent \`fde-company-assistant\` (type interactive): reads ONLY from \`fde-linkedin-company-details\` via \`clickhouselisttables\` and \`clickhouserunselectquery\`. Never give it any PhantomBuster tools or write tools. Translates user questions into SELECTs internally and replies in plain English (never show SQL).
+  - The dataset holds two kinds of rows: company rows (\`record_type\` = "company", with the full company details) and job rows (\`record_type\` = "job", with companyName + query job link). To relate a company to its job links, JOIN/GROUP the two on the company name using a NORMALIZED key, i.e. compare \`lower(trim(companyName))\` on both sides (company names may differ in case/whitespace between the two scrapes). When asked about a company, return its company details AND its associated job links.
 
 Interactive agent conversation opener (put in its instructions):
 On the first reply after the user's first message in a new thread, start with a one-line welcome, then "Here are a few things you can ask me:" and the bullet list below. If the user's first message is already a substantive question, give the welcome + bullets briefly, then answer.
@@ -130,15 +140,16 @@ On the first reply after the user's first message in a new thread, start with a 
 - "Break the companies down by industry."
 - "Which companies are the largest by employee count?"
 - "Where are these companies headquartered?"
-- "Tell me everything we have on [company name]."
+- "Show me the job links we have for [company name]."
+- "Tell me everything we have on [company name] (details + job links)."
 
 Please:
 1. First call \`listworkspaceintegrations\` with query "linkedin" (also try "phantombuster"), then \`listintegrationtools\` to confirm \`GetContainerResultWorkflowPhantombuster\`.
-2. \`updatepatternspecs\`: show the LinkedIn/PhantomBuster MCP integration node feeding (via webhook) the \`fde-company-details-pipeline\`, which writes to \`fde-company-details\`, and \`fde-company-assistant\` pulling from \`fde-company-details\`. No orchestrator or schedule node.
-3. Note that the dataset's columns are created dynamically from the phantom's \`resultObject\` fields plus \`fetched_at\` and \`container_id\`.
+2. \`updatepatternspecs\`: show the LinkedIn/PhantomBuster MCP integration node feeding (via webhook) BOTH \`fde-company-details-pipeline\` and \`fde-jobs-pipeline\`, each writing to the SHARED \`fde-linkedin-company-details\` dataset, and \`fde-company-assistant\` pulling from \`fde-linkedin-company-details\`. No orchestrator or schedule node.
+3. Note that the dataset's columns are created dynamically: company rows carry the company phantom's \`resultObject\` fields, job rows carry only companyName + query; both add \`record_type\`, \`companyName\`, \`fetched_at\`, and \`container_id\`.
 4. Ask anything ambiguous and wait for me to reply Build.
 
-Do not create anything yet - plan + pattern + questions, then wait for "Build". After the build, remind me to paste the webhook URL into the company-details phantom's PhantomBuster Advanced Settings.`,
+Do not create anything yet - plan + pattern + questions, then wait for "Build". After the build, remind me to paste each phantom's webhook URL into its PhantomBuster Advanced Settings: the company-details phantom -> \`fde-company-details-pipeline\`, the jobs phantom -> \`fde-jobs-pipeline\`.`,
   },
   {
     title: "Domain research pipeline",
