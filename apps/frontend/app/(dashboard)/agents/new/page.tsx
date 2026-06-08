@@ -101,60 +101,44 @@ Do not create anything yet — plan + pattern + dummy table + questions, then wa
   {
     title: "Forward-deployed jobs radar",
     teaser:
-      "Scrape FDE job postings worldwide; chat to compare countries, salaries, tech stacks.",
+      "Ingest the company-details PhantomBuster scrape via webhook; chat about hiring companies.",
     icon: Briefcase,
     iconClassName: "text-indigo-600",
-    prompt: `I want to monitor LinkedIn job postings for the keyword "forward deployed engineer" across major markets and let our team chat with the data weekly.
-
-Inputs:
-- Search keyword: "forward deployed engineer".
-- Country list (one subtask per country): United States (geoId 103644278), United Kingdom (101165590), Germany (101282230), France (105015875), Netherlands (102890719), Spain (105646813), Italy (103350119), Sweden (105117694), Ireland (104738515), Switzerland (106693272), Brazil (106057199), Mexico (103323778), Canada (101174742), India (102713980), Singapore (102454443), Australia (101452733), United Arab Emirates (104305776).
-- LinkedIn search URL template per country: https://www.linkedin.com/jobs/search-results/?keywords=forward%20deployed%20engineer&geoId={geoId}
+    prompt: `I want to monitor LinkedIn companies hiring "forward deployed engineers" using a single PhantomBuster "company details" scrape, store its output in one dataset, and let our team chat with that company data. The phantom is scheduled ON PHANTOMBUSTER's side and calls a webhook when it finishes. So this build does NOT launch, schedule, or poll the phantom - the ingestion agent only INGESTS the finished result.
 
 Integration (real data only - no mock fallback):
-- A LinkedIn MCP integration is installed in this workspace. Before designing, call \`listworkspaceintegrations\` with query "linkedin", then call \`listintegrationtools\` and identify the TWO jobs tools I added: (1) a search-page tool that scrapes a LinkedIn jobs search URL and returns the list of matching jobs (job ids / job urls) for that geoId, and (2) a job-details tool that takes a single job id/url and returns the full posting (title, company, location, description, salary if present).
-- Use BOTH tools in the child pipeline: the search-page tool first to enumerate jobs for the country, then the job-details tool per job to get the full posting before classifying. Do NOT use mockaiintegration - we need real data for this build.
-- If either tool is missing, STOP at the end of Phase 1. In your reply, tell me exactly which integration/tools you found, what is missing, and what naming mismatch to fix before I reply Build.
-- Empty results for a country are fine - log them, save zero rows for that country, and continue. Never fabricate rows to fill gaps.
+- A LinkedIn MCP integration is installed in this workspace, backed by PhantomBuster. Before designing, call \`listworkspaceintegrations\` with query "linkedin" (also try "phantombuster"), then call \`listintegrationtools\` to confirm the tool \`GetContainerResultWorkflowPhantombuster\` exists (it takes a \`container_id\` and returns \`resultObject\`).
+- Do NOT use any Launch tools, \`GetContainerStatusWorkflowPhantombuster\`, the \`wait\` tool, or any synchronous scrape variants. Do NOT use mockaiintegration.
+- If \`GetContainerResultWorkflowPhantombuster\` is missing, STOP at the end of Phase 1 and tell me exactly what you found before I reply Build.
 
-Architecture (hybrid):
-- One ClickHouse dataset \`fde-jobs\` shared by all agents.
-- Child pipeline agent \`fde-jobs-pipeline\` (type pipeline): one country per run. Receives country_code, country_name, geoId, and the search URL via task description. (a) Calls the LinkedIn MCP search-page tool with the per-country search URL to enumerate jobs (ids/urls) for that geoId, (b) for each job, calls the LinkedIn MCP job-details tool to fetch the full posting, (c) passes each full posting to \`transformdata\` to classify role_category as one of coding | sales-consultancy | hybrid | unknown and extract tech stack arrays only when coding is involved, (d) \`loadintodataset\` writes all rows into \`fde-jobs\` (each row tagged with source_country_geoid), (e) \`completetask\`.
-- Parent agent \`fde-jobs-orchestrator\` (type pipeline, orchestration only - no chat): receives the country list above in its task description and uses \`createsubtask\` to fan out one subtask per country to the child pipeline. Use \`updatetodos\` to track progress.
-- Interactive agent \`fde-jobs-assistant\` (type interactive): reads ONLY from \`fde-jobs\` via \`clickhouselisttables\` and \`clickhouserunselectquery\`. Never give it the LinkedIn MCP search-page or job-details tools or any write tools. Translates user questions into SELECTs internally and replies in plain English (never show SQL).
+Architecture (1 ingestion agent + 1 interactive assistant - NO orchestrator, NO schedule, ONE dataset):
+- ONE ClickHouse dataset: \`fde-company-details\` (backs the chat).
+- ONE pipeline agent \`fde-company-details-pipeline\` (type pipeline), webhook-triggered, writing ONLY to \`fde-company-details\`. It follows this WEBHOOK-TRIGGERED INGEST FLOW EXACTLY:
+  1. It is triggered by a task whose description contains a PhantomBuster "finished" webhook payload as JSON. Fields include: containerId, exitCode, exitMessage. Extract \`containerId\` (string) and \`exitCode\`.
+  2. If exitCode != 0 (failed/killed/timeout): record the failure in todos and call \`completetask\`. Do NOT fetch results, do NOT relaunch.
+  3. If exitCode == 0: call \`GetContainerResultWorkflowPhantombuster\` with container_id = the payload's containerId. Parse its \`resultObject\` (it may be a JSON string) into an array of items.
+  4. Write every item into \`fde-company-details\` via \`loadintodataset\`, preserving the phantom's fields exactly as returned (one column per field, values as-is - do NOT rename, derive, reshape, or drop fields); add \`fetched_at\` (timestamp) and \`container_id\` (string, for traceability/dedup). Then \`completetask\`. Empty results are fine - save zero rows and complete; never fabricate rows.
+  - This agent gets ONLY these tools: \`GetContainerResultWorkflowPhantombuster\`, \`loadintodataset\` (plus completetask/updatetodos). Put the "I'm webhook-triggered, never launch/poll" rule in its instructions explicitly.
+- ONE interactive agent \`fde-company-assistant\` (type interactive): reads ONLY from \`fde-company-details\` via \`clickhouselisttables\` and \`clickhouserunselectquery\`. Never give it any PhantomBuster tools or write tools. Translates user questions into SELECTs internally and replies in plain English (never show SQL).
 
-Dataset columns:
-- job_id, job_url, job_title, company_name, company_url
-- country_code, country_name, source_country_geoid (the geoId whose search surfaced this job), city, workplace_type (remote | hybrid | onsite | null), employment_type, seniority_level
-- posted_at, fetched_at
-- salary_min, salary_max, salary_currency, salary_period (yearly | monthly | hourly) - all nullable, often missing on LinkedIn
-- role_category (coding | sales-consultancy | hybrid | unknown), role_category_reason (short LLM justification)
-- tech_stack_languages (array), tech_stack_deployment (array: cloud | aws | gcp | azure | on-prem | hybrid), tech_stack_orchestration (array: kubernetes | ecs | nomad | docker-swarm | airflow | etc.), tech_stack_databases (array), tech_stack_other (array) - populated only when role_category is coding or hybrid
-- job_description_raw (full text so the chat agent can answer ad-hoc questions later)
-
-Transform task prompt (use inside \`transformdata\` for each posting):
-"From this LinkedIn job posting JSON, extract: (1) job_id, job_url, job_title, company_name, company_url, city, workplace_type, employment_type, seniority_level, posted_at; (2) salary_min/max/currency/period if explicitly stated (null otherwise); (3) role_category as one of 'coding', 'sales-consultancy', 'hybrid', 'unknown' with a one-sentence role_category_reason; (4) ONLY if role_category includes coding, tech_stack_languages, tech_stack_deployment, tech_stack_orchestration, tech_stack_databases, tech_stack_other as deduplicated lowercase string arrays; otherwise leave the tech_stack_* arrays empty. Always include job_description_raw verbatim." (country_code, country_name, and source_country_geoid come from the subtask context, not the posting — set them when loading the row.)
+Datasets / columns:
+- Store each \`resultObject\` item RAW, exactly as the phantom returns it, plus \`fetched_at\` and \`container_id\`. The column set is simply whatever the phantom outputs, so there is no fixed schema to pre-define. Treat any field absent on an item as null.
 
 Interactive agent conversation opener (put in its instructions):
 On the first reply after the user's first message in a new thread, start with a one-line welcome, then "Here are a few things you can ask me:" and the bullet list below. If the user's first message is already a substantive question, give the welcome + bullets briefly, then answer.
-- "How many open forward-deployed engineer roles per country?"
-- "Which companies are hiring for forward deployed engineer right now?"
-- "What's the salary range across postings that publish one, and how does it vary by country?"
-- "How many of these are coding roles vs sales/consultancy?"
-- "For the coding roles, what are the most common languages, deployment platforms, orchestration tools, and databases mentioned?"
-
-Schedule (Phase 2.5):
-- After Phase 2 completes, set up a recurring weekly schedule on the \`fde-jobs-orchestrator\` parent: every Monday at 06:00 Europe/Berlin.
-- Scheduled task description should be the full country list above so each weekly fire re-fans-out.
-- I understand creating the schedule also runs the parent once immediately; that's fine - it gives me an initial dataset to demo.
+- "Which companies are hiring forward deployed engineers?"
+- "Break the companies down by industry."
+- "Which companies are the largest by employee count?"
+- "Where are these companies headquartered?"
+- "Tell me everything we have on [company name]."
 
 Please:
-1. First call \`listworkspaceintegrations\` with query "linkedin" so the diagram references the real integration, then \`listintegrationtools\` to confirm both the search-page and job-details tools.
-2. \`updatepatternspecs\`: dataset \`fde-jobs\` in the middle, child pipeline pushes to it, parent fans out to the child, interactive assistant pulls from it, LinkedIn MCP integration node connected to the child.
-3. Show me a dummy table (5-6 columns) with one coding row and one sales-consultancy row so I can sanity-check the schema.
+1. First call \`listworkspaceintegrations\` with query "linkedin" (also try "phantombuster"), then \`listintegrationtools\` to confirm \`GetContainerResultWorkflowPhantombuster\`.
+2. \`updatepatternspecs\`: show the LinkedIn/PhantomBuster MCP integration node feeding (via webhook) the \`fde-company-details-pipeline\`, which writes to \`fde-company-details\`, and \`fde-company-assistant\` pulling from \`fde-company-details\`. No orchestrator or schedule node.
+3. Note that the dataset's columns are created dynamically from the phantom's \`resultObject\` fields plus \`fetched_at\` and \`container_id\`.
 4. Ask anything ambiguous and wait for me to reply Build.
 
-Do not create anything yet - plan + pattern + dummy table + questions, then wait for "Build". After Phase 2, confirm the weekly schedule with me before calling updateschedule.`,
+Do not create anything yet - plan + pattern + questions, then wait for "Build". After the build, remind me to paste the webhook URL into the company-details phantom's PhantomBuster Advanced Settings.`,
   },
   {
     title: "Domain research pipeline",
