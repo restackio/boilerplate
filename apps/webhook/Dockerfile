@@ -12,8 +12,11 @@ COPY . .
 # Install dependencies
 RUN uv sync --no-dev
 
-# Expose port 8000
-EXPOSE 8000
+# HTTP port the webhook server binds to. Defaults to 3000 to match the Helm
+# chart's containerPort/ingress. Override with WEBHOOK_HTTP_PORT.
+ENV WEBHOOK_HTTP_PORT=3000
+
+EXPOSE 3000
 
 # Start the application
 CMD ["uv", "run", "start"]

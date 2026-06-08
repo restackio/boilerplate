@@ -170,7 +170,7 @@ services:
       dockerfile: Dockerfile
     container_name: boilerplate_webhook
     ports:
-      - "8000:8000"
+      - "8000:3000"
     env_file:
       - .env
     environment:
