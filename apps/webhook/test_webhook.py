@@ -5,7 +5,7 @@
 import requests
 
 # Configuration
-WEBHOOK_BASE_URL = "http://localhost:3000"
+WEBHOOK_BASE_URL = "http://localhost:8000"
 WORKSPACE_ID = "c926e979-1f16-46bf-a7cc-8aab70162d65"
 AGENT_NAME = "websearch"
 
